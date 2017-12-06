@@ -2,7 +2,7 @@
 
 export("%nin%")
 export(match_comm_tree)
-export(pcd2)
+export(pcd)
 export(pcd_pred)
 export(rm_site_noobs)
 export(rm_sp_noobs)

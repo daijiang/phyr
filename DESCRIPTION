@@ -8,9 +8,9 @@ Authors@R: c(
     person("Daijiang", "Li", , "daijianglee@gmail.com", role = c("aut")))
     )
 Description: This is a collection of functions to do phylogenetic analysis that were
-wrote by Ives et al. It is easier to update and modify functions in one place than 
-submitting changes to serveral packages. We rewrote core parts of some functions
-in c++ to speed things up.
+    wrote by Ives et al. It is easier to update and modify functions in one place than 
+    submitting changes to serveral packages. We rewrote core parts of some functions
+    in c++ to speed things up.
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
