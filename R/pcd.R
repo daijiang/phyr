@@ -100,13 +100,11 @@ pcd_pred = function(comm_1, comm_2 = NULL, tree, reps = 10^3, cpp = TRUE) {
 #' @return a list of a variety of pairwise dissimilarities.
 #' @export
 #' @examples
-#' x1 = pcd_pred(comm_1 = read.csv('data/li_2015_old.csv', row.names = 1, check.names = F),
-#'               comm_2 = read.csv('data/li_2015_new.csv', row.names = 1, check.names = F),
-#'                  tree = ape::read.tree('data/phy.tre'), reps = 100)
-#' pcd2(comm = read.csv('data/li_2015_old.csv', row.names = 1, check.names = F),
-#'       tree = ape::read.tree('data/phy.tre'),
+#' x1 = pcd_pred(comm_1 = comm_a, comm_2 = comm_b, tree = tree, reps = 100)
+#' pcd(comm = comm_a,
+#'       tree = tree,
 #'       expectation = x1)
-pcd2 = function(comm, tree, expectation = NULL, cpp = TRUE, verbose = TRUE) {
+pcd = function(comm, tree, expectation = NULL, cpp = TRUE, verbose = TRUE) {
   if (is.null(expectation)) {
     expectation = pcd_pred(comm_1 = comm, tree = tree)
   }
