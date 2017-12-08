@@ -104,9 +104,9 @@ pcd_pred = function(comm_1, comm_2 = NULL, tree, reps = 10^3, cpp = TRUE) {
 #' pcd(comm = comm_a,
 #'       tree = tree,
 #'       expectation = x1)
-pcd = function(comm, tree, expectation = NULL, cpp = TRUE, verbose = TRUE) {
+pcd = function(comm, tree, expectation = NULL, cpp = TRUE, verbose = TRUE, ...) {
   if (is.null(expectation)) {
-    expectation = pcd_pred(comm_1 = comm, tree = tree)
+    expectation = pcd_pred(comm_1 = comm, tree = tree, ...)
   }
   nsp_pool = expectation$nsp_pool
   nsr = expectation$nsr
