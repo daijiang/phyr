@@ -26,9 +26,9 @@
 #'
 #' @docType data
 #' @keywords datasets
-#' @name tree
+#' @name phylotree
 #' @format Newick format
-"tree"
+"phylotree"
 
 #' #' Example environmental data
 #'
