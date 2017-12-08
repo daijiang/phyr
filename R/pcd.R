@@ -30,7 +30,7 @@ pcd_pred = function(comm_1, comm_2 = NULL, tree, reps = 10^3, cpp = TRUE) {
       # If phylo has no given branch lengths
       tree = compute.brlen(tree, 1)
     }
-    tree = drop.tip(tree, tip = tree$tip.label[!tree$tip.label %in% sp_pool])
+    tree = drop.tip(tree, tip = tree$tip.label[tree$tip.label %nin% sp_pool])
     V = vcv.phylo(tree, corr = TRUE)
     comm_1 = comm_1[, tree$tip.label[tree$tip.label %in% colnames(comm_1)]]
     if (!is.null(comm_2)) {

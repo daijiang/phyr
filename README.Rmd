@@ -28,3 +28,20 @@ These functions share some similarities and it makes more sense to put them in o
 - Import `psv` family of functions, change the default pruning setting of the phylogeny since this sometimes can lead to different results from not pruning.
 - Import `binaryPGLMM`
 - Import `communityPGLMM`
+
+# Imported
+
+- `pcd` from the picante package
+- `psv` from the picante package
+
+```{r, message=FALSE}
+library(phyr)
+# pcd is about 20 times faster
+microbenchmark::microbenchmark(phyr::pcd(comm = comm_a, tree = phylotree, reps = 1000, verbose = F),
+                               picante::pcd(comm = comm_a, tree = phylotree, reps = 1000),
+                               times = 30)
+# psv, the example data is too small to compare
+microbenchmark::microbenchmark(phyr::psv(comm_a, phylotree),
+                               picante::psv(comm_a, phylotree))
+```
+

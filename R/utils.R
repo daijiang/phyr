@@ -3,7 +3,6 @@
 NULL
 
 #' @importFrom ape read.tree write.tree drop.tip compute.brlen vcv.phylo vcv is.rooted
-#' @importFrom dplyr %>% select filter arrange rename mutate left_join everything
 NULL
 
 #' Remove species that not observed in any site.
@@ -83,12 +82,12 @@ match_comm_tree = function(comm, tree, comm_2 = NULL){
   }
 
   if(!all(tree_tips %in% intersect_taxa)){
-    warning("Dropping tips from the phylogeny that are not in the community data")
+    message("Dropping tips from the phylogeny that are not in the community data")
     tree = ape::drop.tip(tree, setdiff(tree_tips, intersect_taxa))
   }
 
   if(!all(comm_taxa %in% tree_tips)){
-    warning("Dropping species from the community data that are not in the phylogeny")
+    message("Dropping species from the community data that are not in the phylogeny")
   }
   comm = comm[, tree$tip.label] # this will sort the comm data, and remove sp if needed
 

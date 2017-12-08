@@ -4,7 +4,7 @@
 \alias{pcd}
 \title{pairwise site phylogenetic community dissimilarity (PCD) within a community}
 \usage{
-pcd(comm, tree, expectation = NULL, cpp = TRUE, verbose = TRUE)
+pcd(comm, tree, expectation = NULL, cpp = TRUE, verbose = TRUE, ...)
 }
 \arguments{
 \item{comm}{site by species data frame or matrix, sites as rows.}
