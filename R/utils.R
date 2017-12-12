@@ -21,7 +21,7 @@ NULL
 #' @return  a site by species data frame.
 rm_sp_noobs = function(df) {
   if (any(colSums(df) == 0)) {
-    df = df[, -which(colSums(df) == 0)]
+    df = df[, -which(colSums(df) == 0), drop = FALSE]
   }
   df
 }
@@ -37,7 +37,7 @@ rm_sp_noobs = function(df) {
 #' @return  a site by species data frame.
 rm_site_noobs = function(df) {
   if (any(rowSums(df) == 0)) {
-    df = df[-which(rowSums(df) == 0), ]
+    df = df[-which(rowSums(df) == 0), , drop = FALSE]
   }
   df
 }
@@ -73,7 +73,7 @@ match_comm_tree = function(comm, tree, comm_2 = NULL){
     stop("Community data needs to be a data frame or a matrix")
   }
 
-  if(!is.null(comm_2) & (class(comm) %nin% c("data.frame", "matrix"))){
+  if(!is.null(comm_2) & (class(comm_2) %nin% c("data.frame", "matrix"))){
     stop("Community data needs to be a data frame or a matrix")
   }
 
@@ -102,3 +102,45 @@ match_comm_tree = function(comm, tree, comm_2 = NULL){
     return(list(comm = comm, tree = tree))
   }
 }
+
+#' Create phylogenetic var-cov matrix based on phylogeny and community data
+#'
+#' This function will remove species from community data that are not in the phylogeny.
+#' It will also remove tips from the phylogeny that are not in the community data. And
+#' then convert the phylogeny to a Var-cov matrix.
+#'
+#' @param comm a site by species data frame, with site names as row names.
+#' @param tree a phylogeny with "phylo" as class; or a phylogenetic var-covar matrix.
+#' @param prune.tree whether to prune the tree first then use vcv.phylo function. Default
+#' is FALSE: use vcv.phylo first then subsetting the matrix
+#' @return a list of the community data and the phylogenetic var-cov matrix
+#' @export
+#'
+align_comm_V = function(comm, tree, prune.tree = FALSE, scale.vcv = TRUE){
+  # remove species and site with no observation
+  # comm = rm_site_noobs(rm_sp_noobs(comm))
+  # remove species not in the tree
+  if (is(tree)[1] == "phylo") {
+    comm = comm[, colnames(comm) %in% tree$tip.label, drop = FALSE]
+    if (is.null(tree$edge.length)) tree = ape::compute.brlen(tree, 1) # If phylo has no given branch lengths
+    if (ape::Ntip(tree) > 5000 | prune.tree) {
+      if(prune.tree) warning("Prunning the tree before converting to var-cov matrix may have different results")
+      tree = ape::drop.tip(tree, tree$tip.label[tree$tip.label %nin% colnames(comm)])
+    }
+    # Attention: prune then vcv VS. vcv then subsetting may have different Cmatrix.
+    # so, by default, we won't prune the tree unless it is huge
+    Cmatrix = ape::vcv.phylo(tree, corr = scale.vcv)  # Make a correlation matrix of the species pool phylogeny
+  } else {
+    # tree is a matrix
+    comm = comm[, colnames(comm) %in% colnames(tree), drop = FALSE]
+    Cmatrix = tree
+  }
+  
+  tokeep = which(colnames(Cmatrix) %in% colnames(comm))
+  
+  Cmatrix = Cmatrix[tokeep, tokeep, drop = FALSE]
+  comm = comm[, colnames(Cmatrix), drop = FALSE]
+  
+  return(list(Cmatrix = Cmatrix, comm = comm))
+}
+
