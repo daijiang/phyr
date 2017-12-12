@@ -15,11 +15,14 @@ License: GPL-3
 Encoding: UTF-8
 LazyData: true
 Depends:
-    R (>= 3.1), 
-    Matrix
-Imports:
+    R (>= 3.1) 
+Imports: 
     ape,
-    Rcpp
+    Rcpp,
+    Matrix,
+    stats,
+    methods,
+    graphics
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 6.0.1
 LinkingTo:
