@@ -428,7 +428,7 @@ communityPGLMM <- function(formula, data = list(), family = "gaussian",
   }
   
   # arrange data
-  # data = dplyr::arrange(data, site, sp)
+  data = dplyr::arrange(data, site, sp)
   
   if(is.null(sp)){
     sp = as.factor(data$sp)
