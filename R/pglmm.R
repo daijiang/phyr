@@ -18,31 +18,25 @@
 #' such as that analyzed in Rafferty and Ives (2011), by giving sites
 #' phylogenetic correlations.
 #' @param formula a two-sided linear formula object describing the
-#' fixed-effects of the model; for example, \code{Y ~ X}.
+#' mixed-effects of the model; it follows similar syntax as \code{\link[lme4:lmer]{lmer}}.
+#' There are some differences though: 1. to specify that a random term 
+#' should have phylogenetic cov matrix too, add "__" at the end of the group
+#' variable, e.g. \code{+ (1 | sp__)} will construct two random terms, one
+#' with phylogenetic cov matrix and another with non-phylogenetic (Identity) matrix;
+#' 2. to specify nested random term, use \code{+ (1|site@sp)}. Note, however,
+#' no correlated random terms will be allowed at this moment. For example,
+#' \code{(x|g)} will be equal with \code{(0 + x|g)} in the lmer syntax; 
+#' also, \code{(x1 + x2|g)} won't work.
 #' @param data a \code{\link{data.frame}} containing the variables
 #' named in formula. The data frame should have long format with
 #' factors specifying species (named as 'sp') and sites (named as 'site'). \code{communityPGLMM} will
 #' reorder rows of the data frame so that species are nested within
-#' sites. Please note that calling
-#' \code{\link{as.data.frame.comparative.comm}} will return your
-#' \code{comparative.comm} object into this format for you.
+#' sites.
 #' @param family either \code{gaussian} for a Linear Mixed Model, or
 #' \code{binomial} for binary dependent data.
-#' @param sp a \code{\link{factor}} variable that identifies species 
-#' @param site a \code{\link{factor}} variable that identifies sites
-#' @param random.effects a \code{\link{list}} that contains, for
-#' non-nested random effects, lists of triplets of the form
-#' \code{list(X, group = group, covar = V)}. This is modeled after the
-#' \code{\link[lme4:lmer]{lmer}} formula syntax \code{(X | group)}
-#' where \code{X} is a variable and \code{group} is a grouping
-#' factor. Note that \code{group} should be either your \code{sp} or
-#' \code{site} variable specified in \code{sp} and \code{site}. The
-#' additional term \code{V} is a covariance matrix of rank equal to
-#' the number of levels of group that specifies the covariances among
-#' groups in the random effect \code{X}. For nested variable random
-#' effects, \code{random.effects} contains lists of quadruplets of the
-#' form \code{list(X, group1 = group1, covar = V, group2 = group2)}
-#' where \code{group1} is nested within \code{group2}.
+#' @param tree a phylogeny, with "phylo" class.
+#' @param repulsion when nested random term specified, do you want to test repulsion or underdispersion?
+#' Default is FALSE, i.e. test underdispersion.
 #' @param REML whether REML or ML is used for model fitting. For the
 #' generalized linear mixed model for binary data, these don't have
 #' standard interpretations, and there is no log likelihood function
@@ -415,8 +409,7 @@
 #' }
 #' }
 # end of doc ---- 
-communityPGLMM <- function(formula, data = list(), family = "gaussian", 
-                           random.effects = list(), sp = NULL, site = NULL,
+communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, repulsion = FALSE,
                            REML = TRUE, s2.init = NULL, B.init = NULL, reltol = 10^-6, 
                            maxit = 500, tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE) {
   if (family %nin% c("gaussian", "binomial"))
@@ -429,26 +422,90 @@ communityPGLMM <- function(formula, data = list(), family = "gaussian",
   
   # arrange data
   data = dplyr::arrange(data, site, sp)
-  
-  if(is.null(sp)){
-    sp = as.factor(data$sp)
-  }
-  
-  if(is.null(site)){
-    site = as.factor(data$site)
-  }
-  
+  data$sp = as.factor(data$sp); sp = data$sp
+  data$site = as.factor(data$site); site = data$site
   spl = levels(sp)
+  nspp = nlevels(sp); nsite = nlevels(site)
   
-  # make sure Vphy and sp have the same order
-  random.effects = lapply(random.effects, function(x){
-    xx = x[[3]] # the cov matrix
-    if(dplyr::n_distinct(xx[upper.tri(xx)]) > 1){
-      # has cov
-      x[[3]] = xx[spl, spl]
+  # @ for nested; __ at the end for phylogenetic cov
+  fm = unique(lme4::findbars(formula))
+  if(any(grepl("__$", fm))){
+    # phylogeny
+    if(length(setdiff(spl, tree$tip.label))) stop("Some species not in the phylogeny, please either drop these species or update the phylogeny")
+    if(length(setdiff(tree$tip.label, spl))){
+      warning("Drop species from the phylogeny that are not in the data")
+      tree = ape::drop.tip(tree, setdiff(tree$tip.label, spl))
     }
-    return(x)
+    Vphy <- ape::vcv(tree)
+    Vphy <- Vphy/max(Vphy)
+    Vphy <- Vphy/exp(determinant(Vphy)$modulus[1]/nspp)
+    Vphy = Vphy[spl, spl] # same order as species levels
+  }
+  
+  random.effects = lapply(fm, function(x){
+    x2 = as.character(x)
+    if(x2[2] == "1"){ # intercept
+      if(!grepl("[@]", x2[3])){ # single column; non-nested
+        if(grepl("[+]", x2[2])) stop("(x1 + x2|g) form of random terms are not allowed yet, pleast split it")
+        if(grepl("__$", x2[3])){
+          # also want phylogenetic version, 
+          # it makes sense if the phylogenetic version is in, the non-phy part should be there too
+          coln = gsub("__$", "", x2[3])
+          if(coln != "sp") stop("phylogenetic cov matrix only apply to column 'sp'.")
+          d = data[, coln] # extract the column
+          xout_nonphy = list(1, d, covar = diag(nlevels(d)))
+          names(xout_nonphy)[2] = coln
+          xout_phy = list(1, d, covar = Vphy)
+          names(xout_phy)[2] = coln
+          xout = list(xout_nonphy, xout_phy)
+        } else { # non phylogenetic random term
+          d = data[, x2[3]] # extract the column
+          xout = list(1, d, covar = diag(dplyr::n_distinct(d)))
+          names(xout)[2] = x2[3]
+          xout = list(xout)
+        } 
+      } else { # nested term 
+        if(repulsion){
+          xout = list(1, sp = data$sp, covar = solve(Vphy), site = data$site)
+          xout = list(xout)
+        } else {
+          xout = list(1, sp = data$sp, covar = Vphy, site = data$site)
+          xout = list(xout)
+        }
+      }
+    } else { # slope
+      if(grepl("__$", x2[3])){
+        # also want phylogenetic version, 
+        # it makes sense if the phylogenetic version is in, the non-phy part should be there too
+        coln = gsub("__$", "", x2[3])
+        if(coln != "sp") stop("phylogenetic cov matrix only apply to column 'sp'.")
+        d = data[, coln] # extract the column
+        xout_nonphy = list(data[, x2[2]], d, covar = diag(nlevels(d)))
+        names(xout_nonphy)[2] = coln
+        xout_phy = list(data[, x2[2]], d, covar = Vphy)
+        names(xout_phy)[2] = coln
+        xout = list(xout_nonphy, xout_phy)
+      } else { # non phylogenetic random term
+        d = data[, x2[3]] # extract the column
+        xout = list(data[, x2[2]], d, covar = diag(dplyr::n_distinct(d)))
+        names(xout)[2] = x2[3]
+        xout = list(xout)
+      } 
+    }
+    xout
   })
+  random.effects = unlist(random.effects, recursive = FALSE)
+  names(random.effects) = unlist(sapply(fm, function(x){
+    x2 = as.character(x)
+    x3 = paste0(x2[2], x2[1], x2[3])
+    if(grepl("__$", x2[3])){
+      x4 = gsub("__$", "", x3)
+      return(c(x4, x3))
+    }
+    x3
+  }), recursive = T)
+  
+  formula = lme4::nobars(formula)
   
   if (family == "gaussian") {
     z <- communityPGLMM.gaussian(formula = formula, data = data, 
@@ -521,19 +578,19 @@ get_design_matrix = function(formula, data, na.action = NULL,
     # nested terms
     if (length(re.i) == 4) {
       if (setequal(levels(re.i[[2]]), levels(sp)) && all(re.i[[2]] == sp)) {
-        if (length(re.i[[1]]) > 1)
-          stop("Nested terms can only be for intercepts")
+        if (length(re.i[[1]]) > 1) stop("Nested terms can only be for intercepts")
         nestedsp.j <- re.i[[3]]
         nestedsite.j <- diag(nsite)
         nested.j <- as(kronecker(nestedsite.j, nestedsp.j), "dgCMatrix")
       }
+      
       if (setequal(levels(re.i[[2]]), levels(site)) && all(re.i[[2]] == site)) {
-        if (length(re.i[[1]]) > 1)
-          stop("Nested terms can only be for intercepts")
+        if (length(re.i[[1]]) > 1) stop("Nested terms can only be for intercepts")
         nestedsp.j <- diag(nspp)
         nestedsite.j <- re.i[[3]]
         nested.j <- as(kronecker(nestedsite.j, nestedsp.j), "dgCMatrix")
       }
+      
       jj <- jj + 1
       nested[[jj]] <- nested.j
       

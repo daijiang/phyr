@@ -13,10 +13,10 @@
 \alias{communityPGLMM.predicted.values}
 \title{Phylogenetic Generalised Linear Mixed Model for Community Data}
 \usage{
-communityPGLMM(formula, data = list(), family = "gaussian",
-  random.effects = list(), sp = NULL, site = NULL, REML = TRUE,
-  s2.init = NULL, B.init = NULL, reltol = 10^-6, maxit = 500,
-  tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE)
+communityPGLMM(formula, data = NULL, family = "gaussian", tree,
+  repulsion = FALSE, REML = TRUE, s2.init = NULL, B.init = NULL,
+  reltol = 10^-6, maxit = 500, tol.pql = 10^-6, maxit.pql = 200,
+  verbose = FALSE)
 
 communityPGLMM.gaussian(formula, data = list(), family = "gaussian",
   sp = NULL, site = NULL, random.effects = list(), REML = TRUE,
@@ -46,36 +46,29 @@ communityPGLMM.predicted.values(x, show.plot = TRUE, ...)
 }
 \arguments{
 \item{formula}{a two-sided linear formula object describing the
-fixed-effects of the model; for example, \code{Y ~ X}.}
+mixed-effects of the model; it follows similar syntax as \code{\link[lme4:lmer]{lmer}}.
+There are some differences though: 1. to specify that a random term
+should have phylogenetic cov matrix too, add "__" at the end of the group
+variable, e.g. \code{+ (1 | sp__)} will construct two random terms, one
+with phylogenetic cov matrix and another with non-phylogenetic (Identity) matrix;
+2. to specify nested random term, use \code{+ (1|site@sp)}. Note, however,
+no correlated random terms will be allowed at this moment. For example,
+\code{(x|g)} will be equal with \code{(0 + x|g)} in the lmer syntax;
+also, \code{(x1 + x2|g)} won't work.}
 
 \item{data}{a \code{\link{data.frame}} containing the variables
 named in formula. The data frame should have long format with
 factors specifying species (named as 'sp') and sites (named as 'site'). \code{communityPGLMM} will
 reorder rows of the data frame so that species are nested within
-sites. Please note that calling
-\code{\link{as.data.frame.comparative.comm}} will return your
-\code{comparative.comm} object into this format for you.}
+sites.}
 
 \item{family}{either \code{gaussian} for a Linear Mixed Model, or
 \code{binomial} for binary dependent data.}
 
-\item{random.effects}{a \code{\link{list}} that contains, for
-non-nested random effects, lists of triplets of the form
-\code{list(X, group = group, covar = V)}. This is modeled after the
-\code{\link[lme4:lmer]{lmer}} formula syntax \code{(X | group)}
-where \code{X} is a variable and \code{group} is a grouping
-factor. Note that \code{group} should be either your \code{sp} or
-\code{site} variable specified in \code{sp} and \code{site}. The
-additional term \code{V} is a covariance matrix of rank equal to
-the number of levels of group that specifies the covariances among
-groups in the random effect \code{X}. For nested variable random
-effects, \code{random.effects} contains lists of quadruplets of the
-form \code{list(X, group1 = group1, covar = V, group2 = group2)}
-where \code{group1} is nested within \code{group2}.}
+\item{tree}{a phylogeny, with "phylo" class.}
 
-\item{sp}{a \code{\link{factor}} variable that identifies species}
-
-\item{site}{a \code{\link{factor}} variable that identifies sites}
+\item{repulsion}{when nested random term specified, do you want to test repulsion or underdispersion?
+Default is FALSE, i.e. test underdispersion.}
 
 \item{REML}{whether REML or ML is used for model fitting. For the
 generalized linear mixed model for binary data, these don't have
