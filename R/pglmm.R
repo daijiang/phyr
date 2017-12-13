@@ -509,14 +509,14 @@ get_design_matrix = function(formula, data, na.action = NULL,
     # nested terms
     if (length(re.i) == 4) {
       if (setequal(levels(re.i[[2]]), levels(sp)) && all(re.i[[2]] == sp)) {
-        if (length(re.i[[1]]) > 1) 
+        if (length(re.i[[1]]) > 1)
           stop("Nested terms can only be for intercepts")
         nestedsp.j <- re.i[[3]]
         nestedsite.j <- diag(nsite)
         nested.j <- as(kronecker(nestedsite.j, nestedsp.j), "dgCMatrix")
       }
       if (setequal(levels(re.i[[2]]), levels(site)) && all(re.i[[2]] == site)) {
-        if (length(re.i[[1]]) > 1) 
+        if (length(re.i[[1]]) > 1)
           stop("Nested terms can only be for intercepts")
         nestedsp.j <- diag(nspp)
         nestedsite.j <- re.i[[3]]
@@ -525,7 +525,7 @@ get_design_matrix = function(formula, data, na.action = NULL,
       jj <- jj + 1
       nested[[jj]] <- nested.j
       
-      # ## why changed??  similar as kronecker()?
+      # # another way to do this, which does not require reorder
       # Z.1 <- matrix(0, nrow = nspp * nsite, ncol = nlevels(re.i[[2]]))
       # Z.2 <- matrix(0, nrow = nspp * nsite, ncol = nlevels(re.i[[4]]))
       # counter <- 0
@@ -826,8 +826,6 @@ communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian",
   p <- ncol(X)
   n <- nrow(X)
   q <- length(random.effects)
-  
-  ################################################################################ STOP
   
   # Compute initial estimates assuming no phylogeny if not provided
   if (!is.null(B.init) & length(B.init) != p) {
