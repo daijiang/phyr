@@ -438,6 +438,18 @@ communityPGLMM <- function(formula, data = list(), family = "gaussian",
     site = as.factor(data$site)
   }
   
+  spl = levels(sp)
+  
+  # make sure Vphy and sp have the same order
+  random.effects = lapply(random.effects, function(x){
+    xx = x[[3]] # the cov matrix
+    if(dplyr::n_distinct(xx[upper.tri(xx)]) > 1){
+      # has cov
+      x[[3]] = xx[spl, spl]
+    }
+    return(x)
+  })
+  
   if (family == "gaussian") {
     z <- communityPGLMM.gaussian(formula = formula, data = data, 
                                  sp = sp, site = site, 
