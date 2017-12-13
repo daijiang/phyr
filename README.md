@@ -12,18 +12,31 @@ The goal of phyr is to collect and update (with c++ for core parts) functions th
 
 These functions share some similarities and it makes more sense to put them in one package to reduce redundancy in codes and to facilitate updates.
 
+
+Install
+====
+
+To install this package:
+
+``` r
+devtools::install_github("daijiang/phyr")
+# or install the binary version
+install.packages("https://raw.githubusercontent.com/daijiang/phyr/master/phyr_0.1.0.tgz", repos = NULL)
+```
+
 To do
 =====
 
--   Import `psv` family of functions, change the default pruning setting of the phylogeny since this sometimes can lead to different results from not pruning.
+-   update `psv` family of functions,
+-   update `communityPGLMM`
 -   Import `binaryPGLMM`
--   Import `communityPGLMM`
 
 Imported
 ========
 
--   `pcd` from the picante package
+-   `pcd` from the picante package; changed the default pruning setting of the phylogeny since this sometimes can lead to different results from not pruning.
 -   `psv` from the picante package
+-   `communityPGLMM` from the pez package
 
 ``` r
 library(phyr)
@@ -35,17 +48,26 @@ microbenchmark::microbenchmark(phyr::pcd(comm = comm_a, tree = phylotree, reps =
 #>                                                                  expr
 #>  phyr::pcd(comm = comm_a, tree = phylotree, reps = 1000, verbose = F)
 #>            picante::pcd(comm = comm_a, tree = phylotree, reps = 1000)
-#>        min       lq      mean    median        uq      max neval cld
-#>   14.33175  16.2879  28.75048  17.19303  18.38121 212.9673    30  a 
-#>  389.49275 395.6813 419.85560 406.67172 420.30955 536.4665    30   b
+#>        min        lq      mean    median       uq      max neval cld
+#>   11.83714  12.79658  25.62709  13.25183  13.8504 271.2731    30  a 
+#>  337.68563 348.16341 372.60263 352.62452 358.9755 781.1281    30   b
 # psv, the example data is too small to compare
 microbenchmark::microbenchmark(phyr::psv(comm_a, phylotree),
                                picante::psv(comm_a, phylotree))
 #> Unit: milliseconds
 #>                             expr      min       lq     mean   median
-#>     phyr::psv(comm_a, phylotree) 5.415047 5.691465 6.930523 5.974283
-#>  picante::psv(comm_a, phylotree) 4.714379 4.844768 6.032367 5.084386
+#>     phyr::psv(comm_a, phylotree) 4.764375 5.005802 5.743938 5.141920
+#>  picante::psv(comm_a, phylotree) 4.262557 4.496463 5.219325 4.612023
 #>        uq      max neval cld
-#>  6.792891 62.68017   100   a
-#>  6.186183 50.24562   100   a
+#>  5.411303 51.11379   100   a
+#>  4.842323 44.71577   100   a
+```
+
+`communityPGLMM` now can use similar syntax as `lme4::lmer` to specify random terms: add `__` (two underscores) at the end of grouping variable (`sp`) to specify both phylogenetic and non-phylogenetic random terms; use `(1|site@sp)` to specify nested term.
+
+``` r
+test1 = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|site@sp), 
+                             data = dat, family = "gaussian", tree = phylotree, REML = F)
+test3 = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|site@sp), 
+                             data = dat, family = "binomial", tree = phylotree, REML = F)
 ```

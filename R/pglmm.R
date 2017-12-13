@@ -421,7 +421,7 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, repu
   }
   
   # arrange data
-  data = dplyr::arrange(data, site, sp)
+  data = dplyr::arrange(as.data.frame(data), site, sp)
   data$sp = as.factor(data$sp); sp = data$sp
   data$site = as.factor(data$site); site = data$site
   spl = levels(sp)
@@ -452,7 +452,7 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, repu
           # it makes sense if the phylogenetic version is in, the non-phy part should be there too
           coln = gsub("__$", "", x2[3])
           if(coln != "sp") stop("phylogenetic cov matrix only apply to column 'sp'.")
-          d = data[, coln] # extract the column
+          d = data$sp # extract the column
           xout_nonphy = list(1, d, covar = diag(nlevels(d)))
           names(xout_nonphy)[2] = coln
           xout_phy = list(1, d, covar = Vphy)
