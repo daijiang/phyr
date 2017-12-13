@@ -6,17 +6,20 @@ comm$site = row.names(comm)
 dat = tidyr::gather(comm, key = "sp", value = "freq", -site) %>% 
   left_join(envi, by = "site") %>% 
   left_join(traits, by = "sp")
+# dat = arrange(dat, site, sp)
 nspp = n_distinct(dat$sp)
 nsite = n_distinct(dat$site)
+
+dat$site = as.factor(dat$site)
+dat$sp = as.factor(dat$sp)
+dat$pa = as.numeric(dat$freq > 0)
 
 tree = ape::drop.tip(phylotree, setdiff(phylotree$tip.label, unique(dat$sp)))
 Vphy <- ape::vcv(tree)
 Vphy <- Vphy/max(Vphy)
 Vphy <- Vphy/exp(determinant(Vphy)$modulus[1]/nspp)
+# Vphy = Vphy[levels(dat$sp), levels(dat$sp)]
 
-dat$site = as.factor(dat$site)
-dat$sp = as.factor(dat$sp)
-dat$pa = as.numeric(dat$freq > 0)
 
 # prepare random effects
 re.site <- list(1, site = dat$site, covar = diag(nsite))
@@ -27,6 +30,9 @@ re.nested.phy <- list(1, sp = dat$sp, covar = Vphy, site = dat$site)
 re.nested.rep <- list(1, sp = dat$sp, covar = solve(Vphy), site = dat$site)
 # can be named 
 re = list(re.sp = re.sp, re.sp.phy = re.sp.phy, re.nested.phy = re.nested.phy, re.site = re.site)
+re2 = list(re.sp = re.sp, re.site = re.site)
+
+summary(lme4::lmer(freq ~ 1 + shade + (1| sp) + (1|site), dat, REML = F))
 
 test_that("testing gaussian models", {
   test1 <- phyr::communityPGLMM(freq ~ 1 + shade, data = dat, sp = dat$sp, site = dat$site, random.effects = re, REML = F)

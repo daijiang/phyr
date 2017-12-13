@@ -21,14 +21,14 @@
 #' fixed-effects of the model; for example, \code{Y ~ X}.
 #' @param data a \code{\link{data.frame}} containing the variables
 #' named in formula. The data frame should have long format with
-#' factors specifying species and sites. \code{communityPGLMM} will
+#' factors specifying species (named as 'sp') and sites (named as 'site'). \code{communityPGLMM} will
 #' reorder rows of the data frame so that species are nested within
 #' sites. Please note that calling
 #' \code{\link{as.data.frame.comparative.comm}} will return your
 #' \code{comparative.comm} object into this format for you.
 #' @param family either \code{gaussian} for a Linear Mixed Model, or
 #' \code{binomial} for binary dependent data.
-#' @param sp a \code{\link{factor}} variable that identifies species
+#' @param sp a \code{\link{factor}} variable that identifies species 
 #' @param site a \code{\link{factor}} variable that identifies sites
 #' @param random.effects a \code{\link{list}} that contains, for
 #' non-nested random effects, lists of triplets of the form
@@ -416,10 +416,9 @@
 #' }
 # end of doc ---- 
 communityPGLMM <- function(formula, data = list(), family = "gaussian", 
-                           sp = NULL, site = NULL, random.effects = list(), 
-                           REML = TRUE, s2.init = NULL, B.init = NULL, 
-                           reltol = 10^-6, maxit = 500, tol.pql = 10^-6, 
-                           maxit.pql = 200, verbose = FALSE) {
+                           random.effects = list(), sp = NULL, site = NULL,
+                           REML = TRUE, s2.init = NULL, B.init = NULL, reltol = 10^-6, 
+                           maxit = 500, tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE) {
   if (family %nin% c("gaussian", "binomial"))
     stop("\nSorry, but only binomial (binary) and gaussian options exist at this time")
   
@@ -427,6 +426,9 @@ communityPGLMM <- function(formula, data = list(), family = "gaussian",
   if(!all(c("sp", "site") %in% names(data))) {
     stop("The data frame should have a column named as 'sp' and a column named as 'site'.")
   }
+  
+  # arrange data
+  # data = dplyr::arrange(data, site, sp)
   
   if(is.null(sp)){
     sp = as.factor(data$sp)
@@ -459,8 +461,8 @@ communityPGLMM <- function(formula, data = list(), family = "gaussian",
 }
 
 # Get design matrix for both gaussian and binomial models
-get_design_matrix = function(formula = formula, data = data, na.action = NULL, 
-                             sp = sp, site = site, random.effects = random.effects){
+get_design_matrix = function(formula, data, na.action = NULL, 
+                             sp, site, random.effects){
   # Main program
   nspp <- nlevels(sp)
   nsite <- nlevels(site)
@@ -578,7 +580,8 @@ get_design_matrix = function(formula = formula, data = data, na.action = NULL,
     }
   }
   
-  return(list(St = St, Zt = Zt, X = X, Y = Y, nested = nested))
+  return(list(St = St, Zt = Zt, X = X, Y = Y, nested = nested, 
+              q.nonNested = q.nonNested, q.Nested = q.Nested))
 }
 
 # Log likelihood function for gaussian model
@@ -601,11 +604,8 @@ plmm.gaussian.LL <- function(par, X, Y, Zt, St, nested = NULL, REML, verbose) {
     q.nonNested <- 0
     sr <- NULL
   }
-  if (is.null(nested[[1]])) {
-    q.Nested <- 0
-  } else {
-    q.Nested <- length(nested)
-  }
+
+  q.Nested <- length(nested)
   
   if (q.Nested == 0) {
     sn <- NULL
@@ -716,11 +716,7 @@ plmm.binary.iV.logdetV <- function(par, Zt, St, mu, nested, logdet = TRUE) {
     sr <- NULL
   }
   
-  if (is.null(nested[[1]])) {
-    q.Nested <- 0
-  } else {
-    q.Nested <- length(nested)
-  }
+  q.Nested <- length(nested)
   
   if (q.Nested == 0) {
     sn <- NULL
@@ -786,6 +782,8 @@ plmm.binary.V <- function(par, Zt, St, mu, nested) {
     q.nonNested <- 0
     sr <- NULL
   }
+  
+  q.Nested <- length(nested)
   
   if (q.Nested == 0) {
     sn <- NULL
@@ -877,21 +875,18 @@ communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian",
     q.nonNested <- 0
     sr <- NULL
   }
-  if (is.null(nested[[1]])) {
-    q.Nested <- 0
-    sn <- NULL
-  } else {
-    q.Nested <- length(nested)
-    sn <- Re(par[(q.nonNested + 1):(q.nonNested + q.Nested)])
-  }
+  
+  q.Nested <- length(nested)
  
   if (q.Nested == 0) {
+    sn <- NULL
     iA <- as(diag(n), "dsCMatrix")
     Ishort <- as(diag(nrow(Ut)), "dsCMatrix")
     Ut.iA.U <- Ut %*% U
     # Woodbury identity
     iV <- iA - U %*% solve(Ishort + Ut.iA.U) %*% Ut
   } else {
+    sn <- Re(par[(q.nonNested + 1):(q.nonNested + q.Nested)])
     A <- as(diag(n), "dsCMatrix")
     for (j in 1:q.Nested) {
       A <- A + sn[j]^2 * nested[[j]]
@@ -1067,11 +1062,13 @@ communityPGLMM.binary <- function(formula, data = list(), family = "binomial",
   }
   
   # Extract parameters
+  q.nonNested = dm$q.nonNested
   if (q.nonNested > 0) {
     sr <- ss[1:q.nonNested]
   } else {
     sr <- NULL
   }
+  q.Nested = dm$q.Nested
   if (q.Nested > 0) {
     sn <- ss[(q.nonNested + 1):(q.nonNested + q.Nested)]
   } else {
@@ -1159,9 +1156,9 @@ communityPGLMM.matrix.structure <- function(formula, data = list(), family = "bi
 
 #' @rdname pglmm
 #' @method summary communityPGLMM
+#' @param x communityPGLMM object to be summarised
 #' @param digits minimal number of significant digits for printing, as
 #' in \code{\link{print.default}}
-#' @param object communityPGLMM object to be summarised
 #' @export
 summary.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ...) {
   if (x$family == "gaussian") {
@@ -1198,6 +1195,7 @@ summary.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), 
   w <- data.frame(Variance = c(x$s2r, x$s2n, x$s2resid))
   w$Std.Dev = sqrt(w$Variance)
   
+  random.effects = x$random.effects
   if(!is.null(names(random.effects))){
     re.names = names(random.effects)[c(
       which(sapply(random.effects, length) != 4),
@@ -1224,6 +1222,12 @@ summary.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), 
   cat("\n")
 }
 
+#' @rdname pglmm
+#' @method print communityPGLMM
+#' @param x communityPGLMM object to be summarised
+#' @param digits minimal number of significant digits for printing, as
+#' in \code{\link{print.default}}
+#' @export
 print.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ...) {
   summary.communityPGLMM(x, digits = digits)
 }

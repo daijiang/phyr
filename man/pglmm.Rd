@@ -8,14 +8,15 @@
 \alias{communityPGLMM.binary.LRT}
 \alias{communityPGLMM.matrix.structure}
 \alias{summary.communityPGLMM}
+\alias{print.communityPGLMM}
 \alias{plot.communityPGLMM}
 \alias{communityPGLMM.predicted.values}
 \title{Phylogenetic Generalised Linear Mixed Model for Community Data}
 \usage{
-communityPGLMM(formula, data = list(), family = "gaussian", sp = NULL,
-  site = NULL, random.effects = list(), REML = TRUE, s2.init = NULL,
-  B.init = NULL, reltol = 10^-6, maxit = 500, tol.pql = 10^-6,
-  maxit.pql = 200, verbose = FALSE)
+communityPGLMM(formula, data = list(), family = "gaussian",
+  random.effects = list(), sp = NULL, site = NULL, REML = TRUE,
+  s2.init = NULL, B.init = NULL, reltol = 10^-6, maxit = 500,
+  tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE)
 
 communityPGLMM.gaussian(formula, data = list(), family = "gaussian",
   sp = NULL, site = NULL, random.effects = list(), REML = TRUE,
@@ -35,6 +36,9 @@ communityPGLMM.matrix.structure(formula, data = list(), family = "binomial",
 \method{summary}{communityPGLMM}(x, digits = max(3, getOption("digits") - 3),
   ...)
 
+\method{print}{communityPGLMM}(x, digits = max(3, getOption("digits") - 3),
+  ...)
+
 \method{plot}{communityPGLMM}(x, digits = max(3, getOption("digits") - 3),
   ...)
 
@@ -46,7 +50,7 @@ fixed-effects of the model; for example, \code{Y ~ X}.}
 
 \item{data}{a \code{\link{data.frame}} containing the variables
 named in formula. The data frame should have long format with
-factors specifying species and sites. \code{communityPGLMM} will
+factors specifying species (named as 'sp') and sites (named as 'site'). \code{communityPGLMM} will
 reorder rows of the data frame so that species are nested within
 sites. Please note that calling
 \code{\link{as.data.frame.comparative.comm}} will return your
@@ -54,10 +58,6 @@ sites. Please note that calling
 
 \item{family}{either \code{gaussian} for a Linear Mixed Model, or
 \code{binomial} for binary dependent data.}
-
-\item{sp}{a \code{\link{factor}} variable that identifies species}
-
-\item{site}{a \code{\link{factor}} variable that identifies sites}
 
 \item{random.effects}{a \code{\link{list}} that contains, for
 non-nested random effects, lists of triplets of the form
@@ -72,6 +72,10 @@ groups in the random effect \code{X}. For nested variable random
 effects, \code{random.effects} contains lists of quadruplets of the
 form \code{list(X, group1 = group1, covar = V, group2 = group2)}
 where \code{group1} is nested within \code{group2}.}
+
+\item{sp}{a \code{\link{factor}} variable that identifies species}
+
+\item{site}{a \code{\link{factor}} variable that identifies sites}
 
 \item{REML}{whether REML or ML is used for model fitting. For the
 generalized linear mixed model for binary data, these don't have
@@ -115,6 +119,8 @@ binomial GLMM.}
 \item{verbose}{if \code{TRUE}, the model deviance and running
 estimates of \code{s2} and \code{B} are plotted each iteration
 during optimization.}
+
+\item{x}{communityPGLMM object to be summarised}
 
 \item{...}{additional arguments to summary and plotting functions
 (currently ignored)
@@ -183,7 +189,10 @@ in \code{\link{print.default}}}
 
 \item{show.plot}{if \code{TRUE} (default), display plot}
 
-\item{object}{communityPGLMM object to be summarised}
+\item{x}{communityPGLMM object to be summarised}
+
+\item{digits}{minimal number of significant digits for printing, as
+in \code{\link{print.default}}}
 }
 \value{
 an object of class \code{communityPGLMM}
