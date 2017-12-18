@@ -427,6 +427,7 @@ prep_dat_pglmm = function(formula, data, family, tree, repulsion){
   
   # @ for nested; __ at the end for phylogenetic cov
   fm = unique(lme4::findbars(formula))
+  if(is.null(fm)) stop("No random terms specified, use lm or glm instead")
   if(any(grepl("__$", fm))){
     # phylogeny
     if(length(setdiff(spl, tree$tip.label))) stop("Some species not in the phylogeny, please either drop these species or update the phylogeny")
