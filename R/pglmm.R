@@ -590,43 +590,26 @@ get_design_matrix = function(formula, data, na.action = NULL,
     
     # nested terms
     if (length(re.i) == 4) {
-      if (setequal(levels(re.i[[2]]), levels(sp)) && all(re.i[[2]] == sp)) {
-        if (length(re.i[[1]]) > 1) stop("Nested terms can only be for intercepts")
-        nestedsp.j <- re.i[[3]]
-        nestedsite.j <- diag(nsite)
-        nested.j <- as(kronecker(nestedsite.j, nestedsp.j), "dgCMatrix")
+      # another way to do this, which does not require reorder
+      Z.1 <- matrix(0, nrow = nspp * nsite, ncol = nlevels(re.i[[2]]))
+      Z.2 <- matrix(0, nrow = nspp * nsite, ncol = nlevels(re.i[[4]]))
+      counter <- 0
+      for (i.levels in levels(re.i[[2]])) {
+        counter <- counter + 1
+        Z.1[, counter] <- re.i[[1]] * as.numeric(i.levels == re.i[[2]])
       }
-      
-      if (setequal(levels(re.i[[2]]), levels(site)) && all(re.i[[2]] == site)) {
-        if (length(re.i[[1]]) > 1) stop("Nested terms can only be for intercepts")
-        nestedsp.j <- diag(nspp)
-        nestedsite.j <- re.i[[3]]
-        nested.j <- as(kronecker(nestedsite.j, nestedsp.j), "dgCMatrix")
+      counter <- 0
+      for (i.levels in levels(re.i[[4]])) {
+        counter <- counter + 1
+        Z.2[, counter] <- as.numeric(i.levels == re.i[[4]])
       }
-      
+      Z.1 <- chol(re.i[[3]]) %*% t(Z.1)
+      # Z.1 <- tcrossprod(chol(re.i[[3]]), Z.1)
+      # Z.2 <- t(Z.2)
       jj <- jj + 1
-      nested[[jj]] <- nested.j
-      
-      # # another way to do this, which does not require reorder
-      # Z.1 <- matrix(0, nrow = nspp * nsite, ncol = nlevels(re.i[[2]]))
-      # Z.2 <- matrix(0, nrow = nspp * nsite, ncol = nlevels(re.i[[4]]))
-      # counter <- 0
-      # for (i.levels in levels(re.i[[2]])) {
-      #   counter <- counter + 1
-      #   Z.1[, counter] <- re.i[[1]] * as.numeric(i.levels == re.i[[2]])
-      # }
-      # counter <- 0
-      # for (i.levels in levels(re.i[[4]])) {
-      #   counter <- counter + 1
-      #   Z.2[, counter] <- as.numeric(i.levels == re.i[[4]])
-      # }
-      # Z.1 <- chol(re.i[[3]]) %*% t(Z.1)
-      # # Z.1 <- tcrossprod(chol(re.i[[3]]), Z.1)
-      # # Z.2 <- t(Z.2)
-      # jj <- jj + 1
-      # # use Z.2 to mask non-nested Z.1
-      # # nested[[jj]] <- (t(Z.1) %*% Z.1) * (t(Z.2) %*% Z.2)
-      # nested[[jj]] <- as(crossprod(Z.1) * tcrossprod(Z.2), "dgCMatrix")
+      # use Z.2 to mask non-nested Z.1
+      # nested[[jj]] <- (t(Z.1) %*% Z.1) * (t(Z.2) %*% Z.2)
+      nested[[jj]] <- as(crossprod(Z.1) * tcrossprod(Z.2), "dgCMatrix")
     }
   }
   
