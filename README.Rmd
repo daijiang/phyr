@@ -31,7 +31,7 @@ To install this package:
 ```{r eval = F}
 devtools::install_github("daijiang/phyr")
 # or install the binary version
-install.packages("https://raw.githubusercontent.com/daijiang/phyr/master/phyr_0.1.0.tgz", repos = NULL)
+install.packages("https://raw.githubusercontent.com/daijiang/phyr/master/phyr_0.1.1.tgz", repos = NULL)
 ```
 
 
@@ -60,10 +60,20 @@ microbenchmark::microbenchmark(phyr::psv(comm_a, phylotree),
 
 `communityPGLMM` now can use similar syntax as `lme4::lmer` to specify random terms: add `__` (two underscores) at the end of grouping variable (`sp`) to specify both phylogenetic and non-phylogenetic random terms; use `(1|site@sp)` to specify nested term.
 
-```{r eval = F}
+```{r eval = T}
+library(dplyr)
+comm = comm_a
+comm$site = row.names(comm)
+dat = tidyr::gather(comm, key = "sp", value = "freq", -site) %>% 
+  left_join(envi, by = "site") %>% 
+  left_join(traits, by = "sp")
+dat$pa = as.numeric(dat$freq > 0)
+head(dat)
 test1 = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|site@sp), 
                              data = dat, family = "gaussian", tree = phylotree, REML = F)
+test1
 test3 = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|site@sp), 
                              data = dat, family = "binomial", tree = phylotree, REML = F)
+test3
 ```
 
