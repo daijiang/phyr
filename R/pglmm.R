@@ -409,9 +409,7 @@
 #' }
 #' }
 # end of doc ---- 
-communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, repulsion = FALSE,
-                           REML = TRUE, s2.init = NULL, B.init = NULL, reltol = 10^-6, 
-                           maxit = 500, tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE) {
+prep_dat_pglmm = function(formula, data, family, tree, repulsion){
   if (family %nin% c("gaussian", "binomial"))
     stop("\nSorry, but only binomial (binary) and gaussian options exist at this time")
   
@@ -506,6 +504,21 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, repu
   }), recursive = T)
   
   formula = lme4::nobars(formula)
+  
+  return(list(formula = formula, data = data, 
+              sp = sp, site = site, 
+              random.effects = random.effects))
+}
+
+communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, repulsion = FALSE,
+                           REML = TRUE, s2.init = NULL, B.init = NULL, reltol = 10^-6, 
+                           maxit = 500, tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE) {
+  dat_prepared = prep_dat_pglmm(formula, data, family, tree, repulsion)
+  formula = dat_prepared$formula
+  data = dat_prepared$data
+  sp = dat_prepared$sp
+  site = dat_prepared$site
+  random.effects = dat_prepared$random.effects
   
   if (family == "gaussian") {
     z <- communityPGLMM.gaussian(formula = formula, data = data, 
@@ -1157,7 +1170,6 @@ communityPGLMM.binary <- function(formula, data = list(), family = "binomial",
                   H = H, iV = iV, mu = mu, nested, sp = sp, site = site, Zt = Zt, St = St, 
                   convcode = opt$convergence, niter = opt$counts)
   class(results) <- "communityPGLMM"
-  results
   return(results)
 }
 
@@ -1196,20 +1208,14 @@ communityPGLMM.binary.LRT <- function(x, re.number = 0, ...) {
 #' @param ss which of the \code{random.effects} to produce
 #' @rdname pglmm
 #' @export
-communityPGLMM.matrix.structure <- function(formula, data = list(), family = "binomial", sp = NULL, 
-                                            site = NULL, random.effects = list(), ss = 1) {
-  # make sure the data has sp and site columns
-  if(!all(c("sp", "site") %in% names(data))) {
-    stop("The data frame should have a column named as 'sp' and a column named as 'site'.")
-  }
-  
-  if(is.null(sp)){
-    sp = as.factor(data$sp)
-  }
-  
-  if(is.null(site)){
-    site = as.factor(data$site)
-  }
+communityPGLMM.matrix.structure <- function(formula, data = list(), family = "binomial", 
+                                            tree, repulsion = FALSE, ss = 1) {
+  dat_prepared = prep_dat_pglmm(formula, data, family, tree, repulsion)
+  formula = dat_prepared$formula
+  data = dat_prepared$data
+  sp = dat_prepared$sp
+  site = dat_prepared$site
+  random.effects = dat_prepared$random.effects
   
   dm = get_design_matrix(formula, data, na.action = NULL, sp, site, random.effects)
   X = dm$X; Y = dm$Y; St = dm$St; Zt = dm$Zt; nested = dm$nested
