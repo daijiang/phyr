@@ -577,7 +577,7 @@ get_design_matrix = function(formula, data, na.action = NULL,
     # non-nested terms
     if (length(re.i) == 3) {
       counter <- 0
-      Z.i <- matrix(0, nrow = nspp * nsite, ncol = nlevels(re.i[[2]]))
+      Z.i <- matrix(0, nrow = nrow(data), ncol = nlevels(re.i[[2]]))
       for (i.levels in levels(re.i[[2]])) {
         counter <- counter + 1
         Z.i[, counter] <- re.i[[1]] * as.numeric(i.levels == re.i[[2]])
@@ -591,8 +591,8 @@ get_design_matrix = function(formula, data, na.action = NULL,
     # nested terms
     if (length(re.i) == 4) {
       # another way to do this, which does not require reorder
-      Z.1 <- matrix(0, nrow = nspp * nsite, ncol = nlevels(re.i[[2]]))
-      Z.2 <- matrix(0, nrow = nspp * nsite, ncol = nlevels(re.i[[4]]))
+      Z.1 <- matrix(0, nrow = nrow(data), ncol = nlevels(re.i[[2]]))
+      Z.2 <- matrix(0, nrow = nrow(data), ncol = nlevels(re.i[[4]]))
       counter <- 0
       for (i.levels in levels(re.i[[2]])) {
         counter <- counter + 1
@@ -618,7 +618,7 @@ get_design_matrix = function(formula, data, na.action = NULL,
   
   if (q.nonNested > 0) {
     St <- matrix(0, nrow = q.nonNested, ncol = sum(St.lengths))
-    Zt <- matrix(0, nrow = sum(St.lengths), ncol = nspp * nsite)
+    Zt <- matrix(0, nrow = sum(St.lengths), ncol = nrow(data))
     count <- 1
     for (i in 1:q.nonNested) {
       St[i, count:(count + St.lengths[i] - 1)] <- matrix(1, nrow = 1, ncol = St.lengths[i])
