@@ -410,8 +410,9 @@
 #' }
 # end of doc ---- 
 prep_dat_pglmm = function(formula, data, family, tree, repulsion){
-  if (family %nin% c("gaussian", "binomial"))
+  if (family %nin% c("gaussian", "binomial")){
     stop("\nSorry, but only binomial (binary) and gaussian options exist at this time")
+  }
   
   # make sure the data has sp and site columns
   if(!all(c("sp", "site") %in% names(data))) {
@@ -658,11 +659,7 @@ plmm.gaussian.LL <- function(par, X, Y, Zt, St, nested = NULL, REML, verbose) {
   if (!is.null(St)) {
     q.nonNested <- dim(St)[1]
     sr <- Re(par[1:q.nonNested])
-    iC <- sr[1] * St[1, ]
-    if (length(sr) > 1) 
-      for (i in 2:q.nonNested) {
-        iC <- iC + sr[i] * St[i, ]
-      }
+    iC = as.vector(matrix(sr, nrow = 1) %*% St)
     iC <- as(diag(iC), "dsCMatrix")
     Ut <- iC %*% Zt
     U <- t(Ut)
@@ -769,11 +766,7 @@ plmm.binary.iV.logdetV <- function(par, Zt, St, mu, nested, logdet = TRUE) {
   if (!is.null(St)) {
     q.nonNested <- dim(St)[1]
     sr <- Re(par[1:q.nonNested])
-    iC <- sr[1] * St[1, ]
-    if (length(sr) > 1) 
-      for (i in 2:q.nonNested) {
-        iC <- iC + sr[i] * St[i, ]
-      }
+    iC = as.vector(matrix(sr, nrow = 1) %*% St)
     iC <- as(diag(iC), "dsCMatrix")
     Ut <- iC %*% Zt
     U <- t(Ut)
@@ -836,11 +829,7 @@ plmm.binary.V <- function(par, Zt, St, mu, nested) {
   if (!is.null(St)) {
     q.nonNested <- dim(St)[1]
     sr <- Re(par[1:q.nonNested])
-    iC <- sr[1] * St[1, ]
-    if (length(sr) > 1) 
-      for (i in 2:q.nonNested) {
-        iC <- iC + sr[i] * St[i, ]
-      }
+    iC = as.vector(matrix(sr, nrow = 1) %*% St)
     iC <- as(diag(iC), "dsCMatrix")
     Ut <- iC %*% Zt
     U <- t(Ut)
