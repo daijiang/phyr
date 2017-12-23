@@ -32,7 +32,7 @@ communityPGLMM.binary(formula, data = list(), family = "binomial",
   s2.init = 0.25, B.init = NULL, reltol = 10^-5, maxit = 40,
   tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE, cpp = TRUE)
 
-communityPGLMM.binary.LRT(x, re.number = 0, ...)
+communityPGLMM.binary.LRT(x, re.number = 0, cpp = TRUE, ...)
 
 communityPGLMM.matrix.structure(formula, data = list(), family = "binomial",
   tree, repulsion = FALSE, ss = 1)
@@ -116,6 +116,8 @@ binomial GLMM.}
 \item{verbose}{if \code{TRUE}, the model deviance and running
 estimates of \code{s2} and \code{B} are plotted each iteration
 during optimization.}
+
+\item{cpp}{whether to use c++ function for optim. Default is TRUE.}
 
 \item{x}{communityPGLMM object to be summarised}
 
