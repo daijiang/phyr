@@ -72,6 +72,7 @@
 #' @param verbose if \code{TRUE}, the model deviance and running
 #' estimates of \code{s2} and \code{B} are plotted each iteration
 #' during optimization.
+#' @param cpp whether to use c++ function for optim. Default is TRUE.
 #' @param ... additional arguments to summary and plotting functions
 #' (currently ignored)
 #' 

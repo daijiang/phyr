@@ -314,7 +314,6 @@ List plmm_binary_iV_logdetV_cpp(NumericVector par, arma::vec mu,
       }
     }
   }
-
   
   if(logdet){
     return List::create(
@@ -344,7 +343,7 @@ List plmm_binary_iV_logdetV_cpp(NumericVector par, arma::vec mu,
 # expect_equivalent(x$B, B)
 # expect_equivalent(x$H, H)
 # expect_equivalent(x$logdetV, logdetV)
-x = plmm_binary_iV_logdetV_cpp(par = ss, Zt = Zt, St = St, mu = mu, nested = nested, logdet = T)
-expect_equal(as.matrix(x$iV), as.matrix(y$iV))
-expect_equal(x$logdetV, y$logdetV)
+# x = plmm_binary_iV_logdetV_cpp(par = ss, Zt = Zt, St = St, mu = mu, nested = nested, logdet = T)
+# expect_equal(as.matrix(x$iV), as.matrix(y$iV))
+# expect_equal(x$logdetV, y$logdetV)
 */
