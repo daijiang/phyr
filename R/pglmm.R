@@ -1113,14 +1113,15 @@ communityPGLMM.binary <- function(formula, data = list(), family = "binomial",
 #' ratio test
 #' @rdname pglmm
 #' @export
-communityPGLMM.binary.LRT <- function(x, re.number = 0, ...) {
+communityPGLMM.binary.LRT <- function(x, re.number = 0, cpp = TRUE, ...) {
   n <- dim(x$X)[1]
   p <- dim(x$X)[2]
   par <- x$ss
   par[re.number] <- 0
   df <- length(re.number)
   
-  LL <- plmm.binary.LL(par = x$ss, H = x$H, X = x$X, Zt = x$Zt, St = x$St, mu = x$mu, nested = x$nested, REML = x$REML)
+  LL <- plmm.binary.LL(par = x$ss, H = x$H, X = x$X, Zt = x$Zt, St = x$St, 
+                       mu = x$mu, nested = x$nested, REML = x$REML, cpp = cpp)
   if (x$REML == TRUE) {
     logLik <- -0.5 * (n - p - 1) * log(2 * pi) + 0.5 * determinant(t(x$X) %*% x$X)$modulus[1] - LL
   } else {
