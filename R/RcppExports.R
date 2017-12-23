@@ -13,3 +13,11 @@ pcd2_loop <- function(SSii, nsr, SCii, comm, V, nsp_pool, verbose) {
     .Call(`_phyr_pcd2_loop`, SSii, nsr, SCii, comm, V, nsp_pool, verbose)
 }
 
+pglmm_gaussian_LL_cpp <- function(par, X, Y, Zt, St, nested, REML, verbose) {
+    .Call(`_phyr_pglmm_gaussian_LL_cpp`, par, X, Y, Zt, St, nested, REML, verbose)
+}
+
+pglmm_gaussian_LL_calc_cpp <- function(par, X, Y, Zt, St, nested, REML) {
+    .Call(`_phyr_pglmm_gaussian_LL_calc_cpp`, par, X, Y, Zt, St, nested, REML)
+}
+

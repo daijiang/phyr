@@ -654,7 +654,8 @@ get_design_matrix = function(formula, data, na.action = NULL,
 }
 
 # Log likelihood function for gaussian model
-plmm.gaussian.LL <- function(par, X, Y, Zt, St, nested = NULL, REML, verbose) {
+pglmm_gaussian_LL_calc = function(par, X, Y, Zt, St, nested = NULL, 
+                                  REML, verbose, optim_ll = TRUE){
   n <- dim(X)[1]
   p <- dim(X)[2]
   
@@ -669,7 +670,7 @@ plmm.gaussian.LL <- function(par, X, Y, Zt, St, nested = NULL, REML, verbose) {
     q.nonNested <- 0
     sr <- NULL
   }
-
+  
   q.Nested <- length(nested)
   
   if (q.Nested == 0) {
@@ -727,19 +728,35 @@ plmm.gaussian.LL <- function(par, X, Y, Zt, St, nested = NULL, REML, verbose) {
   if (REML == TRUE) {
     # concentrated REML likelihood function
     # s2.conc <- t(H) %*% iV %*% H/(n - p)
-    s2.conc <- crossprod(H, iV) %*% H/(n - p)
-    LL <- 0.5 * ((n - p) * log(s2.conc) + logdetV + (n - p) + 
-                   determinant(denom)$modulus[1])
+    s2resid <- as.numeric(crossprod(H, iV) %*% H/(n - p))
   } else {
     # concentrated ML likelihood function
     # s2.conc <- t(H) %*% iV %*% H/n
-    s2.conc <- crossprod(H, iV) %*% H/n
-    LL <- 0.5 * (n * log(s2.conc) + logdetV + n)
+    s2resid <- as.numeric(crossprod(H, iV) %*% H/n)
   }
   
-  if (verbose == T) 
-    show(c(as.numeric(LL), par))
-  return(as.numeric(LL))
+  # LL for optim
+  if(optim_ll){
+    if(REML){
+      LL <- 0.5 * ((n - p) * log(s2resid) + logdetV + (n - p) + 
+                     determinant(denom)$modulus[1])
+    } else {
+      LL <- 0.5 * (n * log(s2resid) + logdetV + n)
+    }
+    if (verbose == T) show(c(as.numeric(LL), par))
+    return(as.numeric(LL))
+  }
+  
+  # calc after optim
+  iV <- iV/s2resid
+  s2r <- s2resid * sr^2
+  s2n <- s2resid * sn^2
+  B.cov <- solve(t(X) %*% iV %*% X)
+  B.se <- as.matrix(diag(B.cov))^0.5
+  
+  results <- list(B = B, B.se = B.se, B.cov = B.cov, sr = sr, sn = sn, s2n = s2n,
+                  s2r = s2r, s2resid = s2resid, H = H, iV = iV)
+  return(results)
 }
 
 # Log likelihood function for binomial model
@@ -901,113 +918,48 @@ communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian",
   B <- B.init
   s <- as.vector(array(s2.init^0.5, dim = c(1, q)))
   
-  fn = if(cpp) pglmm_gaussian_LL_cpp else plmm.gaussian.LL
+  fn = if(cpp) pglmm_gaussian_LL_cpp else pglmm_gaussian_LL_calc
   if (q > 1) {
     opt <- optim(fn = fn, par = s, X = X, Y = Y, Zt = Zt, St = St, 
                  nested = nested, REML = REML, verbose = verbose, 
                  method = "Nelder-Mead", control = list(maxit = maxit, reltol = reltol))
   } else {
     opt <- optim(fn = fn, par = s, X = X, Y = Y, Zt = Zt, St = St, 
-                 nested = nested, REML = REML, verbose = verbose, method = "L-BFGS-B", 
-                 control = list(maxit = maxit))
+                 nested = nested, REML = REML, verbose = verbose,
+                 method = "L-BFGS-B", control = list(maxit = maxit))
   }
   
   # Extract parameters
-  par <- abs(Re(opt$par))
+  par_opt <- abs(Re(opt$par))
   LL <- opt$value
-  if (!is.null(St)) {
-    q.nonNested <- dim(St)[1]
-    sr <- Re(par[1:q.nonNested])
-    iC <- sr[1] * St[1, ]
-    if (length(sr) > 1) 
-      for (i in 2:q.nonNested) {
-        iC <- iC + sr[i] * St[i, ]
-      }
-    iC <- as(diag(iC), "dsCMatrix")
-    Ut <- iC %*% Zt
-    U <- t(Ut)
+  if(cpp){
+    out = pglmm_gaussian_LL_calc_cpp(par_opt, X, Y, Zt, St, nested, REML)
+    row.names(out$B) = colnames(X)
+    out$s2r = as.vector(out$s2r)
   } else {
-    q.nonNested <- 0
-    sr <- NULL
+    out = pglmm_gaussian_LL_calc(par_opt, X, Y, Zt, St, nested, REML, verbose, optim_ll = FALSE)
+    out$B.cov = as.matrix(out$B.cov)
   }
-  
-  q.Nested <- length(nested)
- 
-  if (q.Nested == 0) {
-    sn <- NULL
-    iA <- as(diag(n), "dsCMatrix")
-    Ishort <- as(diag(nrow(Ut)), "dsCMatrix")
-    Ut.iA.U <- Ut %*% U
-    # Woodbury identity
-    iV <- iA - U %*% solve(Ishort + Ut.iA.U) %*% Ut
-  } else {
-    sn <- Re(par[(q.nonNested + 1):(q.nonNested + q.Nested)])
-    A <- as(diag(n), "dsCMatrix")
-    for (j in 1:q.Nested) {
-      A <- A + sn[j]^2 * nested[[j]]
-    }
-    iA <- solve(A)
-    if (q.nonNested > 0) {
-      Ishort <- as(diag(nrow(Ut)), "dsCMatrix")
-      Ut.iA.U <- Ut %*% iA %*% U
-      iV <- iA - iA %*% U %*% solve(Ishort + Ut.iA.U) %*% Ut %*% iA
-    } else {
-      iV <- iA
-    }
-  }
-  
-  denom <- t(X) %*% iV %*% X
-  num <- t(X) %*% iV %*% Y
-  B <- solve(denom, num)
-  B <- as.matrix(B)
-  H <- Y - X %*% B
-  
-  if (q.Nested == 0) {
-    # Sylvester identity
-    logdetV <- determinant(Ishort + Ut.iA.U)$modulus[1]
-    if (is.infinite(logdetV)) 
-      logdetV <- 2 * sum(log(diag(chol(Ishort + Ut.iA.U))))
-  } else {
-    logdetV <- -determinant(iV)$modulus[1]
-    if (is.infinite(logdetV)) 
-      logdetV <- -2 * sum(log(diag(chol(iV, pivot = T))))
-    if (is.infinite(logdetV)) 
-      return(10^10)
-  }
+  ss <- c(out$sr, out$sn, out$s2resid^0.5)
+  B.zscore <- out$B/out$B.se
+  B.pvalue <- 2 * pnorm(abs(B.zscore), lower.tail = FALSE)
   
   if (REML == TRUE) {
-    s2resid <- as.numeric(t(H) %*% iV %*% H/(n - p))
+    logLik <- as.numeric(-0.5 * (n - p) * log(2 * pi) + 0.5 * determinant(t(X) %*% X)$modulus[1] - LL)
   } else {
-    s2resid <- as.numeric(t(H) %*% iV %*% H/n)
-  }
-  
-  s2r <- s2resid * sr^2
-  s2n <- s2resid * sn^2
-  ss <- c(sr, sn, s2resid^0.5)
-  
-  iV <- iV/s2resid
-  
-  B.cov <- solve(t(X) %*% iV %*% X)
-  B.se <- as.matrix(diag(B.cov))^0.5
-  B.zscore <- B/B.se
-  B.pvalue <- 2 * pnorm(abs(B/B.se), lower.tail = FALSE)
-  
-  if (REML == TRUE) {
-    logLik <- -0.5 * (n - p) * log(2 * pi) + 0.5 * determinant(t(X) %*% X)$modulus[1] - LL
-  } else {
-    logLik <- -0.5 * n * log(2 * pi) - LL
+    logLik <- as.numeric(-0.5 * n * log(2 * pi) - LL)
   }
   k <- p + q + 1
   AIC <- -2 * logLik + 2 * k
   BIC <- -2 * logLik + k * (log(n) - log(pi))
   
   results <- list(formula = formula, data = data, family = family, random.effects = random.effects, 
-                  B = B, B.se = B.se, B.cov = B.cov, B.zscore = B.zscore, B.pvalue = B.pvalue, 
-                  ss = ss, s2n = s2n, s2r = s2r, s2resid = s2resid, logLik = logLik, AIC = AIC, 
-                  BIC = BIC, REML = REML, s2.init = s2.init, B.init = B.init, Y = Y, X = X, H = H, 
-                  iV = iV, mu = NULL, nested = nested, sp = sp, site = site, Zt = Zt, St = St, 
+                  B = out$B, B.se = out$B.se, B.cov = out$B.cov, B.zscore = B.zscore, 
+                  B.pvalue = B.pvalue, ss = ss, s2n = out$s2n, s2r = out$s2r,
+                  s2resid = out$s2resid, logLik = logLik, AIC = AIC, BIC = BIC, 
+                  REML = REML, s2.init = s2.init, B.init = B.init, Y = Y, X = X, H = out$H, 
+                  iV = as.matrix(out$iV), mu = NULL, nested = nested, sp = sp, site = site, Zt = Zt, St = St, 
                   convcode = opt$convergence, niter = opt$counts)
-  
   class(results) <- "communityPGLMM"
   results
 }

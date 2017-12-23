@@ -4,6 +4,7 @@
 \alias{pglmm}
 \alias{prep_dat_pglmm}
 \alias{communityPGLMM}
+\alias{communityPGLMM}
 \alias{communityPGLMM.gaussian}
 \alias{communityPGLMM.binary}
 \alias{communityPGLMM.binary.LRT}
@@ -16,10 +17,15 @@
 \usage{
 prep_dat_pglmm(formula, data, family, tree, repulsion)
 
+communityPGLMM(formula, data = NULL, family = "gaussian", tree,
+  repulsion = FALSE, REML = TRUE, s2.init = NULL, B.init = NULL,
+  reltol = 10^-6, maxit = 500, tol.pql = 10^-6, maxit.pql = 200,
+  verbose = FALSE, cpp = TRUE)
+
 communityPGLMM.gaussian(formula, data = list(), family = "gaussian",
   sp = NULL, site = NULL, random.effects = list(), REML = TRUE,
   s2.init = NULL, B.init = NULL, reltol = 10^-8, maxit = 500,
-  verbose = FALSE)
+  verbose = FALSE, cpp = TRUE)
 
 communityPGLMM.binary(formula, data = list(), family = "binomial",
   sp = NULL, site = NULL, random.effects = list(), REML = TRUE,
@@ -99,10 +105,6 @@ for convergence in the optimization; see \code{\link{optim}}.}
 \item{maxit}{a control parameter dictating the maximum number of
 iterations in the optimization; see \code{\link{optim}}.}
 
-\item{verbose}{if \code{TRUE}, the model deviance and running
-estimates of \code{s2} and \code{B} are plotted each iteration
-during optimization.}
-
 \item{tol.pql}{a control parameter dictating the tolerance for
 convergence in the PQL estimates of the mean components of the
 binomial GLMM.}
@@ -110,6 +112,10 @@ binomial GLMM.}
 \item{maxit.pql}{a control parameter dictating the maximum number
 of iterations in the PQL estimates of the mean components of the
 binomial GLMM.}
+
+\item{verbose}{if \code{TRUE}, the model deviance and running
+estimates of \code{s2} and \code{B} are plotted each iteration
+during optimization.}
 
 \item{x}{communityPGLMM object to be summarised}
 
