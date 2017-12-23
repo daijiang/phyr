@@ -512,9 +512,11 @@ prep_dat_pglmm = function(formula, data, family, tree, repulsion){
               random.effects = random.effects))
 }
 
+#' @rdname pglmm
+#' @export
 communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, repulsion = FALSE,
                            REML = TRUE, s2.init = NULL, B.init = NULL, reltol = 10^-6, 
-                           maxit = 500, tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE) {
+                           maxit = 500, tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE, cpp = TRUE) {
   dat_prepared = prep_dat_pglmm(formula, data, family, tree, repulsion)
   formula = dat_prepared$formula
   data = dat_prepared$data
@@ -528,7 +530,7 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, repu
                                  random.effects = random.effects, REML = REML, 
                                  s2.init = s2.init, B.init = B.init, 
                                  reltol = reltol, maxit = maxit, 
-                                 verbose = verbose)
+                                 verbose = verbose, cpp = cpp)
   }
   
   if (family == "binomial") {
@@ -874,7 +876,7 @@ plmm.binary.V <- function(par, Zt, St, mu, nested) {
 communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian", 
                                     sp = NULL, site = NULL, random.effects = list(), 
                                     REML = TRUE, s2.init = NULL, B.init = NULL, 
-                                    reltol = 10^-8, maxit = 500, verbose = FALSE) {
+                                    reltol = 10^-8, maxit = 500, verbose = FALSE, cpp = TRUE) {
   
   dm = get_design_matrix(formula, data, na.action = NULL, sp, site, random.effects)
   X = dm$X; Y = dm$Y; St = dm$St; Zt = dm$Zt; nested = dm$nested
@@ -899,15 +901,15 @@ communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian",
   B <- B.init
   s <- as.vector(array(s2.init^0.5, dim = c(1, q)))
   
+  fn = if(cpp) pglmm_gaussian_LL_cpp else plmm.gaussian.LL
   if (q > 1) {
-    opt <- optim(fn = plmm.gaussian.LL, par = s, X = X, Y = Y, Zt = Zt, St = St, 
+    opt <- optim(fn = fn, par = s, X = X, Y = Y, Zt = Zt, St = St, 
                  nested = nested, REML = REML, verbose = verbose, 
                  method = "Nelder-Mead", control = list(maxit = maxit, reltol = reltol))
   } else {
-    opt <- optim(fn = plmm.gaussian.LL, par = s, X = X, Y = Y, Zt = Zt, St = St, 
+    opt <- optim(fn = fn, par = s, X = X, Y = Y, Zt = Zt, St = St, 
                  nested = nested, REML = REML, verbose = verbose, method = "L-BFGS-B", 
                  control = list(maxit = maxit))
-    
   }
   
   # Extract parameters
