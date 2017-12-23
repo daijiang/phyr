@@ -540,7 +540,7 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, repu
                                random.effects = random.effects, REML = REML, 
                                s2.init = s2.init, B.init = B.init, reltol = reltol, 
                                maxit = maxit, tol.pql = tol.pql, maxit.pql = maxit.pql, 
-                               verbose = verbose)
+                               verbose = verbose, cpp = cpp)
   }
   
   return(z)
@@ -760,11 +760,15 @@ pglmm_gaussian_LL_calc = function(par, X, Y, Zt, St, nested = NULL,
 }
 
 # Log likelihood function for binomial model
-plmm.binary.LL <- function(par, H, X, Zt, St, mu, Y.na, nested, REML = TRUE, verbose = FALSE) {
+plmm.binary.LL <- function(par, H, X, Zt, St, mu, Y.na, nested, REML = TRUE, verbose = FALSE, cpp = TRUE) {
   par <- abs(par)
   n <- dim(H)[1]
   p <- dim(H)[2]
-  iVdet <- plmm.binary.iV.logdetV(par = par, Zt = Zt, St = St, mu = mu, nested = nested)
+  if(cpp){
+    iVdet <- plmm_binary_iV_logdetV_cpp(par = par, Zt = Zt, St = St, mu = mu, nested = nested, logdet = TRUE)
+  } else {
+    iVdet <- plmm.binary.iV.logdetV(par = par, Zt = Zt, St = St, mu = mu, nested = nested, logdet = TRUE)
+  }
   iV <- iVdet$iV
   logdetV <- iVdet$logdetV
   if (REML == TRUE) {
@@ -973,7 +977,7 @@ communityPGLMM.binary <- function(formula, data = list(), family = "binomial",
                                   sp = NULL, site = NULL, random.effects = list(), 
                                   REML = TRUE, s2.init = 0.25, B.init = NULL, 
                                   reltol = 10^-5, maxit = 40, tol.pql = 10^-6, 
-                                  maxit.pql = 200, verbose = FALSE) {
+                                  maxit.pql = 200, verbose = FALSE, cpp = TRUE) {
   dm = get_design_matrix(formula, data, na.action = NULL, sp, site, random.effects)
   X = dm$X; Y = dm$Y; St = dm$St; Zt = dm$Zt; nested = dm$nested
   p <- ncol(X)
@@ -1022,7 +1026,11 @@ communityPGLMM.binary <- function(formula, data = list(), family = "binomial",
       iteration.m <- iteration.m + 1
       oldest.B.m <- est.B.m
       
-      iV <- plmm.binary.iV.logdetV(par = ss, Zt = Zt, St = St, mu = mu, nested = nested, logdet = FALSE)$iV
+      if(cpp){
+        iV <- plmm_binary_iV_logdetV_cpp(par = ss, Zt = Zt, St = St, mu = mu, nested = nested, logdet = FALSE)$iV
+      } else {
+        iV <- plmm.binary.iV.logdetV(par = ss, Zt = Zt, St = St, mu = mu, nested = nested, logdet = FALSE)$iV
+      }
       Z <- X %*% B + b + (Y - mu)/(mu * (1 - mu))
       
       denom <- t(X) %*% iV %*% X
@@ -1053,11 +1061,11 @@ communityPGLMM.binary <- function(formula, data = list(), family = "binomial",
     
     # Y.na ??? not used
     if (q > 1) {
-      opt <- optim(fn = plmm.binary.LL, par = ss, H = H, X = X, Zt = Zt, St = St, 
+      opt <- optim(fn = plmm.binary.LL, par = ss, H = H, X = X, Zt = Zt, St = St, cpp = cpp,
                    mu = mu, Y.na = Y.na, nested = nested, REML = REML, verbose = verbose, 
                    method = "Nelder-Mead", control = list(maxit = maxit, reltol = reltol))
     } else {
-      opt <- optim(fn = plmm.binary.LL, par = ss, H = H, X = X, Zt = Zt, St = St, 
+      opt <- optim(fn = plmm.binary.LL, par = ss, H = H, X = X, Zt = Zt, St = St, cpp = cpp,
                    mu = mu, Y.na = Y.na, nested = nested, REML = REML, verbose = verbose, 
                    method = "L-BFGS-B", control = list(maxit = maxit))
     }

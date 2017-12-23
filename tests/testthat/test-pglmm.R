@@ -8,11 +8,16 @@ dat = tidyr::gather(comm, key = "sp", value = "freq", -site) %>%
   left_join(traits, by = "sp")
 dat$pa = as.numeric(dat$freq > 0)
 
+formula = pa ~ 1 + shade + (1|sp__) + (1|site) + (1|site@sp)
+data = dat
+tree = phylotree
 
 test1 = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|site@sp), dat, tree = phylotree, REML = F)
 test1r = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|site@sp), dat, tree = phylotree, REML = F, cpp = F)
 test3 = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|site@sp), dat, family = "binomial", tree = phylotree, REML = F)
+test3r = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|site@sp), dat, family = "binomial", tree = phylotree, REML = F, cpp = F)
 expect_equivalent(test1, test1r)
+expect_equivalent(test3, test3r)
 # data prep for pez::communityPGLMM
 dat = arrange(dat, site, sp)
 nspp = n_distinct(dat$sp)
@@ -41,6 +46,16 @@ microbenchmark::microbenchmark(
   phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|site@sp), dat, tree = phylotree, REML = F),
   phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|site@sp), dat, tree = phylotree, REML = F, cpp = F),
   # pez::communityPGLMM(freq ~ 1 + shade, data = dat, sp = dat$sp, site = dat$site, random.effects = re, REML = F),
+  times = 5
+)
+
+microbenchmark::microbenchmark(
+  phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|site@sp), dat, 
+                       family = "binomial", tree = phylotree, REML = F, cpp = T),
+  phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|site@sp), dat, 
+                       family = "binomial", tree = phylotree, REML = F, cpp = F),
+  pez::communityPGLMM(pa ~ 1 + shade, data = dat, family = "binomial", sp = dat$sp, 
+                      site = dat$site, random.effects = re, REML = F),
   times = 5
 )
 

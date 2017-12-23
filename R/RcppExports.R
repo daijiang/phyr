@@ -21,3 +21,7 @@ pglmm_gaussian_LL_calc_cpp <- function(par, X, Y, Zt, St, nested, REML) {
     .Call(`_phyr_pglmm_gaussian_LL_calc_cpp`, par, X, Y, Zt, St, nested, REML)
 }
 
+plmm_binary_iV_logdetV_cpp <- function(par, mu, Zt, St, nested, logdet) {
+    .Call(`_phyr_plmm_binary_iV_logdetV_cpp`, par, mu, Zt, St, nested, logdet)
+}
+

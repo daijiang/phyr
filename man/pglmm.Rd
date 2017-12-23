@@ -30,7 +30,7 @@ communityPGLMM.gaussian(formula, data = list(), family = "gaussian",
 communityPGLMM.binary(formula, data = list(), family = "binomial",
   sp = NULL, site = NULL, random.effects = list(), REML = TRUE,
   s2.init = 0.25, B.init = NULL, reltol = 10^-5, maxit = 40,
-  tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE)
+  tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE, cpp = TRUE)
 
 communityPGLMM.binary.LRT(x, re.number = 0, ...)
 
