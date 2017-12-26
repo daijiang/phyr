@@ -325,6 +325,57 @@ List plmm_binary_iV_logdetV_cpp(NumericVector par, arma::vec mu,
   }
 }
 
+// [[Rcpp::export]]
+arma::sp_mat plmm_binary_V(NumericVector par, const arma::sp_mat& Zt, 
+                           const arma::sp_mat& St, arma::vec mu, 
+                           const List& nested, bool missing_mu){
+  int q_nonNested = St.n_rows;
+  IntegerVector idx = seq_len(q_nonNested) - 1; // c++ starts with 0
+  NumericVector sr0 = par[idx];
+  rowvec sr = real(as<rowvec>(sr0));
+  arma::mat iC0 = sr * St;
+  arma::vec iC1 = vectorise(iC0, 0); // extract by columns
+  arma::sp_mat iC = sp_mat(diagmat(iC1));
+  arma::sp_mat Ut = iC * Zt;
+  arma::sp_mat U = trans(Ut);
+  int q_Nested = nested.size();
+  NumericVector sn; // pre-declare out of if{}
+  if (q_Nested > 0) {
+    IntegerVector idx2 = wrap(seq(q_nonNested, q_nonNested + q_Nested - 1));
+    NumericVector sn0 = par[idx2];
+    rowvec sn1 = real(as<rowvec>(sn0));
+    sn = as<NumericVector>(wrap(sn1)); // no need to declare type again
+  } 
+  
+  arma::mat iW;
+  if(missing_mu){
+    iW = mat(Zt.n_cols, Zt.n_cols, fill::zeros);
+  } else {
+    arma::vec pq = 1 / (mu % (1 - mu));
+    iW = diagmat(pq);
+  }
+  
+  arma::sp_mat A = sp_mat(iW);
+  if(q_Nested > 0){
+    if (q_Nested == 1){
+      double snj = pow(sn[0], 2);
+      sp_mat nj = nested[0];
+      A = A + snj * nj;
+    } else {
+      for (int j = 0; j < (q_Nested - 1); j++) {
+        double snj = pow(sn[j], 2);
+        sp_mat nj = nested[j];
+        A = A + snj * nj;
+      }
+    }
+  }
+  
+  arma::sp_mat V = A + U * Ut;
+  
+  return V;
+}
+
+
 // You can include R code blocks in C++ files processed with sourceCpp
 // (useful for testing and development). The R code will be automatically 
 // run after the compilation.

@@ -1039,7 +1039,11 @@ communityPGLMM.binary <- function(formula, data = list(), family = "binomial",
       B <- solve(denom, num)
       B <- as.matrix(B)
       
-      V <- plmm.binary.V(par = ss, Zt = Zt, St = St, mu = mu, nested = nested)
+      if(cpp){
+        V = plmm_binary_V(par = ss, Zt = Zt, St = St, mu = mu, nested = nested, missing_mu = FALSE)
+      } else {
+        V = plmm.binary.V(par = ss, Zt = Zt, St = St, mu = mu, nested = nested)
+      }
       
       iW <- diag(as.vector((mu * (1 - mu))^-1))
       C <- V - iW
@@ -1146,7 +1150,7 @@ communityPGLMM.binary.LRT <- function(x, re.number = 0, cpp = TRUE, ...) {
 #' @rdname pglmm
 #' @export
 communityPGLMM.matrix.structure <- function(formula, data = list(), family = "binomial", 
-                                            tree, repulsion = FALSE, ss = 1) {
+                                            tree, repulsion = FALSE, ss = 1, cpp = TRUE) {
   dat_prepared = prep_dat_pglmm(formula, data, family, tree, repulsion)
   formula = dat_prepared$formula
   data = dat_prepared$data
@@ -1159,8 +1163,15 @@ communityPGLMM.matrix.structure <- function(formula, data = list(), family = "bi
   p <- ncol(X)
   n <- nrow(X)
   
-  V <- plmm.binary.V(par = array(ss, c(1, length(random.effects))), 
-                     Zt = Zt, St = St, nested = nested)
+  if(cpp){
+    V <- plmm_binary_V(par = array(ss, c(1, length(random.effects))), 
+                       Zt = Zt, mu = matrix(0, nrow(X), 1), St = St, 
+                       nested = nested, missing_mu = TRUE)
+  } else {
+    V <- plmm.binary.V(par = array(ss, c(1, length(random.effects))), 
+                       Zt = Zt, St = St, nested = nested)
+  }
+  
   return(V)
 }
 

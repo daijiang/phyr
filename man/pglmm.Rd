@@ -35,7 +35,7 @@ communityPGLMM.binary(formula, data = list(), family = "binomial",
 communityPGLMM.binary.LRT(x, re.number = 0, cpp = TRUE, ...)
 
 communityPGLMM.matrix.structure(formula, data = list(), family = "binomial",
-  tree, repulsion = FALSE, ss = 1)
+  tree, repulsion = FALSE, ss = 1, cpp = TRUE)
 
 \method{summary}{communityPGLMM}(x, digits = max(3, getOption("digits") - 3),
   ...)

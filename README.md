@@ -12,8 +12,8 @@ The goal of phyr is to collect and update (with c++ for core parts) functions th
 
 These functions share some similarities and it makes more sense to put them in one package to reduce redundancy in codes and to facilitate updates.
 
-Install
-=======
+Installation
+============
 
 To install this package:
 
@@ -26,9 +26,7 @@ install.packages("https://raw.githubusercontent.com/daijiang/phyr/master/phyr_0.
 To do
 =====
 
--   update `psv` family of functions,
--   update `communityPGLMM`
--   Import `binaryPGLMM`
+-   update `psv` family of functions
 
 Imported
 ========
@@ -36,6 +34,7 @@ Imported
 -   `pcd` from the picante package; changed the default pruning setting of the phylogeny since this sometimes can lead to different results from not pruning.
 -   `psv` from the picante package
 -   `communityPGLMM` from the pez package
+-   `binaryPGLMM` from the ape package
 
 ``` r
 library(phyr)
@@ -47,19 +46,19 @@ microbenchmark::microbenchmark(phyr::pcd(comm = comm_a, tree = phylotree, reps =
 ##                                                                  expr
 ##  phyr::pcd(comm = comm_a, tree = phylotree, reps = 1000, verbose = F)
 ##            picante::pcd(comm = comm_a, tree = phylotree, reps = 1000)
-##        min        lq     mean    median        uq      max neval cld
-##   14.59074  15.72315  22.8879  17.02379  18.84883 168.8280    30  a 
-##  379.27874 397.81584 434.5902 409.85951 418.77459 730.6365    30   b
+##        min        lq      mean    median        uq      max neval cld
+##   14.35653  15.11948  27.94936  16.11395  18.23879 222.2971    30  a 
+##  376.24935 394.44130 413.74352 399.76525 413.07654 558.9477    30   b
 # psv, the example data is too small to compare
 microbenchmark::microbenchmark(phyr::psv(comm_a, phylotree),
                                picante::psv(comm_a, phylotree))
 ## Unit: milliseconds
 ##                             expr      min       lq     mean   median
-##     phyr::psv(comm_a, phylotree) 5.284401 5.470496 6.728572 5.855621
-##  picante::psv(comm_a, phylotree) 4.642377 4.820849 5.732026 5.033173
+##     phyr::psv(comm_a, phylotree) 5.208111 5.516630 6.753961 5.889708
+##  picante::psv(comm_a, phylotree) 4.706906 4.905797 5.904191 5.181233
 ##        uq      max neval cld
-##  6.664235 63.01642   100   a
-##  5.507677 51.44701   100   a
+##  6.541180 63.40182   100   a
+##  5.736378 51.99612   100   a
 ```
 
 `communityPGLMM` now can use similar syntax as `lme4::lmer` to specify random terms: add `__` (two underscores) at the end of grouping variable (`sp`) to specify both phylogenetic and non-phylogenetic random terms; use `(1|site@sp)` to specify nested term.
@@ -183,16 +182,15 @@ microbenchmark::microbenchmark(
                       random.effects = re, REML = F),
   times = 5
 )
-
 ## Unit: seconds
-##  expr
-##  phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | site@sp), dat, tree = phylotree, REML = F, cpp = T)
-##  phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | site@sp), dat, tree = phylotree, REML = F, cpp = F)
-##  pez::communityPGLMM(freq ~ 1 + shade, data = dat, sp = dat$sp, site = dat$site, random.effects = re, REML = F)
-##       min        lq     mean    median        uq       max neval cld
-##  2.559085  2.564237  2.57293  2.568189  2.578162  2.594978     5  a 
-##  9.787242 10.032099 10.31487 10.329953 10.456071 10.968999     5   b
-##  9.955867  9.976788 10.49437 10.814307 10.859205 10.865700     5   b
+##                                                                                                                             expr
+##  phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) +      (1 | site@sp), dat, tree = phylotree, REML = F, cpp = T)
+##  phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) +      (1 | site@sp), dat, tree = phylotree, REML = F, cpp = F)
+##              pez::communityPGLMM(freq ~ 1 + shade, data = dat, sp = dat$sp,      site = dat$site, random.effects = re, REML = F)
+##        min        lq      mean    median        uq       max neval cld
+##   2.556054  2.562747  2.604182  2.572521  2.613489  2.716098     5  a 
+##  10.091776 10.095942 10.275212 10.167364 10.326047 10.694930     5   b
+##  10.392822 10.426649 10.503597 10.515633 10.517251 10.665630     5   b
 
 # about 6 times faster for a small dataset
 microbenchmark::microbenchmark(
@@ -204,14 +202,13 @@ microbenchmark::microbenchmark(
                       site = dat$site, random.effects = re, REML = F),
   times = 5
 )
-
 ## Unit: seconds
-## expr
-## phyr::communityPGLMM(pa ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | site@sp), dat, family = "binomial", tree = phylotree, REML = F, cpp = T)
-##  phyr::communityPGLMM(pa ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | site@sp), dat, family = "binomial", tree = phylotree, REML = F, cpp = F)
-## pez::communityPGLMM(pa ~ 1 + shade, data = dat, family = "binomial", sp = dat$sp, site = dat$site, random.effects = re, REML = F)
-##        min       lq      mean    median        uq       max neval cld
-##   4.806673  4.83144  4.890586  4.840125  4.928976  5.045714     5 a  
-##  13.990525 14.10076 14.964606 14.108094 14.429515 18.194134     5  b 
-##  23.878228 26.19001 26.487320 26.557663 27.038649 28.772056     5   c
+##                                                                                                                                                     expr
+##  phyr::communityPGLMM(pa ~ 1 + shade + (1 | sp__) + (1 | site) +      (1 | site@sp), dat, family = "binomial", tree = phylotree,      REML = F, cpp = T)
+##  phyr::communityPGLMM(pa ~ 1 + shade + (1 | sp__) + (1 | site) +      (1 | site@sp), dat, family = "binomial", tree = phylotree,      REML = F, cpp = F)
+##                   pez::communityPGLMM(pa ~ 1 + shade, data = dat, family = "binomial",      sp = dat$sp, site = dat$site, random.effects = re, REML = F)
+##        min        lq      mean    median        uq       max neval cld
+##   4.460712  4.468903  4.529751  4.476705  4.578073  4.664361     5 a  
+##  13.751987 13.757251 14.153097 13.776963 14.473640 15.005644     5  b 
+##  23.305227 23.373598 23.520826 23.454696 23.729220 23.741387     5   c
 ```

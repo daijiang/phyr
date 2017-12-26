@@ -24,7 +24,7 @@ The goal of phyr is to collect and update (with c++ for core parts) functions th
 
 These functions share some similarities and it makes more sense to put them in one package to reduce redundancy in codes and to facilitate updates.
 
-# Install
+# Installation
 
 To install this package:
 
@@ -37,15 +37,14 @@ install.packages("https://raw.githubusercontent.com/daijiang/phyr/master/phyr_0.
 
 # To do
 
-- update `psv` family of functions, 
-- update `communityPGLMM`
-- Import `binaryPGLMM`
+- update `psv` family of functions
 
 # Imported
 
 - `pcd` from the picante package; changed the default pruning setting of the phylogeny since this sometimes can lead to different results from not pruning.
 - `psv` from the picante package
 - `communityPGLMM` from the pez package
+- `binaryPGLMM` from the ape package
 
 ```{r, message=FALSE}
 library(phyr)

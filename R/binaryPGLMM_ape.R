@@ -277,7 +277,7 @@
 #' }
 #'
 binaryPGLMM <- function(formula, data = list(), phy, s2.init = 0.1, B.init = NULL, 
-                        tol.pql = 10^-6, maxit.pql = 200, maxit.reml = 100) {
+                        tol.pql = 10^-6, maxit.pql = 200, maxit.reml = 100, cpp = TRUE) {
   if (!inherits(phy, "phylo")) stop("Object \"phy\" is not of class \"phylo\".")
   if (is.null(phy$edge.length)) stop("The tree has no branch lengths.")
   if (is.null(phy$tip.label)) stop("The tree has no tip labels.")
@@ -328,6 +328,7 @@ binaryPGLMM <- function(formula, data = list(), phy, s2.init = 0.1, B.init = NUL
   mu <- exp(X %*% B)/(1 + exp(X %*% B))
   XX <- cbind(X, diag(1, nrow = n, ncol = n))
   C <- s2 * Vphy
+  # C = as(C, "dsCMatrix")
   est.s2 <- s2
   est.B <- B
   oldest.s2 <- 10^6
@@ -343,34 +344,65 @@ binaryPGLMM <- function(formula, data = list(), phy, s2.init = 0.1, B.init = NUL
     est.B.m <- B
     oldest.B.m <- matrix(10^6, nrow = length(est.B))
     iteration.m <- 0
-    while ((crossprod(est.B.m - oldest.B.m)/length(B) > tol.pql^2) & (iteration.m <= maxit.pql)) {
+    # # if(cpp){
+    # #   while_1 = binpglmm_inter_while_cpp(est.B.m, oldest.B.m, B, tol.pql, iteration.m,
+    # #                                  maxit.pql, mu, C, rcondflag, B.init, X, XX, est.B, y, n, b)
+    # # } else {
+    #   while_1 = binpglmm_inter_while(est.B.m, oldest.B.m, B, tol.pql, iteration.m,
+    #                                  maxit.pql, mu, C, rcondflag, B.init, X, XX, est.B, y, n, b)
+    # # }
+    # Z = while_1$Z
+    # B = while_1$B
+    # b = while_1$b
+    # mu = while_1$mu
+    # invW = while_1$invW
+    # est.B.m = while_1$est.B.m
+    # rcondflag = while_1$rcondflag
+    
+    while ((crossprod(est.B.m - oldest.B.m)/length(B) > tol.pql^2) &
+           (iteration.m <= maxit.pql)) {
       iteration.m <- iteration.m + 1
       oldest.B.m <- est.B.m
-      invW <- diag(as.vector((mu * (1 - mu))^-1))
-      V <- invW + C
-      if (sum(is.infinite(V)) > 0 | rcond(V) < 10^-10) {
-        rcondflag <- rcondflag + 1
-        B <- 0 * B.init + 0.001
-        b <- matrix(0, nrow = n)
-        beta <- rbind(B, b)
-        mu <- exp(X %*% B)/(1 + exp(X %*% B))
-        oldest.B.m <- matrix(10^6, nrow = length(est.B))
+      ##### 
+      # if(cpp){
+      #  wh1 = binpglmm_inter_while_cpp2(est.B.m, B, mu, C, rcondflag, B.init, X, XX, est.B, y, n, b)
+      #  Z = wh1$Z; B = wh1$B; b = wh1$b; mu = wh1$mu; invW = wh1$invW
+      #  est.B.m = wh1$est.B.m; rcondflag = wh1$rcondflag
+      # } else {
         invW <- diag(as.vector((mu * (1 - mu))^-1))
+        # invW = as(invW, "dsCMatrix")
         V <- invW + C
-      }
-      invV <- solve(V)
-      Z <- X %*% B + b + (y - mu)/(mu * (1 - mu))
-      denom <- t(X) %*% invV %*% X
-      num <- t(X) %*% invV %*% Z
-      B <- as.matrix(solve(denom, num))
-      b <- C %*% invV %*% (Z - X %*% B)
-      beta <- rbind(B, b)
-      mu <- exp(XX %*% beta)/(1 + exp(XX %*% beta))
-      est.B.m <- B
+        if (sum(is.infinite(V)) > 0 | rcond(V) < 10^-10) {
+          rcondflag <- rcondflag + 1
+          B <- 0 * B.init + 0.001
+          b <- matrix(0, nrow = n)
+          beta <- rbind(B, b)
+          mu <- exp(X %*% B)/(1 + exp(X %*% B))
+          oldest.B.m <- matrix(10^6, nrow = length(est.B))
+          invW <- diag(as.vector((mu * (1 - mu))^-1))
+          V <- invW + C
+        }
+        invV <- solve(V)
+        Z <- X %*% B + b + (y - mu)/(mu * (1 - mu))
+        denom <- t(X) %*% invV %*% X
+        num <- t(X) %*% invV %*% Z
+        B <- as.matrix(solve(denom, num))
+        b <- C %*% invV %*% (Z - X %*% B)
+        beta <- rbind(B, b)
+        mu <- exp(XX %*% beta)/(1 + exp(XX %*% beta))
+        est.B.m <- B
+      # }
+      ######
     }
     H <- Z - X %*% B
-    opt <- optim(fn = pglmm.reml, par = s2, tinvW = invW, tH = H, tVphy = Vphy, 
-                 tX = X, method = "BFGS", control = list(factr = 1e+12, maxit = maxit.reml))
+    if(cpp){
+      opt <- optim(fn = pglmm_reml_cpp, par = s2, tinvW = invW, tH = H, tVphy = Vphy, 
+                   tX = X, method = "BFGS", control = list(factr = 1e+12, maxit = maxit.reml))
+    } else {
+      opt <- optim(fn = pglmm.reml, par = s2, tinvW = invW, tH = H, tVphy = Vphy, 
+                   tX = X, method = "BFGS", control = list(factr = 1e+12, maxit = maxit.reml))
+    }
+
     s2 <- abs(opt$par)
     C <- s2 * Vphy
     est.s2 <- s2
@@ -413,9 +445,43 @@ binaryPGLMM <- function(formula, data = list(), phy, s2.init = 0.1, B.init = NUL
   results
 }
 
+binpglmm_inter_while = function(est.B.m, oldest.B.m, B, tol.pql, iteration.m, maxit.pql, 
+                                mu, C, rcondflag, B.init, X, XX, est.B, y, n, b){
+  while ((crossprod(est.B.m - oldest.B.m)/length(B) > tol.pql^2) &
+         (iteration.m <= maxit.pql)) {
+    iteration.m <- iteration.m + 1
+    oldest.B.m <- est.B.m
+    ##### 
+    invW <- diag(as.vector((mu * (1 - mu))^-1))
+    # invW = as(invW, "dsCMatrix")
+    V <- invW + C
+    if (sum(is.infinite(V)) > 0 | rcond(V) < 10^-10) {
+      rcondflag <- rcondflag + 1
+      B <- 0 * B.init + 0.001
+      b <- matrix(0, nrow = n)
+      beta <- rbind(B, b)
+      mu <- exp(X %*% B)/(1 + exp(X %*% B))
+      oldest.B.m <- matrix(10^6, nrow = length(est.B))
+      invW <- diag(as.vector((mu * (1 - mu))^-1))
+      V <- invW + C
+    }
+    invV <- solve(V)
+    Z <- X %*% B + b + (y - mu)/(mu * (1 - mu))
+    denom <- t(X) %*% invV %*% X
+    num <- t(X) %*% invV %*% Z
+    B <- as.matrix(solve(denom, num))
+    b <- C %*% invV %*% (Z - X %*% B)
+    beta <- rbind(B, b)
+    mu <- exp(XX %*% beta)/(1 + exp(XX %*% beta))
+    est.B.m <- B
+    ######
+  }
+  list(Z = Z, B = B, b = b, mu = mu, invW = invW, est.B.m = est.B.m, rcondflag = rcondflag)
+}
+
 pglmm.reml <- function(par, tinvW, tH, tVphy, tX) {
-  n <- dim(tX)[1]
-  p <- dim(tX)[2]
+  # n <- dim(tX)[1]
+  # p <- dim(tX)[2]
   ss2 <- abs(Re(par))
   Cd <- ss2 * tVphy
   V <- tinvW + Cd

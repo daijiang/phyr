@@ -6,6 +6,69 @@
 
 using namespace Rcpp;
 
+// pglmm_reml_cpp
+double pglmm_reml_cpp(arma::vec par, const arma::mat& tinvW, const arma::mat& tH, const arma::mat& tVphy, const arma::mat& tX);
+RcppExport SEXP _phyr_pglmm_reml_cpp(SEXP parSEXP, SEXP tinvWSEXP, SEXP tHSEXP, SEXP tVphySEXP, SEXP tXSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::vec >::type par(parSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type tinvW(tinvWSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type tH(tHSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type tVphy(tVphySEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type tX(tXSEXP);
+    rcpp_result_gen = Rcpp::wrap(pglmm_reml_cpp(par, tinvW, tH, tVphy, tX));
+    return rcpp_result_gen;
+END_RCPP
+}
+// binpglmm_inter_while_cpp
+List binpglmm_inter_while_cpp(arma::mat est_B_m, arma::mat oldest_B_m, arma::mat B, const double& tol_pql, int iteration_m, const int& maxit_pql, arma::vec mu, const arma::mat& C, int rcondflag, const arma::mat& B_init, const arma::mat& X, const arma::mat& XX, const arma::mat& est_B, const arma::vec& y, int n, arma::mat b);
+RcppExport SEXP _phyr_binpglmm_inter_while_cpp(SEXP est_B_mSEXP, SEXP oldest_B_mSEXP, SEXP BSEXP, SEXP tol_pqlSEXP, SEXP iteration_mSEXP, SEXP maxit_pqlSEXP, SEXP muSEXP, SEXP CSEXP, SEXP rcondflagSEXP, SEXP B_initSEXP, SEXP XSEXP, SEXP XXSEXP, SEXP est_BSEXP, SEXP ySEXP, SEXP nSEXP, SEXP bSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat >::type est_B_m(est_B_mSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type oldest_B_m(oldest_B_mSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type B(BSEXP);
+    Rcpp::traits::input_parameter< const double& >::type tol_pql(tol_pqlSEXP);
+    Rcpp::traits::input_parameter< int >::type iteration_m(iteration_mSEXP);
+    Rcpp::traits::input_parameter< const int& >::type maxit_pql(maxit_pqlSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type mu(muSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type C(CSEXP);
+    Rcpp::traits::input_parameter< int >::type rcondflag(rcondflagSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type B_init(B_initSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type X(XSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type XX(XXSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type est_B(est_BSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type y(ySEXP);
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type b(bSEXP);
+    rcpp_result_gen = Rcpp::wrap(binpglmm_inter_while_cpp(est_B_m, oldest_B_m, B, tol_pql, iteration_m, maxit_pql, mu, C, rcondflag, B_init, X, XX, est_B, y, n, b));
+    return rcpp_result_gen;
+END_RCPP
+}
+// binpglmm_inter_while_cpp2
+List binpglmm_inter_while_cpp2(arma::mat est_B_m, arma::mat B, arma::vec mu, const arma::mat& C, int rcondflag, const arma::mat& B_init, const arma::mat& X, const arma::mat& XX, const arma::mat& est_B, const arma::vec& y, int n, arma::mat b);
+RcppExport SEXP _phyr_binpglmm_inter_while_cpp2(SEXP est_B_mSEXP, SEXP BSEXP, SEXP muSEXP, SEXP CSEXP, SEXP rcondflagSEXP, SEXP B_initSEXP, SEXP XSEXP, SEXP XXSEXP, SEXP est_BSEXP, SEXP ySEXP, SEXP nSEXP, SEXP bSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat >::type est_B_m(est_B_mSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type B(BSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type mu(muSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type C(CSEXP);
+    Rcpp::traits::input_parameter< int >::type rcondflag(rcondflagSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type B_init(B_initSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type X(XSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type XX(XXSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type est_B(est_BSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type y(ySEXP);
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type b(bSEXP);
+    rcpp_result_gen = Rcpp::wrap(binpglmm_inter_while_cpp2(est_B_m, B, mu, C, rcondflag, B_init, X, XX, est_B, y, n, b));
+    return rcpp_result_gen;
+END_RCPP
+}
 // set_seed
 void set_seed(unsigned int seed);
 RcppExport SEXP _phyr_set_seed(SEXP seedSEXP) {
@@ -98,14 +161,34 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// plmm_binary_V
+arma::sp_mat plmm_binary_V(NumericVector par, const arma::sp_mat& Zt, const arma::sp_mat& St, arma::vec mu, const List& nested, bool missing_mu);
+RcppExport SEXP _phyr_plmm_binary_V(SEXP parSEXP, SEXP ZtSEXP, SEXP StSEXP, SEXP muSEXP, SEXP nestedSEXP, SEXP missing_muSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type par(parSEXP);
+    Rcpp::traits::input_parameter< const arma::sp_mat& >::type Zt(ZtSEXP);
+    Rcpp::traits::input_parameter< const arma::sp_mat& >::type St(StSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type mu(muSEXP);
+    Rcpp::traits::input_parameter< const List& >::type nested(nestedSEXP);
+    Rcpp::traits::input_parameter< bool >::type missing_mu(missing_muSEXP);
+    rcpp_result_gen = Rcpp::wrap(plmm_binary_V(par, Zt, St, mu, nested, missing_mu));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_phyr_pglmm_reml_cpp", (DL_FUNC) &_phyr_pglmm_reml_cpp, 5},
+    {"_phyr_binpglmm_inter_while_cpp", (DL_FUNC) &_phyr_binpglmm_inter_while_cpp, 16},
+    {"_phyr_binpglmm_inter_while_cpp2", (DL_FUNC) &_phyr_binpglmm_inter_while_cpp2, 12},
     {"_phyr_set_seed", (DL_FUNC) &_phyr_set_seed, 1},
     {"_phyr_predict_cpp", (DL_FUNC) &_phyr_predict_cpp, 4},
     {"_phyr_pcd2_loop", (DL_FUNC) &_phyr_pcd2_loop, 7},
     {"_phyr_pglmm_gaussian_LL_cpp", (DL_FUNC) &_phyr_pglmm_gaussian_LL_cpp, 8},
     {"_phyr_pglmm_gaussian_LL_calc_cpp", (DL_FUNC) &_phyr_pglmm_gaussian_LL_calc_cpp, 7},
     {"_phyr_plmm_binary_iV_logdetV_cpp", (DL_FUNC) &_phyr_plmm_binary_iV_logdetV_cpp, 6},
+    {"_phyr_plmm_binary_V", (DL_FUNC) &_phyr_plmm_binary_V, 6},
     {NULL, NULL, 0}
 };
 
