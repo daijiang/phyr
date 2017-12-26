@@ -57,7 +57,7 @@ microbenchmark::microbenchmark(phyr::psv(comm_a, phylotree),
                                picante::psv(comm_a, phylotree))
 ```
 
-`communityPGLMM` now can use similar syntax as `lme4::lmer` to specify random terms: add `__` (two underscores) at the end of grouping variable (`sp`) to specify both phylogenetic and non-phylogenetic random terms; use `(1|site@sp)` to specify nested term.
+`communityPGLMM` now can use similar syntax as `lme4::lmer` to specify random terms: add `__` (two underscores) at the end of grouping variable (`sp`) to specify both phylogenetic and non-phylogenetic random terms; use `(1|sp@site)` to specify nested term. Note: `(1|sp@site)` and `(1|site@sp)` have different orders.
 
 ```{r eval = T}
 library(dplyr)
@@ -68,10 +68,10 @@ dat = tidyr::gather(comm, key = "sp", value = "freq", -site) %>%
   left_join(traits, by = "sp")
 dat$pa = as.numeric(dat$freq > 0)
 head(dat)
-test1 = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|site@sp), 
+test1 = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
                              data = dat, family = "gaussian", tree = phylotree, REML = F)
 test1
-test3 = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|site@sp), 
+test3 = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
                              data = dat, family = "binomial", tree = phylotree, REML = F)
 test3
 ```
@@ -99,15 +99,15 @@ re.sp <- list(1, sp = dat$sp, covar = diag(nspp))
 re.sp.phy <- list(1, sp = dat$sp, covar = Vphy)
 # sp is nested within site
 re.nested.phy <- list(1, sp = dat$sp, covar = Vphy, site = dat$site)
-re.nested.rep <- list(1, sp = dat$sp, covar = solve(Vphy), site = dat$site)
+re.nested.rep <- list(1, sp = dat$sp, covar = solve(Vphy), site = dat$site) # equal to sp@site
 # can be named 
 re = list(re.sp = re.sp, re.sp.phy = re.sp.phy, re.nested.phy = re.nested.phy, re.site = re.site)
 
 # about 4 times faster for a small dataset
 microbenchmark::microbenchmark(
-  phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|site@sp), 
+  phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
                        dat, tree = phylotree, REML = F, cpp = T),
-  phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|site@sp), 
+  phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
                        dat, tree = phylotree, REML = F, cpp = F),
   pez::communityPGLMM(freq ~ 1 + shade, data = dat, sp = dat$sp, site = dat$site, 
                       random.effects = re, REML = F),

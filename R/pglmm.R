@@ -37,6 +37,10 @@
 #' @param tree a phylogeny, with "phylo" class.
 #' @param repulsion when nested random term specified, do you want to test repulsion or underdispersion?
 #' Default is FALSE, i.e. test underdispersion.
+#' @param re.effects pre-build list of random effects, default is NULL. Can be useful if 
+#' dealing with two phylogenies (e.g. plants and pollinators). You can prepare it with
+#' the prep_dat_pglmm() function to get the random effects for each phylogeny and then
+#' combine both together.
 #' @param REML whether REML or ML is used for model fitting. For the
 #' generalized linear mixed model for binary data, these don't have
 #' standard interpretations, and there is no log likelihood function
@@ -193,53 +197,37 @@
 #' #########################################################
 #' ## Model structures from Ives & Helmus (2011)
 #' # dat = data set for regression (note: *not* an comparative.comm object)
-#' # nspp = number of species
-#' # nsite = number of sites
-#' # Vphy = phylogenetic covariance matrix for species
-#' # Vrepul = inverse of Vphy representing phylogenetic repulsion
+#' # phy = phylogeney of class "phylo"
+#' # repulsion = to test phylogenetic repulsion or not
 #'
 #' # Model 1 (Eq. 1)
-#' re.site <- list(1, site = dat$site, covar = diag(nsite))
-#' re.sp.site <- list(1, sp = dat$sp, covar = Vphy, site = dat$site) # note: nested
-#' z <- communityPGLMM(freq ~ sp, data = dat, family = "binomial", sp
-#' = dat$sp, site = dat$site, random.effects = list(re.site,
-#' re.sp.site), REML = TRUE, verbose = TRUE, s2.init=.1)
-#' 
+#' z <- communityPGLMM(freq ~ sp + (1|site) + (1|sp@site), data = dat, family = "binomial", 
+#'                    tree = phy, REML = TRUE, verbose = TRUE, s2.init=.1)
 #' 
 #' # Model 2 (Eq. 2)
-#' re.site <- list(1, site = dat$site, covar = diag(nsite))
-#' re.slope <- list(X, sp = dat$sp, covar = diag(nspp))
-#' re.slopephy <- list(X, sp = dat$sp, covar = Vphy)
-#' z <- communityPGLMM(freq ~ sp + X, data = dat, family = "binomial",
-#' sp = dat$sp, site = dat$site, random.effects = list(re.site,
-#' re.slope, re.slopephy), REML = TRUE, verbose = TRUE, s2.init=.1)
+#' z <- communityPGLMM(freq ~ sp + X + (1|site) + (X|sp__), data = dat, family = "binomial",
+#'                     tree = phy, REML = TRUE, verbose = TRUE, s2.init=.1)
 #' 
 #' # Model 3 (Eq. 3)
-#' re.site <- list(1, site = dat$site, covar = diag(nsite))
-#' re.sp.site <- list(1, sp = dat$sp, covar = Vrepul, site = dat$site) # note: nested
-#' z <- communityPGLMM(freq ~ sp*X, data = dat, family = "binomial",
-#' sp = dat$sp, site = dat$site, random.effects = list(re.site,
-#' re.sp.site), REML = TRUE, verbose = TRUE, s2.init=.1)
+#' z <- communityPGLMM(freq ~ sp*X + (1|site) + (1|sp@site), data = dat, family = "binomial",
+#'                     tree = phy, REML = TRUE, verbose = TRUE, s2.init=.1)
 #' 
 #' ## Model structure from Rafferty & Ives (2013) (Eq. 3)
 #' # dat = data set
-#' # npp = number of pollinators (sp)
+#' # nspp = number of pollinators (sp)
 #' # nsite = number of plants (site)
-#' # VphyPol = phylogenetic covariance matrix for pollinators
-#' # VphyPlt = phylogenetic covariance matrix for plants
+#' # phyPol = phylogeny for pollinators
+#' # phyPlt = phylogeny for plants
 #' 
-#' re.a <- list(1, sp = dat$sp, covar = diag(nspp))
-#' re.b <- list(1, sp = dat$sp, covar = VphyPol)
-#' re.c <- list(1, sp = dat$sp, covar = VphyPol, dat$site)
-#' re.d <- list(1, site = dat$site, covar = diag(nsite))
-#' re.f <- list(1, site = dat$site, covar = VphyPlt)
-#' re.g <- list(1, site = dat$site, covar = VphyPlt, dat$sp)
-#' #term h isn't possible in this implementation, but can be done with
-#' available matlab code
+#' # prepare random effects
+# re1 = prep_dat_pglmm(freq ~ 1 + (1|sp__) + (1|sp@site), data = dat,
+#                      tree = phyPol, repulsion = FALSE)$random.effects
+# re2 = prep_dat_pglmm(freq ~ 1 + (1|site__) + (1|site@sp), data = dat,
+#                      tree = phyPlt, repulsion = FALSE)$random.effects
+#' re12 = c(re1, re2)
 #' 
 #' z <- communityPGLMM(freq ~ sp*X, data = dat, family = "binomial",
-#' sp = dat$sp, site = dat$site, random.effects = list(re.a, re.b,
-#' re.c, re.d, re.f, re.g), REML = TRUE, verbose = TRUE, s2.init=.1)
+#'  re.effects = re12, REML = TRUE, verbose = TRUE, s2.init=.1)
 #' }
 #' 
 #' #########################################################
@@ -410,11 +398,7 @@
 #' }
 #' }
 # end of doc ---- 
-prep_dat_pglmm = function(formula, data, family, tree, repulsion){
-  if (family %nin% c("gaussian", "binomial")){
-    stop("\nSorry, but only binomial (binary) and gaussian options exist at this time")
-  }
-  
+prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE, prep.re.effects = TRUE){
   # make sure the data has sp and site columns
   if(!all(c("sp", "site") %in% names(data))) {
     stop("The data frame should have a column named as 'sp' and a column named as 'site'.")
@@ -427,84 +411,87 @@ prep_dat_pglmm = function(formula, data, family, tree, repulsion){
   spl = levels(sp)
   nspp = nlevels(sp); nsite = nlevels(site)
   
-  # @ for nested; __ at the end for phylogenetic cov
-  fm = unique(lme4::findbars(formula))
-  if(is.null(fm)) stop("No random terms specified, use lm or glm instead")
-  if(any(grepl("__$", fm))){
-    # phylogeny
-    if(length(setdiff(spl, tree$tip.label))) stop("Some species not in the phylogeny, please either drop these species or update the phylogeny")
-    if(length(setdiff(tree$tip.label, spl))){
-      warning("Drop species from the phylogeny that are not in the data")
-      tree = ape::drop.tip(tree, setdiff(tree$tip.label, spl))
+  if(prep.re.effects){
+    # @ for nested; __ at the end for phylogenetic cov
+    fm = unique(lme4::findbars(formula))
+    if(is.null(fm)) stop("No random terms specified, use lm or glm instead")
+    if(any(grepl("__$", fm))){
+      # phylogeny
+      if(length(setdiff(spl, tree$tip.label))) stop("Some species not in the phylogeny, please either drop these species or update the phylogeny")
+      if(length(setdiff(tree$tip.label, spl))){
+        warning("Drop species from the phylogeny that are not in the data")
+        tree = ape::drop.tip(tree, setdiff(tree$tip.label, spl))
+      }
+      Vphy <- ape::vcv(tree)
+      Vphy <- Vphy/max(Vphy)
+      Vphy <- Vphy/exp(determinant(Vphy)$modulus[1]/nspp)
+      Vphy = Vphy[spl, spl] # same order as species levels
     }
-    Vphy <- ape::vcv(tree)
-    Vphy <- Vphy/max(Vphy)
-    Vphy <- Vphy/exp(determinant(Vphy)$modulus[1]/nspp)
-    Vphy = Vphy[spl, spl] # same order as species levels
-  }
-  
-  random.effects = lapply(fm, function(x){
-    x2 = as.character(x)
-    if(x2[2] == "1"){ # intercept
-      if(!grepl("[@]", x2[3])){ # single column; non-nested
-        if(grepl("[+]", x2[2])) stop("(x1 + x2|g) form of random terms are not allowed yet, pleast split it")
+    
+    random.effects = lapply(fm, function(x){
+      x2 = as.character(x)
+      if(x2[2] == "1"){ # intercept
+        if(!grepl("[@]", x2[3])){ # single column; non-nested
+          if(grepl("[+]", x2[2])) stop("(x1 + x2|g) form of random terms are not allowed yet, pleast split it")
+          if(grepl("__$", x2[3])){
+            # also want phylogenetic version, 
+            # it makes sense if the phylogenetic version is in, the non-phy part should be there too
+            coln = gsub("__$", "", x2[3])
+            d = data[, coln] # extract the column
+            xout_nonphy = list(1, d, covar = diag(nlevels(d)))
+            names(xout_nonphy)[2] = coln
+            xout_phy = list(1, d, covar = Vphy)
+            names(xout_phy)[2] = coln
+            xout = list(xout_nonphy, xout_phy)
+          } else { # non phylogenetic random term
+            d = data[, x2[3]] # extract the column
+            xout = list(1, d, covar = diag(dplyr::n_distinct(d)))
+            names(xout)[2] = x2[3]
+            xout = list(xout)
+          } 
+        } else { # nested term 
+          sp_or_site = strsplit(x2[3], split = "@")[[1]]
+          if(repulsion){
+            xout = list(1, sp = data[, sp_or_site[1]], covar = solve(Vphy), site = data[, sp_or_site[2]])
+            xout = list(xout)
+          } else {
+            xout = list(1, sp = data[, sp_or_site[1]], covar = Vphy, site = data[, sp_or_site[2]])
+            xout = list(xout)
+          }
+        }
+      } else { # slope
         if(grepl("__$", x2[3])){
           # also want phylogenetic version, 
           # it makes sense if the phylogenetic version is in, the non-phy part should be there too
           coln = gsub("__$", "", x2[3])
-          if(coln != "sp") stop("phylogenetic cov matrix only apply to column 'sp'.")
-          d = data$sp # extract the column
-          xout_nonphy = list(1, d, covar = diag(nlevels(d)))
+          d = data[, coln] # extract the column
+          xout_nonphy = list(data[, x2[2]], d, covar = diag(nlevels(d)))
           names(xout_nonphy)[2] = coln
-          xout_phy = list(1, d, covar = Vphy)
+          xout_phy = list(data[, x2[2]], d, covar = Vphy)
           names(xout_phy)[2] = coln
           xout = list(xout_nonphy, xout_phy)
         } else { # non phylogenetic random term
           d = data[, x2[3]] # extract the column
-          xout = list(1, d, covar = diag(dplyr::n_distinct(d)))
+          xout = list(data[, x2[2]], d, covar = diag(dplyr::n_distinct(d)))
           names(xout)[2] = x2[3]
           xout = list(xout)
         } 
-      } else { # nested term 
-        if(repulsion){
-          xout = list(1, sp = data$sp, covar = solve(Vphy), site = data$site)
-          xout = list(xout)
-        } else {
-          xout = list(1, sp = data$sp, covar = Vphy, site = data$site)
-          xout = list(xout)
-        }
       }
-    } else { # slope
+      xout
+    })
+    random.effects = unlist(random.effects, recursive = FALSE)
+    names(random.effects) = unlist(sapply(fm, function(x){
+      x2 = as.character(x)
+      x3 = paste0(x2[2], x2[1], x2[3])
       if(grepl("__$", x2[3])){
-        # also want phylogenetic version, 
-        # it makes sense if the phylogenetic version is in, the non-phy part should be there too
-        coln = gsub("__$", "", x2[3])
-        if(coln != "sp") stop("phylogenetic cov matrix only apply to column 'sp'.")
-        d = data[, coln] # extract the column
-        xout_nonphy = list(data[, x2[2]], d, covar = diag(nlevels(d)))
-        names(xout_nonphy)[2] = coln
-        xout_phy = list(data[, x2[2]], d, covar = Vphy)
-        names(xout_phy)[2] = coln
-        xout = list(xout_nonphy, xout_phy)
-      } else { # non phylogenetic random term
-        d = data[, x2[3]] # extract the column
-        xout = list(data[, x2[2]], d, covar = diag(dplyr::n_distinct(d)))
-        names(xout)[2] = x2[3]
-        xout = list(xout)
-      } 
-    }
-    xout
-  })
-  random.effects = unlist(random.effects, recursive = FALSE)
-  names(random.effects) = unlist(sapply(fm, function(x){
-    x2 = as.character(x)
-    x3 = paste0(x2[2], x2[1], x2[3])
-    if(grepl("__$", x2[3])){
-      x4 = gsub("__$", "", x3)
-      return(c(x4, x3))
-    }
-    x3
-  }), recursive = T)
+        x4 = gsub("__$", "", x3)
+        return(c(x4, x3))
+      }
+      x3
+    }), recursive = T)
+  } else {
+    random.effects = NA
+  }
   
   formula = lme4::nobars(formula)
   
@@ -516,14 +503,23 @@ prep_dat_pglmm = function(formula, data, family, tree, repulsion){
 #' @rdname pglmm
 #' @export
 communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, repulsion = FALSE,
-                           REML = TRUE, s2.init = NULL, B.init = NULL, reltol = 10^-6, 
+                           re.effects = NULL, REML = TRUE, s2.init = NULL, B.init = NULL, reltol = 10^-6, 
                            maxit = 500, tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE, cpp = TRUE) {
-  dat_prepared = prep_dat_pglmm(formula, data, family, tree, repulsion)
+  if (family %nin% c("gaussian", "binomial")){
+    stop("\nSorry, but only binomial (binary) and gaussian options exist at this time")
+  }
+  
+  prep_re = if(is.null(re.effects)) TRUE else FALSE
+  dat_prepared = prep_dat_pglmm(formula, data, tree, repulsion, prep_re)
   formula = dat_prepared$formula
   data = dat_prepared$data
   sp = dat_prepared$sp
   site = dat_prepared$site
-  random.effects = dat_prepared$random.effects
+  random.effects = if(prep_re){
+    dat_prepared$random.effects
+  } else {
+    random.effects = re.effects
+  }
   
   if (family == "gaussian") {
     z <- communityPGLMM.gaussian(formula = formula, data = data, 
