@@ -15,12 +15,13 @@
 \alias{communityPGLMM.predicted.values}
 \title{Phylogenetic Generalised Linear Mixed Model for Community Data}
 \usage{
-prep_dat_pglmm(formula, data, family, tree, repulsion)
+prep_dat_pglmm(formula, data, tree, repulsion = FALSE,
+  prep.re.effects = TRUE)
 
 communityPGLMM(formula, data = NULL, family = "gaussian", tree,
-  repulsion = FALSE, REML = TRUE, s2.init = NULL, B.init = NULL,
-  reltol = 10^-6, maxit = 500, tol.pql = 10^-6, maxit.pql = 200,
-  verbose = FALSE, cpp = TRUE)
+  repulsion = FALSE, re.effects = NULL, REML = TRUE, s2.init = NULL,
+  B.init = NULL, reltol = 10^-6, maxit = 500, tol.pql = 10^-6,
+  maxit.pql = 200, verbose = FALSE, cpp = TRUE)
 
 communityPGLMM.gaussian(formula, data = list(), family = "gaussian",
   sp = NULL, site = NULL, random.effects = list(), REML = TRUE,
@@ -66,13 +67,18 @@ factors specifying species (named as 'sp') and sites (named as 'site'). \code{co
 reorder rows of the data frame so that species are nested within
 sites.}
 
-\item{family}{either \code{gaussian} for a Linear Mixed Model, or
-\code{binomial} for binary dependent data.}
-
 \item{tree}{a phylogeny, with "phylo" class.}
 
 \item{repulsion}{when nested random term specified, do you want to test repulsion or underdispersion?
 Default is FALSE, i.e. test underdispersion.}
+
+\item{family}{either \code{gaussian} for a Linear Mixed Model, or
+\code{binomial} for binary dependent data.}
+
+\item{re.effects}{pre-build list of random effects, default is NULL. Can be useful if
+dealing with two phylogenies (e.g. plants and pollinators). You can prepare it with
+the prep_dat_pglmm() function to get the random effects for each phylogeny and then
+combine both together.}
 
 \item{REML}{whether REML or ML is used for model fitting. For the
 generalized linear mixed model for binary data, these don't have
@@ -281,53 +287,33 @@ flexibility in model selection/fitting.
 #########################################################
 ## Model structures from Ives & Helmus (2011)
 # dat = data set for regression (note: *not* an comparative.comm object)
-# nspp = number of species
-# nsite = number of sites
-# Vphy = phylogenetic covariance matrix for species
-# Vrepul = inverse of Vphy representing phylogenetic repulsion
+# phy = phylogeney of class "phylo"
+# repulsion = to test phylogenetic repulsion or not
 
 # Model 1 (Eq. 1)
-re.site <- list(1, site = dat$site, covar = diag(nsite))
-re.sp.site <- list(1, sp = dat$sp, covar = Vphy, site = dat$site) # note: nested
-z <- communityPGLMM(freq ~ sp, data = dat, family = "binomial", sp
-= dat$sp, site = dat$site, random.effects = list(re.site,
-re.sp.site), REML = TRUE, verbose = TRUE, s2.init=.1)
-
+z <- communityPGLMM(freq ~ sp + (1|site) + (1|sp@site), data = dat, family = "binomial", 
+                   tree = phy, REML = TRUE, verbose = TRUE, s2.init=.1)
 
 # Model 2 (Eq. 2)
-re.site <- list(1, site = dat$site, covar = diag(nsite))
-re.slope <- list(X, sp = dat$sp, covar = diag(nspp))
-re.slopephy <- list(X, sp = dat$sp, covar = Vphy)
-z <- communityPGLMM(freq ~ sp + X, data = dat, family = "binomial",
-sp = dat$sp, site = dat$site, random.effects = list(re.site,
-re.slope, re.slopephy), REML = TRUE, verbose = TRUE, s2.init=.1)
+z <- communityPGLMM(freq ~ sp + X + (1|site) + (X|sp__), data = dat, family = "binomial",
+                    tree = phy, REML = TRUE, verbose = TRUE, s2.init=.1)
 
 # Model 3 (Eq. 3)
-re.site <- list(1, site = dat$site, covar = diag(nsite))
-re.sp.site <- list(1, sp = dat$sp, covar = Vrepul, site = dat$site) # note: nested
-z <- communityPGLMM(freq ~ sp*X, data = dat, family = "binomial",
-sp = dat$sp, site = dat$site, random.effects = list(re.site,
-re.sp.site), REML = TRUE, verbose = TRUE, s2.init=.1)
+z <- communityPGLMM(freq ~ sp*X + (1|site) + (1|sp@site), data = dat, family = "binomial",
+                    tree = phy, REML = TRUE, verbose = TRUE, s2.init=.1)
 
 ## Model structure from Rafferty & Ives (2013) (Eq. 3)
 # dat = data set
-# npp = number of pollinators (sp)
+# nspp = number of pollinators (sp)
 # nsite = number of plants (site)
-# VphyPol = phylogenetic covariance matrix for pollinators
-# VphyPlt = phylogenetic covariance matrix for plants
+# phyPol = phylogeny for pollinators
+# phyPlt = phylogeny for plants
 
-re.a <- list(1, sp = dat$sp, covar = diag(nspp))
-re.b <- list(1, sp = dat$sp, covar = VphyPol)
-re.c <- list(1, sp = dat$sp, covar = VphyPol, dat$site)
-re.d <- list(1, site = dat$site, covar = diag(nsite))
-re.f <- list(1, site = dat$site, covar = VphyPlt)
-re.g <- list(1, site = dat$site, covar = VphyPlt, dat$sp)
-#term h isn't possible in this implementation, but can be done with
-available matlab code
+# prepare random effects
+re12 = c(re1, re2)
 
 z <- communityPGLMM(freq ~ sp*X, data = dat, family = "binomial",
-sp = dat$sp, site = dat$site, random.effects = list(re.a, re.b,
-re.c, re.d, re.f, re.g), REML = TRUE, verbose = TRUE, s2.init=.1)
+ re.effects = re12, REML = TRUE, verbose = TRUE, s2.init=.1)
 }
 
 #########################################################
