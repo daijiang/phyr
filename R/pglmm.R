@@ -515,8 +515,8 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, repu
   data = dat_prepared$data
   sp = dat_prepared$sp
   site = dat_prepared$site
-  random.effects = if(prep_re){
-    dat_prepared$random.effects
+  if(prep_re){
+    random.effects = dat_prepared$random.effects
   } else {
     random.effects = re.effects
   }
@@ -546,7 +546,6 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, repu
 # Get design matrix for both gaussian and binomial models
 get_design_matrix = function(formula, data, na.action = NULL, 
                              sp, site, random.effects){
-  # Main program
   nspp <- nlevels(sp)
   nsite <- nlevels(site)
   
