@@ -756,7 +756,7 @@ pglmm_gaussian_LL_calc = function(par, X, Y, Zt, St, nested = NULL,
 }
 
 # Log likelihood function for binomial model
-plmm.binary.LL <- function(par, H, X, Zt, St, mu, Y.na, nested, REML = TRUE, verbose = FALSE, cpp = TRUE) {
+plmm.binary.LL <- function(par, H, X, Zt, St, mu, nested, REML = TRUE, verbose = FALSE, cpp = TRUE) {
   par <- abs(par)
   n <- dim(H)[1]
   p <- dim(H)[2]
@@ -1059,14 +1059,13 @@ communityPGLMM.binary <- function(formula, data = list(), family = "binomial",
     Z <- X %*% B + b + (Y - mu)/(mu * (1 - mu))
     H <- Z - X %*% B
     
-    # Y.na ??? not used
     if (q > 1) {
       opt <- optim(fn = plmm.binary.LL, par = ss, H = H, X = X, Zt = Zt, St = St, cpp = cpp,
-                   mu = mu, Y.na = Y.na, nested = nested, REML = REML, verbose = verbose, 
+                   mu = mu, nested = nested, REML = REML, verbose = verbose, 
                    method = "Nelder-Mead", control = list(maxit = maxit, reltol = reltol))
     } else {
       opt <- optim(fn = plmm.binary.LL, par = ss, H = H, X = X, Zt = Zt, St = St, cpp = cpp,
-                   mu = mu, Y.na = Y.na, nested = nested, REML = REML, verbose = verbose, 
+                   mu = mu, nested = nested, REML = REML, verbose = verbose, 
                    method = "L-BFGS-B", control = list(maxit = maxit))
     }
     ss <- abs(opt$par)
