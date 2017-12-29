@@ -44,6 +44,8 @@ iterations for the PQL optimization.}
 \item{maxit.reml}{a control parameter dictating the maximum number of
 iterations for the REML optimization.}
 
+\item{cpp}{whether to use cpp version of likelihood function? Default is TRUE.}
+
 \item{s2}{in binaryPGLMM.sim, value of s2. See s2.init.}
 
 \item{B}{in binaryPGLMM.sim, value of B, the matrix containing regression

@@ -81,6 +81,7 @@
 #' coefficients in the model. See B.init.
 #' @param nrep in binaryPGLMM.sim, number of compete data sets produced.
 #' @param digits the number of digits to print.
+#' @param cpp whether to use cpp version of likelihood function? Default is TRUE.
 #' @param \dots further arguments passed to \code{print}.
 #' @return An object of class "binaryPGLMM".
 #' 

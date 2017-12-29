@@ -19,9 +19,9 @@ prep_dat_pglmm(formula, data, tree, repulsion = FALSE,
   prep.re.effects = TRUE)
 
 communityPGLMM(formula, data = NULL, family = "gaussian", tree,
-  repulsion = FALSE, re.effects = NULL, REML = TRUE, s2.init = NULL,
-  B.init = NULL, reltol = 10^-6, maxit = 500, tol.pql = 10^-6,
-  maxit.pql = 200, verbose = FALSE, cpp = TRUE)
+  repulsion = FALSE, sp, site, random.effects = NULL, REML = TRUE,
+  s2.init = NULL, B.init = NULL, reltol = 10^-6, maxit = 500,
+  tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE, cpp = TRUE)
 
 communityPGLMM.gaussian(formula, data = list(), family = "gaussian",
   sp = NULL, site = NULL, random.effects = list(), REML = TRUE,
@@ -72,10 +72,16 @@ sites.}
 \item{repulsion}{when nested random term specified, do you want to test repulsion or underdispersion?
 Default is FALSE, i.e. test underdispersion.}
 
+\item{prep.re.effects}{whether to prepare random effects for users.}
+
 \item{family}{either \code{gaussian} for a Linear Mixed Model, or
 \code{binomial} for binary dependent data.}
 
-\item{re.effects}{pre-build list of random effects, default is NULL. Can be useful if
+\item{sp}{no longer used, keep here for compatibility}
+
+\item{site}{no longer used, keep here for compatibility}
+
+\item{random.effects}{pre-build list of random effects, default is NULL. Can be useful if
 dealing with two phylogenies (e.g. plants and pollinators). You can prepare it with
 the prep_dat_pglmm() function to get the random effects for each phylogeny and then
 combine both together.}
@@ -193,11 +199,6 @@ reasons).}
 in \code{\link{print.default}}}
 
 \item{show.plot}{if \code{TRUE} (default), display plot}
-
-\item{x}{communityPGLMM object to be summarised}
-
-\item{digits}{minimal number of significant digits for printing, as
-in \code{\link{print.default}}}
 }
 \value{
 an object of class \code{communityPGLMM}
@@ -313,7 +314,7 @@ z <- communityPGLMM(freq ~ sp*X + (1|site) + (1|sp@site), data = dat, family = "
 re12 = c(re1, re2)
 
 z <- communityPGLMM(freq ~ sp*X, data = dat, family = "binomial",
- re.effects = re12, REML = TRUE, verbose = TRUE, s2.init=.1)
+ random.effects = re12, REML = TRUE, verbose = TRUE, s2.init=.1)
 }
 
 #########################################################

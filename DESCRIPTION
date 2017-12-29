@@ -24,10 +24,12 @@ Imports:
     methods,
     graphics,
     dplyr,
-    lme4
+    lme4,
+    plotrix
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 6.0.1
 LinkingTo:
     Rcpp, RcppArmadillo
-Suggests:
-    testthat
+Suggests: 
+    testthat,
+    tidyr

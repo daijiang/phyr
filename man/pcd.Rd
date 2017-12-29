@@ -16,6 +16,8 @@ pcd(comm, tree, expectation = NULL, cpp = TRUE, verbose = TRUE, ...)
 \item{cpp}{whether to use loops written with c++, default is TRUE}
 
 \item{verbose}{do you want to see the progress?}
+
+\item{...}{other arguments}
 }
 \value{
 a list of a variety of pairwise dissimilarities.

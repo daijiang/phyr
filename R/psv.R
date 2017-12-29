@@ -227,7 +227,7 @@ psc <- function(comm, tree, scale.vcv = TRUE, prune.tree = FALSE) {
 
 #' @rdname psd
 #' @export
-psv.spp <- function(comm, tree, scale.vsv = TRUE, prune.tree = FALSE) {
+psv.spp <- function(comm, tree, scale.vcv = TRUE, prune.tree = FALSE) {
     # Make comm matrix a pa matrix
     comm[comm > 0] <- 1
     if (is.null(dim(comm))) {

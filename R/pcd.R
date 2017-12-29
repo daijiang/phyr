@@ -97,6 +97,7 @@ pcd_pred = function(comm_1, comm_2 = NULL, tree, reps = 10^3, cpp = TRUE) {
 #' @param expectation nsp_pool, psv_bar, psv_pool, and nsr calculated from \code{pcd_pred()}.
 #' @param cpp whether to use loops written with c++, default is TRUE
 #' @param verbose do you want to see the progress?
+#' @param ... other arguments
 #' @return a list of a variety of pairwise dissimilarities.
 #' @export
 #' @examples

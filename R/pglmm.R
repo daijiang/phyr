@@ -37,10 +37,13 @@
 #' @param tree a phylogeny, with "phylo" class.
 #' @param repulsion when nested random term specified, do you want to test repulsion or underdispersion?
 #' Default is FALSE, i.e. test underdispersion.
-#' @param re.effects pre-build list of random effects, default is NULL. Can be useful if 
+#' @param random.effects pre-build list of random effects, default is NULL. Can be useful if 
 #' dealing with two phylogenies (e.g. plants and pollinators). You can prepare it with
 #' the prep_dat_pglmm() function to get the random effects for each phylogeny and then
 #' combine both together.
+#' @param prep.re.effects whether to prepare random effects for users.
+#' @param sp no longer used, keep here for compatibility
+#' @param site no longer used, keep here for compatibility
 #' @param REML whether REML or ML is used for model fitting. For the
 #' generalized linear mixed model for binary data, these don't have
 #' standard interpretations, and there is no log likelihood function
@@ -227,7 +230,7 @@
 #' re12 = c(re1, re2)
 #' 
 #' z <- communityPGLMM(freq ~ sp*X, data = dat, family = "binomial",
-#'  re.effects = re12, REML = TRUE, verbose = TRUE, s2.init=.1)
+#'  random.effects = re12, REML = TRUE, verbose = TRUE, s2.init=.1)
 #' }
 #' 
 #' #########################################################
@@ -502,14 +505,14 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE, prep.re.effect
 
 #' @rdname pglmm
 #' @export
-communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, repulsion = FALSE,
-                           re.effects = NULL, REML = TRUE, s2.init = NULL, B.init = NULL, reltol = 10^-6, 
+communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, repulsion = FALSE, sp, site,
+                           random.effects = NULL, REML = TRUE, s2.init = NULL, B.init = NULL, reltol = 10^-6, 
                            maxit = 500, tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE, cpp = TRUE) {
   if (family %nin% c("gaussian", "binomial")){
     stop("\nSorry, but only binomial (binary) and gaussian options exist at this time")
   }
   
-  prep_re = if(is.null(re.effects)) TRUE else FALSE
+  prep_re = if(is.null(random.effects)) TRUE else FALSE
   dat_prepared = prep_dat_pglmm(formula, data, tree, repulsion, prep_re)
   formula = dat_prepared$formula
   data = dat_prepared$data
@@ -518,7 +521,7 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, repu
   if(prep_re){
     random.effects = dat_prepared$random.effects
   } else {
-    random.effects = re.effects
+    random.effects = random.effects
   }
   
   if (family == "gaussian") {
@@ -1239,9 +1242,6 @@ summary.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), 
 
 #' @rdname pglmm
 #' @method print communityPGLMM
-#' @param x communityPGLMM object to be summarised
-#' @param digits minimal number of significant digits for printing, as
-#' in \code{\link{print.default}}
 #' @export
 print.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ...) {
   summary.communityPGLMM(x, digits = digits)
@@ -1252,7 +1252,7 @@ print.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ..
 #' @importFrom graphics par image
 #' @export
 plot.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ...) {
-  if (!require(plotrix)) {
+  if (!requireNamespace("plotrix")) {
     stop("The 'plotrix' package is required to plot images from this function")
   }
   
@@ -1263,7 +1263,7 @@ plot.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ...
   
   par(mfrow = c(1, 1), las = 1, mar = c(4, 4, 2, 2) - 0.1)
   
-  color2D.matplot(Y, ylab = "species", xlab = "sites", main = "Observed values")
+  plotrix::color2D.matplot(Y, ylab = "species", xlab = "sites", main = "Observed values")
 }
 
 #' \code{communityPGLMM.predicted.values} calculates the predicted
@@ -1290,7 +1290,7 @@ communityPGLMM.predicted.values <- function(x, show.plot = TRUE, ...) {
   }
   
   if (show.plot == TRUE) {
-    if (!require(plotrix)) {
+    if (!requireNamespace("plotrix")) {
       stop("The 'plotrix' package is required to plot images from this function")
     }
     
@@ -1300,7 +1300,7 @@ communityPGLMM.predicted.values <- function(x, show.plot = TRUE, ...) {
     Y <- Y[, -1]
     par(mfrow = c(1, 1), las = 1, mar = c(4, 4, 2, 2) - 0.1)
     
-    color2D.matplot(Y, ylab = "species", xlab = "sites", main = "Predicted values")
+    plotrix::color2D.matplot(Y, ylab = "species", xlab = "sites", main = "Predicted values")
   }
   return(predicted.values)
 }

@@ -17,7 +17,7 @@ pse(comm, tree, scale.vcv = TRUE, prune.tree = FALSE)
 
 psc(comm, tree, scale.vcv = TRUE, prune.tree = FALSE)
 
-psv.spp(comm, tree, scale.vsv = TRUE, prune.tree = FALSE)
+psv.spp(comm, tree, scale.vcv = TRUE, prune.tree = FALSE)
 
 psd(comm, tree, compute.var = TRUE, scale.vcv = TRUE, prune.tree = FALSE)
 }
