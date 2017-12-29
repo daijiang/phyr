@@ -116,9 +116,9 @@ microbenchmark::microbenchmark(
 
 # about 6 times faster for a small dataset
 microbenchmark::microbenchmark(
-  phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|site@sp), dat, 
+  phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), dat, 
                        family = "binomial", tree = phylotree, REML = F, cpp = T),
-  phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|site@sp), dat, 
+  phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), dat, 
                        family = "binomial", tree = phylotree, REML = F, cpp = F),
   pez::communityPGLMM(pa ~ 1 + shade, data = dat, family = "binomial", sp = dat$sp, 
                       site = dat$site, random.effects = re, REML = F),

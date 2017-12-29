@@ -111,7 +111,7 @@ double pglmm_gaussian_LL_cpp(NumericVector par,
   }
   
   if(verbose){
-    Rcout << LL << " " << par << " ";
+    Rcout << LL << " " << par << std::endl;
   }
     
   return LL;
