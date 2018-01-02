@@ -400,9 +400,12 @@
 #' summary(lmer(Y ~ X + (1 | sp) + (0 + X | sp), data=dat, REML = FALSE))
 #' }
 #' }
+#' @param prep.s2.lme4 whether to prepare initial s2 values based on lme4 theta. Default is FALSE.
+#' If no phylogenetic or nested random terms, should set it to TRUE since it likely will be faster.
+#' However, in this case, you probably can just use lme4::lmer.
 # end of doc ---- 
 prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE, 
-                          prep.re.effects = TRUE, family = "gaussian"){
+                          prep.re.effects = TRUE, family = "gaussian", prep.s2.lme4 = FALSE){
   # make sure the data has sp and site columns
   if(!all(c("sp", "site") %in% names(data))) {
     stop("The data frame should have a column named as 'sp' and a column named as 'site'.")
@@ -440,7 +443,6 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
       if(x2[2] == "1"){ # intercept
         if(!grepl("[@]", x2[3])){ # single column; non-nested
           if(grepl("__$", x2[3])){
-            which_phy[i] = 1
             # also want phylogenetic version, 
             # it makes sense if the phylogenetic version is in, the non-phy part should be there too
             coln = gsub("__$", "", x2[3])
@@ -496,23 +498,39 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
       }
       x3
     }), recursive = T)
+    
+    if(prep.s2.lme4){
+      # lme4 to get initial theta
+      s2_init = numeric(length(random.effects))
+      names(s2_init) = names(random.effects)
+      dv = sqrt(var(lm(formula = lme4::nobars(formula), data = data)$residuals)/length(s2_init))
+      s2_init[grep(pattern = "__", x = names(s2_init))] = dv # init phy term
+      s2_init[grep(pattern = "@", x = names(s2_init))] = dv # init nested term
+      
+      no__ = gsub(pattern = "__", replacement = "", x = formula)
+      if(grepl(pattern = "@", no__[3])){
+        no__[3] = gsub(pattern = "[+] *[(]1 *[|] *[sitep]{2,4}@[sitep]{2,4}[)]", 
+                       replacement = "", x = no__[3])
+      }
+      fm_no__ = as.formula(paste0(no__[2], no__[1], no__[3]))
+      if(family == "gaussian"){
+        itheta = lme4::lFormula(fm_no__, data)$reTrms$theta
+      } else {
+        itheta = lme4::glFormula(fm_no__, data)$reTrms$theta
+      }
+      lt = grep("__|@", names(s2_init), invert = TRUE)
+      if(length(lt) != length(itheta)) {
+        warning("automated s2.init failed, set to NULL", immediate. = TRUE)
+        s2_init = NULL
+      } else {
+        s2_init[lt] = itheta
+      }
+    } else {
+      s2_init = NULL
+    }
   } else {
     random.effects = NA
-  }
-  
-  # lme4 to get initial theta
-  no__ = gsub(pattern = "__", replacement = "", x = formula)
-  fm_no__ = as.formula(paste0(no__[2], no__[1], no__[3]))
-  if(family == "gaussian"){
-    itheta = lme4::lFormula(fm_no__, data)$reTrms$theta
-  } else {
-    itheta = lme4::glFormula(fm_no__, data)$reTrms$theta
-  }
-  which_phy = grepl("__$", fm)
-  if(any(which_phy)) {
-    s2_init = rep(itheta, as.integer(which_phy) + 1)
-  } else {
-    s2_init = itheta
+    s2_init = NULL
   }
   
   formula = lme4::nobars(formula)
@@ -523,21 +541,24 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
 }
 
 #' @rdname pglmm
+#' @param optimizer bobyqa (default) or Nelder-Mead 
 #' @export
 communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, repulsion = FALSE, sp, site,
                            random.effects = NULL, REML = TRUE, s2.init = NULL, B.init = NULL, reltol = 10^-6, 
-                           maxit = 500, tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE, cpp = TRUE) {
+                           maxit = 500, tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE, cpp = TRUE,
+                           optimizer = c("bobyqa", "Nelder-Mead"), prep.s2.lme4 = FALSE) {
+  optimizer = match.arg(optimizer)
   if (family %nin% c("gaussian", "binomial")){
     stop("\nSorry, but only binomial (binary) and gaussian options exist at this time")
   }
   
   prep_re = if(is.null(random.effects)) TRUE else FALSE
-  dat_prepared = prep_dat_pglmm(formula, data, tree, repulsion, prep_re, family)
+  dat_prepared = prep_dat_pglmm(formula, data, tree, repulsion, prep_re, family, prep.s2.lme4)
   formula = dat_prepared$formula
   data = dat_prepared$data
   sp = dat_prepared$sp
   site = dat_prepared$site
-  if(is.null(s2.init)) s2.init = dat_prepared$s2_init
+  if(prep.s2.lme4) s2.init = dat_prepared$s2_init
 
   if(prep_re){
     random.effects = dat_prepared$random.effects
@@ -551,17 +572,17 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, repu
                                  random.effects = random.effects, REML = REML, 
                                  s2.init = s2.init, B.init = B.init, 
                                  reltol = reltol, maxit = maxit, 
-                                 verbose = verbose, cpp = cpp)
+                                 verbose = verbose, cpp = cpp, optimizer = optimizer)
   }
   
   if (family == "binomial") {
-    if (is.null(s2.init)) s2.init <- 0.25
+    if (is.null(s2.init)) s2.init <- 0.05
     z <- communityPGLMM.binary(formula = formula, data = data, 
                                sp = sp, site = site, 
                                random.effects = random.effects, REML = REML, 
                                s2.init = s2.init, B.init = B.init, reltol = reltol, 
                                maxit = maxit, tol.pql = tol.pql, maxit.pql = maxit.pql, 
-                               verbose = verbose, cpp = cpp)
+                               verbose = verbose, cpp = cpp, optimizer = optimizer)
   }
   
   return(z)
@@ -917,7 +938,8 @@ plmm.binary.V <- function(par, Zt, St, mu, nested) {
 communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian", 
                                     sp = NULL, site = NULL, random.effects = list(), 
                                     REML = TRUE, s2.init = NULL, B.init = NULL, 
-                                    reltol = 10^-8, maxit = 500, verbose = FALSE, cpp = TRUE) {
+                                    reltol = 10^-8, maxit = 500, verbose = FALSE, 
+                                    cpp = TRUE, optimizer = "bobyqa") {
   
   dm = get_design_matrix(formula, data, na.action = NULL, sp, site, random.effects)
   X = dm$X; Y = dm$Y; St = dm$St; Zt = dm$Zt; nested = dm$nested
@@ -940,19 +962,34 @@ communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian",
     s2.init <- var(lm(formula = formula, data = data)$residuals)/q
   }
   B <- B.init
-  s <- as.vector(array(s2.init^0.5, dim = c(1, q)))
+  s <- as.vector(array(s2.init, dim = c(1, q)))
   
   fn = if(cpp) pglmm_gaussian_LL_cpp else pglmm_gaussian_LL_calc
-  if (q > 1) {
-    opt <- optim(fn = fn, par = s, X = X, Y = Y, Zt = Zt, St = St, 
-                 nested = nested, REML = REML, verbose = verbose, 
-                 method = "Nelder-Mead", control = list(maxit = maxit, reltol = reltol))
-  } else {
-    opt <- optim(fn = fn, par = s, X = X, Y = Y, Zt = Zt, St = St, 
-                 nested = nested, REML = REML, verbose = verbose,
-                 method = "L-BFGS-B", control = list(maxit = maxit))
+  if(optimizer == "bobyqa"){
+    opts <- list("algorithm" = "NLOPT_LN_BOBYQA", "ftol_rel" = reltol, 
+                 "xtol_rel" = 0.0001, "maxeval" = maxit)
+    if(cpp){
+      S0 <- nloptr::nloptr(x0 = s, eval_f = fn, opts = opts, X = X, Y = Y, Zt = Zt, St = St, 
+                           nested = nested, REML = REML, verbose = verbose)
+    } else {
+      S0 <- nloptr::nloptr(x0 = s, eval_f = fn, opts = opts, X = X, Y = Y, Zt = Zt, St = St, 
+                           nested = nested, REML = REML, verbose = verbose, optim_ll = T)
+    }
+    opt = list(par = S0$solution, value = S0$objective, counts = S0$iterations,
+         convergence = S0$status, message = S0$message)
   }
-  
+  if(optimizer == "Nelder-Mead"){
+    if (q > 1) {
+      opt <- optim(fn = fn, par = s, X = X, Y = Y, Zt = Zt, St = St, 
+                   nested = nested, REML = REML, verbose = verbose, 
+                   method = "Nelder-Mead", control = list(maxit = maxit, reltol = reltol))
+    } else {
+      opt <- optim(fn = fn, par = s, X = X, Y = Y, Zt = Zt, St = St, 
+                   nested = nested, REML = REML, verbose = verbose,
+                   method = "L-BFGS-B", control = list(maxit = maxit))
+    }
+  }
+   
   # Extract parameters
   par_opt <- abs(Re(opt$par))
   LL <- opt$value
@@ -995,9 +1032,10 @@ communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian",
 #' @export
 communityPGLMM.binary <- function(formula, data = list(), family = "binomial", 
                                   sp = NULL, site = NULL, random.effects = list(), 
-                                  REML = TRUE, s2.init = 0.25, B.init = NULL, 
+                                  REML = TRUE, s2.init = 0.05, B.init = NULL, 
                                   reltol = 10^-5, maxit = 40, tol.pql = 10^-6, 
-                                  maxit.pql = 200, verbose = FALSE, cpp = TRUE) {
+                                  maxit.pql = 200, verbose = FALSE, cpp = TRUE,
+                                  optimizer = "bobyqa") {
   dm = get_design_matrix(formula, data, na.action = NULL, sp, site, random.effects)
   X = dm$X; Y = dm$Y; St = dm$St; Zt = dm$Zt; nested = dm$nested
   p <- ncol(X)
@@ -1014,7 +1052,7 @@ communityPGLMM.binary <- function(formula, data = list(), family = "binomial",
     B.init <- matrix(B.init, ncol = 1)
   }
   B <- B.init
-  ss <- as.vector(array(s2.init^0.5, dim = c(1, q)))
+  ss <- as.vector(array(s2.init, dim = c(1, q)))
   
   b <- matrix(0, nrow = n)
   beta <- rbind(B, b)
@@ -1083,15 +1121,28 @@ communityPGLMM.binary <- function(formula, data = list(), family = "binomial",
     Z <- X %*% B + b + (Y - mu)/(mu * (1 - mu))
     H <- Z - X %*% B
     
-    if (q > 1) {
-      opt <- optim(fn = plmm.binary.LL, par = ss, H = H, X = X, Zt = Zt, St = St, cpp = cpp,
-                   mu = mu, nested = nested, REML = REML, verbose = verbose, 
-                   method = "Nelder-Mead", control = list(maxit = maxit, reltol = reltol))
-    } else {
-      opt <- optim(fn = plmm.binary.LL, par = ss, H = H, X = X, Zt = Zt, St = St, cpp = cpp,
-                   mu = mu, nested = nested, REML = REML, verbose = verbose, 
-                   method = "L-BFGS-B", control = list(maxit = maxit))
+    if(optimizer == "bobyqa"){
+      opts <- list("algorithm" = "NLOPT_LN_BOBYQA", "ftol_rel" = reltol, 
+                   "xtol_rel" = 0.0001, "maxeval" = maxit)
+      S0 <- nloptr::nloptr(x0 = ss, eval_f = plmm.binary.LL, opts = opts,
+                           H = H, X = X, Zt = Zt, St = St, cpp = cpp,
+                           mu = mu, nested = nested, REML = REML, verbose = verbose)
+      opt = list(par = S0$solution, value = S0$objective, counts = S0$iterations,
+                 convergence = S0$status, message = S0$message)
     }
+    
+    if(optimizer == "Nelder-Mead"){
+      if (q > 1) {
+        opt <- optim(fn = plmm.binary.LL, par = ss, H = H, X = X, Zt = Zt, St = St, cpp = cpp,
+                     mu = mu, nested = nested, REML = REML, verbose = verbose, 
+                     method = "Nelder-Mead", control = list(maxit = maxit, reltol = reltol))
+      } else {
+        opt <- optim(fn = plmm.binary.LL, par = ss, H = H, X = X, Zt = Zt, St = St, cpp = cpp,
+                     mu = mu, nested = nested, REML = REML, verbose = verbose, 
+                     method = "L-BFGS-B", control = list(maxit = maxit))
+      }
+    }
+    
     ss <- abs(opt$par)
     LL <- opt$value
     

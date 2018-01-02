@@ -16,22 +16,24 @@
 \title{Phylogenetic Generalised Linear Mixed Model for Community Data}
 \usage{
 prep_dat_pglmm(formula, data, tree, repulsion = FALSE,
-  prep.re.effects = TRUE)
+  prep.re.effects = TRUE, family = "gaussian", prep.s2.lme4 = FALSE)
 
 communityPGLMM(formula, data = NULL, family = "gaussian", tree,
   repulsion = FALSE, sp, site, random.effects = NULL, REML = TRUE,
   s2.init = NULL, B.init = NULL, reltol = 10^-6, maxit = 500,
-  tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE, cpp = TRUE)
+  tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE, cpp = TRUE,
+  optimizer = c("bobyqa", "Nelder-Mead"), prep.s2.lme4 = FALSE)
 
 communityPGLMM.gaussian(formula, data = list(), family = "gaussian",
   sp = NULL, site = NULL, random.effects = list(), REML = TRUE,
   s2.init = NULL, B.init = NULL, reltol = 10^-8, maxit = 500,
-  verbose = FALSE, cpp = TRUE)
+  verbose = FALSE, cpp = TRUE, optimizer = "bobyqa")
 
 communityPGLMM.binary(formula, data = list(), family = "binomial",
   sp = NULL, site = NULL, random.effects = list(), REML = TRUE,
-  s2.init = 0.25, B.init = NULL, reltol = 10^-5, maxit = 40,
-  tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE, cpp = TRUE)
+  s2.init = 0.05, B.init = NULL, reltol = 10^-5, maxit = 40,
+  tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE, cpp = TRUE,
+  optimizer = "bobyqa")
 
 communityPGLMM.binary.LRT(x, re.number = 0, cpp = TRUE, ...)
 
@@ -76,6 +78,10 @@ Default is FALSE, i.e. test underdispersion.}
 
 \item{family}{either \code{gaussian} for a Linear Mixed Model, or
 \code{binomial} for binary dependent data.}
+
+\item{prep.s2.lme4}{whether to prepare initial s2 values based on lme4 theta. Default is FALSE.
+If no phylogenetic or nested random terms, should set it to TRUE since it likely will be faster.
+However, in this case, you probably can just use lme4::lmer.}
 
 \item{sp}{no longer used, keep here for compatibility}
 
@@ -130,6 +136,8 @@ estimates of \code{s2} and \code{B} are plotted each iteration
 during optimization.}
 
 \item{cpp}{whether to use c++ function for optim. Default is TRUE.}
+
+\item{optimizer}{bobyqa (default) or Nelder-Mead}
 
 \item{x}{communityPGLMM object to be summarised}
 

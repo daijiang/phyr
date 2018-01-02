@@ -46,22 +46,22 @@ microbenchmark::microbenchmark(phyr::pcd(comm = comm_a, tree = phylotree, reps =
 ##                                                                  expr
 ##  phyr::pcd(comm = comm_a, tree = phylotree, reps = 1000, verbose = F)
 ##            picante::pcd(comm = comm_a, tree = phylotree, reps = 1000)
-##        min        lq      mean    median        uq      max neval cld
-##   14.35653  15.11948  27.94936  16.11395  18.23879 222.2971    30  a 
-##  376.24935 394.44130 413.74352 399.76525 413.07654 558.9477    30   b
+##        min        lq      mean    median        uq       max neval cld
+##   12.31595  13.00211  22.88435  13.45764  15.59387  150.2272    30  a 
+##  331.69883 350.76679 406.12932 362.38189 379.86588 1053.1579    30   b
 # psv, the example data is too small to compare
 microbenchmark::microbenchmark(phyr::psv(comm_a, phylotree),
                                picante::psv(comm_a, phylotree))
 ## Unit: milliseconds
 ##                             expr      min       lq     mean   median
-##     phyr::psv(comm_a, phylotree) 5.208111 5.516630 6.753961 5.889708
-##  picante::psv(comm_a, phylotree) 4.706906 4.905797 5.904191 5.181233
+##     phyr::psv(comm_a, phylotree) 4.768352 4.988823 6.158720 5.211785
+##  picante::psv(comm_a, phylotree) 4.265307 4.473843 5.307523 4.644148
 ##        uq      max neval cld
-##  6.541180 63.40182   100   a
-##  5.736378 51.99612   100   a
+##  5.508743 63.65862   100   a
+##  5.086257 44.92803   100   a
 ```
 
-`communityPGLMM` now can use similar syntax as `lme4::lmer` to specify random terms: add `__` (two underscores) at the end of grouping variable (`sp`) to specify both phylogenetic and non-phylogenetic random terms; use `(1|site@sp)` to specify nested term.
+`communityPGLMM` now can use similar syntax as `lme4::lmer` to specify random terms: add `__` (two underscores) at the end of grouping variable (`sp`) to specify both phylogenetic and non-phylogenetic random terms; use `(1|sp@site)` to specify nested term. Note: `(1|sp@site)` and `(1|site@sp)` have different orders.
 
 ``` r
 library(dplyr)
@@ -94,10 +94,10 @@ head(dat)
 ## 4      Wind  0
 ## 5      Wind  0
 ## 6      Wind  1
-test1 = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|site@sp), 
+test1 = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
                              data = dat, family = "gaussian", tree = phylotree, REML = F)
-## Warning in prep_dat_pglmm(formula, data, family, tree, repulsion): Drop
-## species from the phylogeny that are not in the data
+## Warning in prep_dat_pglmm(formula, data, tree, repulsion, prep_re,
+## family, : Drop species from the phylogeny that are not in the data
 test1
 ## Linear mixed model fit by maximum likelihood
 ## 
@@ -107,23 +107,23 @@ test1
 ## -463.3  940.6  956.5 
 ## 
 ## Random effects:
-##            Variance   Std.Dev
-## 1|sp      7.407e-01 0.8606331
-## 1|sp__    2.473e-07 0.0004973
-## 1|site    9.970e-08 0.0003158
-## 1|site@sp 4.192e-07 0.0006475
-## residual  3.260e+00 1.8054524
+##            Variance  Std.Dev
+## 1|sp      7.384e-01 0.859304
+## 1|sp__    1.482e-05 0.003850
+## 1|site    6.589e-06 0.002567
+## 1|sp@site 3.545e-05 0.005954
+## residual  3.260e+00 1.805587
 ## 
 ## Fixed effects:
-##                  Value  Std.Error  Zscore    Pvalue    
-## (Intercept) -0.1910425  0.3924755 -0.4868 0.6264265    
-## shade        0.0226918  0.0067248  3.3744 0.0007399 ***
+##                  Value  Std.Error  Zscore   Pvalue    
+## (Intercept) -0.1910427  0.3923187 -0.4870 0.626288    
+## shade        0.0226917  0.0067256  3.3739 0.000741 ***
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-test3 = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|site@sp), 
+test3 = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
                              data = dat, family = "binomial", tree = phylotree, REML = F)
-## Warning in prep_dat_pglmm(formula, data, family, tree, repulsion): Drop
-## species from the phylogeny that are not in the data
+## Warning in prep_dat_pglmm(formula, data, tree, repulsion, prep_re,
+## family, : Drop species from the phylogeny that are not in the data
 test3
 ## Generalized linear mixed model for binary data fit by maximum likelihood
 ## 
@@ -132,15 +132,15 @@ test3
 ## 
 ## Random effects:
 ##            Variance   Std.Dev
-## 1|sp      7.994e-07 0.0008941
-## 1|sp__    4.477e-01 0.6690844
-## 1|site    1.511e-07 0.0003887
-## 1|site@sp 2.651e-06 0.0016281
+## 1|sp      7.011e-14 2.648e-07
+## 1|sp__    4.420e-01 6.648e-01
+## 1|site    4.981e-16 2.232e-08
+## 1|sp@site 1.264e-14 1.124e-07
 ## 
 ## Fixed effects:
-##                  Value  Std.Error  Zscore    Pvalue    
-## (Intercept) -2.0848062  0.5754435 -3.6230 0.0002913 ***
-## shade        0.0165981  0.0087182  1.9038 0.0569309 .  
+##                  Value  Std.Error  Zscore   Pvalue    
+## (Intercept) -2.0828570  0.5738718 -3.6295 0.000284 ***
+## shade        0.0165878  0.0087153  1.9033 0.057002 .  
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ```
@@ -168,47 +168,58 @@ re.sp <- list(1, sp = dat$sp, covar = diag(nspp))
 re.sp.phy <- list(1, sp = dat$sp, covar = Vphy)
 # sp is nested within site
 re.nested.phy <- list(1, sp = dat$sp, covar = Vphy, site = dat$site)
-re.nested.rep <- list(1, sp = dat$sp, covar = solve(Vphy), site = dat$site)
+re.nested.rep <- list(1, sp = dat$sp, covar = solve(Vphy), site = dat$site) # equal to sp@site
 # can be named 
 re = list(re.sp = re.sp, re.sp.phy = re.sp.phy, re.nested.phy = re.nested.phy, re.site = re.site)
 
-# about 4 times faster for a small dataset
+# about 4-10 times faster for a small dataset
 microbenchmark::microbenchmark(
-  phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|site@sp), 
-                       dat, tree = phylotree, REML = F, cpp = T),
-  phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|site@sp), 
-                       dat, tree = phylotree, REML = F, cpp = F),
+  phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
+                       dat, tree = phylotree, REML = F, cpp = T, optimizer = "bobyqa"),
+  phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
+                       dat, tree = phylotree, REML = F, cpp = T, optimizer = "Nelder-Mead"),
+  phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
+                       dat, tree = phylotree, REML = F, cpp = F, optimizer = "Nelder-Mead"),
   pez::communityPGLMM(freq ~ 1 + shade, data = dat, sp = dat$sp, site = dat$site, 
                       random.effects = re, REML = F),
   times = 5
 )
-## Unit: seconds
-##                                                                                                                             expr
-##  phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) +      (1 | site@sp), dat, tree = phylotree, REML = F, cpp = T)
-##  phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) +      (1 | site@sp), dat, tree = phylotree, REML = F, cpp = F)
-##              pez::communityPGLMM(freq ~ 1 + shade, data = dat, sp = dat$sp,      site = dat$site, random.effects = re, REML = F)
+## Unit: milliseconds
+##                                                                                                                                                             expr
+##       phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) +      (1 | sp@site), dat, tree = phylotree, REML = F, cpp = T,      optimizer = "bobyqa")
+##  phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) +      (1 | sp@site), dat, tree = phylotree, REML = F, cpp = T,      optimizer = "Nelder-Mead")
+##  phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) +      (1 | sp@site), dat, tree = phylotree, REML = F, cpp = F,      optimizer = "Nelder-Mead")
+##                                              pez::communityPGLMM(freq ~ 1 + shade, data = dat, sp = dat$sp,      site = dat$site, random.effects = re, REML = F)
 ##        min        lq      mean    median        uq       max neval cld
-##   2.556054  2.562747  2.604182  2.572521  2.613489  2.716098     5  a 
-##  10.091776 10.095942 10.275212 10.167364 10.326047 10.694930     5   b
-##  10.392822 10.426649 10.503597 10.515633 10.517251 10.665630     5   b
+##   636.4708  640.6385  658.5647  664.0291  666.2371   685.448     5 a  
+##  1659.0819 1691.3962 1741.0974 1725.3429 1731.8092  1897.857     5 a  
+##  6647.6932 6685.5020 6888.3507 6920.0319 7071.8916  7116.635     5  b 
+##  8290.8876 8392.2654 9031.2351 8545.8679 8632.3724 11294.782     5   c
 
 # about 6 times faster for a small dataset
 microbenchmark::microbenchmark(
-  phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|site@sp), dat, 
-                       family = "binomial", tree = phylotree, REML = F, cpp = T),
-  phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|site@sp), dat, 
-                       family = "binomial", tree = phylotree, REML = F, cpp = F),
+  phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), dat, 
+                       family = "binomial", tree = phylotree, REML = F, cpp = T, 
+                       optimizer = "bobyqa"),
+    phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), dat, 
+                       family = "binomial", tree = phylotree, REML = F, cpp = T, 
+                       optimizer = "Nelder-Mead"),
+  phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), dat, 
+                       family = "binomial", tree = phylotree, REML = F, cpp = F, 
+                       optimizer = "Nelder-Mead"),
   pez::communityPGLMM(pa ~ 1 + shade, data = dat, family = "binomial", sp = dat$sp, 
                       site = dat$site, random.effects = re, REML = F),
   times = 5
 )
 ## Unit: seconds
-##                                                                                                                                                     expr
-##  phyr::communityPGLMM(pa ~ 1 + shade + (1 | sp__) + (1 | site) +      (1 | site@sp), dat, family = "binomial", tree = phylotree,      REML = F, cpp = T)
-##  phyr::communityPGLMM(pa ~ 1 + shade + (1 | sp__) + (1 | site) +      (1 | site@sp), dat, family = "binomial", tree = phylotree,      REML = F, cpp = F)
-##                   pez::communityPGLMM(pa ~ 1 + shade, data = dat, family = "binomial",      sp = dat$sp, site = dat$site, random.effects = re, REML = F)
+##                                                                                                                                                                                expr
+##       phyr::communityPGLMM(pa ~ 1 + shade + (1 | sp__) + (1 | site) +      (1 | sp@site), dat, family = "binomial", tree = phylotree,      REML = F, cpp = T, optimizer = "bobyqa")
+##  phyr::communityPGLMM(pa ~ 1 + shade + (1 | sp__) + (1 | site) +      (1 | sp@site), dat, family = "binomial", tree = phylotree,      REML = F, cpp = T, optimizer = "Nelder-Mead")
+##  phyr::communityPGLMM(pa ~ 1 + shade + (1 | sp__) + (1 | site) +      (1 | sp@site), dat, family = "binomial", tree = phylotree,      REML = F, cpp = F, optimizer = "Nelder-Mead")
+##                                              pez::communityPGLMM(pa ~ 1 + shade, data = dat, family = "binomial",      sp = dat$sp, site = dat$site, random.effects = re, REML = F)
 ##        min        lq      mean    median        uq       max neval cld
-##   4.460712  4.468903  4.529751  4.476705  4.578073  4.664361     5 a  
-##  13.751987 13.757251 14.153097 13.776963 14.473640 15.005644     5  b 
-##  23.305227 23.373598 23.520826 23.454696 23.729220 23.741387     5   c
+##   2.967483  2.988747  3.018426  3.004629  3.054706  3.076562     5 a  
+##   3.338105  3.354039  3.408581  3.440264  3.448186  3.462310     5 a  
+##  10.755795 10.929973 11.051084 11.014991 11.260225 11.294437     5  b 
+##  19.586345 19.754649 20.144737 19.850520 20.760795 20.771375     5   c
 ```
