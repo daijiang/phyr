@@ -401,7 +401,8 @@
 #' }
 #' }
 # end of doc ---- 
-prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE, prep.re.effects = TRUE){
+prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE, 
+                          prep.re.effects = TRUE, family = "gaussian"){
   # make sure the data has sp and site columns
   if(!all(c("sp", "site") %in% names(data))) {
     stop("The data frame should have a column named as 'sp' and a column named as 'site'.")
@@ -414,15 +415,16 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE, prep.re.effect
   spl = levels(sp)
   nspp = nlevels(sp); nsite = nlevels(site)
   
+  fm = unique(lme4::findbars(formula))
+  
   if(prep.re.effects){
     # @ for nested; __ at the end for phylogenetic cov
-    fm = unique(lme4::findbars(formula))
     if(is.null(fm)) stop("No random terms specified, use lm or glm instead")
     if(any(grepl("__$", fm))){
       # phylogeny
       if(length(setdiff(spl, tree$tip.label))) stop("Some species not in the phylogeny, please either drop these species or update the phylogeny")
       if(length(setdiff(tree$tip.label, spl))){
-        warning("Drop species from the phylogeny that are not in the data")
+        warning("Drop species from the phylogeny that are not in the data", immediate. = TRUE)
         tree = ape::drop.tip(tree, setdiff(tree$tip.label, spl))
       }
       Vphy <- ape::vcv(tree)
@@ -433,10 +435,12 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE, prep.re.effect
     
     random.effects = lapply(fm, function(x){
       x2 = as.character(x)
+      x2 = gsub(pattern = "^0 ?[+] ?", replacement = "", x2) # replace 0 +  x with x
+      if(grepl("[+]", x2[2])) stop("(x1 + x2|g) form of random terms are not allowed yet, pleast split it")
       if(x2[2] == "1"){ # intercept
         if(!grepl("[@]", x2[3])){ # single column; non-nested
-          if(grepl("[+]", x2[2])) stop("(x1 + x2|g) form of random terms are not allowed yet, pleast split it")
           if(grepl("__$", x2[3])){
+            which_phy[i] = 1
             # also want phylogenetic version, 
             # it makes sense if the phylogenetic version is in, the non-phy part should be there too
             coln = gsub("__$", "", x2[3])
@@ -496,11 +500,26 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE, prep.re.effect
     random.effects = NA
   }
   
+  # lme4 to get initial theta
+  no__ = gsub(pattern = "__", replacement = "", x = formula)
+  fm_no__ = as.formula(paste0(no__[2], no__[1], no__[3]))
+  if(family == "gaussian"){
+    itheta = lme4::lFormula(fm_no__, data)$reTrms$theta
+  } else {
+    itheta = lme4::glFormula(fm_no__, data)$reTrms$theta
+  }
+  which_phy = grepl("__$", fm)
+  if(any(which_phy)) {
+    s2_init = rep(itheta, as.integer(which_phy) + 1)
+  } else {
+    s2_init = itheta
+  }
+  
   formula = lme4::nobars(formula)
   
   return(list(formula = formula, data = data, 
               sp = sp, site = site, 
-              random.effects = random.effects))
+              random.effects = random.effects, s2_init = s2_init))
 }
 
 #' @rdname pglmm
@@ -513,11 +532,13 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, repu
   }
   
   prep_re = if(is.null(random.effects)) TRUE else FALSE
-  dat_prepared = prep_dat_pglmm(formula, data, tree, repulsion, prep_re)
+  dat_prepared = prep_dat_pglmm(formula, data, tree, repulsion, prep_re, family)
   formula = dat_prepared$formula
   data = dat_prepared$data
   sp = dat_prepared$sp
   site = dat_prepared$site
+  if(is.null(s2.init)) s2.init = dat_prepared$s2_init
+
   if(prep_re){
     random.effects = dat_prepared$random.effects
   } else {
