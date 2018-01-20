@@ -33,6 +33,10 @@ pglmm_gaussian_LL_calc_cpp <- function(par, X, Y, Zt, St, nested, REML) {
     .Call(`_phyr_pglmm_gaussian_LL_calc_cpp`, par, X, Y, Zt, St, nested, REML)
 }
 
+pglmm_gaussian_internal_cpp <- function(par, X, Y, Zt, St, nested, REML, verbose, optimizer, maxit, reltol, q, n, p, Pi) {
+    .Call(`_phyr_pglmm_gaussian_internal_cpp`, par, X, Y, Zt, St, nested, REML, verbose, optimizer, maxit, reltol, q, n, p, Pi)
+}
+
 plmm_binary_iV_logdetV_cpp <- function(par, mu, Zt, St, nested, logdet) {
     .Call(`_phyr_plmm_binary_iV_logdetV_cpp`, par, mu, Zt, St, nested, logdet)
 }

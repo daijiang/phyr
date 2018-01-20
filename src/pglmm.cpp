@@ -231,6 +231,80 @@ List pglmm_gaussian_LL_calc_cpp(NumericVector par,
 }
 
 // [[Rcpp::export]]
+Rcpp::List pglmm_gaussian_internal_cpp(NumericVector par, 
+                                       const arma::mat& X, const arma::vec& Y, 
+                                       const arma::sp_mat& Zt, const arma::sp_mat& St, 
+                                       const List& nested, bool REML, bool verbose,
+                                       std::string optimizer, int maxit, double reltol,
+                                       int q, int n, int p, const double Pi
+                                       ){
+  // start optimization
+  Rcpp::Environment stats("package:stats"); 
+  Rcpp::Function optim = stats["optim"]; 
+  Rcpp::Environment nloptr_pkg = Rcpp::Environment::namespace_env("nloptr");
+  Rcpp::Function nloptr = nloptr_pkg["nloptr"];
+  
+  Rcpp::List opt;
+  if(optimizer == "Nelder-Mead"){
+    if(q > 1){
+      opt = optim(_["par"]    = par,
+                  _["fn"]     = Rcpp::InternalFunction(&pglmm_gaussian_LL_cpp),
+                  _["X"] = X, _["Y"] = Y, _["Zt"] = Zt,
+                  _["St"] = St, _["nested"] = nested,
+                  _["REML"] = REML, _["verbose"] = verbose,
+                  _["method"] = "Nelder-Mead",
+                  _["control"] = List::create(_["maxit"] = maxit, _["reltol"] = reltol));
+    } else {
+      opt = optim(_["par"]    = par,
+                  _["fn"]     = Rcpp::InternalFunction(&pglmm_gaussian_LL_cpp),
+                  _["X"] = X, _["Y"] = Y, _["Zt"] = Zt,
+                  _["St"] = St, _["nested"] = nested,
+                  _["REML"] = REML, _["verbose"] = verbose,
+                  _["method"] = "L-BFGS-B",
+                  _["control"] = List::create(_["maxit"] = maxit));
+    }
+  }
+  
+  if(optimizer == "bobyqa"){
+    List opts = List::create(_["algorithm"] = "NLOPT_LN_BOBYQA",
+                             _["ftol_rel"] = reltol,
+                             _["xtol_rel"] = 0.0001,
+                             _["maxeval"] = maxit);
+    List S0 = nloptr(_["x0"] = par,
+                     _["eval_f"] = Rcpp::InternalFunction(&pglmm_gaussian_LL_cpp),
+                     _["opts"] = opts, _["X"] = X, _["Y"] = Y, _["Zt"] = Zt,
+                     _["St"] = St, _["nested"] = nested,
+                     _["REML"] = REML, _["verbose"] = verbose);
+    opt = List::create(_["par"] = S0["solution"],
+                       _["value"] = S0["objective"],
+                       _["counts"] = S0["iterations"],
+                       _["convergence"] = S0["status"],
+                       _["message"] = S0["message"]);
+  }
+  // end of optimization
+  
+  arma::vec par_opt0 = abs(real(as<arma::vec>(opt["par"])));
+  NumericVector par_opt = wrap(par_opt0);
+  double LL = as_scalar(as<double>(opt["value"]));
+  int convcode = as<int>(opt["convergence"]);
+  arma::vec niter = as<arma::vec>(opt["counts"]);
+  
+  // calculate coef
+  List out = pglmm_gaussian_LL_calc_cpp(par_opt, X, Y, Zt, St, nested, REML);
+  double logLik, detx, signx;
+  if(REML){
+    log_det(detx, signx, trans(X) * X);
+    logLik = -0.5 * (n - p) * log(2 * Pi) + 0.5 * detx - LL;
+  } else {
+    logLik = -0.5 * n * log(2 * Pi) - LL;
+  }
+  
+  // return results
+  return List::create(_["out"] = out, _["logLik"] = logLik,
+                      _["convcode"] = convcode, _["niter"] = niter);
+}
+
+// [[Rcpp::export]]
 List plmm_binary_iV_logdetV_cpp(NumericVector par, arma::vec mu,
                                 const arma::sp_mat& Zt, const arma::sp_mat& St, 
                                 const List& nested, bool logdet){

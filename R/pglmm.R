@@ -964,52 +964,54 @@ communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian",
   B <- B.init
   s <- as.vector(array(s2.init, dim = c(1, q)))
   
-  fn = if(cpp) pglmm_gaussian_LL_cpp else pglmm_gaussian_LL_calc
-  if(optimizer == "bobyqa"){
-    opts <- list("algorithm" = "NLOPT_LN_BOBYQA", "ftol_rel" = reltol, 
-                 "xtol_rel" = 0.0001, "maxeval" = maxit)
-    if(cpp){
-      S0 <- nloptr::nloptr(x0 = s, eval_f = fn, opts = opts, X = X, Y = Y, Zt = Zt, St = St, 
-                           nested = nested, REML = REML, verbose = verbose)
-    } else {
-      S0 <- nloptr::nloptr(x0 = s, eval_f = fn, opts = opts, X = X, Y = Y, Zt = Zt, St = St, 
-                           nested = nested, REML = REML, verbose = verbose, optim_ll = T)
-    }
-    opt = list(par = S0$solution, value = S0$objective, counts = S0$iterations,
-         convergence = S0$status, message = S0$message)
-  }
-  if(optimizer == "Nelder-Mead"){
-    if (q > 1) {
-      opt <- optim(fn = fn, par = s, X = X, Y = Y, Zt = Zt, St = St, 
-                   nested = nested, REML = REML, verbose = verbose, 
-                   method = "Nelder-Mead", control = list(maxit = maxit, reltol = reltol))
-    } else {
-      opt <- optim(fn = fn, par = s, X = X, Y = Y, Zt = Zt, St = St, 
-                   nested = nested, REML = REML, verbose = verbose,
-                   method = "L-BFGS-B", control = list(maxit = maxit))
-    }
-  }
-   
-  # Extract parameters
-  par_opt <- abs(Re(opt$par))
-  LL <- opt$value
   if(cpp){
-    out = pglmm_gaussian_LL_calc_cpp(par_opt, X, Y, Zt, St, nested, REML)
+    out_res = pglmm_gaussian_internal_cpp(par = s, X, Y, Zt, St, nested, REML, 
+                                          verbose, optimizer, maxit, 
+                                          reltol, q, n, p, pi)
+    logLik = out_res$logLik
+    out = out_res$out
     row.names(out$B) = colnames(X)
     out$s2r = as.vector(out$s2r)
+    convcode = out_res$convcode
+    niter = out_res$niter[,1]
   } else {
+    if(optimizer == "bobyqa"){
+      opts <- list("algorithm" = "NLOPT_LN_BOBYQA", "ftol_rel" = reltol, 
+                   "xtol_rel" = 0.0001, "maxeval" = maxit)
+      S0 <- nloptr::nloptr(x0 = s, eval_f = pglmm_gaussian_LL_calc, opts = opts, 
+                           X = X, Y = Y, Zt = Zt, St = St, nested = nested, 
+                           REML = REML, verbose = verbose, optim_ll = T)
+      opt = list(par = S0$solution, value = S0$objective, counts = S0$iterations,
+                 convergence = S0$status, message = S0$message)
+    }
+    if(optimizer == "Nelder-Mead"){
+      if (q > 1) {
+        opt <- optim(fn = pglmm_gaussian_LL_calc, par = s, X = X, Y = Y, Zt = Zt, St = St, 
+                     nested = nested, REML = REML, verbose = verbose, 
+                     method = "Nelder-Mead", control = list(maxit = maxit, reltol = reltol))
+      } else {
+        opt <- optim(fn = pglmm_gaussian_LL_calc, par = s, X = X, Y = Y, Zt = Zt, St = St, 
+                     nested = nested, REML = REML, verbose = verbose,
+                     method = "L-BFGS-B", control = list(maxit = maxit))
+      }
+    }
+    convcode = opt$convergence
+    niter = opt$counts
+    par_opt <- abs(Re(opt$par))
+    LL <- opt$value
     out = pglmm_gaussian_LL_calc(par_opt, X, Y, Zt, St, nested, REML, verbose, optim_ll = FALSE)
     out$B.cov = as.matrix(out$B.cov)
+    
+    if (REML == TRUE) {
+      logLik <- as.numeric(-0.5 * (n - p) * log(2 * pi) + 0.5 * determinant(t(X) %*% X)$modulus[1] - LL)
+    } else {
+      logLik <- as.numeric(-0.5 * n * log(2 * pi) - LL)
+    }
   }
+  
   ss <- c(out$sr, out$sn, out$s2resid^0.5)
   B.zscore <- out$B/out$B.se
   B.pvalue <- 2 * pnorm(abs(B.zscore), lower.tail = FALSE)
-  
-  if (REML == TRUE) {
-    logLik <- as.numeric(-0.5 * (n - p) * log(2 * pi) + 0.5 * determinant(t(X) %*% X)$modulus[1] - LL)
-  } else {
-    logLik <- as.numeric(-0.5 * n * log(2 * pi) - LL)
-  }
   k <- p + q + 1
   AIC <- -2 * logLik + 2 * k
   BIC <- -2 * logLik + k * (log(n) - log(pi))
@@ -1020,7 +1022,7 @@ communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian",
                   s2resid = out$s2resid, logLik = logLik, AIC = AIC, BIC = BIC, 
                   REML = REML, s2.init = s2.init, B.init = B.init, Y = Y, X = X, H = out$H, 
                   iV = as.matrix(out$iV), mu = NULL, nested = nested, sp = sp, site = site, Zt = Zt, St = St, 
-                  convcode = opt$convergence, niter = opt$counts)
+                  convcode = convcode, niter = niter)
   class(results) <- "communityPGLMM"
   results
 }

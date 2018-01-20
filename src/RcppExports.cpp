@@ -145,6 +145,31 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// pglmm_gaussian_internal_cpp
+Rcpp::List pglmm_gaussian_internal_cpp(NumericVector par, const arma::mat& X, const arma::vec& Y, const arma::sp_mat& Zt, const arma::sp_mat& St, const List& nested, bool REML, bool verbose, std::string optimizer, int maxit, double reltol, int q, int n, int p, const double Pi);
+RcppExport SEXP _phyr_pglmm_gaussian_internal_cpp(SEXP parSEXP, SEXP XSEXP, SEXP YSEXP, SEXP ZtSEXP, SEXP StSEXP, SEXP nestedSEXP, SEXP REMLSEXP, SEXP verboseSEXP, SEXP optimizerSEXP, SEXP maxitSEXP, SEXP reltolSEXP, SEXP qSEXP, SEXP nSEXP, SEXP pSEXP, SEXP PiSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type par(parSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type X(XSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type Y(YSEXP);
+    Rcpp::traits::input_parameter< const arma::sp_mat& >::type Zt(ZtSEXP);
+    Rcpp::traits::input_parameter< const arma::sp_mat& >::type St(StSEXP);
+    Rcpp::traits::input_parameter< const List& >::type nested(nestedSEXP);
+    Rcpp::traits::input_parameter< bool >::type REML(REMLSEXP);
+    Rcpp::traits::input_parameter< bool >::type verbose(verboseSEXP);
+    Rcpp::traits::input_parameter< std::string >::type optimizer(optimizerSEXP);
+    Rcpp::traits::input_parameter< int >::type maxit(maxitSEXP);
+    Rcpp::traits::input_parameter< double >::type reltol(reltolSEXP);
+    Rcpp::traits::input_parameter< int >::type q(qSEXP);
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    Rcpp::traits::input_parameter< int >::type p(pSEXP);
+    Rcpp::traits::input_parameter< const double >::type Pi(PiSEXP);
+    rcpp_result_gen = Rcpp::wrap(pglmm_gaussian_internal_cpp(par, X, Y, Zt, St, nested, REML, verbose, optimizer, maxit, reltol, q, n, p, Pi));
+    return rcpp_result_gen;
+END_RCPP
+}
 // plmm_binary_iV_logdetV_cpp
 List plmm_binary_iV_logdetV_cpp(NumericVector par, arma::vec mu, const arma::sp_mat& Zt, const arma::sp_mat& St, const List& nested, bool logdet);
 RcppExport SEXP _phyr_plmm_binary_iV_logdetV_cpp(SEXP parSEXP, SEXP muSEXP, SEXP ZtSEXP, SEXP StSEXP, SEXP nestedSEXP, SEXP logdetSEXP) {
@@ -187,6 +212,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_phyr_pcd2_loop", (DL_FUNC) &_phyr_pcd2_loop, 7},
     {"_phyr_pglmm_gaussian_LL_cpp", (DL_FUNC) &_phyr_pglmm_gaussian_LL_cpp, 8},
     {"_phyr_pglmm_gaussian_LL_calc_cpp", (DL_FUNC) &_phyr_pglmm_gaussian_LL_calc_cpp, 7},
+    {"_phyr_pglmm_gaussian_internal_cpp", (DL_FUNC) &_phyr_pglmm_gaussian_internal_cpp, 15},
     {"_phyr_plmm_binary_iV_logdetV_cpp", (DL_FUNC) &_phyr_plmm_binary_iV_logdetV_cpp, 6},
     {"_phyr_plmm_binary_V", (DL_FUNC) &_phyr_plmm_binary_V, 6},
     {NULL, NULL, 0}
