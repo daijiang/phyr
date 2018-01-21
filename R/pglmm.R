@@ -576,7 +576,7 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, repu
   }
   
   if (family == "binomial") {
-    if (is.null(s2.init)) s2.init <- 0.05
+    if (is.null(s2.init)) s2.init <- 0.25
     z <- communityPGLMM.binary(formula = formula, data = data, 
                                sp = sp, site = site, 
                                random.effects = random.effects, REML = REML, 
@@ -962,7 +962,7 @@ communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian",
     s2.init <- var(lm(formula = formula, data = data)$residuals)/q
   }
   B <- B.init
-  s <- as.vector(array(s2.init, dim = c(1, q)))
+  s <- as.vector(array(s2.init^0.5, dim = c(1, q)))
   
   if(cpp){
     out_res = pglmm_gaussian_internal_cpp(par = s, X, Y, Zt, St, nested, REML, 
@@ -1054,7 +1054,7 @@ communityPGLMM.binary <- function(formula, data = list(), family = "binomial",
     B.init <- matrix(B.init, ncol = 1)
   }
   B <- B.init
-  ss <- as.vector(array(s2.init, dim = c(1, q)))
+  ss <- as.vector(array(s2.init^0.5, dim = c(1, q)))
   
   b <- matrix(0, nrow = n)
   beta <- rbind(B, b)
