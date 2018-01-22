@@ -46,19 +46,19 @@ microbenchmark::microbenchmark(phyr::pcd(comm = comm_a, tree = phylotree, reps =
 ##                                                                  expr
 ##  phyr::pcd(comm = comm_a, tree = phylotree, reps = 1000, verbose = F)
 ##            picante::pcd(comm = comm_a, tree = phylotree, reps = 1000)
-##        min        lq      mean    median        uq       max neval cld
-##   12.31595  13.00211  22.88435  13.45764  15.59387  150.2272    30  a 
-##  331.69883 350.76679 406.12932 362.38189 379.86588 1053.1579    30   b
+##        min        lq      mean   median       uq      max neval cld
+##   12.10189  12.96237  22.39486  13.5482  14.7545 140.6719    30  a 
+##  343.19310 356.27963 384.26526 364.3467 403.7512 510.9581    30   b
 # psv, the example data is too small to compare
 microbenchmark::microbenchmark(phyr::psv(comm_a, phylotree),
                                picante::psv(comm_a, phylotree))
 ## Unit: milliseconds
 ##                             expr      min       lq     mean   median
-##     phyr::psv(comm_a, phylotree) 4.768352 4.988823 6.158720 5.211785
-##  picante::psv(comm_a, phylotree) 4.265307 4.473843 5.307523 4.644148
+##     phyr::psv(comm_a, phylotree) 4.669307 5.078901 6.045090 5.283136
+##  picante::psv(comm_a, phylotree) 4.237624 4.495795 5.497846 4.774909
 ##        uq      max neval cld
-##  5.508743 63.65862   100   a
-##  5.086257 44.92803   100   a
+##  5.606756 61.65059   100   a
+##  5.145566 52.53771   100   a
 ```
 
 `communityPGLMM` now can use similar syntax as `lme4::lmer` to specify random terms: add `__` (two underscores) at the end of grouping variable (`sp`) to specify both phylogenetic and non-phylogenetic random terms; use `(1|sp@site)` to specify nested term. Note: `(1|sp@site)` and `(1|site@sp)` have different orders.
@@ -190,11 +190,11 @@ microbenchmark::microbenchmark(
 ##  phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) +      (1 | sp@site), dat, tree = phylotree, REML = F, cpp = T,      optimizer = "Nelder-Mead")
 ##  phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) +      (1 | sp@site), dat, tree = phylotree, REML = F, cpp = F,      optimizer = "Nelder-Mead")
 ##                                              pez::communityPGLMM(freq ~ 1 + shade, data = dat, sp = dat$sp,      site = dat$site, random.effects = re, REML = F)
-##        min        lq      mean    median        uq       max neval cld
-##   636.4708  640.6385  658.5647  664.0291  666.2371   685.448     5 a  
-##  1659.0819 1691.3962 1741.0974 1725.3429 1731.8092  1897.857     5 a  
-##  6647.6932 6685.5020 6888.3507 6920.0319 7071.8916  7116.635     5  b 
-##  8290.8876 8392.2654 9031.2351 8545.8679 8632.3724 11294.782     5   c
+##        min       lq      mean   median       uq       max neval  cld
+##   625.5592  626.077  637.2003  629.553  630.728  674.0842     5 a   
+##  1648.6563 1652.062 1653.8085 1654.813 1655.874 1657.6373     5  b  
+##  6726.8501 6763.573 6809.6776 6823.299 6859.027 6875.6394     5   c 
+##  8383.1391 8419.333 8526.1433 8486.802 8642.438 8699.0051     5    d
 
 # about 6 times faster for a small dataset
 microbenchmark::microbenchmark(
@@ -217,9 +217,9 @@ microbenchmark::microbenchmark(
 ##  phyr::communityPGLMM(pa ~ 1 + shade + (1 | sp__) + (1 | site) +      (1 | sp@site), dat, family = "binomial", tree = phylotree,      REML = F, cpp = T, optimizer = "Nelder-Mead")
 ##  phyr::communityPGLMM(pa ~ 1 + shade + (1 | sp__) + (1 | site) +      (1 | sp@site), dat, family = "binomial", tree = phylotree,      REML = F, cpp = F, optimizer = "Nelder-Mead")
 ##                                              pez::communityPGLMM(pa ~ 1 + shade, data = dat, family = "binomial",      sp = dat$sp, site = dat$site, random.effects = re, REML = F)
-##        min        lq      mean    median        uq       max neval cld
-##   2.967483  2.988747  3.018426  3.004629  3.054706  3.076562     5 a  
-##   3.338105  3.354039  3.408581  3.440264  3.448186  3.462310     5 a  
-##  10.755795 10.929973 11.051084 11.014991 11.260225 11.294437     5  b 
-##  19.586345 19.754649 20.144737 19.850520 20.760795 20.771375     5   c
+##        min        lq      mean    median        uq       max neval  cld
+##   2.851033  2.942607  2.984710  2.951070  2.960733  3.218109     5 a   
+##   3.318487  3.415478  3.401716  3.415966  3.427412  3.431235     5  b  
+##  10.575720 10.605500 10.626713 10.609956 10.646744 10.695646     5   c 
+##  18.964111 19.025643 19.087975 19.049616 19.091113 19.309391     5    d
 ```
