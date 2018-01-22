@@ -1,0 +1,117 @@
+---
+title: "Profvis of communityPGLMM"
+author: "Daijiang Li"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Profvis of communityPGLMM}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "##"
+)
+```
+
+In this file, we show the memory and time used for `phyr::communityPGLMM()`. It seems that for Gaussian models, use `bobyqa` as optimizer can save time and memory. But for Binomial models, the optimizer does not affect too much. Thus, may use `Nelder-Mead` for its robustness.
+
+Also, note the hugh differences in memory usage between `cpp = TRUE` and `cpp = FALSE`.
+
+First, let's prepare some toy data.
+
+```{r data_prep}
+library(profvis)
+library(dplyr, quietly = T)
+library(phyr)
+comm = comm_a
+comm$site = row.names(comm)
+dat = tidyr::gather(comm, key = "sp", value = "freq", -site) %>% 
+  left_join(envi, by = "site") %>% 
+  left_join(traits, by = "sp")
+dat$pa = as.numeric(dat$freq > 0)
+```
+
+Then, we start the profvis.
+
+# Gaussian models
+
+### `bobyqa` with R
+
+```{r prof1}
+profvis({
+  phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), dat, 
+                       tree = phylotree, REML = T, cpp = F, optimizer = "bobyqa")
+})
+```
+
+### `bobyqa` with Rcpp
+
+```{r prof2}
+profvis({
+  phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), dat, 
+                       tree = phylotree, REML = T, cpp = T, optimizer = "bobyqa")
+})
+```
+
+### `Nelder-Mead` with R
+
+```{r prof3}
+profvis({
+  phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), dat, 
+                       tree = phylotree, REML = T, cpp = F, optimizer = "Nelder-Mead")
+})
+```
+
+### `Nelder-Mead` with Rcpp
+
+```{r prof4}
+profvis({
+  phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), dat, 
+                       tree = phylotree, REML = T, cpp = T, optimizer = "Nelder-Mead")
+})
+```
+
+# Binomial models
+
+### `bobyqa` with R
+
+```{r prof5}
+profvis({
+  phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), dat, 
+                       family = "binomial", tree = phylotree, REML = T, cpp = F, 
+                       optimizer = "bobyqa")
+})
+```
+
+### `bobyqa` with Rcpp
+
+```{r prof6}
+profvis({
+  phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), dat, 
+                       family = "binomial", tree = phylotree, REML = T, cpp = T, 
+                       optimizer = "bobyqa")
+})
+```
+
+### `Nelder-Mead` with R
+
+```{r prof7}
+profvis({
+  phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), dat, 
+                       family = "binomial", tree = phylotree, REML = T, cpp = F, 
+                       optimizer = "Nelder-Mead")
+})
+```
+
+### `Nelder-Mead` with Rcpp
+
+```{r prof8}
+profvis({
+  phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), dat, 
+                       family = "binomial", tree = phylotree, REML = T, cpp = T, 
+                       optimizer = "Nelder-Mead")
+})
+```

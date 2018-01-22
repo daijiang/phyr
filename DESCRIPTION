@@ -33,4 +33,7 @@ LinkingTo:
     Rcpp, RcppArmadillo
 Suggests: 
     testthat,
-    tidyr
+    tidyr,
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr
