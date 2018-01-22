@@ -20,7 +20,7 @@ To install this package:
 ``` r
 devtools::install_github("daijiang/phyr")
 # or install the binary version
-install.packages("https://raw.githubusercontent.com/daijiang/phyr/master/phyr_0.1.1.tgz", repos = NULL)
+install.packages("https://raw.githubusercontent.com/daijiang/phyr/master/phyr_0.1.2.tgz", repos = NULL)
 ```
 
 To do
@@ -46,19 +46,19 @@ microbenchmark::microbenchmark(phyr::pcd(comm = comm_a, tree = phylotree, reps =
 ##                                                                  expr
 ##  phyr::pcd(comm = comm_a, tree = phylotree, reps = 1000, verbose = F)
 ##            picante::pcd(comm = comm_a, tree = phylotree, reps = 1000)
-##        min        lq      mean   median       uq      max neval cld
-##   12.10189  12.96237  22.39486  13.5482  14.7545 140.6719    30  a 
-##  343.19310 356.27963 384.26526 364.3467 403.7512 510.9581    30   b
+##        min        lq      mean    median        uq      max neval cld
+##   12.39479  13.26688  18.71807  13.76315  14.79136 138.9595    30  a 
+##  340.60444 342.98415 368.12470 347.26888 360.95087 580.9722    30   b
 # psv, the example data is too small to compare
 microbenchmark::microbenchmark(phyr::psv(comm_a, phylotree),
                                picante::psv(comm_a, phylotree))
 ## Unit: milliseconds
 ##                             expr      min       lq     mean   median
-##     phyr::psv(comm_a, phylotree) 4.669307 5.078901 6.045090 5.283136
-##  picante::psv(comm_a, phylotree) 4.237624 4.495795 5.497846 4.774909
+##     phyr::psv(comm_a, phylotree) 4.666673 4.767988 5.749924 5.045524
+##  picante::psv(comm_a, phylotree) 4.166668 4.277542 5.058745 4.518377
 ##        uq      max neval cld
-##  5.606756 61.65059   100   a
-##  5.145566 52.53771   100   a
+##  5.459437 56.05558   100   a
+##  4.872939 44.46622   100   a
 ```
 
 `communityPGLMM` now can use similar syntax as `lme4::lmer` to specify random terms: add `__` (two underscores) at the end of grouping variable (`sp`) to specify both phylogenetic and non-phylogenetic random terms; use `(1|sp@site)` to specify nested term. Note: `(1|sp@site)` and `(1|site@sp)` have different orders.
@@ -104,20 +104,20 @@ test1
 ## Call:freq ~ 1 + shade
 ## 
 ## logLik    AIC    BIC 
-## -463.3  940.6  956.5 
+## -463.5  941.0  956.9 
 ## 
 ## Random effects:
-##            Variance  Std.Dev
-## 1|sp      7.384e-01 0.859304
-## 1|sp__    1.482e-05 0.003850
-## 1|site    6.589e-06 0.002567
-## 1|sp@site 3.545e-05 0.005954
-## residual  3.260e+00 1.805587
+##            Variance   Std.Dev
+## 1|sp      2.322e-07 0.0004819
+## 1|sp__    6.916e-01 0.8316300
+## 1|site    2.228e-06 0.0014925
+## 1|sp@site 9.964e-07 0.0009982
+## residual  3.254e+00 1.8037536
 ## 
 ## Fixed effects:
-##                  Value  Std.Error  Zscore   Pvalue    
-## (Intercept) -0.1910427  0.3923187 -0.4870 0.626288    
-## shade        0.0226917  0.0067256  3.3739 0.000741 ***
+##                  Value  Std.Error  Zscore    Pvalue    
+## (Intercept) -0.2717357  0.5464642 -0.4973 0.6190046    
+## shade        0.0226918  0.0067185  3.3775 0.0007314 ***
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 test3 = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
@@ -132,15 +132,15 @@ test3
 ## 
 ## Random effects:
 ##            Variance   Std.Dev
-## 1|sp      7.011e-14 2.648e-07
-## 1|sp__    4.420e-01 6.648e-01
-## 1|site    4.981e-16 2.232e-08
-## 1|sp@site 1.264e-14 1.124e-07
+## 1|sp      1.148e-15 3.388e-08
+## 1|sp__    4.601e-01 6.783e-01
+## 1|site    5.165e-15 7.187e-08
+## 1|sp@site 6.136e-15 7.833e-08
 ## 
 ## Fixed effects:
-##                  Value  Std.Error  Zscore   Pvalue    
-## (Intercept) -2.0828570  0.5738718 -3.6295 0.000284 ***
-## shade        0.0165878  0.0087153  1.9033 0.057002 .  
+##                  Value  Std.Error  Zscore    Pvalue    
+## (Intercept) -2.0889865  0.5788619 -3.6088 0.0003076 ***
+## shade        0.0166204  0.0087245  1.9050 0.0567771 .  
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ```
@@ -190,11 +190,11 @@ microbenchmark::microbenchmark(
 ##  phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) +      (1 | sp@site), dat, tree = phylotree, REML = F, cpp = T,      optimizer = "Nelder-Mead")
 ##  phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) +      (1 | sp@site), dat, tree = phylotree, REML = F, cpp = F,      optimizer = "Nelder-Mead")
 ##                                              pez::communityPGLMM(freq ~ 1 + shade, data = dat, sp = dat$sp,      site = dat$site, random.effects = re, REML = F)
-##        min       lq      mean   median       uq       max neval  cld
-##   625.5592  626.077  637.2003  629.553  630.728  674.0842     5 a   
-##  1648.6563 1652.062 1653.8085 1654.813 1655.874 1657.6373     5  b  
-##  6726.8501 6763.573 6809.6776 6823.299 6859.027 6875.6394     5   c 
-##  8383.1391 8419.333 8526.1433 8486.802 8642.438 8699.0051     5    d
+##        min        lq      mean    median        uq       max neval  cld
+##   409.6535  411.5238  423.2914  415.9582  415.9976  463.3241     5 a   
+##  1996.0833 1997.9729 2005.2807 1999.8294 2000.3844 2032.1335     5  b  
+##  7977.7703 7997.6018 8040.3244 8031.4420 8097.2813 8097.5265     5   c 
+##  8103.9964 8241.8123 8308.3602 8279.1886 8361.6454 8555.1583     5    d
 
 # about 6 times faster for a small dataset
 microbenchmark::microbenchmark(
@@ -218,8 +218,8 @@ microbenchmark::microbenchmark(
 ##  phyr::communityPGLMM(pa ~ 1 + shade + (1 | sp__) + (1 | site) +      (1 | sp@site), dat, family = "binomial", tree = phylotree,      REML = F, cpp = F, optimizer = "Nelder-Mead")
 ##                                              pez::communityPGLMM(pa ~ 1 + shade, data = dat, family = "binomial",      sp = dat$sp, site = dat$site, random.effects = re, REML = F)
 ##        min        lq      mean    median        uq       max neval  cld
-##   2.851033  2.942607  2.984710  2.951070  2.960733  3.218109     5 a   
-##   3.318487  3.415478  3.401716  3.415966  3.427412  3.431235     5  b  
-##  10.575720 10.605500 10.626713 10.609956 10.646744 10.695646     5   c 
-##  18.964111 19.025643 19.087975 19.049616 19.091113 19.309391     5    d
+##   1.849838  1.856818  1.909691  1.928987  1.954389  1.958422     5 a   
+##   3.003154  3.004793  3.057898  3.016394  3.022575  3.242573     5  b  
+##  11.384301 11.395153 11.574842 11.463240 11.504072 12.127441     5   c 
+##  19.387839 19.393139 19.499775 19.442344 19.494926 19.780626     5    d
 ```

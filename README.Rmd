@@ -31,7 +31,7 @@ To install this package:
 ```{r eval = F}
 devtools::install_github("daijiang/phyr")
 # or install the binary version
-install.packages("https://raw.githubusercontent.com/daijiang/phyr/master/phyr_0.1.1.tgz", repos = NULL)
+install.packages("https://raw.githubusercontent.com/daijiang/phyr/master/phyr_0.1.2.tgz", repos = NULL)
 ```
 
 
