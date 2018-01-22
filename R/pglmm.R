@@ -588,6 +588,7 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, repu
   return(z)
 }
 
+#' @export
 # Get design matrix for both gaussian and binomial models
 get_design_matrix = function(formula, data, na.action = NULL, 
                              sp, site, random.effects){
@@ -801,15 +802,11 @@ pglmm_gaussian_LL_calc = function(par, X, Y, Zt, St, nested = NULL,
 }
 
 # Log likelihood function for binomial model
-plmm.binary.LL <- function(par, H, X, Zt, St, mu, nested, REML = TRUE, verbose = FALSE, cpp = TRUE) {
+plmm.binary.LL <- function(par, H, X, Zt, St, mu, nested, REML = TRUE, verbose = FALSE) {
   par <- abs(par)
-  n <- dim(H)[1]
-  p <- dim(H)[2]
-  if(cpp){
-    iVdet <- plmm_binary_iV_logdetV_cpp(par = par, Zt = Zt, St = St, mu = mu, nested = nested, logdet = TRUE)
-  } else {
+  
     iVdet <- plmm.binary.iV.logdetV(par = par, Zt = Zt, St = St, mu = mu, nested = nested, logdet = TRUE)
-  }
+  
   iV <- iVdet$iV
   logdetV <- iVdet$logdetV
   if (REML == TRUE) {
@@ -819,8 +816,7 @@ plmm.binary.LL <- function(par, H, X, Zt, St, mu, nested, REML = TRUE, verbose =
     # ML likelihood function
     LL <- 0.5 * (logdetV + t(H) %*% iV %*% H)
   }
-  if (verbose == T) 
-    show(c(as.numeric(LL), par))
+  if (verbose == T) show(c(as.numeric(LL), par))
   
   return(as.numeric(LL))
 }
@@ -1053,103 +1049,115 @@ communityPGLMM.binary <- function(formula, data = list(), family = "binomial",
   } else {
     B.init <- matrix(B.init, ncol = 1)
   }
-  B <- B.init
   ss <- as.vector(array(s2.init^0.5, dim = c(1, q)))
   
-  b <- matrix(0, nrow = n)
-  beta <- rbind(B, b)
-  mu <- exp(X %*% B)/(1 + exp(X %*% B))
-  XX <- cbind(X, diag(1, nrow = n, ncol = n))
-  
-  est.ss <- ss
-  est.B <- B
-  oldest.ss <- 10^6
-  oldest.B <- matrix(10^6, nrow = length(est.B))
-  
-  iteration <- 0
-  exitflag <- 0
-  rcondflag <- 0
-  while (((t(est.ss - oldest.ss) %*% (est.ss - oldest.ss) > tol.pql^2) | 
-          (t(est.B - oldest.B) %*% (est.B - oldest.B) > tol.pql^2)) & 
-         (iteration <= maxit.pql)) {
-    iteration <- iteration + 1
-    oldest.ss <- est.ss
-    oldest.B <- est.B
-    
-    est.B.m <- B
-    oldest.B.m <- matrix(10^6, nrow = length(est.B))
-    iteration.m <- 0
-    
-    # mean component
-    while ((t(est.B.m - oldest.B.m) %*% (est.B.m - oldest.B.m) > tol.pql^2) & 
-           (iteration.m <= maxit.pql)) {
-      iteration.m <- iteration.m + 1
-      oldest.B.m <- est.B.m
-      
-      if(cpp){
-        iV <- plmm_binary_iV_logdetV_cpp(par = ss, Zt = Zt, St = St, mu = mu, nested = nested, logdet = FALSE)$iV
-      } else {
-        iV <- plmm.binary.iV.logdetV(par = ss, Zt = Zt, St = St, mu = mu, nested = nested, logdet = FALSE)$iV
-      }
-      Z <- X %*% B + b + (Y - mu)/(mu * (1 - mu))
-      
-      denom <- t(X) %*% iV %*% X
-      num <- t(X) %*% iV %*% Z
-      B <- solve(denom, num)
-      B <- as.matrix(B)
-      
-      if(cpp){
-        V = plmm_binary_V(par = ss, Zt = Zt, St = St, mu = mu, nested = nested, missing_mu = FALSE)
-      } else {
-        V = plmm.binary.V(par = ss, Zt = Zt, St = St, mu = mu, nested = nested)
-      }
-      
-      iW <- diag(as.vector((mu * (1 - mu))^-1))
-      C <- V - iW
-      
-      b <- C %*% iV %*% (Z - X %*% B)
-      beta <- rbind(B, matrix(b))
-      mu <- exp(XX %*% beta)/(1 + exp(XX %*% beta))
-      
-      est.B.m <- B
-      if (verbose == TRUE) 
-        show(c(iteration, B))
-      
-      if (any(is.nan(B))) {
-        stop("Estimation of B failed. Check for lack of variation in Y. You could try with a smaller s2.init, but this might not help.")
-      }
-    }
-    # variance component
-    Z <- X %*% B + b + (Y - mu)/(mu * (1 - mu))
-    H <- Z - X %*% B
-    
-    if(optimizer == "bobyqa"){
-      opts <- list("algorithm" = "NLOPT_LN_BOBYQA", "ftol_rel" = reltol, 
-                   "xtol_rel" = 0.0001, "maxeval" = maxit)
-      S0 <- nloptr::nloptr(x0 = ss, eval_f = plmm.binary.LL, opts = opts,
-                           H = H, X = X, Zt = Zt, St = St, cpp = cpp,
-                           mu = mu, nested = nested, REML = REML, verbose = verbose)
-      opt = list(par = S0$solution, value = S0$objective, counts = S0$iterations,
-                 convergence = S0$status, message = S0$message)
-    }
-    
-    if(optimizer == "Nelder-Mead"){
-      if (q > 1) {
-        opt <- optim(fn = plmm.binary.LL, par = ss, H = H, X = X, Zt = Zt, St = St, cpp = cpp,
-                     mu = mu, nested = nested, REML = REML, verbose = verbose, 
-                     method = "Nelder-Mead", control = list(maxit = maxit, reltol = reltol))
-      } else {
-        opt <- optim(fn = plmm.binary.LL, par = ss, H = H, X = X, Zt = Zt, St = St, cpp = cpp,
-                     mu = mu, nested = nested, REML = REML, verbose = verbose, 
-                     method = "L-BFGS-B", control = list(maxit = maxit))
-      }
-    }
-    
-    ss <- abs(opt$par)
-    LL <- opt$value
+  if(cpp){
+    internal_res = pglmm_binary_internal_cpp(X = X, Y = Y, Zt = Zt, St = St, 
+                                             nested = nested, REML = REML, verbose = verbose, 
+                                             n = n, p = p, q = q, maxit = maxit, 
+                                             reltol = reltol, tol_pql = tol.pql, 
+                                             maxit_pql = maxit.pql, optimizer = optimizer, 
+                                             B_init = B.init, ss = ss)
+    B = internal_res$B
+    row.names(B) = colnames(X)
+    ss = internal_res$ss[,1]
+    iV = as(internal_res$iV, "dgCMatrix")
+    mu = internal_res$mu
+    row.names(mu) = 1:nrow(mu)
+    H = internal_res$H
+    convcode = internal_res$convcode
+    niter = internal_res$niter[, 1]
+  } else {
+    B <- B.init
+    b <- matrix(0, nrow = n)
+    beta <- rbind(B, b)
+    mu <- exp(X %*% B)/(1 + exp(X %*% B))
+    XX <- cbind(X, diag(1, nrow = n, ncol = n))
     
     est.ss <- ss
     est.B <- B
+    oldest.ss <- 10^6
+    oldest.B <- matrix(10^6, nrow = length(est.B))
+    
+    iteration <- 0
+    # exitflag <- 0; rcondflag <- 0
+    while (((t(est.ss - oldest.ss) %*% (est.ss - oldest.ss) > tol.pql^2) | 
+            (t(est.B - oldest.B) %*% (est.B - oldest.B) > tol.pql^2)) & 
+           (iteration <= maxit.pql)) {
+      iteration <- iteration + 1
+      oldest.ss <- est.ss
+      oldest.B <- est.B
+      
+      est.B.m <- B
+      oldest.B.m <- matrix(10^6, nrow = length(est.B))
+      iteration.m <- 0
+      
+      # mean component
+      while ((t(est.B.m - oldest.B.m) %*% (est.B.m - oldest.B.m) > tol.pql^2) & 
+             (iteration.m <= maxit.pql)) {
+        iteration.m <- iteration.m + 1
+        oldest.B.m <- est.B.m
+        
+        iV <- plmm.binary.iV.logdetV(par = ss, Zt = Zt, St = St, mu = mu, nested = nested, logdet = FALSE)$iV
+        Z <- X %*% B + b + (Y - mu)/(mu * (1 - mu))
+        
+        denom <- t(X) %*% iV %*% X
+        num <- t(X) %*% iV %*% Z
+        B <- solve(denom, num)
+        B <- as.matrix(B)
+        
+        V = plmm.binary.V(par = ss, Zt = Zt, St = St, mu = mu, nested = nested)
+        
+        iW <- diag(as.vector((mu * (1 - mu))^-1))
+        C <- V - iW
+        
+        b <- C %*% iV %*% (Z - X %*% B)
+        beta <- rbind(B, matrix(b))
+        mu <- exp(XX %*% beta)/(1 + exp(XX %*% beta))
+        
+        est.B.m <- B
+        if (verbose == TRUE) show(c(iteration, B))
+        # cat("mean part:", iteration.m, t(B), "\n")
+        # cat("         denom", as.matrix(denom), "\n")
+        # cat("         num", as.matrix(num), "\n")
+        if (any(is.nan(B))) {
+          stop("Estimation of B failed. Check for lack of variation in Y. You could try with a smaller s2.init, but this might not help.")
+        }
+      }
+      # variance component
+      Z <- X %*% B + b + (Y - mu)/(mu * (1 - mu))
+      H <- Z - X %*% B
+      
+      if(optimizer == "bobyqa"){
+        opts <- list("algorithm" = "NLOPT_LN_BOBYQA", "ftol_rel" = reltol, 
+                     "xtol_rel" = 0.0001, "maxeval" = maxit)
+        S0 <- nloptr::nloptr(x0 = ss, eval_f = plmm.binary.LL, opts = opts,
+                             H = H, X = X, Zt = Zt, St = St, mu = mu, 
+                             nested = nested, REML = REML, verbose = verbose)
+        opt = list(par = S0$solution, value = S0$objective, counts = S0$iterations,
+                   convergence = S0$status, message = S0$message)
+      }
+      
+      if(optimizer == "Nelder-Mead"){
+        if (q > 1) {
+          opt <- optim(fn = plmm.binary.LL, par = ss, H = H, X = X, Zt = Zt, St = St,
+                       mu = mu, nested = nested, REML = REML, verbose = verbose, 
+                       method = "Nelder-Mead", control = list(maxit = maxit, reltol = reltol))
+        } else {
+          opt <- optim(fn = plmm.binary.LL, par = ss, H = H, X = X, Zt = Zt, St = St,
+                       mu = mu, nested = nested, REML = REML, verbose = verbose, 
+                       method = "L-BFGS-B", control = list(maxit = maxit))
+        }
+      }
+      
+      ss <- abs(opt$par)
+      LL <- opt$value
+      convcode = opt$convergence
+      niter = opt$counts
+      if(verbose) cat("var part:", iteration, LL, ss, "\n")
+      est.ss <- ss
+      est.B <- B
+    }
   }
   
   # Extract parameters
@@ -1178,8 +1186,8 @@ communityPGLMM.binary <- function(formula, data = list(), family = "binomial",
                   B = B, B.se = B.se, B.cov = B.cov, B.zscore = B.zscore, B.pvalue = B.pvalue, 
                   ss = ss, s2n = s2n, s2r = s2r, s2resid = NULL, logLik = NULL, AIC = NULL, 
                   BIC = NULL, REML = REML, s2.init = s2.init, B.init = B.init, Y = Y, X = X, 
-                  H = H, iV = iV, mu = mu, nested, sp = sp, site = site, Zt = Zt, St = St, 
-                  convcode = opt$convergence, niter = opt$counts)
+                  H = as.matrix(H), iV = iV, mu = mu, nested, sp = sp, site = site, Zt = Zt, St = St, 
+                  convcode = convcode, niter = niter)
   class(results) <- "communityPGLMM"
   return(results)
 }

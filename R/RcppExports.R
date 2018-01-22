@@ -25,6 +25,14 @@ pcd2_loop <- function(SSii, nsr, SCii, comm, V, nsp_pool, verbose) {
     .Call(`_phyr_pcd2_loop`, SSii, nsr, SCii, comm, V, nsp_pool, verbose)
 }
 
+plmm_binary_LL_cpp <- function(par, H, X, Zt, St, mu, nested, REML, verbose) {
+    .Call(`_phyr_plmm_binary_LL_cpp`, par, H, X, Zt, St, mu, nested, REML, verbose)
+}
+
+pglmm_binary_internal_cpp <- function(X, Y, Zt, St, nested, REML, verbose, n, p, q, maxit, reltol, tol_pql, maxit_pql, optimizer, B_init, ss) {
+    .Call(`_phyr_pglmm_binary_internal_cpp`, X, Y, Zt, St, nested, REML, verbose, n, p, q, maxit, reltol, tol_pql, maxit_pql, optimizer, B_init, ss)
+}
+
 pglmm_gaussian_LL_cpp <- function(par, X, Y, Zt, St, nested, REML, verbose) {
     .Call(`_phyr_pglmm_gaussian_LL_cpp`, par, X, Y, Zt, St, nested, REML, verbose)
 }
@@ -35,13 +43,5 @@ pglmm_gaussian_LL_calc_cpp <- function(par, X, Y, Zt, St, nested, REML) {
 
 pglmm_gaussian_internal_cpp <- function(par, X, Y, Zt, St, nested, REML, verbose, optimizer, maxit, reltol, q, n, p, Pi) {
     .Call(`_phyr_pglmm_gaussian_internal_cpp`, par, X, Y, Zt, St, nested, REML, verbose, optimizer, maxit, reltol, q, n, p, Pi)
-}
-
-plmm_binary_iV_logdetV_cpp <- function(par, mu, Zt, St, nested, logdet) {
-    .Call(`_phyr_plmm_binary_iV_logdetV_cpp`, par, mu, Zt, St, nested, logdet)
-}
-
-plmm_binary_V <- function(par, Zt, St, mu, nested, missing_mu) {
-    .Call(`_phyr_plmm_binary_V`, par, Zt, St, mu, nested, missing_mu)
 }
 

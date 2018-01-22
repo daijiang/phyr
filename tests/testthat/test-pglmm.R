@@ -23,6 +23,14 @@ test2_binary_r = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|
                                       cpp = F, optimizer = "Nelder-Mead")
 expect_equivalent(test2_binary_cpp, test2_binary_r)
 
+test2_binary_cpp = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
+                                        dat, family = "binomial", tree = phylotree, REML = F,
+                                        cpp = T, optimizer = "bobyqa")
+test2_binary_r = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
+                                      dat, family = "binomial", tree = phylotree, REML = F, 
+                                      cpp = F, optimizer = "bobyqa")
+expect_equivalent(test2_binary_cpp, test2_binary_r)
+
 # data prep for pez::communityPGLMM
 dat = arrange(dat, site, sp)
 nspp = n_distinct(dat$sp)
