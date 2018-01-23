@@ -1,0 +1,140 @@
+---
+title: "Develop of communityPGLMM"
+author: "Daijiang Li"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Develop of communityPGLMM}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "##"
+)
+```
+
+This is a temporal Rmd file to facilitate develoement. 
+
+```{r data_prep}
+library(dplyr, quietly = T)
+comm = phyrcomm_a
+comm$site = row.names(comm)
+dat = tidyr::gather(comm, key = "sp", value = "freq", -site) %>% 
+  left_join(phyrenvi, by = "site") %>% 
+  left_join(phyrtraits, by = "sp")
+dat$pa = as.numeric(dat$freq > 0)
+tree = phyr::phylotree
+data = dat
+formula = freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site)
+repulsion = F
+REML = T
+s2.init = NULL
+B.init = NULL
+reltol = 10^-6
+maxit = 500
+tol.pql = 10^-4
+maxit.pql = 200
+verbose = FALSE
+random.effects = NULL
+optimizer = "bobyqa"
+optimizer = "Nelder-Mead"
+prep.s2.lme4 = FALSE
+cpp = T
+prep_re = TRUE
+family = "gaussian"
+dat_prepared = phyr::prep_dat_pglmm(formula, data, tree, repulsion, prep_re, family, prep.s2.lme4)
+formula = dat_prepared$formula
+data = dat_prepared$data
+sp = dat_prepared$sp
+site = dat_prepared$site
+random.effects = dat_prepared$random.effects
+if (family == "binomial") s2.init = 0.25
+dm = phyr::get_design_matrix(formula, data, na.action = NULL, sp, site, random.effects)
+X = dm$X; Y = dm$Y; St = dm$St; Zt = dm$Zt; nested = dm$nested
+p <- ncol(X)
+n <- nrow(X)
+q <- length(random.effects)
+if(family == "gaussian"){
+  B.init <- t(matrix(lm(formula = formula, data = data)$coefficients, ncol = p))
+  s2.init <- var(lm(formula = formula, data = data)$residuals)/q
+}
+B <- B.init
+s <- as.vector(array(s2.init^0.5, dim = c(1, q)))
+```
+
+```{r}
+if(optimizer == "bobyqa"){
+  system.time({
+    opts <- list("algorithm" = "NLOPT_LN_BOBYQA", "ftol_rel" = reltol, 
+               "xtol_rel" = 0.0001, "maxeval" = maxit)
+  S0 <- nloptr::nloptr(x0 = s, eval_f = phyr:::pglmm_gaussian_LL_calc, opts = opts, 
+                       X = X, Y = Y, Zt = Zt, St = St, nested = nested, 
+                       REML = REML, verbose = verbose, optim_ll = T)
+  opt <- list(par = S0$solution, value = S0$objective, counts = S0$iterations,
+             convergence = S0$status, message = S0$message)
+  })
+  
+  system.time(opt1 <- nloptr::bobyqa(x0 = s, fn = phyr:::pglmm_gaussian_LL_calc, X = X, 
+                 Y = Y, Zt = Zt, St = St, nested = nested, REML = REML, 
+                 verbose = verbose, optim_ll = T, 
+                 control = list("ftol_rel" = reltol, "xtol_rel" = 0.0001, "maxeval" = maxit)))
+  
+  testthat::expect_equivalent(opt, opt1)
+}
+
+system.time({
+    opts <- list("algorithm" = "NLOPT_LN_NELDERMEAD", "ftol_rel" = reltol, 
+               "xtol_rel" = 0.0001, "maxeval" = maxit)
+  S0 <- nloptr::nloptr(x0 = s, eval_f = phyr:::pglmm_gaussian_LL_calc, opts = opts, 
+                       X = X, Y = Y, Zt = Zt, St = St, nested = nested, 
+                       REML = REML, verbose = verbose, optim_ll = T)
+  opt3 <- list(par = S0$solution, value = S0$objective, counts = S0$iterations,
+             convergence = S0$status, message = S0$message)
+  }) # 4.472
+
+system.time(opt33 <- nloptr::neldermead(x0 = s, fn = phyr:::pglmm_gaussian_LL_calc, X = X, 
+                 Y = Y, Zt = Zt, St = St, nested = nested, REML = REML, 
+                 verbose = verbose, optim_ll = T, 
+                 control = list("ftol_rel" = reltol, "xtol_rel" = 0.0001, "maxeval" = maxit)))
+system.time(opt4 <- nloptr::sbplx(x0 = s, fn = phyr:::pglmm_gaussian_LL_calc, X = X, 
+                 Y = Y, Zt = Zt, St = St, nested = nested, REML = REML, 
+                 verbose = verbose, optim_ll = T, 
+                 control = list("ftol_rel" = reltol, "ftol_abs" = reltol, "xtol_rel" = 0.0001, "maxeval" = maxit)))
+
+if(optimizer == "Nelder-Mead"){
+  if (q > 1) {
+    system.time(
+    opt2 <- optim(fn = phyr:::pglmm_gaussian_LL_calc, par = s, X = X, Y = Y, Zt = Zt, St = St, 
+                 nested = nested, REML = REML, verbose = verbose, optim_ll = T, 
+                 method = "Nelder-Mead", control = list(maxit = maxit, reltol = reltol))
+    )
+  } else {
+    opt <- optim(fn = pglmm_gaussian_LL_calc, par = s, X = X, Y = Y, Zt = Zt, St = St, 
+                 nested = nested, REML = REML, verbose = verbose,
+                 method = "L-BFGS-B", control = list(maxit = maxit))
+  }
+}
+
+opts <- list("ftol_rel" = reltol, "ftol_abs" = reltol,
+               "xtol_rel" = 0.0001, "maxeval" = maxit)
+microbenchmark::microbenchmark(
+    nloptr::bobyqa(x0 = s, fn = phyr:::pglmm_gaussian_LL_calc, X = X, 
+                 Y = Y, Zt = Zt, St = St, nested = nested, REML = REML, 
+                 verbose = verbose, optim_ll = T, control = opts),
+    nloptr::sbplx(x0 = s, fn = phyr:::pglmm_gaussian_LL_calc, X = X, 
+                 Y = Y, Zt = Zt, St = St, nested = nested, REML = REML, 
+                 verbose = verbose, optim_ll = T, control = opts),
+    nloptr::neldermead(x0 = s, fn = phyr:::pglmm_gaussian_LL_calc, X = X, 
+                 Y = Y, Zt = Zt, St = St, nested = nested, REML = REML, 
+                 verbose = verbose, optim_ll = T, control = opts),
+    optim(fn = phyr:::pglmm_gaussian_LL_calc, par = s, X = X, Y = Y, Zt = Zt, St = St, 
+                 nested = nested, REML = REML, verbose = verbose, optim_ll = T, 
+                 method = "Nelder-Mead", control = list(maxit = maxit, reltol = reltol)),
+    times = 5
+)
+
+```
+
