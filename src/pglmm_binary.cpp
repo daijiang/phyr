@@ -295,6 +295,36 @@ List pglmm_binary_internal_cpp(const arma::mat& X, const arma::vec& Y,
                            _["convergence"] = S0["status"], _["message"] = S0["message"]);
       }
       
+      if(optimizer == "nelder-mead-nlopt"){
+        List opts = List::create(_["algorithm"] = "NLOPT_LN_NELDERMEAD",
+                                 _["ftol_rel"] = reltol,
+                                 _["xtol_rel"] = 0.0001,
+                                 _["maxeval"] = maxit);
+        List S0 = nloptr(_["x0"] = ss0,
+                         _["eval_f"] = Rcpp::InternalFunction(&plmm_binary_LL_cpp),
+                         _["opts"] = opts, _["H"] = H, _["X"] = X, _["Zt"] = Zt,
+                         _["St"] = St, _["mu"] = mu, _["nested"] = nested,
+                           _["REML"] = REML, _["verbose"] = verbose);
+        opt = List::create(_["par"] = S0["solution"], _["value"] = S0["objective"], 
+                           _["counts"] = S0["iterations"], _["convergence"] = S0["status"], 
+                           _["message"] = S0["message"]);
+      }
+      
+      if(optimizer == "subplex"){
+        List opts = List::create(_["algorithm"] = "NLOPT_LN_SBPLX",
+                                 _["ftol_rel"] = reltol,
+                                 _["xtol_rel"] = 0.0001,
+                                 _["maxeval"] = maxit);
+        List S0 = nloptr(_["x0"] = ss0,
+                         _["eval_f"] = Rcpp::InternalFunction(&plmm_binary_LL_cpp),
+                         _["opts"] = opts, _["H"] = H, _["X"] = X, _["Zt"] = Zt,
+                         _["St"] = St, _["mu"] = mu, _["nested"] = nested,
+                           _["REML"] = REML, _["verbose"] = verbose);
+        opt = List::create(_["par"] = S0["solution"], _["value"] = S0["objective"], 
+                           _["counts"] = S0["iterations"], _["convergence"] = S0["status"],
+                           _["message"] = S0["message"]);
+      }
+      
       arma::vec par_opt0 = abs(as<arma::vec>(opt["par"]));
       ss0 = wrap(par_opt0);
       double LL = as_scalar(as<double>(opt["value"]));

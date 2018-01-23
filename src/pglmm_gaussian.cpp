@@ -281,6 +281,36 @@ Rcpp::List pglmm_gaussian_internal_cpp(NumericVector par,
                        _["convergence"] = S0["status"],
                        _["message"] = S0["message"]);
   }
+  
+  if(optimizer == "nelder-mead-nlopt"){
+    List opts = List::create(_["algorithm"] = "NLOPT_LN_NELDERMEAD",
+                             _["ftol_rel"] = reltol,
+                             _["xtol_rel"] = 0.0001,
+                             _["maxeval"] = maxit);
+    List S0 = nloptr(_["x0"] = par,
+                     _["eval_f"] = Rcpp::InternalFunction(&pglmm_gaussian_LL_cpp),
+                     _["opts"] = opts, _["X"] = X, _["Y"] = Y, _["Zt"] = Zt,
+                     _["St"] = St, _["nested"] = nested,
+                     _["REML"] = REML, _["verbose"] = verbose);
+    opt = List::create(_["par"] = S0["solution"], _["value"] = S0["objective"],  
+                       _["counts"] = S0["iterations"], _["convergence"] = S0["status"],
+                       _["message"] = S0["message"]);
+  }
+  
+  if(optimizer == "subplex"){
+    List opts = List::create(_["algorithm"] = "NLOPT_LN_SBPLX",
+                             _["ftol_rel"] = reltol,
+                             _["xtol_rel"] = 0.0001,
+                             _["maxeval"] = maxit);
+    List S0 = nloptr(_["x0"] = par,
+                     _["eval_f"] = Rcpp::InternalFunction(&pglmm_gaussian_LL_cpp),
+                     _["opts"] = opts, _["X"] = X, _["Y"] = Y, _["Zt"] = Zt,
+                     _["St"] = St, _["nested"] = nested,
+                     _["REML"] = REML, _["verbose"] = verbose);
+    opt = List::create(_["par"] = S0["solution"], _["value"] = S0["objective"],
+                       _["counts"] = S0["iterations"], _["convergence"] = S0["status"],
+                       _["message"] = S0["message"]);
+  }
   // end of optimization
   
   arma::vec par_opt0 = abs(real(as<arma::vec>(opt["par"])));

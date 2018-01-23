@@ -541,12 +541,12 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
 }
 
 #' @rdname pglmm
-#' @param optimizer bobyqa (default) or Nelder-Mead 
+#' @param optimizer bobyqa (default) or Nelder-Mead or nelder-mead-nlopt (from the nloptr package) or subplex (from the nloptr package).
 #' @export
 communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, repulsion = FALSE, sp, site,
                            random.effects = NULL, REML = TRUE, s2.init = NULL, B.init = NULL, reltol = 10^-6, 
                            maxit = 500, tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE, cpp = TRUE,
-                           optimizer = c("bobyqa", "Nelder-Mead"), prep.s2.lme4 = FALSE) {
+                           optimizer = c("bobyqa", "Nelder-Mead", "nelder-mead-nlopt", "subplex"), prep.s2.lme4 = FALSE) {
   optimizer = match.arg(optimizer)
   if (family %nin% c("gaussian", "binomial")){
     stop("\nSorry, but only binomial (binary) and gaussian options exist at this time")
@@ -991,6 +991,24 @@ communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian",
                      method = "L-BFGS-B", control = list(maxit = maxit))
       }
     }
+    if(optimizer == "nelder-mead-nlopt"){
+      opts <- list("algorithm" = "NLOPT_LN_NELDERMEAD", "ftol_rel" = reltol, 
+                   "xtol_rel" = 0.0001, "maxeval" = maxit)
+      S0 <- nloptr::nloptr(x0 = s, eval_f = pglmm_gaussian_LL_calc, opts = opts, 
+                           X = X, Y = Y, Zt = Zt, St = St, nested = nested, 
+                           REML = REML, verbose = verbose, optim_ll = T)
+      opt = list(par = S0$solution, value = S0$objective, counts = S0$iterations,
+                 convergence = S0$status, message = S0$message)
+    }
+    if(optimizer == "subplex"){
+      opts <- list("algorithm" = "NLOPT_LN_SBPLX", "ftol_rel" = reltol, 
+                   "xtol_rel" = 0.0001, "maxeval" = maxit)
+      S0 <- nloptr::nloptr(x0 = s, eval_f = pglmm_gaussian_LL_calc, opts = opts, 
+                           X = X, Y = Y, Zt = Zt, St = St, nested = nested, 
+                           REML = REML, verbose = verbose, optim_ll = T)
+      opt = list(par = S0$solution, value = S0$objective, counts = S0$iterations,
+                 convergence = S0$status, message = S0$message)
+    }
     convcode = opt$convergence
     niter = opt$counts
     par_opt <- abs(Re(opt$par))
@@ -1148,6 +1166,26 @@ communityPGLMM.binary <- function(formula, data = list(), family = "binomial",
                        mu = mu, nested = nested, REML = REML, verbose = verbose, 
                        method = "L-BFGS-B", control = list(maxit = maxit))
         }
+      }
+      
+      if(optimizer == "nelder-mead-nlopt"){
+        opts <- list("algorithm" = "NLOPT_LN_NELDERMEAD", "ftol_rel" = reltol, 
+                     "xtol_rel" = 0.0001, "maxeval" = maxit)
+        S0 <- nloptr::nloptr(x0 = ss, eval_f = plmm.binary.LL, opts = opts,
+                             H = H, X = X, Zt = Zt, St = St, mu = mu, 
+                             nested = nested, REML = REML, verbose = verbose)
+        opt = list(par = S0$solution, value = S0$objective, counts = S0$iterations,
+                   convergence = S0$status, message = S0$message)
+      }
+      
+      if(optimizer == "subplex"){
+        opts <- list("algorithm" = "NLOPT_LN_SBPLX", "ftol_rel" = reltol, 
+                     "xtol_rel" = 0.0001, "maxeval" = maxit)
+        S0 <- nloptr::nloptr(x0 = ss, eval_f = plmm.binary.LL, opts = opts,
+                             H = H, X = X, Zt = Zt, St = St, mu = mu, 
+                             nested = nested, REML = REML, verbose = verbose)
+        opt = list(par = S0$solution, value = S0$objective, counts = S0$iterations,
+                   convergence = S0$status, message = S0$message)
       }
       
       ss <- abs(opt$par)
