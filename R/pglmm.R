@@ -971,15 +971,6 @@ communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian",
     convcode = out_res$convcode
     niter = out_res$niter[,1]
   } else {
-    if(optimizer == "bobyqa"){
-      opts <- list("algorithm" = "NLOPT_LN_BOBYQA", "ftol_rel" = reltol, 
-                   "xtol_rel" = 0.0001, "maxeval" = maxit)
-      S0 <- nloptr::nloptr(x0 = s, eval_f = pglmm_gaussian_LL_calc, opts = opts, 
-                           X = X, Y = Y, Zt = Zt, St = St, nested = nested, 
-                           REML = REML, verbose = verbose, optim_ll = T)
-      opt = list(par = S0$solution, value = S0$objective, counts = S0$iterations,
-                 convergence = S0$status, message = S0$message)
-    }
     if(optimizer == "Nelder-Mead"){
       if (q > 1) {
         opt <- optim(fn = pglmm_gaussian_LL_calc, par = s, X = X, Y = Y, Zt = Zt, St = St, 
@@ -990,9 +981,12 @@ communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian",
                      nested = nested, REML = REML, verbose = verbose,
                      method = "L-BFGS-B", control = list(maxit = maxit))
       }
-    }
-    if(optimizer == "nelder-mead-nlopt"){
-      opts <- list("algorithm" = "NLOPT_LN_NELDERMEAD", "ftol_rel" = reltol, 
+    } else {
+      # opts for nloptr
+      if (optimizer == "bobyqa") nlopt_algor = "NLOPT_LN_BOBYQA"
+      if (optimizer == "nelder-mead-nlopt") nlopt_algor = "NLOPT_LN_NELDERMEAD"
+      if (optimizer == "subplex") nlopt_algor = "NLOPT_LN_SBPLX"
+      opts <- list("algorithm" = nlopt_algor, "ftol_rel" = reltol, "ftol_abs" = reltol,
                    "xtol_rel" = 0.0001, "maxeval" = maxit)
       S0 <- nloptr::nloptr(x0 = s, eval_f = pglmm_gaussian_LL_calc, opts = opts, 
                            X = X, Y = Y, Zt = Zt, St = St, nested = nested, 
@@ -1000,15 +994,7 @@ communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian",
       opt = list(par = S0$solution, value = S0$objective, counts = S0$iterations,
                  convergence = S0$status, message = S0$message)
     }
-    if(optimizer == "subplex"){
-      opts <- list("algorithm" = "NLOPT_LN_SBPLX", "ftol_rel" = reltol, 
-                   "xtol_rel" = 0.0001, "maxeval" = maxit)
-      S0 <- nloptr::nloptr(x0 = s, eval_f = pglmm_gaussian_LL_calc, opts = opts, 
-                           X = X, Y = Y, Zt = Zt, St = St, nested = nested, 
-                           REML = REML, verbose = verbose, optim_ll = T)
-      opt = list(par = S0$solution, value = S0$objective, counts = S0$iterations,
-                 convergence = S0$status, message = S0$message)
-    }
+    
     convcode = opt$convergence
     niter = opt$counts
     par_opt <- abs(Re(opt$par))
@@ -1146,16 +1132,6 @@ communityPGLMM.binary <- function(formula, data = list(), family = "binomial",
       Z <- X %*% B + b + (Y - mu)/(mu * (1 - mu))
       H <- Z - X %*% B
       
-      if(optimizer == "bobyqa"){
-        opts <- list("algorithm" = "NLOPT_LN_BOBYQA", "ftol_rel" = reltol, 
-                     "xtol_rel" = 0.0001, "maxeval" = maxit)
-        S0 <- nloptr::nloptr(x0 = ss, eval_f = plmm.binary.LL, opts = opts,
-                             H = H, X = X, Zt = Zt, St = St, mu = mu, 
-                             nested = nested, REML = REML, verbose = verbose)
-        opt = list(par = S0$solution, value = S0$objective, counts = S0$iterations,
-                   convergence = S0$status, message = S0$message)
-      }
-      
       if(optimizer == "Nelder-Mead"){
         if (q > 1) {
           opt <- optim(fn = plmm.binary.LL, par = ss, H = H, X = X, Zt = Zt, St = St,
@@ -1166,20 +1142,11 @@ communityPGLMM.binary <- function(formula, data = list(), family = "binomial",
                        mu = mu, nested = nested, REML = REML, verbose = verbose, 
                        method = "L-BFGS-B", control = list(maxit = maxit))
         }
-      }
-      
-      if(optimizer == "nelder-mead-nlopt"){
-        opts <- list("algorithm" = "NLOPT_LN_NELDERMEAD", "ftol_rel" = reltol, 
-                     "xtol_rel" = 0.0001, "maxeval" = maxit)
-        S0 <- nloptr::nloptr(x0 = ss, eval_f = plmm.binary.LL, opts = opts,
-                             H = H, X = X, Zt = Zt, St = St, mu = mu, 
-                             nested = nested, REML = REML, verbose = verbose)
-        opt = list(par = S0$solution, value = S0$objective, counts = S0$iterations,
-                   convergence = S0$status, message = S0$message)
-      }
-      
-      if(optimizer == "subplex"){
-        opts <- list("algorithm" = "NLOPT_LN_SBPLX", "ftol_rel" = reltol, 
+      } else {
+        if (optimizer == "bobyqa") nlopt_algor = "NLOPT_LN_BOBYQA"
+        if (optimizer == "nelder-mead-nlopt") nlopt_algor = "NLOPT_LN_NELDERMEAD"
+        if (optimizer == "subplex") nlopt_algor = "NLOPT_LN_SBPLX"
+        opts <- list("algorithm" = nlopt_algor, "ftol_rel" = reltol, "ftol_abs" = reltol,
                      "xtol_rel" = 0.0001, "maxeval" = maxit)
         S0 <- nloptr::nloptr(x0 = ss, eval_f = plmm.binary.LL, opts = opts,
                              H = H, X = X, Zt = Zt, St = St, mu = mu, 

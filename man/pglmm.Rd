@@ -22,7 +22,8 @@ communityPGLMM(formula, data = NULL, family = "gaussian", tree,
   repulsion = FALSE, sp, site, random.effects = NULL, REML = TRUE,
   s2.init = NULL, B.init = NULL, reltol = 10^-6, maxit = 500,
   tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE, cpp = TRUE,
-  optimizer = c("bobyqa", "Nelder-Mead"), prep.s2.lme4 = FALSE)
+  optimizer = c("bobyqa", "Nelder-Mead", "nelder-mead-nlopt", "subplex"),
+  prep.s2.lme4 = FALSE)
 
 communityPGLMM.gaussian(formula, data = list(), family = "gaussian",
   sp = NULL, site = NULL, random.effects = list(), REML = TRUE,
@@ -137,7 +138,7 @@ during optimization.}
 
 \item{cpp}{whether to use c++ function for optim. Default is TRUE.}
 
-\item{optimizer}{bobyqa (default) or Nelder-Mead}
+\item{optimizer}{bobyqa (default) or Nelder-Mead or nelder-mead-nlopt (from the nloptr package) or subplex (from the nloptr package).}
 
 \item{x}{communityPGLMM object to be summarised}
 

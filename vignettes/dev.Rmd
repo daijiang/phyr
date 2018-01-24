@@ -20,11 +20,11 @@ This is a temporal Rmd file to facilitate develoement.
 
 ```{r data_prep}
 library(dplyr, quietly = T)
-comm = phyrcomm_a
+comm = phyr::comm_a
 comm$site = row.names(comm)
 dat = tidyr::gather(comm, key = "sp", value = "freq", -site) %>% 
-  left_join(phyrenvi, by = "site") %>% 
-  left_join(phyrtraits, by = "sp")
+  left_join(phyr::envi, by = "site") %>% 
+  left_join(phyr::traits, by = "sp")
 dat$pa = as.numeric(dat$freq > 0)
 tree = phyr::phylotree
 data = dat
@@ -68,8 +68,9 @@ s <- as.vector(array(s2.init^0.5, dim = c(1, q)))
 ```{r}
 if(optimizer == "bobyqa"){
   system.time({
-    opts <- list("algorithm" = "NLOPT_LN_BOBYQA", "ftol_rel" = reltol, 
-               "xtol_rel" = 0.0001, "maxeval" = maxit)
+    opts <- list("algorithm" = "NLOPT_LN_BOBYQA", "ftol_rel" = reltol/1000, 
+                 "ftol_abs" = reltol/1000,
+               "xtol_rel" = 0.00001, "maxeval" = maxit)
   S0 <- nloptr::nloptr(x0 = s, eval_f = phyr:::pglmm_gaussian_LL_calc, opts = opts, 
                        X = X, Y = Y, Zt = Zt, St = St, nested = nested, 
                        REML = REML, verbose = verbose, optim_ll = T)
@@ -135,6 +136,8 @@ microbenchmark::microbenchmark(
                  method = "Nelder-Mead", control = list(maxit = maxit, reltol = reltol)),
     times = 5
 )
+
+c("nelder-mead-nlopt", "subplex")
 
 ```
 
