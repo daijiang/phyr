@@ -21,6 +21,8 @@ To install this package:
 devtools::install_github("daijiang/phyr")
 # or install the binary version
 install.packages("https://raw.githubusercontent.com/daijiang/phyr/master/phyr_0.1.2.tgz", repos = NULL)
+# for Windows users, use:
+install.packages("https://raw.githubusercontent.com/daijiang/phyr/master/phyr.zip", repos = NULL)
 ```
 
 To do
