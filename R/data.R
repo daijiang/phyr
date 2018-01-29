@@ -9,7 +9,7 @@
 #' @format a data frame with 15 sites and 15 species
 "comm_a"
 
-#' #' Example community data
+#' Example community data
 #'
 #' A data frame with site names as row names, species names as column names,
 #' cells are the abundance of each species at each site
@@ -20,7 +20,7 @@
 #' @format a data frame with 15 sites and 9 species
 "comm_b"
 
-#' #' Example phylogeny
+#' Example phylogeny
 #'
 #' A phylogeny with more species than the community data
 #'
@@ -30,7 +30,7 @@
 #' @format Newick format
 "phylotree"
 
-#' #' Example environmental data
+#' Example environmental data
 #'
 #' A data frame of site environmental variables
 #'
@@ -41,7 +41,7 @@
 #' canopy shade proportion, precipitation, and minimum temperature
 "envi"
 
-#' #' Example species traits data
+#' Example species traits data
 #'
 #' A data frame of species functional traits
 #'
