@@ -70,6 +70,16 @@ test_that("testing gaussian models with pez package, should have same results", 
   expect_equivalent(test1_gaussian_cpp$AIC, test1_gaussian_pez$AIC)
 })
 
+test_that("phyr should be able to run in the format of pez: gaussian", {
+  pglmm_phyr_pez = phyr::communityPGLMM(freq ~ 1 + shade, data = dat, sp = dat$sp, site = dat$site, 
+                       random.effects = re, REML = F, optimizer = "Nelder-Mead")
+  expect_equivalent(test1_gaussian_pez$B, pglmm_phyr_pez$B)
+  expect_equivalent(test1_gaussian_pez$B.se, pglmm_phyr_pez$B.se)
+  expect_equivalent(test1_gaussian_pez$B.pvalue, pglmm_phyr_pez$B.pvalue)
+  expect_equivalent(test1_gaussian_pez$ss, pglmm_phyr_pez$ss)
+  expect_equivalent(test1_gaussian_pez$AIC, pglmm_phyr_pez$AIC)
+})
+
 test2_binary_pez <- pez::communityPGLMM(pa ~ 1 + shade, data = dat, family = "binomial", 
                                         sp = dat$sp, site = dat$site, random.effects = re, REML = F)
 
@@ -79,6 +89,17 @@ test_that("testing binomial models with pez package, should have same results", 
   expect_equivalent(test2_binary_cpp$B.pvalue, test2_binary_pez$B.pvalue)
   expect_equivalent(test2_binary_cpp$ss, test2_binary_pez$ss)
   expect_equivalent(test2_binary_cpp$AIC, test2_binary_pez$AIC)
+})
+
+test_that("phyr should be able to run in the format of pez: binomial", {
+  pglmm_phyr_pez = phyr::communityPGLMM(pa ~ 1 + shade, data = dat, family = "binomial", 
+                                        sp = dat$sp, site = dat$site, random.effects = re, 
+                                        REML = F, optimizer = "Nelder-Mead")
+  expect_equivalent(test2_binary_pez$B, pglmm_phyr_pez$B)
+  expect_equivalent(test2_binary_pez$B.se, pglmm_phyr_pez$B.se)
+  expect_equivalent(test2_binary_pez$B.pvalue, pglmm_phyr_pez$B.pvalue)
+  expect_equivalent(test2_binary_pez$ss, pglmm_phyr_pez$ss)
+  expect_equivalent(test2_binary_pez$AIC, pglmm_phyr_pez$AIC)
 })
 
 # test NAs

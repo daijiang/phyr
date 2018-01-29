@@ -65,7 +65,7 @@ B <- B.init
 s <- as.vector(array(s2.init^0.5, dim = c(1, q)))
 ```
 
-```{r}
+```{r, eval=FALSE}
 if(optimizer == "bobyqa"){
   system.time({
     opts <- list("algorithm" = "NLOPT_LN_BOBYQA", "ftol_rel" = reltol/1000, 
