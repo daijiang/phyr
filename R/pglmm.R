@@ -631,6 +631,7 @@ get_design_matrix = function(formula, data, na.action = NULL,
     
     # nested terms
     if(length(re.i) %in% c(1, 4)){
+      jj <- jj + 1
       if (length(re.i) == 1) { # a matrix as is
         covM = re.i[[1]]
         if(!inherits(covM, c("matrix", "Matrix"))){
@@ -661,8 +662,6 @@ get_design_matrix = function(formula, data, na.action = NULL,
         # nested[[jj]] <- (t(Z.1) %*% Z.1) * (t(Z.2) %*% Z.2)
         nested[[jj]] <- as(crossprod(Z.1) * tcrossprod(Z.2), "dgCMatrix")
       }
-      
-      jj <- jj + 1
     }
   }
   
