@@ -3,7 +3,7 @@
 \docType{data}
 \name{envi}
 \alias{envi}
-\title{#' Example environmental data}
+\title{Example environmental data}
 \format{a data frame with 15 sites and 4 variables: sand proportion,
 canopy shade proportion, precipitation, and minimum temperature}
 \usage{

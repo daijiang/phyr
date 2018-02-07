@@ -3,7 +3,7 @@
 \docType{data}
 \name{comm_b}
 \alias{comm_b}
-\title{#' Example community data}
+\title{Example community data}
 \format{a data frame with 15 sites and 9 species}
 \usage{
 comm_b

@@ -559,12 +559,7 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, repu
   sp = dat_prepared$sp
   site = dat_prepared$site
   if(prep.s2.lme4) s2.init = dat_prepared$s2_init
-
-  if(prep_re){
-    random.effects = dat_prepared$random.effects
-  } else {
-    random.effects = random.effects
-  }
+  if(prep_re) random.effects = dat_prepared$random.effects
   
   if (family == "gaussian") {
     z <- communityPGLMM.gaussian(formula = formula, data = data, 
@@ -612,7 +607,7 @@ get_design_matrix = function(formula, data, na.action = NULL,
   
   rel <- sapply(re, length)
   q.nonNested <- sum(rel == 3)
-  q.Nested <- sum(rel == 4)
+  q.Nested <- sum(rel %in% c(1, 4)) # make sure to put even just a matrix as a list of 1
   Ztt <- vector("list", length = q.nonNested)
   nested <- vector("list", length = q.Nested)
   St.lengths <- vector("numeric", length = q)
@@ -635,27 +630,39 @@ get_design_matrix = function(formula, data, na.action = NULL,
     }
     
     # nested terms
-    if (length(re.i) == 4) {
-      # another way to do this, which does not require reorder
-      Z.1 <- matrix(0, nrow = nrow(data), ncol = nlevels(re.i[[2]]))
-      Z.2 <- matrix(0, nrow = nrow(data), ncol = nlevels(re.i[[4]]))
-      counter <- 0
-      for (i.levels in levels(re.i[[2]])) {
-        counter <- counter + 1
-        Z.1[, counter] <- re.i[[1]] * as.numeric(i.levels == re.i[[2]])
+    if(length(re.i) %in% c(1, 4)){
+      if (length(re.i) == 1) { # a matrix as is
+        covM = re.i[[1]]
+        if(!inherits(covM, c("matrix", "Matrix"))){
+          stop("random term with length 1 is not a cov matrix")
+        }
+        if(nrow(covM) != nrow(X)) stop("random term with length 1 has different number of rows")
+        nested[jj] = covM
       }
-      counter <- 0
-      for (i.levels in levels(re.i[[4]])) {
-        counter <- counter + 1
-        Z.2[, counter] <- as.numeric(i.levels == re.i[[4]])
+      
+      if (length(re.i) == 4) {
+        # another way to do this, which does not require reorder
+        Z.1 <- matrix(0, nrow = nrow(data), ncol = nlevels(re.i[[2]]))
+        Z.2 <- matrix(0, nrow = nrow(data), ncol = nlevels(re.i[[4]]))
+        counter <- 0
+        for (i.levels in levels(re.i[[2]])) {
+          counter <- counter + 1
+          Z.1[, counter] <- re.i[[1]] * as.numeric(i.levels == re.i[[2]])
+        }
+        counter <- 0
+        for (i.levels in levels(re.i[[4]])) {
+          counter <- counter + 1
+          Z.2[, counter] <- as.numeric(i.levels == re.i[[4]])
+        }
+        Z.1 <- chol(re.i[[3]]) %*% t(Z.1)
+        # Z.1 <- tcrossprod(chol(re.i[[3]]), Z.1)
+        # Z.2 <- t(Z.2)
+        # use Z.2 to mask non-nested Z.1
+        # nested[[jj]] <- (t(Z.1) %*% Z.1) * (t(Z.2) %*% Z.2)
+        nested[[jj]] <- as(crossprod(Z.1) * tcrossprod(Z.2), "dgCMatrix")
       }
-      Z.1 <- chol(re.i[[3]]) %*% t(Z.1)
-      # Z.1 <- tcrossprod(chol(re.i[[3]]), Z.1)
-      # Z.2 <- t(Z.2)
+      
       jj <- jj + 1
-      # use Z.2 to mask non-nested Z.1
-      # nested[[jj]] <- (t(Z.1) %*% Z.1) * (t(Z.2) %*% Z.2)
-      nested[[jj]] <- as(crossprod(Z.1) * tcrossprod(Z.2), "dgCMatrix")
     }
   }
   

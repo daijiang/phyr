@@ -3,7 +3,7 @@
 \docType{data}
 \name{phylotree}
 \alias{phylotree}
-\title{#' Example phylogeny}
+\title{Example phylogeny}
 \format{Newick format}
 \usage{
 phylotree

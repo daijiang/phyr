@@ -3,7 +3,7 @@
 \docType{data}
 \name{traits}
 \alias{traits}
-\title{#' Example species traits data}
+\title{Example species traits data}
 \format{a data frame with 18 species and 3 variables: sla,
 height, and seed dispersal mode.}
 \usage{

@@ -18,7 +18,7 @@ knitr::opts_chunk$set(
 
 This is a temporal Rmd file to facilitate develoement. 
 
-```{r data_prep}
+```{r data_prep, eval = F}
 library(dplyr, quietly = T)
 comm = phyr::comm_a
 comm$site = row.names(comm)
