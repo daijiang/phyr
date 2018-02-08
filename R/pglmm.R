@@ -638,7 +638,7 @@ get_design_matrix = function(formula, data, na.action = NULL,
           stop("random term with length 1 is not a cov matrix")
         }
         if(nrow(covM) != nrow(X)) stop("random term with length 1 has different number of rows")
-        nested[jj] = covM
+        nested[[jj]] = covM
       }
       
       if (length(re.i) == 4) {
