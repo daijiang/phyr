@@ -56,21 +56,22 @@ communityPGLMM.predicted.values(x, show.plot = TRUE, ...)
 \arguments{
 \item{formula}{a two-sided linear formula object describing the
 mixed-effects of the model; it follows similar syntax as \code{\link[lme4:lmer]{lmer}}.
-There are some differences though:
-\enumerate{
-\item to specify that a random term should have phylogenetic cov matrix too,
-add "__" at the end of the group variable, e.g. \code{+ (1 | sp__)} will
+There are some differences though. First, to specify that a random term should have phylogenetic cov matrix too,
+add \code{__} at the end of the group variable, e.g. \code{+ (1 | sp__)} will
 construct two random terms, one with phylogenetic cov matrix and another
-with non-phylogenetic (Identity) matrix;
-\item Nested random term has four forms:
+with non-phylogenetic (Identity) matrix; However, \code{__} in the nested terms (below)
+will only create a phlylogenetic cov-matrix. Therefore, nested random term has four forms:
+\enumerate{
 \item \code{(1|sp@site)} represents independent species are nested within independent sites (i.e. kronecker(I_sites, I_sp)).
 \item \code{(1|sp__@site)} represents correlated species are nested within independent sites (i.e. kronecker(I_sites, V_sp)).
-\item \code{(1|sp@site__)} represents independent species are nested within correlated sites (i.e. kron(V_sites, I_sp)).
-\item \code{(1|sp__@site__)} represents correlated species are nested within correlated sites (i.e. kron(V_sites, V_sp)).
-Note, however, correlated random terms will not be allowed at this moment. For example,
+This should be the most common one for community analysis.
+\item \code{(1|sp@site__)} represents independent species are nested within correlated sites (i.e. kron(V_sites, I_sp)). This one can be used for bipartite questions. You can, for example, treat sp as insects and site as plants. Remember to set the argument \code{tree_site} to a phylogeny.
+\item \code{(1|sp__@site__)} represents correlated species are nested within correlated sites (i.e. kron(V_sites, V_sp)). This one is also used for bipartite questions.
+}
+
+Second, note that correlated random terms will not be allowed at this moment. For example,
 \code{(x|g)} will be equal with \code{(0 + x|g)} in the lmer syntax;
-also, \code{(x1 + x2|g)} won't work.
-}}
+also, \code{(x1 + x2|g)} won't work.}
 
 \item{data}{a \code{\link{data.frame}} containing the variables
 named in formula. The data frame should have long format with
