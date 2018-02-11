@@ -27,8 +27,9 @@ dat = tidyr::gather(comm, key = "sp", value = "freq", -site) %>%
   left_join(phyr::traits, by = "sp")
 dat$pa = as.numeric(dat$freq > 0)
 tree = phyr::phylotree
+tree_site = ape::rtree(n = nlevels(data$site), tip.label = levels(data$site))
 data = dat
-formula = freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site)
+formula = freq ~ 1 + shade + (1|sp__) + (1|site__) + (1|sp@site) + (1| sp__ @ site ) + (1| sp @ site__ ) + (1|sp__@site__)
 repulsion = F
 REML = T
 s2.init = NULL
@@ -138,6 +139,34 @@ microbenchmark::microbenchmark(
 )
 
 c("nelder-mead-nlopt", "subplex")
+
+```
+
+```{r eval=F}
+# bipartite
+nspp = 5 # pollinators
+nsite = 10 # plants
+phy_sp = ape::rtree(nspp)
+phy_site = ape::rtree(nsite)
+phy_site$tip.label = paste0("site", 1:nsite)
+Vsp = ape::vcv(phy_sp)
+Vsite = ape::vcv(phy_site)
+
+library(Matrix)
+re.sp0 = as(kronecker(diag(nsite), matrix(1, nrow=nspp, ncol=nspp)), "dgCMatrix")
+image(re.sp0)
+re.site0 <- as(kronecker(matrix(1, nrow=nsite, ncol=nsite), nspp), "dgCMatrix")
+image(re.site0)
+re.sp <- as(kronecker(Vsite, matrix(1, nrow=nspp, ncol=nspp)), "dgCMatrix")
+image(re.sp)
+re.site <- as(kronecker(matrix(1, nrow=nsite, ncol=nsite), Vsp), "dgCMatrix")
+image(re.site)
+re.sp.site <- as(kronecker(diag(nrow=nsite), Vsp), "dgCMatrix")
+image(re.sp.site)
+re.site.sp <- as(kronecker(Vsite, diag(nrow=nspp)), "dgCMatrix")
+image(re.site.sp)
+re.cophy <- as(kronecker(Vsite, Vsp), "dgCMatrix")
+image(re.cophy)
 
 ```
 

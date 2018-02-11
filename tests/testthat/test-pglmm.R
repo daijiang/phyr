@@ -9,25 +9,25 @@ dat = tidyr::gather(comm, key = "sp", value = "freq", -site) %>%
 dat$pa = as.numeric(dat$freq > 0)
 
 
-test1_gaussian_cpp = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
+test1_gaussian_cpp = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
                              dat, tree = phylotree, REML = F, cpp = T, optimizer = "Nelder-Mead")
-test1_gaussian_r  = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
+test1_gaussian_r  = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
                              dat, tree = phylotree, REML = F, cpp = F, optimizer = "Nelder-Mead")
 expect_equivalent(test1_gaussian_cpp, test1_gaussian_r)
 
-test2_binary_cpp = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
+test2_binary_cpp = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
                                         dat, family = "binomial", tree = phylotree, REML = F,
                                         cpp = T, optimizer = "Nelder-Mead")
-test2_binary_r = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
+test2_binary_r = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
                                       dat, family = "binomial", tree = phylotree, REML = F, 
                                       cpp = F, optimizer = "Nelder-Mead")
 expect_equivalent(test2_binary_cpp, test2_binary_r)
 
 ## bobyqa is weired...
-# test3_binary_cpp_bobyqa = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
+# test3_binary_cpp_bobyqa = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
 #                                         dat, family = "binomial", tree = phylotree, REML = F, verbose = T,
 #                                         cpp = T, optimizer = "bobyqa", maxit = 1000, reltol = 1e-8)
-# test3_binary_r_bobyqa = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
+# test3_binary_r_bobyqa = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
 #                                       dat, family = "binomial", tree = phylotree, REML = F, 
 #                                       cpp = F, optimizer = "bobyqa", maxit = 1000, reltol = 1e-8)
 # expect_equivalent(test3_binary_cpp_bobyqa, test3_binary_r_bobyqa)
@@ -57,8 +57,6 @@ re.nested.phy <- list(1, sp = dat$sp, covar = Vphy, site = dat$site)
 re.nested.rep <- list(1, sp = dat$sp, covar = solve(Vphy), site = dat$site)
 # can be named 
 re = list(re.sp = re.sp, re.sp.phy = re.sp.phy, re.nested.phy = re.nested.phy, re.site = re.site)
-
-
 
 test1_gaussian_pez <- pez::communityPGLMM(freq ~ 1 + shade, data = dat, sp = dat$sp, 
                                           site = dat$site, random.effects = re, REML = F)
@@ -108,9 +106,9 @@ dat.na$freq[dat.na$freq == 0] = NA
 dat.na.rm = dat.na[!is.na(dat.na$freq),]
 
 test_that("testing data with NA, gaussian models", {
-  z.na = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
+  z.na = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
                               dat.na, tree = phylotree, REML = F)
-  z.na.rm = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
+  z.na.rm = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
                                  dat.na.rm, tree = phylotree, REML = F)
   # NOTE: freq = NA is DIFFERENT from freq = 0 !
   expect_equivalent(z.na$B, z.na.rm$B)
@@ -125,9 +123,9 @@ dat.na$pa[ina] = NA
 dat.na.rm = dat.na[!is.na(dat.na$pa),]
 
 test_that("testing data with NA, binomial models", {
-  z2.na = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), dat.na,
+  z2.na = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), dat.na,
                               family = "binomial", tree = phylotree, REML = F)
-  z2.na.rm = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), dat.na.rm, 
+  z2.na.rm = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), dat.na.rm, 
                                  family = "binomial", tree = phylotree, REML = F)
   # NOTE: pa = NA is DIFFERENT from pa = 0 !
   expect_equivalent(z2.na$B, z2.na.rm$B)
@@ -136,3 +134,9 @@ test_that("testing data with NA, binomial models", {
   expect_equivalent(z2.na$ss, z2.na.rm$ss)
   expect_equivalent(z2.na$AIC, z2.na.rm$AIC)
 })
+
+# test bipartite
+tree_site = ape::rtree(n = n_distinct(dat$site), tip.label = sort(unique(dat$site)))
+z_bipartite = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site__) + 
+                                     (1|sp__@site) + (1|sp@site__) + (1|sp__@site__), 
+                    data = dat, family = "gaussian", tree = phylotree, tree_site = tree_site, REML = TRUE)

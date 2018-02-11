@@ -19,28 +19,34 @@
 #' phylogenetic correlations.
 #' @param formula a two-sided linear formula object describing the
 #' mixed-effects of the model; it follows similar syntax as \code{\link[lme4:lmer]{lmer}}.
-#' There are some differences though: 1. to specify that a random term 
-#' should have phylogenetic cov matrix too, add "__" at the end of the group
-#' variable, e.g. \code{+ (1 | sp__)} will construct two random terms, one
-#' with phylogenetic cov matrix and another with non-phylogenetic (Identity) matrix;
-#' 2. to specify nested random term, use \code{+ (1|site@sp)}. Note, however,
-#' no correlated random terms will be allowed at this moment. For example,
+#' There are some differences though. First, to specify that a random term should have phylogenetic cov matrix too, 
+#' add "__" at the end of the group variable, e.g. \code{+ (1 | sp__)} will 
+#' construct two random terms, one with phylogenetic cov matrix and another 
+#' with non-phylogenetic (Identity) matrix; However, "__" in the nested terms (below) 
+#' will only create a phlylogenetic cov-matrix. Therefore, nested random term has four forms: 
+#' 1. \code{(1|sp@site)} represents independent species are nested within independent sites (i.e. kronecker(I_sites, I_sp)). 
+#' 2. \code{(1|sp__@site)} represents correlated species are nested within independent sites (i.e. kronecker(I_sites, V_sp)).
+#' This should be the most common one for community analysis.
+#' 3. \code{(1|sp@site__)} represents independent species are nested within correlated sites (i.e. kron(V_sites, I_sp)). This one can be used for bipartite questions. You can, for example, treat sp as insects and site as plants. Remember to set the argument \code{tree_site} to a phylogeny.
+#' 4. \code{(1|sp__@site__)} represents correlated species are nested within correlated sites (i.e. kron(V_sites, V_sp)). This one is also used for bipartite questions.
+#' Second, note that correlated random terms will not be allowed at this moment. For example,
 #' \code{(x|g)} will be equal with \code{(0 + x|g)} in the lmer syntax; 
 #' also, \code{(x1 + x2|g)} won't work.
 #' @param data a \code{\link{data.frame}} containing the variables
 #' named in formula. The data frame should have long format with
 #' factors specifying species (named as 'sp') and sites (named as 'site'). \code{communityPGLMM} will
-#' reorder rows of the data frame so that species are nested within
-#' sites.
+#' reorder rows of the data frame so that species are nested within sites (i.e. arrange first 
+#' by column site then by column sp).
 #' @param family either \code{gaussian} for a Linear Mixed Model, or
 #' \code{binomial} for binary dependent data.
-#' @param tree a phylogeny, with "phylo" class.
+#' @param tree a phylogeny for column sp, with "phylo" class.
 #' @param repulsion when nested random term specified, do you want to test repulsion or underdispersion?
 #' Default is FALSE, i.e. test underdispersion.
-#' @param random.effects pre-build list of random effects, default is NULL. Can be useful if 
-#' dealing with two phylogenies (e.g. plants and pollinators). You can prepare it with
-#' the prep_dat_pglmm() function to get the random effects for each phylogeny and then
-#' combine both together.
+#' @param random.effects pre-build list of random effects. If NULL (the default), 
+#' the function prep_dat_pglmm() will prepare it for you. A list of pre-generated
+#' random terms is also accepted (mainly to be compatible with code from previous versions).
+#' If so, make sure that the orders of sp and site in the generated list are the same as the
+#' data, which will be arranged first by site than by sp.
 #' @param prep.re.effects whether to prepare random effects for users.
 #' @param sp no longer used, keep here for compatibility
 #' @param site no longer used, keep here for compatibility
@@ -204,7 +210,7 @@
 #' # repulsion = to test phylogenetic repulsion or not
 #'
 #' # Model 1 (Eq. 1)
-#' z <- communityPGLMM(freq ~ sp + (1|site) + (1|sp@site), data = dat, family = "binomial", 
+#' z <- communityPGLMM(freq ~ sp + (1|site) + (1|sp__@site), data = dat, family = "binomial", 
 #'                    tree = phy, REML = TRUE, verbose = TRUE, s2.init=.1)
 #' 
 #' # Model 2 (Eq. 2)
@@ -212,7 +218,7 @@
 #'                     tree = phy, REML = TRUE, verbose = TRUE, s2.init=.1)
 #' 
 #' # Model 3 (Eq. 3)
-#' z <- communityPGLMM(freq ~ sp*X + (1|site) + (1|sp@site), data = dat, family = "binomial",
+#' z <- communityPGLMM(freq ~ sp*X + (1|site) + (1|sp__@site), data = dat, family = "binomial",
 #'                     tree = phy, REML = TRUE, verbose = TRUE, s2.init=.1)
 #' 
 #' ## Model structure from Rafferty & Ives (2013) (Eq. 3)
@@ -222,15 +228,8 @@
 #' # phyPol = phylogeny for pollinators
 #' # phyPlt = phylogeny for plants
 #' 
-#' # prepare random effects
-# re1 = prep_dat_pglmm(freq ~ 1 + (1|sp__) + (1|sp@site), data = dat,
-#                      tree = phyPol, repulsion = FALSE)$random.effects
-# re2 = prep_dat_pglmm(freq ~ 1 + (1|site__) + (1|site@sp), data = dat,
-#                      tree = phyPlt, repulsion = FALSE)$random.effects
-#' re12 = c(re1, re2)
-#' 
-#' z <- communityPGLMM(freq ~ sp*X, data = dat, family = "binomial",
-#'  random.effects = re12, REML = TRUE, verbose = TRUE, s2.init=.1)
+#' z <- communityPGLMM(freq ~ sp * X + (1|sp__) + (1|site__) + (1|sp__@site) + (1|sp@site__) + (1|sp__@site__), 
+#' data = dat, family = "binomial", tree = phyPol, tree_site = phyPlt, REML = TRUE, verbose = TRUE, s2.init=.1)
 #' }
 #' 
 #' #########################################################
@@ -405,7 +404,8 @@
 #' However, in this case, you probably can just use lme4::lmer.
 # end of doc ---- 
 prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE, 
-                          prep.re.effects = TRUE, family = "gaussian", prep.s2.lme4 = FALSE){
+                          prep.re.effects = TRUE, family = "gaussian", 
+                          prep.s2.lme4 = FALSE, tree_site = NULL){
   # make sure the data has sp and site columns
   if(!all(c("sp", "site") %in% names(data))) {
     stop("The data frame should have a column named as 'sp' and a column named as 'site'.")
@@ -415,7 +415,7 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
   data = dplyr::arrange(as.data.frame(data), site, sp)
   data$sp = as.factor(data$sp); sp = data$sp
   data$site = as.factor(data$site); site = data$site
-  spl = levels(sp)
+  spl = levels(sp); sitel = levels(site)
   nspp = nlevels(sp); nsite = nlevels(site)
   
   fm = unique(lme4::findbars(formula))
@@ -423,7 +423,7 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
   if(prep.re.effects){
     # @ for nested; __ at the end for phylogenetic cov
     if(is.null(fm)) stop("No random terms specified, use lm or glm instead")
-    if(any(grepl("__$", fm))){
+    if(any(grepl("sp__$", fm))){
       # phylogeny
       if(length(setdiff(spl, tree$tip.label))) stop("Some species not in the phylogeny, please either drop these species or update the phylogeny")
       if(length(setdiff(tree$tip.label, spl))){
@@ -434,6 +434,30 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
       Vphy <- Vphy/max(Vphy)
       Vphy <- Vphy/exp(determinant(Vphy)$modulus[1]/nspp)
       Vphy = Vphy[spl, spl] # same order as species levels
+    }
+    
+    if(any(grepl("site__$", fm))){
+      if(is.null(tree_site)) stop("tree_site not specified")
+      # phylogeny
+      if(length(setdiff(sitel, tree_site$tip.label))) stop("Some species not in the phylogeny tree_site, please either drop these species or update the phylogeny")
+      if(length(setdiff(tree_site$tip.label, sitel))){
+        warning("Drop species from the phylogeny tree_site that are not in the data", immediate. = TRUE)
+        tree = ape::drop.tip(tree_site, setdiff(tree_site$tip.label, sitel))
+      }
+      Vphy_site <- ape::vcv(tree_site)
+      Vphy_site <- Vphy_site/max(Vphy_site)
+      Vphy_site <- Vphy_site/exp(determinant(Vphy_site)$modulus[1]/nsite)
+      Vphy_site = Vphy_site[sitel, sitel] # same order as site levels
+    }
+    
+    if(nrow(data) != nspp * nsite){
+      # NAs that have been removed
+      message("the dataframe may have been removed for NAs as its number of row is not nspp * nsite")
+      # recreate a full data frame to get which rows have been removed
+      data_all = dplyr::arrange(expand.grid(site = sitel, sp = spl), site, sp)
+      data_all = dplyr::left_join(data_all, data, by = c("site", "sp"))
+      nna.ind = which(!is.na(data_all[, as.character(formula)[2]]))
+      if(nrow(data) != length(nna.ind)) stop("something wrong with NAs")
     }
     
     random.effects = lapply(fm, function(x){
@@ -449,7 +473,12 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
             d = data[, coln] # extract the column
             xout_nonphy = list(1, d, covar = diag(nlevels(d)))
             names(xout_nonphy)[2] = coln
-            xout_phy = list(1, d, covar = Vphy)
+            if(coln == "sp"){
+              xout_phy = list(1, d, covar = Vphy)
+            }
+            if(coln == "site"){
+              xout_phy = list(1, d, covar = Vphy_site)
+            }
             names(xout_phy)[2] = coln
             xout = list(xout_nonphy, xout_phy)
           } else { # non phylogenetic random term
@@ -460,15 +489,46 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
           } 
         } else { # nested term 
           sp_or_site = strsplit(x2[3], split = "@")[[1]]
-          if(repulsion){
-            xout = list(1, sp = data[, sp_or_site[1]], covar = solve(Vphy), site = data[, sp_or_site[2]])
+          
+          if(!grepl("__", x2[3])){ # no phylogenetic term
+            message("Nested term without specify phylogeny, use identity matrix instead")
+            xout = list(1, sp = data[, sp_or_site[1]], 
+                        covar = diag(nlevels(data[, sp_or_site[1]])), 
+                        site = data[, sp_or_site[2]])
+            names(xout)[c(2, 4)] = sp_or_site
             xout = list(xout)
-          } else {
-            xout = list(1, sp = data[, sp_or_site[1]], covar = Vphy, site = data[, sp_or_site[2]])
-            xout = list(xout)
+          } else { # has phylogenetic term
+            if(sp_or_site[1] == "sp__" & sp_or_site[2] == "site"){ # sp__@site
+              if(repulsion){
+                xout = as(kronecker(diag(nsite), solve(Vphy)), "dgCMatrix")
+              } else {
+                xout = as(kronecker(diag(nsite), Vphy), "dgCMatrix")
+              }
+              xout = list(xout)
+            }
+            if(sp_or_site[1] == "sp" & sp_or_site[2] == "site__"){ # sp@site__
+              if(repulsion){
+                xout = as(kronecker(solve(Vphy_site), diag(nspp)), "dgCMatrix")
+              } else {
+                xout = as(kronecker(Vphy_site, diag(nspp)), "dgCMatrix")
+              }
+              xout = list(xout)
+            }
+            if(sp_or_site[1] == "sp__" & sp_or_site[2] == "site__"){ # sp__@site__
+              if(repulsion){
+                xout = as(kronecker(solve(Vphy_site), solve(Vphy)), "dgCMatrix")
+              } else {
+                xout = as(kronecker(Vphy_site, Vphy), "dgCMatrix")
+              }
+              xout = list(xout)
+            }
+            
+            if(nrow(data) != nspp * nsite) xout[[1]] = xout[[1]][nna.ind, nna.ind]
+            xout = list(xout) # to put the matrix in a list
           }
         }
       } else { # slope
+        if(grepl("@", x2[3])) stop("sorry, random terms for slopes cannot be nested")
         if(grepl("__$", x2[3])){
           # also want phylogenetic version, 
           # it makes sense if the phylogenetic version is in, the non-phy part should be there too
@@ -492,7 +552,7 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
     names(random.effects) = unlist(sapply(fm, function(x){
       x2 = as.character(x)
       x3 = paste0(x2[2], x2[1], x2[3])
-      if(grepl("__$", x2[3])){
+      if(grepl("__$", x2[3]) & !grepl("@", x2[3])){
         x4 = gsub("__$", "", x3)
         return(c(x4, x3))
       }
@@ -542,8 +602,10 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
 
 #' @rdname pglmm
 #' @param optimizer bobyqa (default) or Nelder-Mead or nelder-mead-nlopt (from the nloptr package) or subplex (from the nloptr package).
+#' @param tree_site a second phylogeny for "site". This is required only if the site column contains species instead of sites.
+#' This can be used for bipartitie questions.
 #' @export
-communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, repulsion = FALSE, sp, site,
+communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, tree_site = NULL, repulsion = FALSE, sp, site,
                            random.effects = NULL, REML = TRUE, s2.init = NULL, B.init = NULL, reltol = 10^-6, 
                            maxit = 500, tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE, cpp = TRUE,
                            optimizer = c("bobyqa", "Nelder-Mead", "nelder-mead-nlopt", "subplex"), prep.s2.lme4 = FALSE) {
@@ -553,7 +615,7 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, repu
   }
   
   prep_re = if(is.null(random.effects)) TRUE else FALSE
-  dat_prepared = prep_dat_pglmm(formula, data, tree, repulsion, prep_re, family, prep.s2.lme4)
+  dat_prepared = prep_dat_pglmm(formula, data, tree, repulsion, prep_re, family, prep.s2.lme4, tree_site)
   formula = dat_prepared$formula
   data = dat_prepared$data
   sp = dat_prepared$sp
@@ -637,7 +699,7 @@ get_design_matrix = function(formula, data, na.action = NULL,
         if(!inherits(covM, c("matrix", "Matrix"))){
           stop("random term with length 1 is not a cov matrix")
         }
-        if(nrow(covM) != nrow(X)) stop("random term with length 1 has different number of rows")
+        # if(nrow(covM) != nrow(X)) stop("random term with length 1 has different number of rows")
         nested[[jj]] = covM
       }
       
@@ -1309,8 +1371,8 @@ summary.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), 
   random.effects = x$random.effects
   if(!is.null(names(random.effects))){
     re.names = names(random.effects)[c(
-      which(sapply(random.effects, length) != 4),
-      which(sapply(random.effects, length) == 4)
+      which(sapply(random.effects, length) %nin% c(1, 4)),
+      which(sapply(random.effects, length) %in% c(1, 4))
     )]
   } else {
     re.names <- NULL
