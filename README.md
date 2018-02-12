@@ -19,6 +19,8 @@ To install this package:
 
 ``` r
 devtools::install_github("daijiang/phyr", ref = "bipartite")
+# or
+install.packages("https://raw.githubusercontent.com/daijiang/phyr/bipartite/phyr_0.1.3.tgz", repos = NULL)
 ```
 
 To do
