@@ -27,8 +27,9 @@ dat = tidyr::gather(comm, key = "sp", value = "freq", -site) %>%
   left_join(phyr::traits, by = "sp")
 dat$pa = as.numeric(dat$freq > 0)
 tree = phyr::phylotree
-tree_site = ape::rtree(n = nlevels(data$site), tip.label = levels(data$site))
 data = dat
+tree_site = ape::rtree(n = nlevels(data$site), tip.label = levels(data$site))
+formula = pa ~ 1 + (1|sp__@site)
 formula = freq ~ 1 + shade + (1|sp__) + (1|site__) + (1|sp@site) + (1| sp__ @ site ) + (1| sp @ site__ ) + (1|sp__@site__)
 repulsion = F
 REML = T
@@ -46,6 +47,9 @@ prep.s2.lme4 = FALSE
 cpp = T
 prep_re = TRUE
 family = "gaussian"
+family = "binomial"
+tol.pql = 10^-6
+maxit.pql = 200
 dat_prepared = phyr::prep_dat_pglmm(formula, data, tree, repulsion, prep_re, family, prep.s2.lme4)
 formula = dat_prepared$formula
 data = dat_prepared$data
@@ -61,9 +65,14 @@ q <- length(random.effects)
 if(family == "gaussian"){
   B.init <- t(matrix(lm(formula = formula, data = data)$coefficients, ncol = p))
   s2.init <- var(lm(formula = formula, data = data)$residuals)/q
+} else {
+   B.init <- t(matrix(glm(formula = formula, data = data, family = binomial, na.action = na.omit)$coefficients, ncol = p))
 }
 B <- B.init
 s <- as.vector(array(s2.init^0.5, dim = c(1, q)))
+ss <- as.vector(array(s2.init^0.5, dim = c(1, q)))
+
+
 ```
 
 ```{r, eval=FALSE}

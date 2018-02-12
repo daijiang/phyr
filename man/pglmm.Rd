@@ -60,13 +60,13 @@ There are some differences though. First, to specify that a random term should h
 add \code{__} at the end of the group variable, e.g. \code{+ (1 | sp__)} will
 construct two random terms, one with phylogenetic cov matrix and another
 with non-phylogenetic (Identity) matrix; However, \code{__} in the nested terms (below)
-will only create a phlylogenetic cov-matrix. Therefore, nested random term has four forms:
+will only create a phlylogenetic cov-matrix. Therefore, nested random term has three forms:
 \enumerate{
-\item \code{(1|sp@site)} represents independent species are nested within independent sites (i.e. kronecker(I_sites, I_sp)).
 \item \code{(1|sp__@site)} represents correlated species are nested within independent sites (i.e. kronecker(I_sites, V_sp)).
 This should be the most common one for community analysis.
 \item \code{(1|sp@site__)} represents independent species are nested within correlated sites (i.e. kron(V_sites, I_sp)). This one can be used for bipartite questions. You can, for example, treat sp as insects and site as plants. Remember to set the argument \code{tree_site} to a phylogeny.
 \item \code{(1|sp__@site__)} represents correlated species are nested within correlated sites (i.e. kron(V_sites, V_sp)). This one is also used for bipartite questions.
+\item \code{(1|sp@site)} will generate a identity matrix, which will be the same as the residual of LMM. So not meaningful.
 }
 
 Second, note that correlated random terms will not be allowed at this moment. For example,

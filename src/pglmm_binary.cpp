@@ -11,20 +11,25 @@
 using namespace Rcpp;
 using namespace arma;
 
+// [[Rcpp::export]]
 List plmm_binary_iV_logdetV_cpp(NumericVector par, arma::vec mu,
                                 const arma::sp_mat& Zt, const arma::sp_mat& St, 
                                 const List& nested, bool logdet){
-  
   int q_nonNested = St.n_rows;
-  IntegerVector idx = seq_len(q_nonNested) - 1; // c++ starts with 0
-  // uvec idx_uvec = as<uvec>(idx);
-  NumericVector sr0 = par[idx];
-  rowvec sr = real(as<rowvec>(sr0));
-  arma::mat iC0 = sr * St;
-  arma::vec iC1 = vectorise(iC0, 0); // extract by columns
-  arma::sp_mat iC = sp_mat(diagmat(iC1));
-  arma::sp_mat Ut = iC * Zt;
-  arma::sp_mat U = trans(Ut);
+  arma::sp_mat Ut;
+  arma::sp_mat U;
+  if(q_nonNested > 0){
+    IntegerVector idx = seq_len(q_nonNested) - 1; // c++ starts with 0
+    // uvec idx_uvec = as<uvec>(idx);
+    NumericVector sr0 = par[idx];
+    rowvec sr = real(as<rowvec>(sr0));
+    arma::mat iC0 = sr * St;
+    arma::vec iC1 = vectorise(iC0, 0); // extract by columns
+    arma::sp_mat iC = sp_mat(diagmat(iC1));
+    Ut = iC * Zt;
+    U = trans(Ut);
+  }
+  
   int q_Nested = nested.size();
   
   NumericVector sn; // pre-declare out of if{}
@@ -41,7 +46,7 @@ List plmm_binary_iV_logdetV_cpp(NumericVector par, arma::vec mu,
   double signV;
   double logdetiA;
   double signiA;
-  if (q_Nested == 0){
+  if (q_Nested == 0){ // then q_nonNested will not be 0, otherwise, no random terms
     arma::vec pq = mu % (1 - mu);
     arma::sp_mat iA = sp_mat(diagmat(pq));
     arma::sp_mat Ishort = sp_mat(Ut.n_rows, Ut.n_rows); Ishort.eye();
@@ -78,11 +83,16 @@ List plmm_binary_iV_logdetV_cpp(NumericVector par, arma::vec mu,
     arma::mat A1(A);
     arma::sp_mat iA = sp_mat(inv(A1));
     // Rcout << iA << " " ;
-    arma::sp_mat Ishort = sp_mat(Ut.n_rows, Ut.n_rows); Ishort.eye();
-    arma::sp_mat Ut_iA_U = Ut * iA * U;
-    Ishort_Ut_iA_U = mat(Ishort + Ut_iA_U);
-    arma::mat i_Ishort_Ut_iA_U = inv(Ishort_Ut_iA_U);
-    iV0 = iA - iA * U * sp_mat(i_Ishort_Ut_iA_U) * Ut * iA;
+    if(q_nonNested > 0){
+      arma::sp_mat Ishort = sp_mat(Ut.n_rows, Ut.n_rows); Ishort.eye();
+      arma::sp_mat Ut_iA_U = Ut * iA * U;
+      Ishort_Ut_iA_U = mat(Ishort + Ut_iA_U);
+      arma::mat i_Ishort_Ut_iA_U = inv(Ishort_Ut_iA_U);
+      iV0 = iA - iA * U * sp_mat(i_Ishort_Ut_iA_U) * Ut * iA;
+    } else {
+      iV0 = iA;
+    }
+    
     arma::mat iV(iV0); // convert to dense matrix
     if(logdet){
       log_det(logdetV, signV, iV); 
@@ -105,18 +115,24 @@ List plmm_binary_iV_logdetV_cpp(NumericVector par, arma::vec mu,
   }
 }
 
+// [[Rcpp::export]]
 arma::sp_mat plmm_binary_V(NumericVector par, const arma::sp_mat& Zt, 
                            const arma::sp_mat& St, arma::vec mu, 
                            const List& nested, bool missing_mu){
   int q_nonNested = St.n_rows;
-  IntegerVector idx = seq_len(q_nonNested) - 1; // c++ starts with 0
-  NumericVector sr0 = par[idx];
-  rowvec sr = real(as<rowvec>(sr0));
-  arma::mat iC0 = sr * St;
-  arma::vec iC1 = vectorise(iC0, 0); // extract by columns
-  arma::sp_mat iC = sp_mat(diagmat(iC1));
-  arma::sp_mat Ut = iC * Zt;
-  arma::sp_mat U = trans(Ut);
+  arma::sp_mat Ut;
+  arma::sp_mat U;
+  if(q_nonNested > 0){
+    IntegerVector idx = seq_len(q_nonNested) - 1; // c++ starts with 0
+    NumericVector sr0 = par[idx];
+    rowvec sr = real(as<rowvec>(sr0));
+    arma::mat iC0 = sr * St;
+    arma::vec iC1 = vectorise(iC0, 0); // extract by columns
+    arma::sp_mat iC = sp_mat(diagmat(iC1));
+    Ut = iC * Zt;
+    U = trans(Ut);
+  }
+  
   int q_Nested = nested.size();
   NumericVector sn; // pre-declare out of if{}
   if (q_Nested > 0) {
@@ -149,7 +165,12 @@ arma::sp_mat plmm_binary_V(NumericVector par, const arma::sp_mat& Zt,
     }
   }
   
-  arma::sp_mat V = A + U * Ut;
+  arma::sp_mat V;
+  if(q_nonNested > 0){
+    V = A + U * Ut;
+  } else {
+    V = A;
+  }
   
   return V;
 }
@@ -228,7 +249,6 @@ List pglmm_binary_internal_cpp(const arma::mat& X, const arma::vec& Y,
     while(as_scalar(trans(est_B_m - oldest_B_m) * (est_B_m - oldest_B_m)) > tol_pql2 &&
           iteration_m <= maxit_pql){
       oldest_B_m = est_B_m;
-      
       List iv = plmm_binary_iV_logdetV_cpp(ss0, mu, Zt, St, nested, false);
       sp_mat iV0 = iv["iV"];
       Z = X * B + b + (Y - mu)/(mu % (1 - mu));
@@ -270,13 +290,16 @@ List pglmm_binary_internal_cpp(const arma::mat& X, const arma::vec& Y,
                       _["method"] = "Nelder-Mead",
                       _["control"] = List::create(_["maxit"] = maxit, _["reltol"] = reltol));
       } else {
-        opt = optim(_["par"] = ss0,
-                    _["fn"] = Rcpp::InternalFunction(&plmm_binary_LL_cpp),
-                    _["X"] = X, _["H"] = H, _["Zt"] = Zt,
-                    _["St"] = St, _["nested"] = nested,
-                    _["mu"] = mu, _["REML"] = REML, _["verbose"] = verbose,
-                      _["method"] = "L-BFGS-B",
-                      _["control"] = List::create(_["maxit"] = maxit));
+        // opt = optim(_["par"] = ss0,
+        //             _["fn"] = Rcpp::InternalFunction(&plmm_binary_LL_cpp),
+        //             _["X"] = X, _["H"] = H, _["Zt"] = Zt,
+        //             _["St"] = St, _["nested"] = nested,
+        //             _["mu"] = mu, _["REML"] = REML, _["verbose"] = verbose,
+        //               _["method"] = "L-BFGS-B",
+        //               _["control"] = List::create(_["maxit"] = maxit, _["factr"] = reltol));
+        Rcpp::stop("With only 1 random term and cpp = TRUE, phyr cannot run the optimization yet. \n \
+                     Set optimizer to other options, e.g. nelder-mead-nlopt and re-run it. \n \
+                     Or you can turn cpp off with cpp = FALSE and re-run it.");
       }
     } else {
       std::string nlopt_algor;
@@ -321,19 +344,39 @@ List pglmm_binary_internal_cpp(const arma::mat& X, const arma::vec& Y,
   return out;
 }
 
+// [[Rcpp::export]]
+int sexp_type(SEXP x){ 
+  return TYPEOF(x); 
+}
+
+
 /*** R
-# internal_res = pglmm_binary_internal_cpp(X = X, Y = Y, Zt = Zt, St = St,
-#                           nested = nested, REML = F, verbose = F,
-#                           n = n, p = p, q = q, maxit = maxit,
-#                           reltol = reltol, tol_pql = tol.pql,
-#                           maxit_pql = maxit.pql, optimizer = "Nelder-Mead",
-#                           B_init = B.init, ss = as.vector(array(s2.init^0.5, dim = c(1, q))))
+library(Matrix)
+# St = as(matrix(NA, 0, 0), "dgTMatrix")
+# Zt = as(matrix(NA, 0, 0), "dgTMatrix")
+# sexp_type(nested)
+# plmm_binary_iV_logdetV_cpp(ss, mu, Zt, St, nested, F)
+# plmm_binary_V(ss, Zt, St, mu, nested, F)
+# plmm_binary_LL_cpp(ss, mu, X, Zt, St, mu, nested, T, T)
+# internal_res = pglmm_binary_internal_cpp(X = X, Y = Y, Zt = Zt, St = St, 
+#                                          nested = nested, REML = REML, verbose = verbose, 
+#                                          n = n, p = p, q = q, maxit = maxit, 
+#                                          reltol = reltol, tol_pql = tol.pql, 
+#                                          maxit_pql = maxit.pql, optimizer = "bobyqa", 
+#                                          B_init = B.init, ss = ss)
+# phyr:::pglmm_binary_internal_cpp(X = X, Y = Y, Zt = Zt, St = St, 
+#                           nested = nested, REML = REML, verbose = verbose, 
+#                           n = n, p = p, q = q, maxit = maxit, 
+#                           reltol = reltol, tol_pql = tol.pql, 
+#                           maxit_pql = maxit.pql, optimizer = optimizer, 
+#                           B_init = B.init, ss = ss)
 # opt <- optim(fn = plmm.binary.LL, par = ss, H = H, X = X, Zt = Zt, St = St,
 #              mu = mu, nested = nested, REML = REML, verbose = verbose, 
 #              method = "Nelder-Mead", control = list(maxit = maxit, reltol = reltol))
 # opt2 <- optim(fn = plmm_binary_LL_cpp, par = ss, H = as.matrix(H), X = X, Zt = Zt, St = St,
 #              mu = mu, nested = nested, REML = REML, verbose = T,
 #              method = "Nelder-Mead", control = list(maxit = maxit, reltol = reltol))
+
 # plmm_binary_LL_cpp(ss, as.matrix(H), X, Zt,  St, mu,  nested, REML, verbose)
 # plmm_binary_LL_cpp(c(0.5, 0.5, 0.5, 0.5), as.matrix(H), X, Zt, St, mu, nested, REML = F, T)
 */

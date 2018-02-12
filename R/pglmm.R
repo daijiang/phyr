@@ -23,12 +23,12 @@
 #' add \code{__} at the end of the group variable, e.g. \code{+ (1 | sp__)} will 
 #' construct two random terms, one with phylogenetic cov matrix and another 
 #' with non-phylogenetic (Identity) matrix; However, \code{__} in the nested terms (below) 
-#' will only create a phlylogenetic cov-matrix. Therefore, nested random term has four forms: 
-#' 1. \code{(1|sp@site)} represents independent species are nested within independent sites (i.e. kronecker(I_sites, I_sp)). 
-#' 2. \code{(1|sp__@site)} represents correlated species are nested within independent sites (i.e. kronecker(I_sites, V_sp)).
+#' will only create a phlylogenetic cov-matrix. Therefore, nested random term has three forms: 
+#' 1. \code{(1|sp__@site)} represents correlated species are nested within independent sites (i.e. kronecker(I_sites, V_sp)).
 #' This should be the most common one for community analysis.
-#' 3. \code{(1|sp@site__)} represents independent species are nested within correlated sites (i.e. kron(V_sites, I_sp)). This one can be used for bipartite questions. You can, for example, treat sp as insects and site as plants. Remember to set the argument \code{tree_site} to a phylogeny.
-#' 4. \code{(1|sp__@site__)} represents correlated species are nested within correlated sites (i.e. kron(V_sites, V_sp)). This one is also used for bipartite questions.
+#' 2. \code{(1|sp@site__)} represents independent species are nested within correlated sites (i.e. kron(V_sites, I_sp)). This one can be used for bipartite questions. You can, for example, treat sp as insects and site as plants. Remember to set the argument \code{tree_site} to a phylogeny.
+#' 3. \code{(1|sp__@site__)} represents correlated species are nested within correlated sites (i.e. kron(V_sites, V_sp)). This one is also used for bipartite questions.
+#' 4. \code{(1|sp@site)} will generate a identity matrix, which will be the same as the residual of LMM. So not meaningful.
 #' 
 #' Second, note that correlated random terms will not be allowed at this moment. For example,
 #' \code{(x|g)} will be equal with \code{(0 + x|g)} in the lmer syntax; 
@@ -424,7 +424,7 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
   if(prep.re.effects){
     # @ for nested; __ at the end for phylogenetic cov
     if(is.null(fm)) stop("No random terms specified, use lm or glm instead")
-    if(any(grepl("sp__$", fm))){
+    if(any(grepl("sp__", fm))){
       # phylogeny
       if(length(setdiff(spl, tree$tip.label))) stop("Some species not in the phylogeny, please either drop these species or update the phylogeny")
       if(length(setdiff(tree$tip.label, spl))){
@@ -437,7 +437,7 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
       Vphy = Vphy[spl, spl] # same order as species levels
     }
     
-    if(any(grepl("site__$", fm))){
+    if(any(grepl("site__", fm))){
       if(is.null(tree_site)) stop("tree_site not specified")
       # phylogeny
       if(length(setdiff(sitel, tree_site$tip.label))) stop("Some species not in the phylogeny tree_site, please either drop these species or update the phylogeny")
@@ -1030,6 +1030,8 @@ communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian",
   s <- as.vector(array(s2.init^0.5, dim = c(1, q)))
   
   if(cpp){
+    if(is.null(St)) St = as(matrix(0, 0, 0), "dgTMatrix")
+    if(is.null(Zt)) Zt = as(matrix(0, 0, 0), "dgTMatrix")
     out_res = pglmm_gaussian_internal_cpp(par = s, X, Y, Zt, St, nested, REML, 
                                           verbose, optimizer, maxit, 
                                           reltol, q, n, p, pi)
@@ -1125,6 +1127,8 @@ communityPGLMM.binary <- function(formula, data = list(), family = "binomial",
   ss <- as.vector(array(s2.init^0.5, dim = c(1, q)))
   
   if(cpp){
+    if(is.null(St)) St = as(matrix(0, 0, 0), "dgTMatrix")
+    if(is.null(Zt)) Zt = as(matrix(0, 0, 0), "dgTMatrix")
     internal_res = pglmm_binary_internal_cpp(X = X, Y = Y, Zt = Zt, St = St, 
                                              nested = nested, REML = REML, verbose = verbose, 
                                              n = n, p = p, q = q, maxit = maxit, 
