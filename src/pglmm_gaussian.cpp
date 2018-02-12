@@ -33,7 +33,6 @@ double pglmm_gaussian_LL_cpp(NumericVector par,
     Ut = iC * Zt;
     U = trans(Ut);
   }
-  
   int q_Nested = nested.size();
 
   NumericVector sn; // pre-declare out of if{}
@@ -61,7 +60,7 @@ double pglmm_gaussian_LL_cpp(NumericVector par,
       sp_mat nj = nested[0];
       A = A + snj * nj;
     } else {
-      for (int j = 0; j < (q_Nested - 1); j++) {
+      for (int j = 0; j < q_Nested; j++) {
         double snj = pow(sn[j], 2);
         sp_mat nj = nested[j];
         A = A + snj * nj;
@@ -176,7 +175,7 @@ List pglmm_gaussian_LL_calc_cpp(NumericVector par,
       sp_mat nj = nested[0];
       A = A + snj * nj;
     } else {
-      for (int j = 0; j < (q_Nested - 1); j++) {
+      for (int j = 0; j < q_Nested; j++) {
         double snj = pow(sn[j], 2);
         sp_mat nj = nested[j];
         A = A + snj * nj;
@@ -301,7 +300,6 @@ Rcpp::List pglmm_gaussian_internal_cpp(NumericVector par,
                       _["message"] = S0["message"]);
   }
   // end of optimization
-  
   arma::vec par_opt0 = abs(real(as<arma::vec>(opt["par"])));
   NumericVector par_opt = wrap(par_opt0);
   double LL = as_scalar(as<double>(opt["value"]));
@@ -328,4 +326,7 @@ Rcpp::List pglmm_gaussian_internal_cpp(NumericVector par,
 #                             St = as(matrix(0, 0, 0), "dgTMatrix"), nested, REML, 
 #                             verbose, optimizer, maxit, 
 #                             reltol, q, n, p, pi)
+res = pglmm_gaussian_internal_cpp(par = s, X, Y, Zt, St, nested, REML, 
+                            verbose, optimizer, maxit, 
+                            reltol, q, n, p, pi)
 */

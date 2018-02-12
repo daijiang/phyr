@@ -74,7 +74,7 @@ List plmm_binary_iV_logdetV_cpp(NumericVector par, arma::vec mu,
       sp_mat nj = nested[0];
       A = A + snj * nj;
     } else {
-      for (int j = 0; j < (q_Nested - 1); j++) {
+      for (int j = 0; j < q_Nested; j++) {
         double snj = pow(sn[j], 2);
         sp_mat nj = nested[j];
         A = A + snj * nj;
@@ -157,7 +157,7 @@ arma::sp_mat plmm_binary_V(NumericVector par, const arma::sp_mat& Zt,
       sp_mat nj = nested[0];
       A = A + snj * nj;
     } else {
-      for (int j = 0; j < (q_Nested - 1); j++) {
+      for (int j = 0; j < q_Nested; j++) {
         double snj = pow(sn[j], 2);
         sp_mat nj = nested[j];
         A = A + snj * nj;
