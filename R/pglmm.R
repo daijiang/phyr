@@ -16,7 +16,16 @@
 #' matrices. \code{communityPGLMM} can analyze models in Ives and
 #' Helmus (2011). It can also analyze bipartite phylogenetic data,
 #' such as that analyzed in Rafferty and Ives (2011), by giving sites
-#' phylogenetic correlations.
+#' phylogenetic correlations. A Bayesian version of PGLMM can be fit by 
+#' specifying the \code{bayes = TRUE}. This uses the package \code{\link[INLA:INLA-package]{INLA}}
+#' package, which is not available on cran. If you wish to use this option, 
+#' you must first install \code{INLA} from \url{http://www.r-inla.org/}.
+#' Note that when \code{bayes = TRUE}, the \code{family} parameter allows
+#' additional arguments besides \code{"gaussian"} and \code{"binomial"}. 
+#' For a full list see \code{names(INLA::inla.models()$likelihood)}. Note:
+#' The bayesian version currently does not support random slopes, only random
+#' intercepts, for both i.i.d. and correlation structure random effects. Support
+#' for uncorrelated random slopes will be implemented soon.
 #' @param formula a two-sided linear formula object describing the
 #' mixed-effects of the model; it follows similar syntax as \code{\link[lme4:lmer]{lmer}}.
 #' There are some differences though: 1. to specify that a random term 
@@ -48,6 +57,8 @@
 #' generalized linear mixed model for binary data, these don't have
 #' standard interpretations, and there is no log likelihood function
 #' that can be used in likelihood ratio tests.
+#' @param bayes whether to fit a Bayesian version of the PGLMM using 
+#' \code{r-inla}
 #' @param s2.init an array of initial estimates of s2 for each random
 #' effect that scales the variance. If s2.init is not provided for
 #' \code{family="gaussian"}, these are estimated using in a clunky way
@@ -65,7 +76,9 @@
 #' using in a clunky way using \code{\link{lm}} or \code{\link{glm}}
 #' assuming no phylogenetic signal.  A better approach is to run
 #' \code{\link[lme4:lmer]{lmer}} and use the output fixed effects for
-#' \code{B.init}.
+#' \code{B.init}. When \code{bayes = TRUE}, initial values are estimated
+#' using the maximum likelihood fit unless \code{ML.init = FALSE}, in
+#' which case the default \code{INLA} initial values will be used.
 #' @param reltol a control parameter dictating the relative tolerance
 #' for convergence in the optimization; see \code{\link{optim}}.
 #' @param maxit a control parameter dictating the maximum number of
@@ -79,9 +92,16 @@
 #' @param verbose if \code{TRUE}, the model deviance and running
 #' estimates of \code{s2} and \code{B} are plotted each iteration
 #' during optimization.
+#' @param ML.init Only relevant if \code{bayes = TRUE}. Should maximum
+#' likelihood estimates be calculated and used as initial values for
+#' the bayesian model fit? Recommended for \code{family = "binomial"}, because
+#' we have observed that binomial models are sensitive to initial values in
+#' \code{INLA} for a reason we don't yet understand. Only used if 
+#' \code{family = "binomial"} or \code{family = "gaussian"}, ignored otherwise.
 #' @param cpp whether to use c++ function for optim. Default is TRUE.
 #' @param ... additional arguments to summary and plotting functions
-#' (currently ignored)
+#' (currently ignored), or additional arguments to \code{\link[INLA:inla]{inla}} 
+#' when \code{bayes = TRUE}.
 #' 
 #' \deqn{Y = \beta_0 + \beta_1x + b_0 + b_1x}{y = beta_0 + beta_1x + b_0 + b_1x}
 #' \deqn{b_0 ~ Gaussian(0, \sigma_0^2I_{sp})}{b_0 ~ Gaussian(0, sigma_0^2I_(sp))}
@@ -169,6 +189,8 @@
 #' \item{St}{diagonal matrix that maps the random effects variances onto the design matrix}
 #' \item{convcode}{the convergence code provided by \code{\link{optim}}}
 #' \item{niter}{number of iterations performed by \code{\link{optim}}}
+#' \item{marginals}{bayesian marginal distributions for each model parameter. Only returned if
+#' \code{bayes = TRUE} was specified}
 #' @note These function \emph{do not} use a
 #' \code{\link{comparative.comm}} object, but you can use
 #' \code{\link{as.data.frame.comparative.comm}} to
@@ -544,12 +566,13 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
 #' @param optimizer bobyqa (default) or Nelder-Mead or nelder-mead-nlopt (from the nloptr package) or subplex (from the nloptr package).
 #' @export
 communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, repulsion = FALSE, sp, site,
-                           random.effects = NULL, REML = TRUE, s2.init = NULL, B.init = NULL, reltol = 10^-6, 
-                           maxit = 500, tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE, cpp = TRUE,
+                           random.effects = NULL, REML = TRUE, bayes = FALSE, s2.init = NULL, B.init = NULL, reltol = 10^-6, 
+                           maxit = 500, tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE, ML.init = FALSE, cpp = TRUE,
                            optimizer = c("bobyqa", "Nelder-Mead", "nelder-mead-nlopt", "subplex"), prep.s2.lme4 = FALSE) {
   optimizer = match.arg(optimizer)
-  if (family %nin% c("gaussian", "binomial")){
-    stop("\nSorry, but only binomial (binary) and gaussian options exist at this time")
+  if ((family %nin% c("gaussian", "binomial")) & (!bayes)){
+    stop("\nSorry, but only binomial (binary) and gaussian options are available for
+         non-bayesian communityPGLMM at this time")
   }
   
   prep_re = if(is.null(random.effects)) TRUE else FALSE
@@ -561,23 +584,58 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, repu
   if(prep.s2.lme4) s2.init = dat_prepared$s2_init
   if(prep_re) random.effects = dat_prepared$random.effects
   
-  if (family == "gaussian") {
-    z <- communityPGLMM.gaussian(formula = formula, data = data, 
+  if(bayes & ML.init & (family %in% c("binomial", "gaussian"))) {
+    if (family == "gaussian") {
+      ML.init.z <- communityPGLMM.gaussian(formula = formula, data = data, 
+                                   sp = sp, site = site, 
+                                   random.effects = random.effects, REML = REML, 
+                                   s2.init = s2.init, B.init = B.init, 
+                                   reltol = reltol, maxit = maxit, 
+                                   verbose = verbose, cpp = cpp, optimizer = optimizer)
+      s2.init <- c(ML.init.z$s2r, ML.init.z$s2n, ML.init.z$s2resid)
+      B.init <- ML.init.z$B[ , 1, drop = TRUE]
+    }
+    
+    if (family == "binomial") {
+      if (is.null(s2.init)) s2.init <- 0.25
+      ML.init.z <- communityPGLMM.binary(formula = formula, data = data, 
                                  sp = sp, site = site, 
                                  random.effects = random.effects, REML = REML, 
-                                 s2.init = s2.init, B.init = B.init, 
-                                 reltol = reltol, maxit = maxit, 
+                                 s2.init = s2.init, B.init = B.init, reltol = reltol, 
+                                 maxit = maxit, tol.pql = tol.pql, maxit.pql = maxit.pql, 
                                  verbose = verbose, cpp = cpp, optimizer = optimizer)
+      s2.init <- c(ML.init.z$s2r, ML.init.z$s2n)
+      B.init <- ML.init.z$B[ , 1, drop = TRUE]
+    }
   }
   
-  if (family == "binomial") {
-    if (is.null(s2.init)) s2.init <- 0.25
-    z <- communityPGLMM.binary(formula = formula, data = data, 
-                               sp = sp, site = site, 
-                               random.effects = random.effects, REML = REML, 
-                               s2.init = s2.init, B.init = B.init, reltol = reltol, 
-                               maxit = maxit, tol.pql = tol.pql, maxit.pql = maxit.pql, 
-                               verbose = verbose, cpp = cpp, optimizer = optimizer)
+  if(bayes) {
+    z <- communityPGLMM.bayes(formula = formula, data = data, 
+                              sp = sp, site = site, 
+                              random.effects = random.effects, REML = REML, 
+                              s2.init = s2.init, B.init = B.init, 
+                              verbose = verbose)
+  } else {
+  
+  
+    if (family == "gaussian") {
+     z <- communityPGLMM.gaussian(formula = formula, data = data, 
+                                  sp = sp, site = site, 
+                                   random.effects = random.effects, REML = REML, 
+                                   s2.init = s2.init, B.init = B.init, 
+                                   reltol = reltol, maxit = maxit, 
+                                   verbose = verbose, cpp = cpp, optimizer = optimizer)
+    }
+  
+    if (family == "binomial") {
+      if (is.null(s2.init)) s2.init <- 0.25
+      z <- communityPGLMM.binary(formula = formula, data = data, 
+                                 sp = sp, site = site, 
+                                 random.effects = random.effects, REML = REML, 
+                                 s2.init = s2.init, B.init = B.init, reltol = reltol, 
+                                 maxit = maxit, tol.pql = tol.pql, maxit.pql = maxit.pql, 
+                                 verbose = verbose, cpp = cpp, optimizer = optimizer)
+    }
   }
   
   return(z)
@@ -1396,4 +1454,101 @@ communityPGLMM.predicted.values <- function(x, show.plot = TRUE, ...) {
     plotrix::color2D.matplot(Y, ylab = "species", xlab = "sites", main = "Predicted values")
   }
   return(predicted.values)
+}
+
+#' @rdname pglmm
+#' @export
+communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian", 
+                                    sp = NULL, site = NULL, random.effects = list(), 
+                                    s2.init = NULL, B.init = NULL, 
+                                    verbose = FALSE) {
+  
+  dm = get_design_matrix(formula, data, na.action = NULL, sp, site, random.effects)
+  X = dm$X; Y = dm$Y; St = dm$St; Zt = dm$Zt; nested = dm$nested
+  p <- ncol(X)
+  n <- nrow(X)
+  q <- length(random.effects)
+  
+  # Compute initial estimates assuming no phylogeny if not provided
+  if (!is.null(B.init) & length(B.init) != p) {
+    warning("B.init not correct length, so computed B.init using glm()")
+  }
+  if ((is.null(B.init) | (!is.null(B.init) & length(B.init) != p)) & !is.null(s2.init)) {
+    B.init <- t(matrix(lm(formula = formula, data = data)$coefficients, ncol = p))
+  }
+  if (!is.null(B.init) & is.null(s2.init)) {
+    s2.init <- var(lm(formula = formula, data = data)$residuals)/q
+  }
+  if ((is.null(B.init) | (!is.null(B.init) & length(B.init) != p)) & is.null(s2.init)) {
+    B.init <- t(matrix(lm(formula = formula, data = data)$coefficients, ncol = p))
+    s2.init <- var(lm(formula = formula, data = data)$residuals)/q
+  }
+  B <- B.init
+  s <- as.vector(array(s2.init^0.5, dim = c(1, q)))
+  
+  if(cpp){
+    out_res = pglmm_gaussian_internal_cpp(par = s, X, Y, Zt, St, nested, REML, 
+                                          verbose, optimizer, maxit, 
+                                          reltol, q, n, p, pi)
+    logLik = out_res$logLik
+    out = out_res$out
+    row.names(out$B) = colnames(X)
+    out$s2r = as.vector(out$s2r)
+    convcode = out_res$convcode
+    niter = out_res$niter[,1]
+  } else {
+    if(optimizer == "Nelder-Mead"){
+      if (q > 1) {
+        opt <- optim(fn = pglmm_gaussian_LL_calc, par = s, X = X, Y = Y, Zt = Zt, St = St, 
+                     nested = nested, REML = REML, verbose = verbose, 
+                     method = "Nelder-Mead", control = list(maxit = maxit, reltol = reltol))
+      } else {
+        opt <- optim(fn = pglmm_gaussian_LL_calc, par = s, X = X, Y = Y, Zt = Zt, St = St, 
+                     nested = nested, REML = REML, verbose = verbose,
+                     method = "L-BFGS-B", control = list(maxit = maxit))
+      }
+    } else {
+      # opts for nloptr
+      if (optimizer == "bobyqa") nlopt_algor = "NLOPT_LN_BOBYQA"
+      if (optimizer == "nelder-mead-nlopt") nlopt_algor = "NLOPT_LN_NELDERMEAD"
+      if (optimizer == "subplex") nlopt_algor = "NLOPT_LN_SBPLX"
+      opts <- list("algorithm" = nlopt_algor, "ftol_rel" = reltol, "ftol_abs" = reltol,
+                   "xtol_rel" = 0.0001, "maxeval" = maxit)
+      S0 <- nloptr::nloptr(x0 = s, eval_f = pglmm_gaussian_LL_calc, opts = opts, 
+                           X = X, Y = Y, Zt = Zt, St = St, nested = nested, 
+                           REML = REML, verbose = verbose, optim_ll = T)
+      opt = list(par = S0$solution, value = S0$objective, counts = S0$iterations,
+                 convergence = S0$status, message = S0$message)
+    }
+    
+    convcode = opt$convergence
+    niter = opt$counts
+    par_opt <- abs(Re(opt$par))
+    LL <- opt$value
+    out = pglmm_gaussian_LL_calc(par_opt, X, Y, Zt, St, nested, REML, verbose, optim_ll = FALSE)
+    out$B.cov = as.matrix(out$B.cov)
+    
+    if (REML == TRUE) {
+      logLik <- as.numeric(-0.5 * (n - p) * log(2 * pi) + 0.5 * determinant(t(X) %*% X)$modulus[1] - LL)
+    } else {
+      logLik <- as.numeric(-0.5 * n * log(2 * pi) - LL)
+    }
+  }
+  
+  ss <- c(out$sr, out$sn, out$s2resid^0.5)
+  B.zscore <- out$B/out$B.se
+  B.pvalue <- 2 * pnorm(abs(B.zscore), lower.tail = FALSE)
+  k <- p + q + 1
+  AIC <- -2 * logLik + 2 * k
+  BIC <- -2 * logLik + k * (log(n) - log(pi))
+  
+  results <- list(formula = formula, data = data, family = family, random.effects = random.effects, 
+                  B = out$B, B.se = out$B.se, B.cov = out$B.cov, B.zscore = B.zscore, 
+                  B.pvalue = B.pvalue, ss = ss, s2n = out$s2n, s2r = out$s2r,
+                  s2resid = out$s2resid, logLik = logLik, AIC = AIC, BIC = BIC, 
+                  REML = REML, s2.init = s2.init, B.init = B.init, Y = Y, X = X, H = out$H, 
+                  iV = as.matrix(out$iV), mu = NULL, nested = nested, sp = sp, site = site, Zt = Zt, St = St, 
+                  convcode = convcode, niter = niter)
+  class(results) <- "communityPGLMM"
+  results
 }

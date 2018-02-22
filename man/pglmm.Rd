@@ -20,10 +20,10 @@ prep_dat_pglmm(formula, data, tree, repulsion = FALSE,
 
 communityPGLMM(formula, data = NULL, family = "gaussian", tree,
   repulsion = FALSE, sp, site, random.effects = NULL, REML = TRUE,
-  s2.init = NULL, B.init = NULL, reltol = 10^-6, maxit = 500,
-  tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE, cpp = TRUE,
-  optimizer = c("bobyqa", "Nelder-Mead", "nelder-mead-nlopt", "subplex"),
-  prep.s2.lme4 = FALSE)
+  bayes = FALSE, s2.init = NULL, B.init = NULL, reltol = 10^-6,
+  maxit = 500, tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE,
+  ML.init = FALSE, cpp = TRUE, optimizer = c("bobyqa", "Nelder-Mead",
+  "nelder-mead-nlopt", "subplex"), prep.s2.lme4 = FALSE)
 
 communityPGLMM.gaussian(formula, data = list(), family = "gaussian",
   sp = NULL, site = NULL, random.effects = list(), REML = TRUE,
@@ -98,6 +98,9 @@ generalized linear mixed model for binary data, these don't have
 standard interpretations, and there is no log likelihood function
 that can be used in likelihood ratio tests.}
 
+\item{bayes}{whether to fit a Bayesian version of the PGLMM using
+\code{r-inla}}
+
 \item{s2.init}{an array of initial estimates of s2 for each random
 effect that scales the variance. If s2.init is not provided for
 \code{family="gaussian"}, these are estimated using in a clunky way
@@ -116,7 +119,9 @@ formula.  If \code{B.init} is not provided, these are estimated
 using in a clunky way using \code{\link{lm}} or \code{\link{glm}}
 assuming no phylogenetic signal.  A better approach is to run
 \code{\link[lme4:lmer]{lmer}} and use the output fixed effects for
-\code{B.init}.}
+\code{B.init}. When \code{bayes = TRUE}, initial values are estimated
+using the maximum likelihood fit unless \code{ML.init = FALSE}, in
+which case the default \code{INLA} initial values will be used.}
 
 \item{reltol}{a control parameter dictating the relative tolerance
 for convergence in the optimization; see \code{\link{optim}}.}
@@ -136,6 +141,12 @@ binomial GLMM.}
 estimates of \code{s2} and \code{B} are plotted each iteration
 during optimization.}
 
+\item{ML.init}{Only relevant if \code{bayes = TRUE}. Should maximum
+likelihood estimates be calculated and used as initial values for
+the bayesian model fit? Recommended for \code{family = "binomial"}, because
+we have observed that binomial models are sensitive to initial values in
+\code{INLA} for a reason we don't yet understand.}
+
 \item{cpp}{whether to use c++ function for optim. Default is TRUE.}
 
 \item{optimizer}{bobyqa (default) or Nelder-Mead or nelder-mead-nlopt (from the nloptr package) or subplex (from the nloptr package).}
@@ -143,7 +154,8 @@ during optimization.}
 \item{x}{communityPGLMM object to be summarised}
 
 \item{...}{additional arguments to summary and plotting functions
-(currently ignored)
+(currently ignored), or additional arguments to \code{\link[INLA:inla]{inla}}
+when \code{bayes = TRUE}.
 
 \deqn{Y = \beta_0 + \beta_1x + b_0 + b_1x}{y = beta_0 + beta_1x + b_0 + b_1x}
 \deqn{b_0 ~ Gaussian(0, \sigma_0^2I_{sp})}{b_0 ~ Gaussian(0, sigma_0^2I_(sp))}
@@ -240,6 +252,8 @@ an object of class \code{communityPGLMM}
 \item{St}{diagonal matrix that maps the random effects variances onto the design matrix}
 \item{convcode}{the convergence code provided by \code{\link{optim}}}
 \item{niter}{number of iterations performed by \code{\link{optim}}}
+\item{marginals}{bayesian marginal distributions for each model parameter. Only returned if
+\code{bayes = TRUE} was specified}
 }
 \description{
 This function performs Generalized Linear Mixed Models for binary
@@ -257,7 +271,13 @@ correlation structures as covariance
 matrices. \code{communityPGLMM} can analyze models in Ives and
 Helmus (2011). It can also analyze bipartite phylogenetic data,
 such as that analyzed in Rafferty and Ives (2011), by giving sites
-phylogenetic correlations.
+phylogenetic correlations. A Bayesian version of PGLMM can be fit by
+specifying the \code{bayes = TRUE}. This uses the package \code{\link[INLA:INLA-package]{INLA}}
+package, which is not available on cran. If you wish to use this option,
+you must first install \code{INLA} from \url{http://www.r-inla.org/}.
+Note that when \code{bayes = TRUE}, the \code{family} parameter allows
+additional arguments besides \code{"gaussian"} and \code{"binomial"}.
+For a full list see \code{names(INLA::inla.models()$likelihood)}.
 
 \code{communityPGLMM.binary} calculates the statistical
 significance of the random effects in the generalized linear mixed
