@@ -180,6 +180,7 @@ double plmm_binary_LL_cpp(NumericVector par, const arma::vec& H,
                           const arma::mat& X, const arma::sp_mat& Zt, 
                           const arma::sp_mat& St, const arma::vec& mu, 
                           const List& nested, bool REML, bool verbose){
+  Rcpp::checkUserInterrupt();
   par = abs(par);
   // unsigned int n = H.n_rows;
   List iVdet = plmm_binary_iV_logdetV_cpp(par, mu, Zt, St, nested, true);
@@ -244,10 +245,12 @@ List pglmm_binary_internal_cpp(const arma::mat& X, const arma::vec& Y,
     mat oldest_B_m(size(est_B));
     oldest_B_m.fill(1000000.0);
     iteration_m = 0;
+    Rcpp::checkUserInterrupt();
     
     // mean component
     while(as_scalar(trans(est_B_m - oldest_B_m) * (est_B_m - oldest_B_m)) > tol_pql2 &&
           iteration_m <= maxit_pql){
+      Rcpp::checkUserInterrupt();
       oldest_B_m = est_B_m;
       List iv = plmm_binary_iV_logdetV_cpp(ss0, mu, Zt, St, nested, false);
       sp_mat iV0 = iv["iV"];

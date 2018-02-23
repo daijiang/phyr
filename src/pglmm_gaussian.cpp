@@ -17,6 +17,7 @@ double pglmm_gaussian_LL_cpp(NumericVector par,
                            const arma::sp_mat& Zt, const arma::sp_mat& St, 
                            const List& nested, 
                            bool REML, bool verbose){
+  Rcpp::checkUserInterrupt();
   int n = X.n_rows;
   int p = X.n_cols;
   int q_nonNested = St.n_rows;
@@ -326,7 +327,7 @@ Rcpp::List pglmm_gaussian_internal_cpp(NumericVector par,
 #                             St = as(matrix(0, 0, 0), "dgTMatrix"), nested, REML, 
 #                             verbose, optimizer, maxit, 
 #                             reltol, q, n, p, pi)
-res = pglmm_gaussian_internal_cpp(par = s, X, Y, Zt, St, nested, REML, 
-                            verbose, optimizer, maxit, 
-                            reltol, q, n, p, pi)
+# res = pglmm_gaussian_internal_cpp(par = s, X, Y, Zt, St, nested, REML, 
+#                             verbose, optimizer, maxit, 
+#                             reltol, q, n, p, pi)
 */
