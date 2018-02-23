@@ -135,6 +135,13 @@ test_that("testing data with NA, binomial models", {
   expect_equivalent(z2.na$AIC, z2.na.rm$AIC)
 })
 
+# test communityPGLMM.binary.LRT
+test_that("testing communityPGLMM.binary.LRT", {
+  expect_equal(communityPGLMM.binary.LRT(test2_binary_cpp, re.number = c(1, 3), cpp = T),
+               communityPGLMM.binary.LRT(test2_binary_cpp, re.number = c(1, 3), cpp = F), 
+               tolerance=1e-5)
+})
+
 # test bipartite
 tree_site = ape::rtree(n = n_distinct(dat$site), tip.label = sort(unique(dat$site)))
 z_bipartite = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site__) + 

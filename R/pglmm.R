@@ -1282,16 +1282,29 @@ communityPGLMM.binary.LRT <- function(x, re.number = 0, cpp = TRUE, ...) {
   par[re.number] <- 0
   df <- length(re.number)
   
-  LL <- plmm.binary.LL(par = x$ss, H = x$H, X = x$X, Zt = x$Zt, St = x$St, 
-                       mu = x$mu, nested = x$nested, REML = x$REML, cpp = cpp)
-  if (x$REML == TRUE) {
+  if(cpp){
+    LL <- plmm_binary_LL_cpp(par = x$ss, H = x$H, X = x$X, Zt = x$Zt, St = x$St, 
+                       mu = x$mu, nested = x$nested, REML = x$REML, verbose = FALSE)
+  } else {
+    LL <- plmm.binary.LL(par = x$ss, H = x$H, X = x$X, Zt = x$Zt, St = x$St, 
+                         mu = x$mu, nested = x$nested, REML = x$REML, verbose = FALSE)
+  }
+
+  if (x$REML) {
     logLik <- -0.5 * (n - p - 1) * log(2 * pi) + 0.5 * determinant(t(x$X) %*% x$X)$modulus[1] - LL
   } else {
     logLik <- -0.5 * n * log(2 * pi) - LL
   }
   
-  LL0 <- plmm.binary.LL(par = par, H = x$H, X = x$X, Zt = x$Zt, St = x$St, mu = x$mu, nested = x$nested, REML = x$REML)
-  if (x$REML == TRUE) {
+  if(cpp){
+    LL0 <- plmm_binary_LL_cpp(par = par, H = x$H, X = x$X, Zt = x$Zt, St = x$St, 
+                              mu = x$mu, nested = x$nested, REML = x$REML, verbose = FALSE)
+  } else {
+    LL0 <- plmm.binary.LL(par = par, H = x$H, X = x$X, Zt = x$Zt, St = x$St, 
+                          mu = x$mu, nested = x$nested, REML = x$REML, verbose = FALSE)
+  }
+  
+  if (x$REML) {
     logLik0 <- -0.5 * (n - p - 1) * log(2 * pi) + 0.5 * determinant(t(x$X) %*% x$X)$modulus[1] - LL0
   } else {
     logLik0 <- -0.5 * n * log(2 * pi) - LL0
