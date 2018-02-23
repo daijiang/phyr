@@ -638,7 +638,7 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, repu
   }
   
   if(bayes) {
-    z <- communityPGLMM.bayes(formula = formula, data = data, 
+    z <- communityPGLMM.bayes(formula = formula, data = data, family = family,
                               sp = sp, site = site, 
                               random.effects = random.effects, 
                               s2.init = s2.init, B.init = B.init, 
@@ -1584,8 +1584,14 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
       sdres <- sd(residuals(lmod))
       pcprior <- list(prec = list(prior="pc.prec", param = c(3*sdres,0.01)))
     } else {
-      warning("pc.prior not yet implemented for non-gaussian models. switching to default INLA prior...")
-      default.prior <- "inla.default"
+      if(family == "binomial") {
+        lmod <- glm(formula, data = data, family = "binomial")
+        sdres <- sd(lmod$y - lmod$fitted.values)
+        pcprior <- list(prec = list(prior="pc.prec", param = c(1, 0.01)))
+      } else {
+        warning("pc.prior not yet implemented for this family. switching to default INLA prior...")
+        default.prior <- "inla.default"
+      }
     }
   }
   
@@ -1721,14 +1727,14 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   
   if(family == "gaussian") {
     if(calc.DIC) {
-      out <- inla(as.formula(inla_formula), data = data,
+      out <- INLA::inla(as.formula(inla_formula), data = data,
                   verbose = verbose,
                   control.family = list(hyper = list(prec = list(initial = resid.init))),
                   control.fixed = list(prec.intercept = 0.0001, correlation.matrix=TRUE),
                   control.compute = list(dic = TRUE),
                   control.predictor=list(compute=TRUE))
     } else {
-      out <- inla(as.formula(inla_formula), data = data,
+      out <- INLA::inla(as.formula(inla_formula), data = data,
                   verbose = verbose,
                   control.family = list(hyper = list(prec = list(initial = resid.init))),
                   control.fixed = list(prec.intercept = 0.0001, correlation.matrix=TRUE),
@@ -1736,14 +1742,14 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     }
   } else {
     if(calc.DIC) {
-      out <- inla(as.formula(inla_formula), data = data,
+      out <- INLA::inla(as.formula(inla_formula), data = data,
                   verbose = verbose,
                   family = family,
                   control.fixed = list(prec.intercept = 0.0001, correlation.matrix=TRUE),
                   control.compute = list(dic = TRUE),
                   control.predictor=list(compute=TRUE))
     } else {
-      out <- inla(as.formula(inla_formula), data = data,
+      out <- INLA::inla(as.formula(inla_formula), data = data,
                   verbose = verbose,
                   family = family,
                   control.fixed = list(prec.intercept = 0.0001, correlation.matrix=TRUE),
@@ -1759,6 +1765,10 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     DIC <- NULL
   }
   
+  if(marginal.summ == "median") {
+    marginal.summ <- "0.5quant"
+  }
+  
   nested <- sapply(random.effects, length) == 4
   
   variances <- 1/out$summary.hyperpar[ , marginal.summ]
@@ -1772,7 +1782,7 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     nested <- nested[-1]
   } else {
     resid_var <- NULL
-    resid_car.ci <- NULL
+    resid_var.ci <- NULL
   }
   
   ss <- c(variances[!nested]^0.5, variances[nested]^0.5, resid_var^0.5)
