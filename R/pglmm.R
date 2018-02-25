@@ -1791,7 +1791,6 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     variances <- variances[-1]
     resid_var.ci <- variances.ci[1, ]
     variances.ci <- variances.ci[-1, ]
-    nested <- nested[-1]
   } else {
     resid_var <- NULL
     resid_var.ci <- NULL
