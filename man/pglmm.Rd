@@ -273,20 +273,21 @@ This is set to NULL if \code{bayes = FALSE}}
 \item{DIC}{for bayesian PGLMM, this is the Deviance Information Criterion metric of model fit. This is set to NULL if \code{bayes = FALSE}.}
 \item{REML}{whether or not REML is used (\code{TRUE} or \code{FALSE}).}
 \item{bayes}{whether or not a Bayesian model was fit.}
+\item{marginal.summ}{The specified summary statistic used to summarise the Bayesian marginal distributions.
+Only present if \code{bayes = TRUE}}
 \item{s2.init}{the user-provided initial estimates of \code{s2}}
 \item{B.init}{the user-provided initial estimates of \code{B}}
 \item{Y}{the response (dependent) variable returned in matrix form}
 \item{X}{the predictor (independent) variables returned in matrix form (including 1s in the first column)}
 \item{H}{the residuals. For the generalized linear mixed model, these are the predicted residuals in the \eqn{logit^{-1}}{logit -1} space}
-\item{iV}{the inverse of the covariance matrix for the entire system (of dimension (nsp\emph{nsite) by (nsp}nsite))}
+\item{iV}{the inverse of the covariance matrix for the entire system (of dimension (nsp\emph{nsite) by (nsp}nsite)).
+This is NULL is code{bayes = TRUE}}
 \item{mu}{predicted mean values for the generalized linear mixed model. Set to NULL for linear mixed models}
 \item{sp, sp}{matrices used to construct the nested design matrix.}
 \item{Zt}{the design matrix for random effects}
 \item{St}{diagonal matrix that maps the random effects variances onto the design matrix}
 \item{convcode}{the convergence code provided by \code{\link{optim}}. This is set to NULL if \code{bayes = TRUE}}
 \item{niter}{number of iterations performed by \code{\link{optim}}. This is set to NULL if \code{bayes = TRUE}}
-\item{marginals}{bayesian marginal distributions for each model parameter. Only returned if
-\code{bayes = TRUE} was specified}
 \item{inla.model}{Model object fit by underlying \code{\link{inla}} function. Only returned
 if \code{bayes = TRUE}}
 }

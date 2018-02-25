@@ -199,20 +199,21 @@
 #' \item{DIC}{for bayesian PGLMM, this is the Deviance Information Criterion metric of model fit. This is set to NULL if \code{bayes = FALSE}.}
 #' \item{REML}{whether or not REML is used (\code{TRUE} or \code{FALSE}).}
 #' \item{bayes}{whether or not a Bayesian model was fit.}
+#' \item{marginal.summ}{The specified summary statistic used to summarise the Bayesian marginal distributions.
+#' Only present if \code{bayes = TRUE}}
 #' \item{s2.init}{the user-provided initial estimates of \code{s2}}
 #' \item{B.init}{the user-provided initial estimates of \code{B}}
 #' \item{Y}{the response (dependent) variable returned in matrix form}
 #' \item{X}{the predictor (independent) variables returned in matrix form (including 1s in the first column)}
 #' \item{H}{the residuals. For the generalized linear mixed model, these are the predicted residuals in the \eqn{logit^{-1}}{logit -1} space}
-#' \item{iV}{the inverse of the covariance matrix for the entire system (of dimension (nsp*nsite) by (nsp*nsite))}
+#' \item{iV}{the inverse of the covariance matrix for the entire system (of dimension (nsp*nsite) by (nsp*nsite)). 
+#' This is NULL is code{bayes = TRUE}}
 #' \item{mu}{predicted mean values for the generalized linear mixed model. Set to NULL for linear mixed models}
 #' \item{sp, sp}{matrices used to construct the nested design matrix.}
 #' \item{Zt}{the design matrix for random effects}
 #' \item{St}{diagonal matrix that maps the random effects variances onto the design matrix}
 #' \item{convcode}{the convergence code provided by \code{\link{optim}}. This is set to NULL if \code{bayes = TRUE}}
 #' \item{niter}{number of iterations performed by \code{\link{optim}}. This is set to NULL if \code{bayes = TRUE}}
-#' \item{marginals}{bayesian marginal distributions for each model parameter. Only returned if
-#' \code{bayes = TRUE} was specified}
 #' \item{inla.model}{Model object fit by underlying \code{\link{inla}} function. Only returned
 #' if \code{bayes = TRUE}}
 #' @note These function \emph{do not} use a
@@ -598,9 +599,14 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, repu
                            marginal.summ = "mean", calc.DIC = FALSE, default.prior = "inla.default", cpp = TRUE,
                            optimizer = c("bobyqa", "Nelder-Mead", "nelder-mead-nlopt", "subplex"), prep.s2.lme4 = FALSE) {
   optimizer = match.arg(optimizer)
-  if ((family %nin% c("gaussian", "binomial")) & (!bayes)){
+  if ((family %nin% c("gaussian", "binomial"))){
     stop("\nSorry, but only binomial (binary) and gaussian options are available for
-         non-bayesian communityPGLMM at this time")
+         communityPGLMM at this time")
+  }
+  if(bayes) {
+    if (!isTRUE(requireNamespace("INLA", quietly = TRUE))) {
+      stop("To run communityPGLMM with bayes = TRUE, you need to install the packages 'INLA'. Please run in your R terminal:\n install.packages('INLA', repos='https://www.math.ntnu.no/inla/R/stable')")
+    }
   }
   
   prep_re = if(is.null(random.effects)) TRUE else FALSE
@@ -1506,20 +1512,26 @@ plot.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ...
 #' @export
 communityPGLMM.predicted.values <- function(x, show.plot = TRUE, ...) {
   
-  if (x$family == "gaussian") {
-    V <- solve(x$iV)
-    h <- matrix(0, nrow = length(x$Y), ncol = 1)
-    for (i in 1:length(x$Y)) {
-      h[i] <- as.numeric(V[i, -i] %*% solve(V[-i, -i]) %*% matrix(x$H[-i]))
+  if(x$bayes) {
+    marginal.summ <- x$marginal.summ
+    if(marginal.summ == "median") marginal.summ <- "0.5quant"
+    predicted.values <- x$inla.model$summary.fitted.values[ , marginal.summ, drop = TRUE]
+  } else {
+  
+    if (x$family == "gaussian") {
+      V <- solve(x$iV)
+      h <- matrix(0, nrow = length(x$Y), ncol = 1)
+      for (i in 1:length(x$Y)) {
+        h[i] <- as.numeric(V[i, -i] %*% solve(V[-i, -i]) %*% matrix(x$H[-i]))
+      }
+      predicted.values <- h
     }
-    predicted.values <- h
+    
+    if (x$family == "binomial") {
+      h <- x$H + x$X %*% x$B
+      predicted.values <- as.numeric(h)
+    }
   }
-  
-  if (x$family == "binomial") {
-    h <- x$H + x$X %*% x$B
-    predicted.values <- as.numeric(h)
-  }
-  
   if (show.plot == TRUE) {
     if (!requireNamespace("plotrix")) {
       stop("The 'plotrix' package is required to plot images from this function")
@@ -1803,7 +1815,7 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
                   s2resid = resid_var, 
                   s2n.ci = variances.ci[nested, ], s2r.ci = variances.ci[!nested, ], s2resid.ci = resid_var.ci,
                   logLik = out$mlik[1, 1], AIC = NULL, BIC = NULL, DIC = DIC, 
-                  REML = REML, bayes = TRUE, s2.init = s2.init, B.init = B.init, Y = Y, X = X, H = H, 
+                  REML = REML, bayes = TRUE, marginal.summ = marginal.summ, s2.init = s2.init, B.init = B.init, Y = Y, X = X, H = H, 
                   iV = NULL, mu = NULL, nested = nested, sp = sp, site = site, Zt = Zt, St = St, 
                   convcode = NULL, niter = NULL, inla.model = out)
   class(results) <- "communityPGLMM"
