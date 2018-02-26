@@ -1615,127 +1615,110 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   }
   
   # contruct INLA formula
-  # This if structure is pretty unweildy, think about more easy to read way of doing this...
+  
+  inla_formula <- Reduce(paste, deparse(formula))
+  inla_effects <- list()
+  inla_Cmat <- list()
+  inla_weights <- list()
+  inla_reps <- list()
+  
+  for(i in seq_along(random.effects)) {
+    inla_effects[[i]] <- as.numeric(as.factor(random.effects[[i]][[2]]))
+    inla_Cmat[[i]] <- solve(random.effects[[i]][[3]])
+    inla_weights[[i]] <- random.effects[[i]][[1]]
+    if(length(random.effects[[i]]) == 4) {
+      inla_reps[[i]] <- as.numeric(as.factor(random.effects[[i]][[4]]))
+    }
+  }
+  
   if(!REML) {
     if(default.prior == "inla.default") {
-      inla_formula <- Reduce(paste, deparse(formula))
-      inla_effects <- list()
-      inla_Cmat <- list()
-      inla_weights <- list()
-      inla_reps <- list()
       for(i in seq_along(random.effects)) {
         if(length(random.effects[[i]]) == 3) {
           if(length(random.effects[[i]][[1]]) == 1) {
-            inla_effects[[i]] <- as.numeric(as.factor(random.effects[[i]][[2]]))
-            inla_Cmat[[i]] <- solve(random.effects[[i]][[3]])
             f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "])")
             inla_formula <- paste(inla_formula, f_form, sep = " + ")
           } else {
-            inla_effects[[i]] <- as.numeric(as.factor(random.effects[[i]][[2]]))
-            inla_Cmat[[i]] <- solve(random.effects[[i]][[3]])
-            inla_weights[[i]] <- random.effects[[i]][[1]]
             f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "])")
             inla_formula <- paste(inla_formula, f_form, sep = " + ")
           }
         } else {
           if(length(random.effects[[i]]) == 4) {
-            inla_effects[[i]] <- as.numeric(as.factor(random.effects[[i]][[2]]))
-            inla_Cmat[[i]] <- solve(random.effects[[i]][[3]])
-            inla_reps[[i]] <- as.numeric(as.factor(random.effects[[i]][[4]]))
-            f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "])")
-            inla_formula <- paste(inla_formula, f_form, sep = " + ")
+            if(length(random.effects[[i]][[1]]) == 1) {
+              f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "])")
+              inla_formula <- paste(inla_formula, f_form, sep = " + ")
+            } else {
+              f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "])")
+              inla_formula <- paste(inla_formula, f_form, sep = " + ")
+            }
           }
         }
       }
     } else {
-      inla_formula <- Reduce(paste, deparse(formula))
-      inla_effects <- list()
-      inla_Cmat <- list()
-      inla_weights <- list()
-      inla_reps <- list()
       for(i in seq_along(random.effects)) {
         if(length(random.effects[[i]]) == 3) {
           if(length(random.effects[[i]][[1]]) == 1) {
-            inla_effects[[i]] <- as.numeric(as.factor(random.effects[[i]][[2]]))
-            inla_Cmat[[i]] <- solve(random.effects[[i]][[3]])
             f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
             inla_formula <- paste(inla_formula, f_form, sep = " + ")
           } else {
-            inla_effects[[i]] <- as.numeric(as.factor(random.effects[[i]][[2]]))
-            inla_Cmat[[i]] <- solve(random.effects[[i]][[3]])
-            inla_weights[[i]] <- random.effects[[i]][[1]]
             f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
             inla_formula <- paste(inla_formula, f_form, sep = " + ")
           }
         } else {
           if(length(random.effects[[i]]) == 4) {
-            inla_effects[[i]] <- as.numeric(as.factor(random.effects[[i]][[2]]))
-            inla_Cmat[[i]] <- solve(random.effects[[i]][[3]])
-            inla_reps[[i]] <- as.numeric(as.factor(random.effects[[i]][[4]]))
-            f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
-            inla_formula <- paste(inla_formula, f_form, sep = " + ")
+            if(length(random.effects[[i]][[1]]) == 1) {
+              f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
+              inla_formula <- paste(inla_formula, f_form, sep = " + ")
+            } else {
+              f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
+              inla_formula <- paste(inla_formula, f_form, sep = " + ")
+            }
           }
         }
       }
     }
   } else {
     if(default.prior == "inla.default") {
-      inla_formula <- Reduce(paste, deparse(formula))
-      inla_effects <- list()
-      inla_Cmat <- list()
-      inla_weights <- list()
-      inla_reps <- list()
       for(i in seq_along(random.effects)) {
         if(length(random.effects[[i]]) == 3) {
           if(length(random.effects[[i]][[1]]) == 1) {
-            inla_effects[[i]] <- as.numeric(as.factor(random.effects[[i]][[2]]))
-            inla_Cmat[[i]] <- solve(random.effects[[i]][[3]])
             f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "])")
             inla_formula <- paste(inla_formula, f_form, sep = " + ")
           } else {
-            inla_effects[[i]] <- as.numeric(as.factor(random.effects[[i]][[2]]))
-            inla_Cmat[[i]] <- solve(random.effects[[i]][[3]])
-            inla_weights[[i]] <- random.effects[[i]][[1]]
             f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "])")
             inla_formula <- paste(inla_formula, f_form, sep = " + ")
           }
         } else {
           if(length(random.effects[[i]]) == 4) {
-            inla_effects[[i]] <- as.numeric(as.factor(random.effects[[i]][[2]]))
-            inla_Cmat[[i]] <- solve(random.effects[[i]][[3]])
-            inla_reps[[i]] <- as.numeric(as.factor(random.effects[[i]][[4]]))
-            f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "])")
-            inla_formula <- paste(inla_formula, f_form, sep = " + ")
+            if(length(random.effects[[i]][[1]]) == 1) {
+              f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "])")
+              inla_formula <- paste(inla_formula, f_form, sep = " + ")
+            } else {
+              f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "])")
+              inla_formula <- paste(inla_formula, f_form, sep = " + ")
+            }
           }
         }
       }
     } else {
-      inla_formula <- Reduce(paste, deparse(formula))
-      inla_effects <- list()
-      inla_Cmat <- list()
-      inla_weights <- list()
-      inla_reps <- list()
       for(i in seq_along(random.effects)) {
         if(length(random.effects[[i]]) == 3) {
           if(length(random.effects[[i]][[1]]) == 1) {
-            inla_effects[[i]] <- as.numeric(as.factor(random.effects[[i]][[2]]))
-            inla_Cmat[[i]] <- solve(random.effects[[i]][[3]])
             f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
             inla_formula <- paste(inla_formula, f_form, sep = " + ")
           } else {
-            inla_effects[[i]] <- as.numeric(as.factor(random.effects[[i]][[2]]))
-            inla_Cmat[[i]] <- solve(random.effects[[i]][[3]])
-            inla_weights[[i]] <- random.effects[[i]][[1]]
             f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
             inla_formula <- paste(inla_formula, f_form, sep = " + ")
           }
         } else {
           if(length(random.effects[[i]]) == 4) {
-            inla_effects[[i]] <- as.numeric(as.factor(random.effects[[i]][[2]]))
-            inla_Cmat[[i]] <- solve(random.effects[[i]][[3]])
-            inla_reps[[i]] <- as.numeric(as.factor(random.effects[[i]][[4]]))
-            f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
-            inla_formula <- paste(inla_formula, f_form, sep = " + ")
+            if(length(random.effects[[i]][[1]]) == 1) {
+              f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
+              inla_formula <- paste(inla_formula, f_form, sep = " + ")
+            } else {
+              f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
+              inla_formula <- paste(inla_formula, f_form, sep = " + ")
+            }
           }
         }
       }
