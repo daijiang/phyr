@@ -283,8 +283,8 @@ Only present if \code{bayes = TRUE}}
 \item{iV}{the inverse of the covariance matrix for the entire system (of dimension (nsp\emph{nsite) by (nsp}nsite)).
 This is NULL is code{bayes = TRUE}}
 \item{mu}{predicted mean values for the generalized linear mixed model. Set to NULL for linear mixed models}
-\item{sp, sp}{matrices used to construct the nested design matrix.}
-\item{Zt}{the design matrix for random effects}
+\item{sp, sp}{matrices used to construct the nested design matrix. This is set to NULL if \code{bayes = TRUE}}
+\item{Zt}{the design matrix for random effects. This is set to NULL if \code{bayes = TRUE}}
 \item{St}{diagonal matrix that maps the random effects variances onto the design matrix}
 \item{convcode}{the convergence code provided by \code{\link{optim}}. This is set to NULL if \code{bayes = TRUE}}
 \item{niter}{number of iterations performed by \code{\link{optim}}. This is set to NULL if \code{bayes = TRUE}}

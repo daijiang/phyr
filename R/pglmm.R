@@ -209,8 +209,8 @@
 #' \item{iV}{the inverse of the covariance matrix for the entire system (of dimension (nsp*nsite) by (nsp*nsite)). 
 #' This is NULL is code{bayes = TRUE}}
 #' \item{mu}{predicted mean values for the generalized linear mixed model. Set to NULL for linear mixed models}
-#' \item{sp, sp}{matrices used to construct the nested design matrix.}
-#' \item{Zt}{the design matrix for random effects}
+#' \item{sp, sp}{matrices used to construct the nested design matrix. This is set to NULL if \code{bayes = TRUE}}
+#' \item{Zt}{the design matrix for random effects. This is set to NULL if \code{bayes = TRUE}}
 #' \item{St}{diagonal matrix that maps the random effects variances onto the design matrix}
 #' \item{convcode}{the convergence code provided by \code{\link{optim}}. This is set to NULL if \code{bayes = TRUE}}
 #' \item{niter}{number of iterations performed by \code{\link{optim}}. This is set to NULL if \code{bayes = TRUE}}
@@ -1557,8 +1557,15 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
                                  marginal.summ = "mean", calc.DIC = FALSE, 
                                  default.prior = "inla.default") {
   
-  dm = get_design_matrix(formula, data, na.action = NULL, sp, site, random.effects)
-  X = dm$X; Y = dm$Y; St = dm$St; Zt = dm$Zt; nested = dm$nested
+  # nspp <- nlevels(sp)
+  # nsite <- nlevels(site)
+  
+  mf <- model.frame(formula = formula, data = data, na.action = NULL)
+  X <- model.matrix(attr(mf, "terms"), data = mf)
+  Y <- model.response(mf)
+  
+  # dm = get_design_matrix(formula, data, na.action = NULL, sp, site, random.effects)
+  # X = dm$X; Y = dm$Y; St = dm$St; Zt = dm$Zt; nested = dm$nested
   p <- ncol(X)
   n <- nrow(X)
   q <- length(random.effects)
@@ -1815,7 +1822,7 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
                   s2n.ci = variances.ci[nested, ], s2r.ci = variances.ci[!nested, ], s2resid.ci = resid_var.ci,
                   logLik = out$mlik[1, 1], AIC = NULL, BIC = NULL, DIC = DIC, 
                   REML = REML, bayes = TRUE, marginal.summ = marginal.summ, s2.init = s2.init, B.init = B.init, Y = Y, X = X, H = H, 
-                  iV = NULL, mu = NULL, nested = nested, sp = sp, site = site, Zt = Zt, St = St, 
+                  iV = NULL, mu = NULL, nested = nested, sp = sp, site = site, Zt = NULL, St = NULL, 
                   convcode = NULL, niter = NULL, inla.model = out)
   class(results) <- "communityPGLMM"
   results
