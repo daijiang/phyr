@@ -311,12 +311,9 @@ phylogenetic correlations. A Bayesian version of PGLMM can be fit by
 specifying the \code{bayes = TRUE}. This uses the package \code{\link[INLA:INLA-package]{INLA}}
 package, which is not available on cran. If you wish to use this option,
 you must first install \code{INLA} from \url{http://www.r-inla.org/}.
-Note that when \code{bayes = TRUE}, the \code{family} parameter allows
-additional arguments besides \code{"gaussian"} and \code{"binomial"}.
-For a full list see \code{names(INLA::inla.models()$likelihood)}. Note:
-The bayesian version currently does not support random slopes, only random
-intercepts, for both i.i.d. and correlation structure random effects. Support
-for uncorrelated random slopes will be implemented soon.
+Note that while \code{bayes = TRUE} currently only supports \code{family} arguments of
+\code{"gaussian"} and \code{"binomial"}, other families will shortly be added.
+For a full list see \code{names(INLA::inla.models()$likelihood)}.
 
 \code{communityPGLMM.binary} calculates the statistical
 significance of the random effects in the generalized linear mixed
