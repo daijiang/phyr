@@ -9,6 +9,7 @@ dat = tidyr::gather(comm, key = "sp", value = "freq", -site) %>%
 dat$pa = as.numeric(dat$freq > 0)
 
 
+
 test1_gaussian_cpp = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
                              dat, tree = phylotree, REML = F, cpp = T, optimizer = "Nelder-Mead")
 test1_gaussian_r  = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
@@ -22,6 +23,32 @@ test2_binary_r = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|
                                       dat, family = "binomial", tree = phylotree, REML = F, 
                                       cpp = F, optimizer = "Nelder-Mead")
 expect_equivalent(test2_binary_cpp, test2_binary_r)
+
+## test bayesian models
+test1_gaussian_bayes  = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
+                                         dat, tree = phylotree, REML = F, bayes = TRUE)
+# test1_gaussian_bayes_noreml  = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
+#                                                   dat, tree = phylotree, REML = F, bayes = TRUE,
+#                                                   ML.init = FALSE)
+
+test1_binomial_bayes  = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
+                                                  dat, tree = phylotree, REML = F, bayes = TRUE,
+                                                  ML.init = FALSE, family = "binomial")
+# test1_binomial_bayes_noreml  = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
+#                                                     dat, tree = phylotree, REML = F, bayes = TRUE,
+#                                                     ML.init = FALSE, family = "binomial")
+
+test_that("Bayesian communityPGLMM produced correct object", {
+  expect_is(test1_gaussian_bayes, "communityPGLMM")
+  #expect_is(test1_gaussian_bayes_noreml, "communityPGLMM")
+  expect_is(test1_binomial_bayes, "communityPGLMM")
+  #expect_is(test1_binomial_bayes_noreml, "communityPGLMM")
+  expect_is(test1_gaussian_bayes$inla.model, "inla")
+  expect_is(test1_binomial_bayes$inla.model, "inla")
+  expect_equal(length(test1_gaussian_bayes$random.effects), length(c(test1_gaussian_bayes$s2n, test1_gaussian_bayes$s2r)))
+  expect_equal(length(test1_binomial_bayes$random.effects), length(c(test1_binomial_bayes$s2n, test1_binomial_bayes$s2r)))
+  expect_equal(length(test1_gaussian_r$B), length(test1_gaussian_bayes$B))
+})
 
 ## bobyqa is weired...
 # test3_binary_cpp_bobyqa = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 

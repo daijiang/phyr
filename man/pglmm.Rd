@@ -13,18 +13,20 @@
 \alias{print.communityPGLMM}
 \alias{plot.communityPGLMM}
 \alias{communityPGLMM.predicted.values}
+\alias{communityPGLMM.bayes}
 \title{Phylogenetic Generalised Linear Mixed Model for Community Data}
 \usage{
 prep_dat_pglmm(formula, data, tree, repulsion = FALSE,
   prep.re.effects = TRUE, family = "gaussian", prep.s2.lme4 = FALSE,
   tree_site = NULL)
 
-communityPGLMM(formula, data = NULL, family = "gaussian", tree,
-  tree_site = NULL, repulsion = FALSE, sp, site, random.effects = NULL,
-  REML = TRUE, s2.init = NULL, B.init = NULL, reltol = 10^-6,
+communityPGLMM(formula, data = NULL, family = "gaussian", tree, tree_site = NULL, 
+  repulsion = FALSE, sp, site, random.effects = NULL, REML = TRUE,
+  bayes = FALSE, s2.init = NULL, B.init = NULL, reltol = 10^-6,
   maxit = 500, tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE,
-  cpp = TRUE, optimizer = c("bobyqa", "Nelder-Mead", "nelder-mead-nlopt",
-  "subplex"), prep.s2.lme4 = FALSE)
+  ML.init = TRUE, marginal.summ = "mean", calc.DIC = FALSE,
+  default.prior = "inla.default", cpp = TRUE, optimizer = c("bobyqa",
+  "Nelder-Mead", "nelder-mead-nlopt", "subplex"), prep.s2.lme4 = FALSE)
 
 communityPGLMM.gaussian(formula, data = list(), family = "gaussian",
   sp = NULL, site = NULL, random.effects = list(), REML = TRUE,
@@ -52,6 +54,11 @@ communityPGLMM.matrix.structure(formula, data = list(), family = "binomial",
   ...)
 
 communityPGLMM.predicted.values(x, show.plot = TRUE, ...)
+
+communityPGLMM.bayes(formula, data = list(), family = "gaussian",
+  sp = NULL, site = NULL, random.effects = list(), s2.init = NULL,
+  B.init = NULL, verbose = FALSE, REML = FALSE, marginal.summ = "mean",
+  calc.DIC = FALSE, default.prior = "inla.default")
 }
 \arguments{
 \item{formula}{a two-sided linear formula object describing the
@@ -109,7 +116,13 @@ data, which will be arranged first by site than by sp.}
 \item{REML}{whether REML or ML is used for model fitting. For the
 generalized linear mixed model for binary data, these don't have
 standard interpretations, and there is no log likelihood function
-that can be used in likelihood ratio tests.}
+that can be used in likelihood ratio tests. If \code{bayes = TRUE},
+\code{REML = TRUE} will place a sum to one constraint on the random
+effects, which should produce more comparable results to a REML analysis
+in a maximum likelihood context.}
+
+\item{bayes}{whether to fit a Bayesian version of the PGLMM using
+\code{r-inla}}
 
 \item{s2.init}{an array of initial estimates of s2 for each random
 effect that scales the variance. If s2.init is not provided for
@@ -129,7 +142,9 @@ formula.  If \code{B.init} is not provided, these are estimated
 using in a clunky way using \code{\link{lm}} or \code{\link{glm}}
 assuming no phylogenetic signal.  A better approach is to run
 \code{\link[lme4:lmer]{lmer}} and use the output fixed effects for
-\code{B.init}.}
+\code{B.init}. When \code{bayes = TRUE}, initial values are estimated
+using the maximum likelihood fit unless \code{ML.init = FALSE}, in
+which case the default \code{INLA} initial values will be used.}
 
 \item{reltol}{a control parameter dictating the relative tolerance
 for convergence in the optimization; see \code{\link{optim}}.}
@@ -149,14 +164,35 @@ binomial GLMM.}
 estimates of \code{s2} and \code{B} are plotted each iteration
 during optimization.}
 
-\item{cpp}{whether to use c++ function for optim. Default is TRUE.}
+\item{ML.init}{Only relevant if \code{bayes = TRUE}. Should maximum
+likelihood estimates be calculated and used as initial values for
+the bayesian model fit? Recommended when possible. Only used if
+\code{family = "binomial"} or \code{family = "gaussian"}, ignored otherwise.}
+
+\item{marginal.summ}{Summary statistic to use for the estimate of coefficients when
+doing a bayesian PGLMM (when \code{bayes = TRUE}). Options are: "mean",
+"median", or "mode", referring to different characterizations of the central
+tendency of the bayesian posterior marginal distributions. Ignored if \code{bayes == FALSE}}
+
+\item{calc.DIC}{Should the Deviance Informatiob Criterion be calculated and returned,
+when doing a bayesian PGLMM? Ignored if \code{bayes = FALSE}}
+
+\item{default.prior}{Which type of default prior should be used by \code{communityPGLMM}?
+Only used if \code{bayes = TRUE}, ignored otherwise. There are currently two options:
+"inla.default", which uses the default \code{INLA} priors, or "pc.prior", which uses a
+complexity penalizing prior (as described in \href{https://arxiv.org/abs/1403.4630v3}{Simpson et al. (2017)}).
+"pc.prior" is only implemented for \code{family = "gaussian"} currently.}
+
+\item{cpp}{whether to use c++ function for optim. Default is TRUE. Ignored if
+\code{bayes = TRUE}}
 
 \item{optimizer}{bobyqa (default) or Nelder-Mead or nelder-mead-nlopt (from the nloptr package) or subplex (from the nloptr package).}
 
 \item{x}{communityPGLMM object to be summarised}
 
 \item{...}{additional arguments to summary and plotting functions
-(currently ignored)
+(currently ignored), or additional arguments to \code{\link[INLA:inla]{inla}}
+when \code{bayes = TRUE}.
 
 \deqn{Y = \beta_0 + \beta_1x + b_0 + b_1x}{y = beta_0 + beta_1x + b_0 + b_1x}
 \deqn{b_0 ~ Gaussian(0, \sigma_0^2I_{sp})}{b_0 ~ Gaussian(0, sigma_0^2I_(sp))}
@@ -229,30 +265,44 @@ an object of class \code{communityPGLMM}
 \item{family}{either \code{gaussian} or \code{binomial} depending on the model fit}
 \item{random.effects}{the list of random effects}
 \item{B}{estimates of the regression coefficients}
-\item{B.se}{approximate standard errors of the fixed effects regression coefficients}
+\item{B.se}{approximate standard errors of the fixed effects regression coefficients. This is set to NULL if \code{bayes = TRUE}.}
+\item{B.ci}{approximate bayesian credible interval of the fixed effects regression coefficients. This is set to NULL if \code{bayes = FALSE}}
 \item{B.cov}{approximate covariance matrix for the fixed effects regression coefficients}
-\item{B.zscore}{approximate Z scores for the fixed effects regression coefficients}
-\item{B.pvalue}{approximate tests for the fixed effects regression coefficients being different from zero}
+\item{B.zscore}{approximate Z scores for the fixed effects regression coefficients. This is set to NULL if \code{bayes = TRUE}}
+\item{B.pvalue}{approximate tests for the fixed effects regression coefficients being different from zero. This is set to NULL if \code{bayes = TRUE}}
 \item{ss}{random effects' standard deviations for the covariance matrix \eqn{\sigma^2V}{sigma^2 V} for each random effect in order. For the linear mixed model, the residual variance is listed last}
 \item{s2r}{random effects variances for non-nested random effects}
 \item{s2n}{random effects variances for nested random effects}
-\item{s2resid}{for linear mixed models, the residual vairance}
-\item{logLIK}{for linear mixed models, the log-likelihood for either the restricted likelihood (\code{REML=TRUE}) or the overall likelihood (\code{REML=FALSE}). This is set to NULL for generalised linear mixed models}
+\item{s2resid}{for linear mixed models, the residual variance}
+\item{s2r.ci}{Bayesian credible interval for random effects variances for non-nested random effects.
+This is set to NULL if \code{bayes = FALSE}}
+\item{s2n.ci}{Bayesian credible interval for random effects variances for nested random effects.
+This is set to NULL if \code{bayes = FALSE}}
+\item{s2resid.ci}{Bayesian credible interval for linear mixed models, the residual variance.
+This is set to NULL if \code{bayes = FALSE}}
+\item{logLIK}{for linear mixed models, the log-likelihood for either the restricted likelihood (\code{REML=TRUE}) or the overall likelihood (\code{REML=FALSE}). This is set to NULL for generalised linear mixed models. If \code{bayes = TRUE}, this is the marginal log-likelihood}
 \item{AIC}{for linear mixed models, the AIC for either the restricted likelihood (\code{REML=TRUE}) or the overall likelihood (\code{REML=FALSE}). This is set to NULL for generalised linear mixed models}
 \item{BIC}{for linear mixed models, the BIC for either the restricted likelihood (\code{REML=TRUE}) or the overall likelihood (\code{REML=FALSE}). This is set to NULL for generalised linear mixed models}
-\item{REML}{whether or not REML is used (\code{TRUE} or \code{FALSE})}
+\item{DIC}{for bayesian PGLMM, this is the Deviance Information Criterion metric of model fit. This is set to NULL if \code{bayes = FALSE}.}
+\item{REML}{whether or not REML is used (\code{TRUE} or \code{FALSE}).}
+\item{bayes}{whether or not a Bayesian model was fit.}
+\item{marginal.summ}{The specified summary statistic used to summarise the Bayesian marginal distributions.
+Only present if \code{bayes = TRUE}}
 \item{s2.init}{the user-provided initial estimates of \code{s2}}
 \item{B.init}{the user-provided initial estimates of \code{B}}
 \item{Y}{the response (dependent) variable returned in matrix form}
 \item{X}{the predictor (independent) variables returned in matrix form (including 1s in the first column)}
 \item{H}{the residuals. For the generalized linear mixed model, these are the predicted residuals in the \eqn{logit^{-1}}{logit -1} space}
-\item{iV}{the inverse of the covariance matrix for the entire system (of dimension (nsp\emph{nsite) by (nsp}nsite))}
+\item{iV}{the inverse of the covariance matrix for the entire system (of dimension (nsp\emph{nsite) by (nsp}nsite)).
+This is NULL is code{bayes = TRUE}}
 \item{mu}{predicted mean values for the generalized linear mixed model. Set to NULL for linear mixed models}
-\item{sp, sp}{matrices used to construct the nested design matrix}
-\item{Zt}{the design matrix for random effects}
+\item{sp, sp}{matrices used to construct the nested design matrix. This is set to NULL if \code{bayes = TRUE}}
+\item{Zt}{the design matrix for random effects. This is set to NULL if \code{bayes = TRUE}}
 \item{St}{diagonal matrix that maps the random effects variances onto the design matrix}
-\item{convcode}{the convergence code provided by \code{\link{optim}}}
-\item{niter}{number of iterations performed by \code{\link{optim}}}
+\item{convcode}{the convergence code provided by \code{\link{optim}}. This is set to NULL if \code{bayes = TRUE}}
+\item{niter}{number of iterations performed by \code{\link{optim}}. This is set to NULL if \code{bayes = TRUE}}
+\item{inla.model}{Model object fit by underlying \code{\link{inla}} function. Only returned
+if \code{bayes = TRUE}}
 }
 \description{
 This function performs Generalized Linear Mixed Models for binary
@@ -270,7 +320,13 @@ correlation structures as covariance
 matrices. \code{communityPGLMM} can analyze models in Ives and
 Helmus (2011). It can also analyze bipartite phylogenetic data,
 such as that analyzed in Rafferty and Ives (2011), by giving sites
-phylogenetic correlations.
+phylogenetic correlations. A Bayesian version of PGLMM can be fit by
+specifying the \code{bayes = TRUE}. This uses the package \code{\link[INLA:INLA-package]{INLA}}
+package, which is not available on cran. If you wish to use this option,
+you must first install \code{INLA} from \url{http://www.r-inla.org/}.
+Note that while \code{bayes = TRUE} currently only supports \code{family} arguments of
+\code{"gaussian"} and \code{"binomial"}, other families will shortly be added.
+For a full list see \code{names(INLA::inla.models()$likelihood)}.
 
 \code{communityPGLMM.binary} calculates the statistical
 significance of the random effects in the generalized linear mixed
@@ -510,6 +566,10 @@ structure. Ecological Monographs 81:511-525.
 
 Rafferty, N. E., and A. R. Ives. 2013. Phylogenetic
 trait-based analyses of ecological networks. Ecology 94:2321-2333.
+
+Simpson, Daniel, et al. "Penalising model component complexity:
+A principled, practical approach to constructing priors."
+Statistical science 32.1 (2017): 1-28.
 }
 \author{
 Anthony R. Ives
