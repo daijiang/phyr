@@ -453,7 +453,7 @@
 # end of doc ---- 
 prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE, 
                           prep.re.effects = TRUE, family = "gaussian", 
-                          prep.s2.lme4 = FALSE, tree_site = NULL){
+                          prep.s2.lme4 = FALSE, tree_site = NULL, bayes = FALSE){
   # make sure the data has sp and site columns
   if(!all(c("sp", "site") %in% names(data))) {
     stop("The data frame should have a column named as 'sp' and a column named as 'site'.")
@@ -547,12 +547,20 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
             xout = list(xout)
           } else { # has phylogenetic term
             if(sp_or_site[1] == "sp__" & sp_or_site[2] == "site"){ # sp__@site
-              if(repulsion){
-                xout = as(kronecker(diag(nsite), solve(Vphy)), "dgCMatrix")
+              if(bayes){
+                if(repulsion){
+                  xout = list(1, sp, covar = solve(Vphy), site)
+                } else {
+                  xout = list(1, sp, covar = Vphy, site)
+                }
               } else {
-                xout = as(kronecker(diag(nsite), Vphy), "dgCMatrix")
+                if(repulsion){
+                  xout = as(kronecker(diag(nsite), solve(Vphy)), "dgCMatrix")
+                } else {
+                  xout = as(kronecker(diag(nsite), Vphy), "dgCMatrix")
+                }
+                xout = list(xout)
               }
-              xout = list(xout)
             }
             if(sp_or_site[1] == "sp" & sp_or_site[2] == "site__"){ # sp@site__
               if(repulsion){
@@ -670,7 +678,7 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, tree
   }
   
   prep_re = if(is.null(random.effects)) TRUE else FALSE
-  dat_prepared = prep_dat_pglmm(formula, data, tree, repulsion, prep_re, family, prep.s2.lme4, tree_site)
+  dat_prepared = prep_dat_pglmm(formula, data, tree, repulsion, prep_re, family, prep.s2.lme4, tree_site, bayes)
   formula = dat_prepared$formula
   data = dat_prepared$data
   sp = dat_prepared$sp

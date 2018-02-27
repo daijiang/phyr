@@ -25,13 +25,13 @@ test2_binary_r = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|
 expect_equivalent(test2_binary_cpp, test2_binary_r)
 
 ## test bayesian models
-test1_gaussian_bayes  = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
+test1_gaussian_bayes  = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
                                          dat, tree = phylotree, REML = F, bayes = TRUE)
 # test1_gaussian_bayes_noreml  = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
 #                                                   dat, tree = phylotree, REML = F, bayes = TRUE,
 #                                                   ML.init = FALSE)
 
-test1_binomial_bayes  = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
+test1_binomial_bayes  = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
                                                   dat, tree = phylotree, REML = F, bayes = TRUE,
                                                   ML.init = FALSE, family = "binomial")
 # test1_binomial_bayes_noreml  = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
