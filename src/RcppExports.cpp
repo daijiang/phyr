@@ -110,6 +110,38 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// plmm_binary_iV_logdetV_cpp
+List plmm_binary_iV_logdetV_cpp(NumericVector par, arma::vec mu, const arma::sp_mat& Zt, const arma::sp_mat& St, const List& nested, bool logdet);
+RcppExport SEXP _phyr_plmm_binary_iV_logdetV_cpp(SEXP parSEXP, SEXP muSEXP, SEXP ZtSEXP, SEXP StSEXP, SEXP nestedSEXP, SEXP logdetSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type par(parSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type mu(muSEXP);
+    Rcpp::traits::input_parameter< const arma::sp_mat& >::type Zt(ZtSEXP);
+    Rcpp::traits::input_parameter< const arma::sp_mat& >::type St(StSEXP);
+    Rcpp::traits::input_parameter< const List& >::type nested(nestedSEXP);
+    Rcpp::traits::input_parameter< bool >::type logdet(logdetSEXP);
+    rcpp_result_gen = Rcpp::wrap(plmm_binary_iV_logdetV_cpp(par, mu, Zt, St, nested, logdet));
+    return rcpp_result_gen;
+END_RCPP
+}
+// plmm_binary_V
+arma::sp_mat plmm_binary_V(NumericVector par, const arma::sp_mat& Zt, const arma::sp_mat& St, arma::vec mu, const List& nested, bool missing_mu);
+RcppExport SEXP _phyr_plmm_binary_V(SEXP parSEXP, SEXP ZtSEXP, SEXP StSEXP, SEXP muSEXP, SEXP nestedSEXP, SEXP missing_muSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type par(parSEXP);
+    Rcpp::traits::input_parameter< const arma::sp_mat& >::type Zt(ZtSEXP);
+    Rcpp::traits::input_parameter< const arma::sp_mat& >::type St(StSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type mu(muSEXP);
+    Rcpp::traits::input_parameter< const List& >::type nested(nestedSEXP);
+    Rcpp::traits::input_parameter< bool >::type missing_mu(missing_muSEXP);
+    rcpp_result_gen = Rcpp::wrap(plmm_binary_V(par, Zt, St, mu, nested, missing_mu));
+    return rcpp_result_gen;
+END_RCPP
+}
 // plmm_binary_LL_cpp
 double plmm_binary_LL_cpp(NumericVector par, const arma::vec& H, const arma::mat& X, const arma::sp_mat& Zt, const arma::sp_mat& St, const arma::vec& mu, const List& nested, bool REML, bool verbose);
 RcppExport SEXP _phyr_plmm_binary_LL_cpp(SEXP parSEXP, SEXP HSEXP, SEXP XSEXP, SEXP ZtSEXP, SEXP StSEXP, SEXP muSEXP, SEXP nestedSEXP, SEXP REMLSEXP, SEXP verboseSEXP) {
@@ -153,6 +185,17 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< arma::mat >::type B_init(B_initSEXP);
     Rcpp::traits::input_parameter< arma::vec >::type ss(ssSEXP);
     rcpp_result_gen = Rcpp::wrap(pglmm_binary_internal_cpp(X, Y, Zt, St, nested, REML, verbose, n, p, q, maxit, reltol, tol_pql, maxit_pql, optimizer, B_init, ss));
+    return rcpp_result_gen;
+END_RCPP
+}
+// sexp_type
+int sexp_type(SEXP x);
+RcppExport SEXP _phyr_sexp_type(SEXP xSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type x(xSEXP);
+    rcpp_result_gen = Rcpp::wrap(sexp_type(x));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -224,8 +267,11 @@ static const R_CallMethodDef CallEntries[] = {
     {"_phyr_set_seed", (DL_FUNC) &_phyr_set_seed, 1},
     {"_phyr_predict_cpp", (DL_FUNC) &_phyr_predict_cpp, 4},
     {"_phyr_pcd2_loop", (DL_FUNC) &_phyr_pcd2_loop, 7},
+    {"_phyr_plmm_binary_iV_logdetV_cpp", (DL_FUNC) &_phyr_plmm_binary_iV_logdetV_cpp, 6},
+    {"_phyr_plmm_binary_V", (DL_FUNC) &_phyr_plmm_binary_V, 6},
     {"_phyr_plmm_binary_LL_cpp", (DL_FUNC) &_phyr_plmm_binary_LL_cpp, 9},
     {"_phyr_pglmm_binary_internal_cpp", (DL_FUNC) &_phyr_pglmm_binary_internal_cpp, 17},
+    {"_phyr_sexp_type", (DL_FUNC) &_phyr_sexp_type, 1},
     {"_phyr_pglmm_gaussian_LL_cpp", (DL_FUNC) &_phyr_pglmm_gaussian_LL_cpp, 8},
     {"_phyr_pglmm_gaussian_LL_calc_cpp", (DL_FUNC) &_phyr_pglmm_gaussian_LL_calc_cpp, 7},
     {"_phyr_pglmm_gaussian_internal_cpp", (DL_FUNC) &_phyr_pglmm_gaussian_internal_cpp, 15},

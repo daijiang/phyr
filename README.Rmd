@@ -29,9 +29,9 @@ These functions share some similarities and it makes more sense to put them in o
 To install this package:
 
 ```{r eval = F}
-devtools::install_github("daijiang/phyr")
-# or install the binary version
-install.packages("https://raw.githubusercontent.com/daijiang/phyr/master/phyr_0.1.2.tgz", repos = NULL)
+devtools::install_github("daijiang/phyr", ref = "bipartite")
+# or
+install.packages("https://raw.githubusercontent.com/daijiang/phyr/bipartite/phyr_0.1.3.tgz", repos = NULL)
 ```
 
 
@@ -57,7 +57,9 @@ microbenchmark::microbenchmark(phyr::psv(comm_a, phylotree),
                                picante::psv(comm_a, phylotree))
 ```
 
-`communityPGLMM` now can use similar syntax as `lme4::lmer` to specify random terms: add `__` (two underscores) at the end of grouping variable (`sp`) to specify both phylogenetic and non-phylogenetic random terms; use `(1|sp@site)` to specify nested term. Note: `(1|sp@site)` and `(1|site@sp)` have different orders.
+`communityPGLMM` now can use similar syntax as `lme4::lmer` to specify random terms: add `__` (two underscores) at the end of grouping variable (`sp`) to specify both phylogenetic and non-phylogenetic random terms; use `(1|sp__@site)` to specify nested term. This should be the most commonly used one and is equal to `kronecker(I_site, V_sp)`. (V_sp is Vphy, used sp here so it is clearer this is for sp.) 
+
+For bipartite questions, you should also set `tree_site` to a phylogeny. Then use `(1|sp@site__)` and `(1|sp__@site__)` if needed. For bipartite questions, `(1|sp@site__)` will be converted to `kronecker(V_site, I_sp)`; `(1|sp__@site__)` will be converted to `kronecker(V_site, V_sp)`. (V_site is from tree_site.)
 
 ```{r eval = T}
 library(dplyr)
@@ -68,12 +70,21 @@ dat = tidyr::gather(comm, key = "sp", value = "freq", -site) %>%
   left_join(traits, by = "sp")
 dat$pa = as.numeric(dat$freq > 0)
 head(dat)
-test1 = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
+# phy-LMM
+test1 = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
                              data = dat, family = "gaussian", tree = phylotree, REML = F)
 test1
-test3 = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
+# phy-GLMM
+test3 = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
                              data = dat, family = "binomial", tree = phylotree, REML = F)
 test3
+# bipartite
+tree_site = ape::rtree(n = n_distinct(dat$site), tip.label = sort(unique(dat$site)))
+z_bipartite = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site__) + 
+                                     (1|sp__@site) + (1|sp@site__) + (1|sp__@site__), 
+                    data = dat, family = "gaussian", tree = phylotree, tree_site = tree_site, 
+                    REML = TRUE)
+z_bipartite
 ```
 
 To compare the cpp version and R version, and the version from the `pez` package.
@@ -99,17 +110,17 @@ re.sp <- list(1, sp = dat$sp, covar = diag(nspp))
 re.sp.phy <- list(1, sp = dat$sp, covar = Vphy)
 # sp is nested within site
 re.nested.phy <- list(1, sp = dat$sp, covar = Vphy, site = dat$site)
-re.nested.rep <- list(1, sp = dat$sp, covar = solve(Vphy), site = dat$site) # equal to sp@site
+re.nested.rep <- list(1, sp = dat$sp, covar = solve(Vphy), site = dat$site) # equal to sp__@site
 # can be named 
 re = list(re.sp = re.sp, re.sp.phy = re.sp.phy, re.nested.phy = re.nested.phy, re.site = re.site)
 
 # about 4-10 times faster for a small dataset
 microbenchmark::microbenchmark(
-  phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
+  phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
                        dat, tree = phylotree, REML = F, cpp = T, optimizer = "bobyqa"),
-  phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
+  phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
                        dat, tree = phylotree, REML = F, cpp = T, optimizer = "Nelder-Mead"),
-  phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
+  phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
                        dat, tree = phylotree, REML = F, cpp = F, optimizer = "Nelder-Mead"),
   pez::communityPGLMM(freq ~ 1 + shade, data = dat, sp = dat$sp, site = dat$site, 
                       random.effects = re, REML = F),
@@ -118,13 +129,13 @@ microbenchmark::microbenchmark(
 
 # about 6 times faster for a small dataset
 microbenchmark::microbenchmark(
-  phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), dat, 
+  phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), dat, 
                        family = "binomial", tree = phylotree, REML = F, cpp = T, 
                        optimizer = "bobyqa"),
-    phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), dat, 
+    phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), dat, 
                        family = "binomial", tree = phylotree, REML = F, cpp = T, 
                        optimizer = "Nelder-Mead"),
-  phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), dat, 
+  phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), dat, 
                        family = "binomial", tree = phylotree, REML = F, cpp = F, 
                        optimizer = "Nelder-Mead"),
   pez::communityPGLMM(pa ~ 1 + shade, data = dat, family = "binomial", sp = dat$sp, 

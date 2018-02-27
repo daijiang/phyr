@@ -17,9 +17,10 @@
 \title{Phylogenetic Generalised Linear Mixed Model for Community Data}
 \usage{
 prep_dat_pglmm(formula, data, tree, repulsion = FALSE,
-  prep.re.effects = TRUE, family = "gaussian", prep.s2.lme4 = FALSE)
+  prep.re.effects = TRUE, family = "gaussian", prep.s2.lme4 = FALSE,
+  tree_site = NULL)
 
-communityPGLMM(formula, data = NULL, family = "gaussian", tree,
+communityPGLMM(formula, data = NULL, family = "gaussian", tree, tree_site = NULL, 
   repulsion = FALSE, sp, site, random.effects = NULL, REML = TRUE,
   bayes = FALSE, s2.init = NULL, B.init = NULL, reltol = 10^-6,
   maxit = 500, tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE,
@@ -62,22 +63,30 @@ communityPGLMM.bayes(formula, data = list(), family = "gaussian",
 \arguments{
 \item{formula}{a two-sided linear formula object describing the
 mixed-effects of the model; it follows similar syntax as \code{\link[lme4:lmer]{lmer}}.
-There are some differences though: 1. to specify that a random term
-should have phylogenetic cov matrix too, add "__" at the end of the group
-variable, e.g. \code{+ (1 | sp__)} will construct two random terms, one
-with phylogenetic cov matrix and another with non-phylogenetic (Identity) matrix;
-2. to specify nested random term, use \code{+ (1|site@sp)}. Note, however,
-no correlated random terms will be allowed at this moment. For example,
+There are some differences though. First, to specify that a random term should have phylogenetic cov matrix too,
+add \code{__} at the end of the group variable, e.g. \code{+ (1 | sp__)} will
+construct two random terms, one with phylogenetic cov matrix and another
+with non-phylogenetic (Identity) matrix; However, \code{__} in the nested terms (below)
+will only create a phlylogenetic cov-matrix. Therefore, nested random term has three forms:
+\enumerate{
+\item \code{(1|sp__@site)} represents correlated species are nested within independent sites (i.e. kronecker(I_sites, V_sp)).
+This should be the most common one for community analysis.
+\item \code{(1|sp@site__)} represents independent species are nested within correlated sites (i.e. kron(V_sites, I_sp)). This one can be used for bipartite questions. You can, for example, treat sp as insects and site as plants. Remember to set the argument \code{tree_site} to a phylogeny.
+\item \code{(1|sp__@site__)} represents correlated species are nested within correlated sites (i.e. kron(V_sites, V_sp)). This one is also used for bipartite questions.
+\item \code{(1|sp@site)} will generate a identity matrix, which will be the same as the residual of LMM. So not meaningful.
+}
+
+Second, note that correlated random terms will not be allowed at this moment. For example,
 \code{(x|g)} will be equal with \code{(0 + x|g)} in the lmer syntax;
 also, \code{(x1 + x2|g)} won't work.}
 
 \item{data}{a \code{\link{data.frame}} containing the variables
 named in formula. The data frame should have long format with
 factors specifying species (named as 'sp') and sites (named as 'site'). \code{communityPGLMM} will
-reorder rows of the data frame so that species are nested within
-sites.}
+reorder rows of the data frame so that species are nested within sites (i.e. arrange first
+by column site then by column sp).}
 
-\item{tree}{a phylogeny, with "phylo" class.}
+\item{tree}{a phylogeny for column sp, with "phylo" class.}
 
 \item{repulsion}{when nested random term specified, do you want to test repulsion or underdispersion?
 Default is FALSE, i.e. test underdispersion.}
@@ -91,14 +100,18 @@ Default is FALSE, i.e. test underdispersion.}
 If no phylogenetic or nested random terms, should set it to TRUE since it likely will be faster.
 However, in this case, you probably can just use lme4::lmer.}
 
+\item{tree_site}{a second phylogeny for "site". This is required only if the site column contains species instead of sites.
+This can be used for bipartitie questions.}
+
 \item{sp}{no longer used, keep here for compatibility}
 
 \item{site}{no longer used, keep here for compatibility}
 
-\item{random.effects}{pre-build list of random effects, default is NULL. Can be useful if
-dealing with two phylogenies (e.g. plants and pollinators). You can prepare it with
-the prep_dat_pglmm() function to get the random effects for each phylogeny and then
-combine both together.}
+\item{random.effects}{pre-build list of random effects. If NULL (the default),
+the function prep_dat_pglmm() will prepare it for you. A list of pre-generated
+random terms is also accepted (mainly to be compatible with code from previous versions).
+If so, make sure that the orders of sp and site in the generated list are the same as the
+data, which will be arranged first by site than by sp.}
 
 \item{REML}{whether REML or ML is used for model fitting. For the
 generalized linear mixed model for binary data, these don't have
@@ -357,7 +370,7 @@ flexibility in model selection/fitting.
 # repulsion = to test phylogenetic repulsion or not
 
 # Model 1 (Eq. 1)
-z <- communityPGLMM(freq ~ sp + (1|site) + (1|sp@site), data = dat, family = "binomial", 
+z <- communityPGLMM(freq ~ sp + (1|site) + (1|sp__@site), data = dat, family = "binomial", 
                    tree = phy, REML = TRUE, verbose = TRUE, s2.init=.1)
 
 # Model 2 (Eq. 2)
@@ -365,7 +378,7 @@ z <- communityPGLMM(freq ~ sp + X + (1|site) + (X|sp__), data = dat, family = "b
                     tree = phy, REML = TRUE, verbose = TRUE, s2.init=.1)
 
 # Model 3 (Eq. 3)
-z <- communityPGLMM(freq ~ sp*X + (1|site) + (1|sp@site), data = dat, family = "binomial",
+z <- communityPGLMM(freq ~ sp*X + (1|site) + (1|sp__@site), data = dat, family = "binomial",
                     tree = phy, REML = TRUE, verbose = TRUE, s2.init=.1)
 
 ## Model structure from Rafferty & Ives (2013) (Eq. 3)
@@ -375,11 +388,8 @@ z <- communityPGLMM(freq ~ sp*X + (1|site) + (1|sp@site), data = dat, family = "
 # phyPol = phylogeny for pollinators
 # phyPlt = phylogeny for plants
 
-# prepare random effects
-re12 = c(re1, re2)
-
-z <- communityPGLMM(freq ~ sp*X, data = dat, family = "binomial",
- random.effects = re12, REML = TRUE, verbose = TRUE, s2.init=.1)
+z <- communityPGLMM(freq ~ sp * X + (1|sp__) + (1|site__) + (1|sp__@site) + (1|sp@site__) + (1|sp__@site__), 
+data = dat, family = "binomial", tree = phyPol, tree_site = phyPlt, REML = TRUE, verbose = TRUE, s2.init=.1)
 }
 
 #########################################################

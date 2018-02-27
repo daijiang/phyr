@@ -28,12 +28,16 @@ dat = tidyr::gather(comm, key = "sp", value = "freq", -site) %>%
 dat$pa = as.numeric(dat$freq > 0)
 tree = phyr::phylotree
 data = dat
-formula = freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site)
+tree_site = ape::rtree(n = nlevels(data$site), tip.label = levels(data$site))
+data = d
+tree=mist_tree
+tree_site=host_tree
+formula = count ~ 1 + (1|sp__) + (1|site__) + (1|sp__@site) + (1|sp@site__)
 repulsion = F
-REML = T
+REML = F
 s2.init = NULL
 B.init = NULL
-reltol = 10^-6
+reltol = 10^-12
 maxit = 500
 tol.pql = 10^-4
 maxit.pql = 200
@@ -45,7 +49,10 @@ prep.s2.lme4 = FALSE
 cpp = T
 prep_re = TRUE
 family = "gaussian"
-dat_prepared = phyr::prep_dat_pglmm(formula, data, tree, repulsion, prep_re, family, prep.s2.lme4)
+family = "binomial"
+tol.pql = 10^-6
+maxit.pql = 200
+dat_prepared = phyr::prep_dat_pglmm(formula, data, tree, repulsion, prep_re, family, prep.s2.lme4, tree_site)
 formula = dat_prepared$formula
 data = dat_prepared$data
 sp = dat_prepared$sp
@@ -60,9 +67,14 @@ q <- length(random.effects)
 if(family == "gaussian"){
   B.init <- t(matrix(lm(formula = formula, data = data)$coefficients, ncol = p))
   s2.init <- var(lm(formula = formula, data = data)$residuals)/q
+} else {
+   B.init <- t(matrix(glm(formula = formula, data = data, family = binomial, na.action = na.omit)$coefficients, ncol = p))
 }
 B <- B.init
 s <- as.vector(array(s2.init^0.5, dim = c(1, q)))
+ss <- as.vector(array(s2.init^0.5, dim = c(1, q)))
+par = s
+
 ```
 
 ```{r, eval=FALSE}
@@ -139,5 +151,128 @@ microbenchmark::microbenchmark(
 
 c("nelder-mead-nlopt", "subplex")
 
+```
+
+```{r eval=F}
+# bipartite
+nspp = 5 # pollinators
+nsite = 10 # plants
+phy_sp = ape::rtree(nspp)
+phy_site = ape::rtree(nsite)
+phy_site$tip.label = paste0("site", 1:nsite)
+Vsp = ape::vcv(phy_sp)
+Vsite = ape::vcv(phy_site)
+
+library(Matrix)
+re.sp0 = as(kronecker(diag(nsite), matrix(1, nrow=nspp, ncol=nspp)), "dgCMatrix")
+image(re.sp0)
+re.site0 <- as(kronecker(matrix(1, nrow=nsite, ncol=nsite), nspp), "dgCMatrix")
+image(re.site0)
+re.sp <- as(kronecker(Vsite, matrix(1, nrow=nspp, ncol=nspp)), "dgCMatrix")
+image(re.sp)
+re.site <- as(kronecker(matrix(1, nrow=nsite, ncol=nsite), Vsp), "dgCMatrix")
+image(re.site)
+re.sp.site <- as(kronecker(diag(nrow=nsite), Vsp), "dgCMatrix")
+image(re.sp.site)
+re.site.sp <- as(kronecker(Vsite, diag(nrow=nspp)), "dgCMatrix")
+image(re.site.sp)
+re.cophy <- as(kronecker(Vsite, Vsp), "dgCMatrix")
+image(re.cophy)
+
+```
+
+```{r eval=F}
+library(ape) 
+library(phyr)
+library(Matrix)
+# source("communityPLMM_2Dec17.R")
+
+# See edit(phyr::get_design_matrix)
+# edit(phyr::get_design_matrix)
+
+w <- read.table("dt.txt",header = T,row.names = 1)###here,I convert the dt.csv file to tab delimited text file in 
+w$site <- as.factor(rownames(w))
+w[,1:7] <- w[,1:7]^.5
+rownames(w) <- NULL
+
+host_tree <- read.tree("phylo_19")
+mist_tree <- read.tree("phylomist_19")  ###"phylomist_19"is a phylo file(phylogenetic tree of host species) obtained from phylomatic online tools##
+mist_tree$tip.label <- c("vsp", "sc", "scy", "mb", "dp", "hp", "mc")
+
+# check that the names of hosts and mist are the same
+d = tidyr::gather(w, key = "sp", value = "count", -site)
+d = dplyr::arrange(d, site, sp)
+d$sp = as.factor(d$sp)
+
+# Set value at base of tree to zero
+host_tree$root.edge <- 0
+host_tree <- multi2di(host_tree)
+
+# Separately specifying the complete covariance matrices didn't work
+nspp <- Ntip(mist_tree)
+nsite <- Ntip(host_tree)
+
+Vsp <- vcv(mist_tree)
+Vsite <- vcv(host_tree)
+Vsp <- Vsp/(det(Vsp)^(1/nspp))
+Vsite <- Vsite/(det(Vsite)^(1/nsite))
+# ---- reorder phylogenies
+Vsp = Vsp[levels(d$sp), levels(d$sp)]
+Vsite = Vsite[levels(d$site), levels(d$site)]
+
+
+# Set up random effects using the format in pez for d
+re.sp0 <- list(1, sp = d$sp, covar = diag(nspp))
+re.site0 <- list(1, site = d$site, covar = diag(nsite))
+re.sp <- list(1, sp = d$sp, covar = Vsp)
+re.site <- list(1, site = d$site, covar = Vsite)
+re.sp.site <- list(1, site = d$sp, covar = Vsp, d$site)
+re.site.sp <- list(1, site = d$site, covar = Vsite, d$sp)
+re.cophy <- list(kronecker(Vsp,Vsite)) # ---- shouldn't it bekronecker(Vsite,Vsp) ?
+
+data = d
+tree=mist_tree
+tree_site=host_tree
+formula = count ~ 1 + (1|sp__) + (1|site__) + (1|sp__@site) + (1|sp@site__)
+repulsion = F
+REML = F
+s2.init = NULL
+B.init = NULL
+reltol = 10^-12
+maxit = 500
+tol.pql = 10^-4
+maxit.pql = 200
+verbose = FALSE
+random.effects = NULL
+optimizer = "bobyqa"
+optimizer = "Nelder-Mead"
+prep.s2.lme4 = FALSE
+cpp = T
+prep_re = TRUE
+family = "gaussian"
+tol.pql = 10^-6
+maxit.pql = 200
+dat_prepared = phyr::prep_dat_pglmm(formula, data, tree, repulsion, prep_re, family, prep.s2.lme4, tree_site)
+formula = dat_prepared$formula
+data = dat_prepared$data
+sp = dat_prepared$sp
+site = dat_prepared$site
+random.effects = dat_prepared$random.effects
+if (family == "binomial") s2.init = 0.25
+dm = phyr::get_design_matrix(formula, data, na.action = NULL, sp, site, random.effects)
+X = dm$X; Y = dm$Y; St = dm$St; Zt = dm$Zt; nested = dm$nested
+p <- ncol(X)
+n <- nrow(X)
+q <- length(random.effects)
+if(family == "gaussian"){
+  B.init <- t(matrix(lm(formula = formula, data = data)$coefficients, ncol = p))
+  s2.init <- var(lm(formula = formula, data = data)$residuals)/q
+} else {
+   B.init <- t(matrix(glm(formula = formula, data = data, family = binomial, na.action = na.omit)$coefficients, ncol = p))
+}
+B <- B.init
+s <- as.vector(array(s2.init^0.5, dim = c(1, q)))
+ss <- as.vector(array(s2.init^0.5, dim = c(1, q)))
+par = s
 ```
 

@@ -17,18 +17,23 @@ double pglmm_gaussian_LL_cpp(NumericVector par,
                            const arma::sp_mat& Zt, const arma::sp_mat& St, 
                            const List& nested, 
                            bool REML, bool verbose){
+  Rcpp::checkUserInterrupt();
   int n = X.n_rows;
   int p = X.n_cols;
   int q_nonNested = St.n_rows;
-  IntegerVector idx = seq_len(q_nonNested) - 1; // c++ starts with 0
-  // uvec idx_uvec = as<uvec>(idx);
-  NumericVector sr0 = par[idx];
-  rowvec sr = real(as<rowvec>(sr0));
-  arma::mat iC0 = sr * St;
-  arma::vec iC1 = vectorise(iC0, 0); // extract by columns
-  arma::sp_mat iC = sp_mat(diagmat(iC1));
-  arma::sp_mat Ut = iC * Zt;
-  arma::sp_mat U = trans(Ut);
+  arma::sp_mat Ut;
+  arma::sp_mat U;
+  if(q_nonNested > 0){
+    IntegerVector idx = seq_len(q_nonNested) - 1; // c++ starts with 0
+    // uvec idx_uvec = as<uvec>(idx);
+    NumericVector sr0 = par[idx];
+    rowvec sr = real(as<rowvec>(sr0));
+    arma::mat iC0 = sr * St;
+    arma::vec iC1 = vectorise(iC0, 0); // extract by columns
+    arma::sp_mat iC = sp_mat(diagmat(iC1));
+    Ut = iC * Zt;
+    U = trans(Ut);
+  }
   int q_Nested = nested.size();
 
   NumericVector sn; // pre-declare out of if{}
@@ -41,7 +46,7 @@ double pglmm_gaussian_LL_cpp(NumericVector par,
   
   arma::sp_mat iV0;
   arma::mat Ishort_Ut_iA_U;
-  if (q_Nested == 0){
+  if (q_Nested == 0){ // then q_nonNested will not be 0, otherwise, no random terms
     arma::sp_mat iA = sp_mat(n, n); iA.eye();
     arma::sp_mat Ishort = sp_mat(Ut.n_rows, Ut.n_rows); Ishort.eye();
     arma::sp_mat Ut_iA_U = Ut * U;
@@ -56,7 +61,7 @@ double pglmm_gaussian_LL_cpp(NumericVector par,
       sp_mat nj = nested[0];
       A = A + snj * nj;
     } else {
-      for (int j = 0; j < (q_Nested - 1); j++) {
+      for (int j = 0; j < q_Nested; j++) {
         double snj = pow(sn[j], 2);
         sp_mat nj = nested[j];
         A = A + snj * nj;
@@ -65,11 +70,15 @@ double pglmm_gaussian_LL_cpp(NumericVector par,
     arma::mat A1(A);
     arma::sp_mat iA = sp_mat(inv(A1));
     // Rcout << iA << " " ;
-    arma::sp_mat Ishort = sp_mat(Ut.n_rows, Ut.n_rows); Ishort.eye();
-    arma::sp_mat Ut_iA_U = Ut * iA * U;
-    Ishort_Ut_iA_U = mat(Ishort + Ut_iA_U);
-    arma::mat i_Ishort_Ut_iA_U = inv(Ishort_Ut_iA_U);
-    iV0 = iA - iA * U * sp_mat(i_Ishort_Ut_iA_U) * Ut * iA;
+    if(q_nonNested > 0){
+      arma::sp_mat Ishort = sp_mat(Ut.n_rows, Ut.n_rows); Ishort.eye();
+      arma::sp_mat Ut_iA_U = Ut * iA * U;
+      Ishort_Ut_iA_U = mat(Ishort + Ut_iA_U);
+      arma::mat i_Ishort_Ut_iA_U = inv(Ishort_Ut_iA_U);
+      iV0 = iA - iA * U * sp_mat(i_Ishort_Ut_iA_U) * Ut * iA;
+    } else {
+      iV0 = iA;
+    }
   }
   
   arma::mat iV(iV0); // convert to dense matrix
@@ -125,15 +134,21 @@ List pglmm_gaussian_LL_calc_cpp(NumericVector par,
   int n = X.n_rows;
   int p = X.n_cols;
   int q_nonNested = St.n_rows;
-  IntegerVector idx = seq_len(q_nonNested) - 1; // c++ starts with 0
-  // uvec idx_uvec = as<uvec>(idx);
-  NumericVector sr0 = par[idx];
-  rowvec sr = real(as<rowvec>(sr0));
-  arma::mat iC0 = sr * St;
-  arma::vec iC1 = vectorise(iC0, 0); // extract by columns
-  arma::sp_mat iC = sp_mat(diagmat(iC1));
-  arma::sp_mat Ut = iC * Zt;
-  arma::sp_mat U = trans(Ut);
+  arma::sp_mat Ut;
+  arma::sp_mat U;
+  arma::rowvec sr;
+  if(q_nonNested > 0){
+    IntegerVector idx = seq_len(q_nonNested) - 1; // c++ starts with 0
+    // uvec idx_uvec = as<uvec>(idx);
+    NumericVector sr0 = par[idx];
+    sr = real(as<rowvec>(sr0));
+    arma::mat iC0 = sr * St;
+    arma::vec iC1 = vectorise(iC0, 0); // extract by columns
+    arma::sp_mat iC = sp_mat(diagmat(iC1));
+    Ut = iC * Zt;
+    U = trans(Ut);
+  }
+  
   int q_Nested = nested.size();
   
   NumericVector sn; // pre-declare out of if{}
@@ -161,7 +176,7 @@ List pglmm_gaussian_LL_calc_cpp(NumericVector par,
       sp_mat nj = nested[0];
       A = A + snj * nj;
     } else {
-      for (int j = 0; j < (q_Nested - 1); j++) {
+      for (int j = 0; j < q_Nested; j++) {
         double snj = pow(sn[j], 2);
         sp_mat nj = nested[j];
         A = A + snj * nj;
@@ -170,11 +185,15 @@ List pglmm_gaussian_LL_calc_cpp(NumericVector par,
     arma::mat A1(A);
     arma::sp_mat iA = sp_mat(inv(A1));
     // Rcout << iA << " " ;
-    arma::sp_mat Ishort = sp_mat(Ut.n_rows, Ut.n_rows); Ishort.eye();
-    arma::sp_mat Ut_iA_U = Ut * iA * U;
-    Ishort_Ut_iA_U = mat(Ishort + Ut_iA_U);
-    arma::mat i_Ishort_Ut_iA_U = inv(Ishort_Ut_iA_U);
-    iV0 = iA - iA * U * sp_mat(i_Ishort_Ut_iA_U) * Ut * iA;
+    if(q_nonNested > 0){
+      arma::sp_mat Ishort = sp_mat(Ut.n_rows, Ut.n_rows); Ishort.eye();
+      arma::sp_mat Ut_iA_U = Ut * iA * U;
+      Ishort_Ut_iA_U = mat(Ishort + Ut_iA_U);
+      arma::mat i_Ishort_Ut_iA_U = inv(Ishort_Ut_iA_U);
+      iV0 = iA - iA * U * sp_mat(i_Ishort_Ut_iA_U) * Ut * iA;
+    } else {
+      iV0 = iA;
+    }
   }
   
   arma::mat iV(iV0); // convert to dense matrix
@@ -282,7 +301,6 @@ Rcpp::List pglmm_gaussian_internal_cpp(NumericVector par,
                       _["message"] = S0["message"]);
   }
   // end of optimization
-  
   arma::vec par_opt0 = abs(real(as<arma::vec>(opt["par"])));
   NumericVector par_opt = wrap(par_opt0);
   double LL = as_scalar(as<double>(opt["value"]));
@@ -304,3 +322,12 @@ Rcpp::List pglmm_gaussian_internal_cpp(NumericVector par,
                       _["convcode"] = convcode, _["niter"] = niter);
 }
 
+/*** R
+# pglmm_gaussian_internal_cpp(par = s, X, Y, Zt = as(matrix(0, 0, 0), "dgTMatrix"), 
+#                             St = as(matrix(0, 0, 0), "dgTMatrix"), nested, REML, 
+#                             verbose, optimizer, maxit, 
+#                             reltol, q, n, p, pi)
+# res = pglmm_gaussian_internal_cpp(par = s, X, Y, Zt, St, nested, REML, 
+#                             verbose, optimizer, maxit, 
+#                             reltol, q, n, p, pi)
+*/
