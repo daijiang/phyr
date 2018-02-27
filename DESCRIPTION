@@ -4,12 +4,12 @@ Title: Phylogenetic Analysis with R
 Version: 0.1.2
 Authors@R: c(
     person("Anthony", "Ives", , "arives@wisc.edu", role = c("aut", "cre")),
-    person("Matthew", "Helmus", , "", role = c("aut"),
+    person("Matthew", "Helmus", , "", role = c("aut")),
+    person("Russell", "Dinnage", , "r.dinnage@gmail.com", role = c("aut")),
     person("Daijiang", "Li", , "daijianglee@gmail.com", role = c("aut")))
-    )
 Description: This is a collection of functions to do phylogenetic analysis that were
     wrote by Ives et al. It is easier to update and modify functions in one place than 
-    submitting changes to serveral packages. We rewrote core parts of some functions
+    submitting changes to several packages. We rewrote core parts of some functions
     in c++ to speed things up.
 License: GPL-3
 Encoding: UTF-8
@@ -35,5 +35,6 @@ Suggests:
     testthat,
     tidyr,
     knitr,
-    rmarkdown
+    rmarkdown,
+    INLA
 VignetteBuilder: knitr
