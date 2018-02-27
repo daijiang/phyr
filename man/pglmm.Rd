@@ -18,15 +18,16 @@
 \usage{
 prep_dat_pglmm(formula, data, tree, repulsion = FALSE,
   prep.re.effects = TRUE, family = "gaussian", prep.s2.lme4 = FALSE,
-  tree_site = NULL)
+  tree_site = NULL, bayes = FALSE)
 
-communityPGLMM(formula, data = NULL, family = "gaussian", tree, tree_site = NULL, 
-  repulsion = FALSE, sp, site, random.effects = NULL, REML = TRUE,
-  bayes = FALSE, s2.init = NULL, B.init = NULL, reltol = 10^-6,
-  maxit = 500, tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE,
-  ML.init = TRUE, marginal.summ = "mean", calc.DIC = FALSE,
-  default.prior = "inla.default", cpp = TRUE, optimizer = c("bobyqa",
-  "Nelder-Mead", "nelder-mead-nlopt", "subplex"), prep.s2.lme4 = FALSE)
+communityPGLMM(formula, data = NULL, family = "gaussian", tree,
+  tree_site = NULL, repulsion = FALSE, sp, site, random.effects = NULL,
+  REML = TRUE, bayes = FALSE, s2.init = NULL, B.init = NULL,
+  reltol = 10^-6, maxit = 500, tol.pql = 10^-6, maxit.pql = 200,
+  verbose = FALSE, ML.init = TRUE, marginal.summ = "mean",
+  calc.DIC = FALSE, default.prior = "inla.default", cpp = TRUE,
+  optimizer = c("bobyqa", "Nelder-Mead", "nelder-mead-nlopt", "subplex"),
+  prep.s2.lme4 = FALSE)
 
 communityPGLMM.gaussian(formula, data = list(), family = "gaussian",
   sp = NULL, site = NULL, random.effects = list(), REML = TRUE,
@@ -103,6 +104,9 @@ However, in this case, you probably can just use lme4::lmer.}
 \item{tree_site}{a second phylogeny for "site". This is required only if the site column contains species instead of sites.
 This can be used for bipartitie questions.}
 
+\item{bayes}{whether to fit a Bayesian version of the PGLMM using
+\code{r-inla}}
+
 \item{sp}{no longer used, keep here for compatibility}
 
 \item{site}{no longer used, keep here for compatibility}
@@ -120,9 +124,6 @@ that can be used in likelihood ratio tests. If \code{bayes = TRUE},
 \code{REML = TRUE} will place a sum to one constraint on the random
 effects, which should produce more comparable results to a REML analysis
 in a maximum likelihood context.}
-
-\item{bayes}{whether to fit a Bayesian version of the PGLMM using
-\code{r-inla}}
 
 \item{s2.init}{an array of initial estimates of s2 for each random
 effect that scales the variance. If s2.init is not provided for
