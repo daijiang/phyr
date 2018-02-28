@@ -174,3 +174,14 @@ tree_site = ape::rtree(n = n_distinct(dat$site), tip.label = sort(unique(dat$sit
 z_bipartite = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site__) + 
                                      (1|sp__@site) + (1|sp@site__) + (1|sp__@site__), 
                     data = dat, family = "gaussian", tree = phylotree, tree_site = tree_site, REML = TRUE)
+
+z_bipartite_bayes = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site__) + 
+                                     (1|sp__@site) + (1|sp@site__) + (1|sp__@site__), 
+                                   data = dat, family = "gaussian", tree = phylotree, tree_site = tree_site, 
+                                   bayes = TRUE, ML.init = TRUE)
+
+z_bipartite_bayes_2 = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site__) + 
+                                           (1|sp__@site) + (1|sp@site__) + (1|sp__@site__), 
+                                         data = dat, family = "gaussian", tree = phylotree, tree_site = tree_site, 
+                                         bayes = TRUE, ML.init = FALSE, default.prior = "pc.prior")
+
