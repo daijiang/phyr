@@ -500,7 +500,8 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
     
     if(nrow(data) != nspp * nsite){
       # NAs that have been removed
-      message("the dataframe may have been removed for NAs as its number of row is not nspp * nsite")
+      message("the dataframe may have been removed for NAs as its number of row is not nspp * nsite \n
+              we will recreate the full data frame for you.")
       # recreate a full data frame to get which rows have been removed
       data_all = dplyr::arrange(expand.grid(site = sitel, sp = spl), site, sp)
       data_all = dplyr::left_join(data_all, data, by = c("site", "sp"))
@@ -518,6 +519,7 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
             # also want phylogenetic version, 
             # it makes sense if the phylogenetic version is in, the non-phy part should be there too
             coln = gsub("__$", "", x2[3])
+            if(coln %nin% c("sp", "site")) stop("group variable with phylogenetic var-covar matrix must be named as either sp or site")
             d = data[, coln] # extract the column
             xout_nonphy = list(1, d, covar = diag(nlevels(d)))
             names(xout_nonphy)[2] = coln
@@ -531,7 +533,7 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
             xout = list(xout_nonphy, xout_phy)
           } else { # non phylogenetic random term
             d = data[, x2[3]] # extract the column
-            xout = list(1, d, covar = diag(dplyr::n_distinct(d)))
+            xout = list(1, d, covar = diag(length(unique(d))))
             names(xout)[2] = x2[3]
             xout = list(xout)
           } 
@@ -541,27 +543,29 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
           if(!grepl("__", x2[3])){ # no phylogenetic term
             message("Nested term without specify phylogeny, use identity matrix instead")
             xout = list(1, sp = data[, sp_or_site[1]], 
-                        covar = diag(nlevels(data[, sp_or_site[1]])), 
+                        covar = diag(length(unique(data[, sp_or_site[1]]))), 
                         site = data[, sp_or_site[2]])
             names(xout)[c(2, 4)] = sp_or_site
             xout = list(xout)
           } else { # has phylogenetic term
-            if(sp_or_site[1] == "sp__" & sp_or_site[2] == "site"){ # sp__@site
+            if(sp_or_site[1] == "sp__" & !grepl("__", sp_or_site[2])){ # sp__@site or other variables w/o phylo var
               if(bayes){
                 if(repulsion){
-                  xout = list(1, sp, covar = solve(Vphy), site)
+                  xout = list(1, sp, covar = solve(Vphy), data[, sp_or_site[2]])
                 } else {
-                  xout = list(1, sp, covar = Vphy, site)
+                  xout = list(1, sp, covar = Vphy, data[, sp_or_site[2]])
                 }
               } else {
+                n_dim = length(unique(data[, sp_or_site[2]]))
                 if(repulsion){
-                  xout = as(kronecker(diag(nsite), solve(Vphy)), "dgCMatrix")
+                  xout = as(kronecker(diag(n_dim), solve(Vphy)), "dgCMatrix")
                 } else {
-                  xout = as(kronecker(diag(nsite), Vphy), "dgCMatrix")
+                  xout = as(kronecker(diag(n_dim), Vphy), "dgCMatrix")
                 }
                 xout = list(xout)
               }
             }
+            
             if(sp_or_site[1] == "sp" & sp_or_site[2] == "site__"){ # sp@site__
               if(repulsion){
                 xout = as(kronecker(solve(Vphy_site), diag(nspp)), "dgCMatrix")
@@ -570,6 +574,7 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
               }
               xout = list(xout)
             }
+            
             if(sp_or_site[1] == "sp__" & sp_or_site[2] == "site__"){ # sp__@site__
               if(repulsion){
                 xout = as(kronecker(solve(Vphy_site), solve(Vphy)), "dgCMatrix")
@@ -579,7 +584,8 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
               xout = list(xout)
             }
             
-            if(nrow(data) != nspp * nsite) xout[[1]] = xout[[1]][nna.ind, nna.ind]
+            # if has NAs and NAs have been removed
+            if(nrow(data) != nspp * nsite) xout[[1]] = xout[[1]][nna.ind, nna.ind] 
             xout = list(xout) # to put the matrix in a list
           }
         }
@@ -589,6 +595,7 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
           # also want phylogenetic version, 
           # it makes sense if the phylogenetic version is in, the non-phy part should be there too
           coln = gsub("__$", "", x2[3])
+          if(coln %nin% c("sp", "site")) stop("group variable with phylogenetic var-covar matrix must be named as either sp or site")
           d = data[, coln] # extract the column
           xout_nonphy = list(data[, x2[2]], d, covar = diag(nlevels(d)))
           names(xout_nonphy)[2] = coln
@@ -673,7 +680,7 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, tree
   }
   if(bayes) {
     if (!isTRUE(requireNamespace("INLA", quietly = TRUE))) {
-      stop("To run communityPGLMM with bayes = TRUE, you need to install the packages 'INLA'. Please run in your R terminal:\n install.packages('INLA', repos='https://www.math.ntnu.no/inla/R/stable')")
+      stop("To run communityPGLMM with bayes = TRUE, you need to install the packages 'INLA'. \n Please run in your R terminal:\n install.packages('INLA', repos='https://www.math.ntnu.no/inla/R/stable')")
     }
     if ((family %nin% c("gaussian", "binomial", "poisson"))){
       stop("\nSorry, but only binomial (binary), poisson (count), and gaussian options are available for
@@ -690,6 +697,7 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, tree
   if(prep.s2.lme4) s2.init = dat_prepared$s2_init
   if(prep_re) random.effects = dat_prepared$random.effects
   
+  # initial values for bayesian analysis: binomial and gaussian
   if(bayes & ML.init & (family %in% c("binomial", "gaussian"))) {
     if (family == "gaussian") {
       ML.init.z <- communityPGLMM.gaussian(formula = formula, data = data, 
@@ -728,9 +736,7 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, tree
                               verbose = verbose, REML = REML,
                               marginal.summ = marginal.summ, calc.DIC = calc.DIC, 
                               default.prior = default.prior)
-  } else {
-  
-  
+  } else {# max likelihood 
     if (family == "gaussian") {
      z <- communityPGLMM.gaussian(formula = formula, data = data, 
                                   sp = sp, site = site, 
@@ -808,11 +814,12 @@ get_design_matrix = function(formula, data, na.action = NULL,
         if(!inherits(covM, c("matrix", "Matrix"))){
           stop("random term with length 1 is not a cov matrix")
         }
-        # if(nrow(covM) != nrow(X)) stop("random term with length 1 has different number of rows")
+        # if(nrow(covM) != nrow(X)) stop("random term with length 1 has different number of rows") # Nas problems
         nested[[jj]] = covM
       }
       
-      if (length(re.i) == 4) {
+      if (length(re.i) == 4) { # this is okay for sp__@site, but not work if we also specify site__
+        # if site__ within nested terms, we just use a covM whithin prep_dat_pglmm()
         # another way to do this, which does not require reorder
         Z.1 <- matrix(0, nrow = nrow(data), ncol = nlevels(re.i[[2]]))
         Z.2 <- matrix(0, nrow = nrow(data), ncol = nlevels(re.i[[4]]))
@@ -1462,7 +1469,6 @@ communityPGLMM.matrix.structure <- function(formula, data = list(), family = "bi
 summary.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ...) {
   
   if(x$bayes) {
-    
     if (x$family == "gaussian") {
       if (x$REML == TRUE) {
         cat("Linear mixed model fit by Bayesian INLA with contrained variances")
@@ -1470,7 +1476,6 @@ summary.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), 
         cat("Linear mixed model fit by Bayesian INLA")
       }
     }
-    
     if (x$family == "binomial") {
       if (x$REML == TRUE) {
         cat("Generalized linear mixed model fit by Bayesian INLA with contrained variances")
@@ -1478,10 +1483,7 @@ summary.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), 
         cat("Generalized linear mixed model fit by Bayesian INLA")
       }
     }
-    
-    
   } else {
-  
     if (x$family == "gaussian") {
       if (x$REML == TRUE) {
         cat("Linear mixed model fit by restricted maximum likelihood")
@@ -1489,7 +1491,6 @@ summary.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), 
         cat("Linear mixed model fit by maximum likelihood")
       }
     }
-    
     if (x$family == "binomial") {
       if (x$REML == TRUE) {
         cat("Generalized linear mixed model for binary data fit by restricted maximum likelihood")
@@ -1513,9 +1514,7 @@ summary.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), 
     } else {
       print(logLik, digits = digits)
     }
-    
   } else {
-  
    if (x$family == "gaussian") {
       logLik = x$logLik
       AIC = x$AIC
@@ -1611,7 +1610,6 @@ communityPGLMM.predicted.values <- function(x, show.plot = TRUE, ...) {
     if(marginal.summ == "median") marginal.summ <- "0.5quant"
     predicted.values <- x$inla.model$summary.fitted.values[ , marginal.summ, drop = TRUE]
   } else {
-  
     if (x$family == "gaussian") {
       V <- solve(x$iV)
       h <- matrix(0, nrow = length(x$Y), ncol = 1)
