@@ -27,16 +27,21 @@ expect_equivalent(test2_binary_cpp, test2_binary_r)
 ## test bayesian models
 test1_gaussian_bayes  = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
                                          dat, tree = phylotree, REML = F, bayes = TRUE)
-# test1_gaussian_bayes_noreml  = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
-#                                                   dat, tree = phylotree, REML = F, bayes = TRUE,
-#                                                   ML.init = FALSE)
+                                           
 
 test1_binomial_bayes  = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
                                                   dat, tree = phylotree, REML = F, bayes = TRUE,
                                                   ML.init = FALSE, family = "binomial")
-# test1_binomial_bayes_noreml  = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), 
-#                                                     dat, tree = phylotree, REML = F, bayes = TRUE,
-#                                                     ML.init = FALSE, family = "binomial")
+
+test1_poisson_bayes  = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
+                                             dat, tree = phylotree, REML = F, bayes = TRUE,
+                                             ML.init = FALSE, family = "poisson")
+## try a 'overdispersed' Poisson (e.g. add row random effect to account for variance in the lambda values)
+test1_poisson_bayes_overdispersed  = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site) + (1|sp@site), 
+                                            dat, tree = phylotree, REML = F, bayes = TRUE,
+                                            ML.init = FALSE, family = "poisson")
+
+
 
 test_that("Bayesian communityPGLMM produced correct object", {
   expect_is(test1_gaussian_bayes, "communityPGLMM")
@@ -174,3 +179,14 @@ tree_site = ape::rtree(n = n_distinct(dat$site), tip.label = sort(unique(dat$sit
 z_bipartite = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site__) + 
                                      (1|sp__@site) + (1|sp@site__) + (1|sp__@site__), 
                     data = dat, family = "gaussian", tree = phylotree, tree_site = tree_site, REML = TRUE)
+
+z_bipartite_bayes = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site__) + 
+                                     (1|sp__@site) + (1|sp@site__) + (1|sp__@site__), 
+                                   data = dat, family = "gaussian", tree = phylotree, tree_site = tree_site, 
+                                   bayes = TRUE, ML.init = TRUE)
+
+z_bipartite_bayes_2 = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site__) + 
+                                           (1|sp__@site) + (1|sp@site__) + (1|sp__@site__), 
+                                         data = dat, family = "gaussian", tree = phylotree, tree_site = tree_site, 
+                                         bayes = TRUE, ML.init = FALSE, default.prior = "pc.prior")
+

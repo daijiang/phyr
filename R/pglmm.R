@@ -21,8 +21,7 @@
 #' package, which is not available on cran. If you wish to use this option, 
 #' you must first install \code{INLA} from \url{http://www.r-inla.org/}.
 #' Note that while \code{bayes = TRUE} currently only supports \code{family} arguments of
-#'  \code{"gaussian"} and \code{"binomial"}, other families will shortly be added. 
-#' For a full list see \code{names(INLA::inla.models()$likelihood)}.
+#'  \code{"gaussian"}, \code{"binomial"}, and \code{"poisson"}, other families will shortly be added. 
 #' @param formula a two-sided linear formula object describing the
 #' mixed-effects of the model; it follows similar syntax as \code{\link[lme4:lmer]{lmer}}.
 #' There are some differences though. First, to specify that a random term should have phylogenetic cov matrix too, 
@@ -45,7 +44,8 @@
 #' reorder rows of the data frame so that species are nested within sites (i.e. arrange first 
 #' by column site then by column sp).
 #' @param family either \code{gaussian} for a Linear Mixed Model, or
-#' \code{binomial} for binary dependent data.
+#' \code{binomial} for binary dependent data. If \code{bayes = TRUE}, \code{poisson} is also
+#' supported.
 #' @param tree a phylogeny for column sp, with "phylo" class.
 #' @param repulsion when nested random term specified, do you want to test repulsion or underdispersion?
 #' Default is FALSE, i.e. test underdispersion.
@@ -667,13 +667,17 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, tree
                            marginal.summ = "mean", calc.DIC = FALSE, default.prior = "inla.default", cpp = TRUE,
                            optimizer = c("bobyqa", "Nelder-Mead", "nelder-mead-nlopt", "subplex"), prep.s2.lme4 = FALSE) {
   optimizer = match.arg(optimizer)
-  if ((family %nin% c("gaussian", "binomial"))){
+  if ((family %nin% c("gaussian", "binomial")) & (bayes == FALSE)){
     stop("\nSorry, but only binomial (binary) and gaussian options are available for
          communityPGLMM at this time")
   }
   if(bayes) {
     if (!isTRUE(requireNamespace("INLA", quietly = TRUE))) {
       stop("To run communityPGLMM with bayes = TRUE, you need to install the packages 'INLA'. Please run in your R terminal:\n install.packages('INLA', repos='https://www.math.ntnu.no/inla/R/stable')")
+    }
+    if ((family %nin% c("gaussian", "binomial", "poisson"))){
+      stop("\nSorry, but only binomial (binary), poisson (count), and gaussian options are available for
+         Bayesian communityPGLMM at this time")
     }
   }
   
@@ -709,6 +713,11 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, tree
       s2.init <- c(ML.init.z$s2r, ML.init.z$s2n)
       B.init <- ML.init.z$B[ , 1, drop = TRUE]
     }
+  } 
+  
+  if(bayes & ML.init & (family %nin% c("binomial", "gaussian"))) {
+    warning('ML.init option is only available for binomial and gaussian families. You will have to 
+            specify initial values manually if you think the default are problematic.')
   }
   
   if(bayes) {
@@ -1708,10 +1717,21 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   inla_reps <- list()
   
   for(i in seq_along(random.effects)) {
-    inla_effects[[i]] <- as.numeric(as.factor(random.effects[[i]][[2]]))
-    inla_Cmat[[i]] <- solve(random.effects[[i]][[3]])
-    inla_weights[[i]] <- random.effects[[i]][[1]]
-    if(length(random.effects[[i]]) == 4) {
+    if(length(random.effects[[i]]) == 1) {
+      inla_effects[[i]] <- 1:nrow(data)
+      inla_Cmat[[i]] <- solve(random.effects[[i]][[1]])
+    } else if(length(random.effects[[i]]) == 2) {
+      inla_effects[[i]] <- 1:nrow(data)
+      inla_weights[[i]] <- random.effects[[i]][1]
+      inla_Cmat[[i]] <- solve(random.effects[[i]][[2]])
+    } else if(length(random.effects[[i]]) == 3) {
+      inla_effects[[i]] <- as.numeric(as.factor(random.effects[[i]][[2]]))
+      inla_Cmat[[i]] <- solve(random.effects[[i]][[3]])
+      inla_weights[[i]] <- random.effects[[i]][[1]]
+    } else {
+      inla_effects[[i]] <- as.numeric(as.factor(random.effects[[i]][[2]]))
+      inla_Cmat[[i]] <- solve(random.effects[[i]][[3]])
+      inla_weights[[i]] <- random.effects[[i]][[1]]
       inla_reps[[i]] <- as.numeric(as.factor(random.effects[[i]][[4]]))
     }
   }
@@ -1736,6 +1756,12 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
               f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "])")
               inla_formula <- paste(inla_formula, f_form, sep = " + ")
             }
+          } else if(length(random.effects[[i]]) == 1) {
+            f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "])")
+            inla_formula <- paste(inla_formula, f_form, sep = " + ")
+          } else {
+            f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "])")
+            inla_formula <- paste(inla_formula, f_form, sep = " + ")
           }
         }
       }
@@ -1758,6 +1784,12 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
               f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
               inla_formula <- paste(inla_formula, f_form, sep = " + ")
             }
+          } else if(length(random.effects[[i]]) == 1) {
+            f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
+            inla_formula <- paste(inla_formula, f_form, sep = " + ")
+          } else {
+            f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
+            inla_formula <- paste(inla_formula, f_form, sep = " + ")
           }
         }
       }
@@ -1782,6 +1814,12 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
               f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "])")
               inla_formula <- paste(inla_formula, f_form, sep = " + ")
             }
+          } else if(length(random.effects[[i]]) == 1) {
+            f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "])")
+            inla_formula <- paste(inla_formula, f_form, sep = " + ")
+          } else {
+            f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "])")
+            inla_formula <- paste(inla_formula, f_form, sep = " + ")
           }
         }
       }
@@ -1804,6 +1842,12 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
               f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
               inla_formula <- paste(inla_formula, f_form, sep = " + ")
             }
+          } else if(length(random.effects[[i]]) == 1) {
+            f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
+            inla_formula <- paste(inla_formula, f_form, sep = " + ")
+          } else {
+            f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
+            inla_formula <- paste(inla_formula, f_form, sep = " + ")
           }
         }
       }
@@ -1856,7 +1900,7 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     marginal.summ <- "0.5quant"
   }
   
-  nested <- sapply(random.effects, length) == 4
+  nested <- sapply(random.effects, length) %in% c(1, 2, 4)
   
   variances <- 1/out$summary.hyperpar[ , marginal.summ]
   variances.ci <- 1/out$summary.hyperpar[ , c("0.975quant", "0.025quant")]
