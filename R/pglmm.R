@@ -1648,23 +1648,14 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
                                  verbose = FALSE, REML = FALSE,
                                  marginal.summ = "mean", calc.DIC = FALSE, 
                                  default.prior = "inla.default") {
-  
-  # nspp <- nlevels(sp)
-  # nsite <- nlevels(site)
-  
   mf <- model.frame(formula = formula, data = data, na.action = NULL)
   X <- model.matrix(attr(mf, "terms"), data = mf)
   Y <- model.response(mf)
-  
-  # dm = get_design_matrix(formula, data, na.action = NULL, sp, site, random.effects)
-  # X = dm$X; Y = dm$Y; St = dm$St; Zt = dm$Zt; nested = dm$nested
   p <- ncol(X)
   n <- nrow(X)
   q <- length(random.effects)
-  if(family == "gaussian") {
-    q <- q + 1
-  }
-  
+  if(family == "gaussian") q <- q + 1
+
   # Compute initial estimates assuming no phylogeny if not provided
   if (!is.null(B.init) & length(B.init) != p) {
     warning("B.init not correct length, so computed B.init using glm()")
@@ -1707,7 +1698,6 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   }
   
   # contruct INLA formula
-  
   inla_formula <- Reduce(paste, deparse(formula))
   inla_effects <- list()
   inla_Cmat <- list()
@@ -1715,18 +1705,18 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   inla_reps <- list()
   
   for(i in seq_along(random.effects)) {
-    if(length(random.effects[[i]]) == 1) {
+    if(length(random.effects[[i]]) == 1) { # nested term
       inla_effects[[i]] <- 1:nrow(data)
       inla_Cmat[[i]] <- solve(random.effects[[i]][[1]])
-    } else if(length(random.effects[[i]]) == 2) {
+    } else if(length(random.effects[[i]]) == 2) { # nested term
       inla_effects[[i]] <- 1:nrow(data)
       inla_weights[[i]] <- random.effects[[i]][1]
       inla_Cmat[[i]] <- solve(random.effects[[i]][[2]])
-    } else if(length(random.effects[[i]]) == 3) {
+    } else if(length(random.effects[[i]]) == 3) { # non-nested term
       inla_effects[[i]] <- as.numeric(as.factor(random.effects[[i]][[2]]))
       inla_Cmat[[i]] <- solve(random.effects[[i]][[3]])
       inla_weights[[i]] <- random.effects[[i]][[1]]
-    } else {
+    } else { # nested term
       inla_effects[[i]] <- as.numeric(as.factor(random.effects[[i]][[2]]))
       inla_Cmat[[i]] <- solve(random.effects[[i]][[3]])
       inla_weights[[i]] <- random.effects[[i]][[1]]
@@ -1734,125 +1724,59 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     }
   }
   
-  if(!REML) {
-    if(default.prior == "inla.default") {
-      for(i in seq_along(random.effects)) {
-        if(length(random.effects[[i]]) == 3) {
+  if(default.prior == "inla.default") {
+    for(i in seq_along(random.effects)) {
+      if(length(random.effects[[i]]) == 3) { # non-nested term
+        if(length(random.effects[[i]][[1]]) == 1) {
+          f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "])")
+        } else {
+          f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "])")
+        }
+      } else { # nested term
+        if(length(random.effects[[i]]) == 4) { 
           if(length(random.effects[[i]][[1]]) == 1) {
-            f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "])")
-            inla_formula <- paste(inla_formula, f_form, sep = " + ")
+            f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "])")
           } else {
-            f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "])")
-            inla_formula <- paste(inla_formula, f_form, sep = " + ")
+            f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "])")
           }
         } else {
-          if(length(random.effects[[i]]) == 4) {
-            if(length(random.effects[[i]][[1]]) == 1) {
-              f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "])")
-              inla_formula <- paste(inla_formula, f_form, sep = " + ")
-            } else {
-              f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "])")
-              inla_formula <- paste(inla_formula, f_form, sep = " + ")
-            }
-          } else if(length(random.effects[[i]]) == 1) {
+          if(length(random.effects[[i]]) == 1) {
             f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "])")
-            inla_formula <- paste(inla_formula, f_form, sep = " + ")
           } else {
             f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "])")
-            inla_formula <- paste(inla_formula, f_form, sep = " + ")
           }
         }
       }
-    } else {
-      for(i in seq_along(random.effects)) {
-        if(length(random.effects[[i]]) == 3) {
-          if(length(random.effects[[i]][[1]]) == 1) {
-            f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
-            inla_formula <- paste(inla_formula, f_form, sep = " + ")
-          } else {
-            f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
-            inla_formula <- paste(inla_formula, f_form, sep = " + ")
-          }
-        } else {
-          if(length(random.effects[[i]]) == 4) {
-            if(length(random.effects[[i]][[1]]) == 1) {
-              f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
-              inla_formula <- paste(inla_formula, f_form, sep = " + ")
-            } else {
-              f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
-              inla_formula <- paste(inla_formula, f_form, sep = " + ")
-            }
-          } else if(length(random.effects[[i]]) == 1) {
-            f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
-            inla_formula <- paste(inla_formula, f_form, sep = " + ")
-          } else {
-            f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
-            inla_formula <- paste(inla_formula, f_form, sep = " + ")
-          }
-        }
-      }
+      inla_formula <- paste(inla_formula, f_form, sep = " + ")
     }
-  } else {
-    if(default.prior == "inla.default") {
-      for(i in seq_along(random.effects)) {
-        if(length(random.effects[[i]]) == 3) {
-          if(length(random.effects[[i]][[1]]) == 1) {
-            f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "])")
-            inla_formula <- paste(inla_formula, f_form, sep = " + ")
-          } else {
-            f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "])")
-            inla_formula <- paste(inla_formula, f_form, sep = " + ")
-          }
+  } else { # non default prior
+    for(i in seq_along(random.effects)) {
+      if(length(random.effects[[i]]) == 3) { # non-nested term
+        if(length(random.effects[[i]][[1]]) == 1) {
+          f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
         } else {
-          if(length(random.effects[[i]]) == 4) {
-            if(length(random.effects[[i]][[1]]) == 1) {
-              f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "])")
-              inla_formula <- paste(inla_formula, f_form, sep = " + ")
-            } else {
-              f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "])")
-              inla_formula <- paste(inla_formula, f_form, sep = " + ")
-            }
-          } else if(length(random.effects[[i]]) == 1) {
-            f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "])")
-            inla_formula <- paste(inla_formula, f_form, sep = " + ")
+          f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
+        }
+      } else { # nested term
+        if(length(random.effects[[i]]) == 4) {
+          if(length(random.effects[[i]][[1]]) == 1) {
+            f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
           } else {
-            f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "])")
-            inla_formula <- paste(inla_formula, f_form, sep = " + ")
+            f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
           }
+        } else if(length(random.effects[[i]]) == 1) {
+          f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
+        } else {
+          f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
         }
       }
-    } else {
-      for(i in seq_along(random.effects)) {
-        if(length(random.effects[[i]]) == 3) {
-          if(length(random.effects[[i]][[1]]) == 1) {
-            f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
-            inla_formula <- paste(inla_formula, f_form, sep = " + ")
-          } else {
-            f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
-            inla_formula <- paste(inla_formula, f_form, sep = " + ")
-          }
-        } else {
-          if(length(random.effects[[i]]) == 4) {
-            if(length(random.effects[[i]][[1]]) == 1) {
-              f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
-              inla_formula <- paste(inla_formula, f_form, sep = " + ")
-            } else {
-              f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
-              inla_formula <- paste(inla_formula, f_form, sep = " + ")
-            }
-          } else if(length(random.effects[[i]]) == 1) {
-            f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
-            inla_formula <- paste(inla_formula, f_form, sep = " + ")
-          } else {
-            f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
-            inla_formula <- paste(inla_formula, f_form, sep = " + ")
-          }
-        }
-      }
+      inla_formula <- paste(inla_formula, f_form, sep = " + ")
     }
   }
   
-  
+  if(REML){
+    inla_formula <- gsub(pattern = "constr = FALSE", replacement = "constr = TRUE", inla_formula)
+  }
   
   if(family == "gaussian") {
     if(calc.DIC) {
@@ -1869,7 +1793,7 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
                   control.fixed = list(prec.intercept = 0.0001, correlation.matrix=TRUE),
                   control.predictor=list(compute=TRUE))
     }
-  } else {
+  } else { # other families
     if(calc.DIC) {
       out <- INLA::inla(as.formula(inla_formula), data = data,
                   verbose = verbose,
@@ -1894,9 +1818,7 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     DIC <- NULL
   }
   
-  if(marginal.summ == "median") {
-    marginal.summ <- "0.5quant"
-  }
+  if(marginal.summ == "median") marginal.summ <- "0.5quant"
   
   nested <- sapply(random.effects, length) %in% c(1, 2, 4)
   
@@ -1915,9 +1837,7 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   
   ss <- c(variances[!nested]^0.5, variances[nested]^0.5, resid_var^0.5)
   
-  if(marginal.summ == "median") {
-    marginal.summ <- "0.5quant"
-  }
+  if(marginal.summ == "median") marginal.summ <- "0.5quant"
   
   B <- out$summary.fixed[ , marginal.summ]
   H <- Y - out$summary.fitted.values[ , marginal.summ, drop = TRUE]
@@ -1931,7 +1851,8 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
                   s2resid = resid_var, 
                   s2n.ci = variances.ci[nested, ], s2r.ci = variances.ci[!nested, ], s2resid.ci = resid_var.ci,
                   logLik = out$mlik[1, 1], AIC = NULL, BIC = NULL, DIC = DIC, 
-                  REML = REML, bayes = TRUE, marginal.summ = marginal.summ, s2.init = s2.init, B.init = B.init, Y = Y, X = X, H = H, 
+                  REML = REML, bayes = TRUE, marginal.summ = marginal.summ, 
+                  s2.init = s2.init, B.init = B.init, Y = Y, X = X, H = H, 
                   iV = NULL, mu = NULL, nested = nested, sp = sp, site = site, Zt = NULL, St = NULL, 
                   convcode = NULL, niter = NULL, inla.model = out)
   class(results) <- "communityPGLMM"
