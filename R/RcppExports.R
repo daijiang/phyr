@@ -13,6 +13,27 @@ binpglmm_inter_while_cpp2 <- function(est_B_m, B, mu, C, rcondflag, B_init, X, X
     .Call(`_phyr_binpglmm_inter_while_cpp2`, est_B_m, B, mu, C, rcondflag, B_init, X, XX, est_B, y, n, b)
 }
 
+#' Testing optimization using nlopt: least squares for a simple regression
+#' 
+#' @param xy A two-column matrix with the X variable as the first column and the Y
+#'     variable as the second one.
+#' @param b0 First estimate of the beta0 regression estimate.
+#' @param b1 First estimate of the beta1 regression estimate.
+#' @param max_iter Maximum calls to the optimization function.
+#' @param method Algorithm used for optimization. For now, the options are
+#'     "bobyqa", "cobyla", or "praxis".
+#'     See \url{https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms}
+#'     for more information on these algorithms.
+#' 
+#' @return A numeric vector with best set of parameters (b0 then b1) and
+#'     sum of squares corresponding to that set.
+#' 
+#' @export
+#' 
+test_nlopt <- function(xy, b0, b1, max_iter, method) {
+    .Call(`_phyr_test_nlopt`, xy, b0, b1, max_iter, method)
+}
+
 set_seed <- function(seed) {
     invisible(.Call(`_phyr_set_seed`, seed))
 }

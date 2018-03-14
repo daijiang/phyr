@@ -1,0 +1,4 @@
+PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS)
+
+## For optimizer using nlopt (this only works with the development version of nloptr):
+PKG_LIBS += `${R_HOME}/bin/Rscript -e "nloptr:::LdFlags()"`
