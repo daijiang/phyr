@@ -1355,7 +1355,7 @@ communityPGLMM.binary <- function(formula, data = list(), family = "binomial",
                   B = B, B.se = B.se, B.cov = B.cov, B.zscore = B.zscore, B.pvalue = B.pvalue, 
                   ss = ss, s2n = s2n, s2r = s2r, s2resid = NULL, logLik = NULL, AIC = NULL, 
                   BIC = NULL, REML = REML, bayes = FALSE, s2.init = s2.init, B.init = B.init, Y = Y, X = X, 
-                  H = as.matrix(H), iV = iV, mu = mu, nested, sp = sp, site = site, Zt = Zt, St = St, 
+                  H = as.matrix(H), iV = iV, mu = mu, nested = nested, sp = sp, site = site, Zt = Zt, St = St, 
                   convcode = convcode, niter = niter)
   class(results) <- "communityPGLMM"
   return(results)
