@@ -1467,6 +1467,7 @@ communityPGLMM.matrix.structure <- function(formula, data = list(), family = "bi
 #' in \code{\link{print.default}}
 #' @export
 summary.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ...) {
+  if(is.null(x$bayes)) x$bayes = FALSE # to be compatible with models fitting by pez
   
   if(x$bayes) {
     if (x$family == "gaussian") {
