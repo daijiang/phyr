@@ -4,7 +4,7 @@ NULL
 
 #' @importFrom ape read.tree write.tree drop.tip compute.brlen vcv.phylo vcv is.rooted
 #' @importClassesFrom Matrix RsparseMatrix dsCMatrix dgTMatrix
-#' @importMethodsFrom Matrix t solve %*% determinant diag crossprod tcrossprod
+#' @importMethodsFrom Matrix t solve %*% determinant diag crossprod tcrossprod image
 #' @importFrom stats pchisq model.frame model.matrix model.response lm var optim pnorm 
 #' glm binomial printCoefmat reshape na.omit reorder rnorm runif as.dist
 #' @importFrom methods as show is

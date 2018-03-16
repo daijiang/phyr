@@ -660,7 +660,7 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
   
   return(list(formula = formula, data = data, sp = sp, site = site, 
               random.effects = random.effects, s2_init = s2_init,
-              tree = tree, tree_site = tree_site, Vphy = Vphy, Vphy_site = Vphy_site))
+              tree = tree, tree_site = tree_site))
 }
 
 #' @rdname pglmm
@@ -1859,3 +1859,95 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   class(results) <- "communityPGLMM"
   results
 }
+
+#' @rdname pglmm
+#' @export
+communityPGLMM.plot.random.effects <- function(
+  formula, data, family = "gaussian", tree = NULL, tree_site = NULL, repulsion = FALSE, 
+  show.image = NULL, show.sim.image = NULL, random.effects = NULL) {
+  data$sp <- as.factor(data$sp)
+  data$site <- as.factor(data$site)
+  
+  if (is.null(random.effects)) {
+    pd <- prep_dat_pglmm(formula = formula, data = data, tree = tree, repulsion = repulsion, 
+                         prep.re.effects = TRUE, family = family, prep.s2.lme4 = FALSE, tree_site = tree_site)
+    random.effects <- pd$random.effects
+    sp <- pd$sp
+    site <- pd$site
+    formula <- pd$formula
+    data <- pd$data # re-arranged
+    tree <- pd$tree
+  } else {
+    # in case users prepared their own list of re
+    names(random.effects) <- paste0("re_", 1:length(random.effects))
+    sp <- data$sp
+    site <- data$site
+  }
+  
+  nv <- length(random.effects)
+  n <- dim(data)[1]
+  vcv <- vector("list", length = nv)
+  for (i in 1:nv) {
+    dm <- get_design_matrix(formula = formula, sp = sp, site = site, 
+                            random.effects = random.effects[i], data = data)
+    if (dm$q.nonNested == 1) {
+      vcv[[i]] <- t(crossprod(dm$Zt))  # why? it is already a symmetric matrix.
+    }
+    if (dm$q.Nested == 1) {
+      vcv[[i]] <- t(dm$nested[[1]])
+    }
+    row.names(vcv[[i]]) = data$sp # because data already re-arranged
+    colnames(vcv[[i]]) = data$site
+  }
+  names(vcv) <- names(random.effects)
+  
+  sim <- vector("list", length = nv)
+  nspp <- nlevels(data$sp)
+  nsite <- nlevels(data$site)
+  for(i in 1:nv){
+    Y <- array(mvtnorm::rmvnorm(n = 1, sigma = as.matrix(vcv[[i]])))
+    dat.sim = data.frame(site = data$site, sp = data$sp, Y = Y)
+    Y.mat <- reshape(data = dat.sim, timevar = "sp", idvar = "site", direction = "wide", sep = "")
+    row.names(Y.mat) = Y.mat$site
+    Y.mat$site = NULL
+    names(Y.mat) = gsub(pattern = "^Y", replacement = "", names(Y.mat))
+    sim[[i]] <- as(as.matrix(Y.mat), "denseMatrix")
+  }
+  names(sim) <- names(random.effects)
+  
+  # sort rows and columns of vcv to match tree and tree_site
+  ## why?
+  
+  if (is.null(show.image)) {
+    if (n <= 200) show.image <- T else show.image <- F
+  }
+  
+  if (is.null(show.sim.image)) {
+    if (n >= 100) show.sim.image <- T else show.sim.image <- F
+  }
+  
+  n_col <- ceiling(length(vcv)^0.5)
+  n_row <- (length(vcv) - 1) %/% n_col + 1
+  
+  if (show.image) {
+    pl = vector("list", length = nv)
+    for (i in 1:nv) {
+      pl[[i]] = image(vcv[[i]], main = names(vcv)[i], xaxt = "n", yaxt = "n", 
+                      ylab = "", xlab = "", sub = "")
+    }
+    do.call(gridExtra::grid.arrange, c(pl, ncol = n_col, nrow = n_row))
+  }
+  
+  if (show.sim.image) {
+    pl = vector("list", length = nv)
+    for (i in 1:nv) {
+      pl[[i]] = image(sim[[i]], main = names(sim)[i], xaxt = "n", yaxt = "n", 
+                      ylab = "Site", xlab = "Species", sub = "")
+    }
+    do.call(gridExtra::grid.arrange, c(pl, ncol = n_col, nrow = n_row))
+  }
+  
+  return(invisible(list(vcv = vcv, sim = sim, tree = tree)))
+}
+
+

@@ -26,7 +26,9 @@ Imports:
     dplyr,
     lme4,
     plotrix,
-    nloptr
+    nloptr,
+    gridExtra,
+    mvtnorm
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 6.0.1
 LinkingTo:
