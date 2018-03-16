@@ -77,6 +77,30 @@ par = s
 
 ```
 
+```{r eval = F}
+library(phyr)
+library(dplyr)
+comm = comm_a
+comm$site = row.names(comm)
+dat = tidyr::gather(comm, key = "sp", value = "freq", -site) %>% 
+  left_join(envi, by = "site") %>% 
+  left_join(traits, by = "sp")
+dat$pa = as.numeric(dat$freq > 0)
+formula = freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site)
+data = dat
+tree = phylotree
+family = "gaussian"
+random.effects = NULL
+add.tree = TRUE
+tree_site = NULL
+repulsion = FALSE
+library(Matrix)
+
+test = communityPGLMM.plot.random.effects(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
+                                   dat, tree = phylotree, show.image = F, show.sim.image = T, tree.panel.space = 0)
+```
+
+
 ```{r, eval=FALSE}
 if(optimizer == "bobyqa"){
   system.time({

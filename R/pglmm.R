@@ -1861,10 +1861,19 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
 }
 
 #' @rdname pglmm
+#' @param show.image whether to show the images of random effects
+#' @param show.sim.image whether to show the images of simulated site by sp matrix. This can be useful to 
+#' see how the phylogenetic information were included.
+#' @param add.tree whether to add a phylogeny at the top of the simulated site by sp matrix plot
+#' @param tree.panel.space the number of lines between the phylogeney and the matrix plot, if add.tree is TRUE
+#' @param title.space the number of lines between the title and the matrix plot, if add.tree is TRUE
+#' @param tree.size the height of the phylogeney to be plotted (number of lines), if add.tree is TRUE
+#' @return a hidden list, the final plot can be saved using \code{ggplot2::ggsave} as it is a grid object.
 #' @export
 communityPGLMM.plot.random.effects <- function(
   formula, data, family = "gaussian", tree = NULL, tree_site = NULL, repulsion = FALSE, 
-  show.image = NULL, show.sim.image = NULL, random.effects = NULL) {
+  show.image = NULL, show.sim.image = NULL, random.effects = NULL, add.tree = TRUE,
+  tree.panel.space = 0.5, title.space = 5, tree.size = 3) {
   data$sp <- as.factor(data$sp)
   data$site <- as.factor(data$site)
   
@@ -1911,7 +1920,7 @@ communityPGLMM.plot.random.effects <- function(
     row.names(Y.mat) = Y.mat$site
     Y.mat$site = NULL
     names(Y.mat) = gsub(pattern = "^Y", replacement = "", names(Y.mat))
-    sim[[i]] <- as(as.matrix(Y.mat), "denseMatrix")
+    sim[[i]] <- as(as.matrix(Y.mat), "denseMatrix")[, tree$tip.label]
   }
   names(sim) <- names(random.effects)
   
@@ -1936,18 +1945,56 @@ communityPGLMM.plot.random.effects <- function(
                       ylab = "", xlab = "", sub = "")
     }
     do.call(gridExtra::grid.arrange, c(pl, ncol = n_col, nrow = n_row))
+    pl_re_all = do.call(gridExtra::arrangeGrob, c(pl, ncol = n_col, nrow = n_row))
   }
   
   if (show.sim.image) {
-    pl = vector("list", length = nv)
+    pl_sim = vector("list", length = nv)
     for (i in 1:nv) {
-      pl[[i]] = image(sim[[i]], main = names(sim)[i], xaxt = "n", yaxt = "n", 
-                      ylab = "Site", xlab = "Species", sub = "")
+      if(add.tree){
+        if(!ape::is.ultrametric(tree)){
+          # correct round offs, force to be ultrametric
+          h <- diag(ape::vcv(tree))
+          d <- max(h) - h
+          ii <- sapply(1:ape::Ntip(tree), function(x,y) which(y==x), y = tree$edge[,2])
+          tree$edge.length[ii] <- tree$edge.length[ii] + d
+        }
+        hc <- ape::as.hclust.phylo(tree)
+        plx = image(sim[[i]], main = names(sim)[i], xaxt = "n", yaxt = "n", 
+                    ylab = "Site", xlab = "Species", sub = "", 
+                    legend = list(top = list(fun = latticeExtra::dendrogramGrob, 
+                                             args = list(x = as.dendrogram(hc), 
+                                                         side = "top", size = tree.size))))
+      } else {
+        plx = image(sim[[i]], main = names(sim)[i], xaxt = "n", yaxt = "n", 
+                    ylab = "Site", xlab = "Species", sub = "")
+      }
+      pl_sim[[i]] = plx
     }
-    do.call(gridExtra::grid.arrange, c(pl, ncol = n_col, nrow = n_row))
+    if(add.tree){
+      do.call(gridExtra::grid.arrange, c(lapply(pl_sim, update, 
+                                                par.settings = list(layout.heights = list(key.top = tree.panel.space, 
+                                                                                          main = title.space))), 
+                                         ncol = n_col, nrow = n_row))
+      pl_sim_all = do.call(gridExtra::arrangeGrob, c(lapply(pl_sim, update, 
+                                                par.settings = list(layout.heights = list(key.top = tree.panel.space, 
+                                                                                          main = title.space))), 
+                                         ncol = n_col, nrow = n_row))
+    } else {
+      do.call(gridExtra::grid.arrange, c(pl_sim, ncol = n_col, nrow = n_row))
+      pl_sim_all = do.call(gridExtra::arrangeGrob, c(pl_sim, ncol = n_col, nrow = n_row))
+    }
   }
   
+  if(show.image & show.sim.image){
+    return(invisible(list(vcv = vcv, sim = sim, tree = tree, plt_re = pl_re_all, plt_sim = pl_sim_all)))
+  }
+  if(show.image){
+    return(invisible(list(vcv = vcv, sim = sim, tree = tree, plt_re = pl_re_all)))
+  }
+  if(show.sim.image) {
+    return(invisible(list(vcv = vcv, sim = sim, tree = tree, plt_sim = pl_sim_all)))
+  }
   return(invisible(list(vcv = vcv, sim = sim, tree = tree)))
 }
-
 

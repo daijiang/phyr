@@ -64,7 +64,7 @@ communityPGLMM.bayes(formula, data = list(), family = "gaussian",
 
 communityPGLMM.plot.random.effects(formula, data, family = "gaussian",
   tree = NULL, tree_site = NULL, repulsion = FALSE, show.image = NULL,
-  show.sim.image = NULL, random.effects = NULL)
+  show.sim.image = NULL, random.effects = NULL, add.tree = TRUE)
 }
 \arguments{
 \item{formula}{a two-sided linear formula object describing the

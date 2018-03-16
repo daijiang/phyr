@@ -6,7 +6,7 @@ NULL
 #' @importClassesFrom Matrix RsparseMatrix dsCMatrix dgTMatrix
 #' @importMethodsFrom Matrix t solve %*% determinant diag crossprod tcrossprod image
 #' @importFrom stats pchisq model.frame model.matrix model.response lm var optim pnorm 
-#' glm binomial printCoefmat reshape na.omit reorder rnorm runif as.dist
+#' glm binomial printCoefmat reshape na.omit reorder rnorm runif dist 
 #' @importFrom methods as show is
 #' @importFrom graphics par image
 NULL
