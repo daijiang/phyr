@@ -13,25 +13,34 @@ binpglmm_inter_while_cpp2 <- function(est_B_m, B, mu, C, rcondflag, B_init, X, X
     .Call(`_phyr_binpglmm_inter_while_cpp2`, est_B_m, B, mu, C, rcondflag, B_init, X, XX, est_B, y, n, b)
 }
 
-#' Testing optimization using nlopt: least squares for a simple regression
+#' Inner function to create necessary matrices and do model fitting.
 #' 
-#' @param xy A two-column matrix with the X variable as the first column and the Y
-#'     variable as the second one.
-#' @param b0 First estimate of the beta0 regression estimate.
-#' @param b1 First estimate of the beta1 regression estimate.
-#' @param max_iter Maximum calls to the optimization function.
-#' @param method Algorithm used for optimization. For now, the options are
-#'     "bobyqa", "cobyla", or "praxis".
-#'     See \url{https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms}
-#'     for more information on these algorithms.
+#' @param X a n x p matrix with p columns containing the values for the n taxa.
+#' @param U a list of p matrices corresponding to the p columns of X, with each 
+#'     matrix containing independent variables for the corresponding column of X.
+#' @param SeM a n x p matrix with p columns containing standard errors of the trait 
+#'     values in X. 
+#' @param Vphy_ 
+#' @param REML whether REML or ML is used for model fitting.
+#' @param constrain_d if constrain.d is TRUE, the estimates of d are constrained to 
+#'     be between zero and 1. This can make estimation more stable and can be 
+#'     tried if convergence is problematic. This does not necessarily lead to 
+#'     loss of generality of the results, because before using corphylo, branch 
+#'     lengths of phy can be transformed so that the "starter" tree has strong 
+#'     phylogenetic signal.
+#' @param verbose if TRUE, the model logLik and running estimates of the correlation 
+#'     coefficients and values of d are printed each iteration during optimization.
+#' @param max_iter the maximum number of iterations in the optimization.
+#' @param method method of optimization using nlopt. Options include 
+#'     "bobyqa", "cobyla", "praxis". See
+#'     \url{https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/} for more 
+#'     information.
 #' 
-#' @return A numeric vector with best set of parameters (b0 then b1) and
-#'     sum of squares corresponding to that set.
+#' @return List containing output information, to be coerced to a cor_phylo object.
 #' 
-#' @export
 #' 
-test_nlopt <- function(xy, b0, b1, max_iter, method) {
-    .Call(`_phyr_test_nlopt`, xy, b0, b1, max_iter, method)
+cor_phylo_ <- function(X, U, SeM, Vphy_, REML, constrain_d, verbose, max_iter, method) {
+    .Call(`_phyr_cor_phylo_`, X, U, SeM, Vphy_, REML, constrain_d, verbose, max_iter, method)
 }
 
 set_seed <- function(seed) {

@@ -69,18 +69,22 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// test_nlopt
-std::vector<double> test_nlopt(const arma::mat& xy, const double& b0, const double& b1, const int& max_iter, const char* method);
-RcppExport SEXP _phyr_test_nlopt(SEXP xySEXP, SEXP b0SEXP, SEXP b1SEXP, SEXP max_iterSEXP, SEXP methodSEXP) {
+// cor_phylo_
+List cor_phylo_(const arma::mat& X, const std::vector<arma::mat>& U, const arma::mat& SeM, const arma::mat& Vphy_, const bool& REML, const bool& constrain_d, const bool& verbose, const int& max_iter, const std::string& method);
+RcppExport SEXP _phyr_cor_phylo_(SEXP XSEXP, SEXP USEXP, SEXP SeMSEXP, SEXP Vphy_SEXP, SEXP REMLSEXP, SEXP constrain_dSEXP, SEXP verboseSEXP, SEXP max_iterSEXP, SEXP methodSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::mat& >::type xy(xySEXP);
-    Rcpp::traits::input_parameter< const double& >::type b0(b0SEXP);
-    Rcpp::traits::input_parameter< const double& >::type b1(b1SEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type X(XSEXP);
+    Rcpp::traits::input_parameter< const std::vector<arma::mat>& >::type U(USEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type SeM(SeMSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type Vphy_(Vphy_SEXP);
+    Rcpp::traits::input_parameter< const bool& >::type REML(REMLSEXP);
+    Rcpp::traits::input_parameter< const bool& >::type constrain_d(constrain_dSEXP);
+    Rcpp::traits::input_parameter< const bool& >::type verbose(verboseSEXP);
     Rcpp::traits::input_parameter< const int& >::type max_iter(max_iterSEXP);
-    Rcpp::traits::input_parameter< const char* >::type method(methodSEXP);
-    rcpp_result_gen = Rcpp::wrap(test_nlopt(xy, b0, b1, max_iter, method));
+    Rcpp::traits::input_parameter< const std::string& >::type method(methodSEXP);
+    rcpp_result_gen = Rcpp::wrap(cor_phylo_(X, U, SeM, Vphy_, REML, constrain_d, verbose, max_iter, method));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -279,7 +283,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_phyr_pglmm_reml_cpp", (DL_FUNC) &_phyr_pglmm_reml_cpp, 5},
     {"_phyr_binpglmm_inter_while_cpp", (DL_FUNC) &_phyr_binpglmm_inter_while_cpp, 16},
     {"_phyr_binpglmm_inter_while_cpp2", (DL_FUNC) &_phyr_binpglmm_inter_while_cpp2, 12},
-    {"_phyr_test_nlopt", (DL_FUNC) &_phyr_test_nlopt, 5},
+    {"_phyr_cor_phylo_", (DL_FUNC) &_phyr_cor_phylo_, 9},
     {"_phyr_set_seed", (DL_FUNC) &_phyr_set_seed, 1},
     {"_phyr_predict_cpp", (DL_FUNC) &_phyr_predict_cpp, 4},
     {"_phyr_pcd2_loop", (DL_FUNC) &_phyr_pcd2_loop, 7},
