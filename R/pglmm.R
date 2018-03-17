@@ -1947,19 +1947,22 @@ communityPGLMM.plot.random.effects <- function(
     do.call(gridExtra::grid.arrange, c(pl, ncol = n_col, nrow = n_row))
     pl_re_all = do.call(gridExtra::arrangeGrob, c(pl, ncol = n_col, nrow = n_row))
   }
+ 
+  if(add.tree){
+    if(!ape::is.ultrametric(tree)){
+      # correct round offs, force to be ultrametric
+      h <- diag(ape::vcv(tree))
+      d <- max(h) - h
+      ii <- sapply(1:ape::Ntip(tree), function(x,y) which(y==x), y = tree$edge[,2])
+      tree$edge.length[ii] <- tree$edge.length[ii] + d
+    }
+    hc <- ape::as.hclust.phylo(tree)
+  }
   
   if (show.sim.image) {
     pl_sim = vector("list", length = nv)
     for (i in 1:nv) {
       if(add.tree){
-        if(!ape::is.ultrametric(tree)){
-          # correct round offs, force to be ultrametric
-          h <- diag(ape::vcv(tree))
-          d <- max(h) - h
-          ii <- sapply(1:ape::Ntip(tree), function(x,y) which(y==x), y = tree$edge[,2])
-          tree$edge.length[ii] <- tree$edge.length[ii] + d
-        }
-        hc <- ape::as.hclust.phylo(tree)
         plx = image(sim[[i]], main = names(sim)[i], xaxt = "n", yaxt = "n", 
                     ylab = "Site", xlab = "Species", sub = "", 
                     legend = list(top = list(fun = latticeExtra::dendrogramGrob, 
@@ -1971,15 +1974,20 @@ communityPGLMM.plot.random.effects <- function(
       }
       pl_sim[[i]] = plx
     }
+    
     if(add.tree){
-      do.call(gridExtra::grid.arrange, c(lapply(pl_sim, update, 
-                                                par.settings = list(layout.heights = list(key.top = tree.panel.space, 
-                                                                                          main = title.space))), 
-                                         ncol = n_col, nrow = n_row))
-      pl_sim_all = do.call(gridExtra::arrangeGrob, c(lapply(pl_sim, update, 
-                                                par.settings = list(layout.heights = list(key.top = tree.panel.space, 
-                                                                                          main = title.space))), 
-                                         ncol = n_col, nrow = n_row))
+      # plot to device
+      do.call(gridExtra::grid.arrange, 
+              c(lapply(pl_sim, update, 
+                       par.settings = list(layout.heights = list(key.top = tree.panel.space, 
+                                                                 main = title.space))), 
+                ncol = n_col, nrow = n_row))
+      # output so can be saved later
+      pl_sim_all = do.call(gridExtra::arrangeGrob, 
+                           c(lapply(pl_sim, update, 
+                                    par.settings = list(layout.heights = list(key.top = tree.panel.space, 
+                                                                              main = title.space))), 
+                             ncol = n_col, nrow = n_row))
     } else {
       do.call(gridExtra::grid.arrange, c(pl_sim, ncol = n_col, nrow = n_row))
       pl_sim_all = do.call(gridExtra::arrangeGrob, c(pl_sim, ncol = n_col, nrow = n_row))
