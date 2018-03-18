@@ -1941,8 +1941,9 @@ communityPGLMM.plot.random.effects <- function(
   if (show.image) {
     pl = vector("list", length = nv)
     for (i in 1:nv) {
-      pl[[i]] = image(vcv[[i]], main = names(vcv)[i], xaxt = "n", yaxt = "n", 
-                      ylab = "", xlab = "", sub = "")
+      pl[[i]] = image(vcv[[i]], main = names(vcv)[i], ylab = "", xlab = "", sub = "",
+                      scales = list(x = list(at = nspp * (1:nsite)), 
+                                    y = list(at = nspp * (1:nsite))))
     }
     do.call(gridExtra::grid.arrange, c(pl, ncol = n_col, nrow = n_row))
     pl_re_all = do.call(gridExtra::arrangeGrob, c(pl, ncol = n_col, nrow = n_row))
@@ -1963,14 +1964,14 @@ communityPGLMM.plot.random.effects <- function(
     pl_sim = vector("list", length = nv)
     for (i in 1:nv) {
       if(add.tree){
-        plx = image(sim[[i]], main = names(sim)[i], xaxt = "n", yaxt = "n", 
-                    ylab = "Site", xlab = "Species", sub = "", 
+        plx = image(sim[[i]], main = names(sim)[i], ylab = "Site", xlab = "Species", 
+                    sub = "", useAbs = FALSE, scales = list(tck = c(1,0)),
                     legend = list(top = list(fun = latticeExtra::dendrogramGrob, 
                                              args = list(x = as.dendrogram(hc), 
                                                          side = "top", size = tree.size))))
       } else {
-        plx = image(sim[[i]], main = names(sim)[i], xaxt = "n", yaxt = "n", 
-                    ylab = "Site", xlab = "Species", sub = "")
+        plx = image(sim[[i]], main = names(sim)[i], ylab = "Site", 
+                    xlab = "Species", sub = "", useAbs = FALSE)
       }
       pl_sim[[i]] = plx
     }

@@ -64,7 +64,8 @@ communityPGLMM.bayes(formula, data = list(), family = "gaussian",
 
 communityPGLMM.plot.random.effects(formula, data, family = "gaussian",
   tree = NULL, tree_site = NULL, repulsion = FALSE, show.image = NULL,
-  show.sim.image = NULL, random.effects = NULL, add.tree = TRUE)
+  show.sim.image = NULL, random.effects = NULL, add.tree = TRUE,
+  tree.panel.space = 0.5, title.space = 5, tree.size = 3)
 }
 \arguments{
 \item{formula}{a two-sided linear formula object describing the
@@ -264,6 +265,19 @@ reasons).}
 in \code{\link{print.default}}}
 
 \item{show.plot}{if \code{TRUE} (default), display plot}
+
+\item{show.image}{whether to show the images of random effects}
+
+\item{show.sim.image}{whether to show the images of simulated site by sp matrix. This can be useful to
+see how the phylogenetic information were included.}
+
+\item{add.tree}{whether to add a phylogeny at the top of the simulated site by sp matrix plot}
+
+\item{tree.panel.space}{the number of lines between the phylogeney and the matrix plot, if add.tree is TRUE}
+
+\item{title.space}{the number of lines between the title and the matrix plot, if add.tree is TRUE}
+
+\item{tree.size}{the height of the phylogeney to be plotted (number of lines), if add.tree is TRUE}
 }
 \value{
 an object of class \code{communityPGLMM}
@@ -310,6 +324,8 @@ This is NULL is code{bayes = TRUE}}
 \item{niter}{number of iterations performed by \code{\link{optim}}. This is set to NULL if \code{bayes = TRUE}}
 \item{inla.model}{Model object fit by underlying \code{\link{inla}} function. Only returned
 if \code{bayes = TRUE}}
+
+a hidden list, the final plot can be saved using \code{ggplot2::ggsave} as it is a grid object.
 }
 \description{
 This function performs Generalized Linear Mixed Models for binary
