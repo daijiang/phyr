@@ -1944,6 +1944,7 @@ communityPGLMM.plot.random.effects <- function(
   n_row <- (length(vcv) - 1) %/% n_col + 1
   
   pl = vector("list", length = nv)
+  names(pl) = names(random.effects)
   if(nrow(data) <= 200){ # tick marks at edge of each site
     for (i in 1:nv) {
       pl[[i]] = image(vcv[[i]], main = names(vcv)[i], ylab = "", xlab = "", sub = "",
@@ -1986,10 +1987,11 @@ communityPGLMM.plot.random.effects <- function(
   }
   
   pl_sim = vector("list", length = nv)
+  names(pl_sim) = names(random.effects)
   for (i in 1:nv) {
     if(add.tree.sp & !add.tree.site){ # only add tree for sp
       plx = image(sim[[i]], main = names(sim)[i], ylab = "Site", xlab = "Species", 
-                  sub = "", useAbs = FALSE, scales = list(tck = c(1,0)),
+                  sub = "", scales = list(tck = c(1,0)),
                   legend = list(top = list(fun = latticeExtra::dendrogramGrob, 
                                            args = list(x = as.dendrogram(hc), 
                                                        side = "top", size = tree.size))), ...)
@@ -1997,12 +1999,12 @@ communityPGLMM.plot.random.effects <- function(
     
     if(!add.tree.sp & !add.tree.site){ # not to add trees 
       plx = image(sim[[i]], main = names(sim)[i], ylab = "Site", 
-                  xlab = "Species", sub = "", useAbs = FALSE, ...)
+                  xlab = "Species", sub = "", ...)
     }
     
     if(add.tree.site & !add.tree.sp){
       plx = image(sim[[i]], main = names(sim)[i], ylab = "Site", xlab = "Species", 
-                  sub = "", useAbs = FALSE, scales = list(tck = c(1,0)), colorkey = FALSE,
+                  sub = "", scales = list(tck = c(1,0)), 
                   legend = list(right = list(fun = latticeExtra::dendrogramGrob, 
                                              args = list(x = as.dendrogram(hc_site), 
                                                          side = "right", size = tree.size))), ...)
@@ -2010,7 +2012,7 @@ communityPGLMM.plot.random.effects <- function(
     
     if(add.tree.sp & add.tree.site){
       plx = image(sim[[i]], main = names(sim)[i], ylab = "Site", xlab = "Species", 
-                  sub = "", useAbs = FALSE, scales = list(tck = c(1,0)), colorkey = FALSE,
+                  sub = "", scales = list(tck = c(1,0)),
                   legend = list(top = list(fun = latticeExtra::dendrogramGrob, 
                                            args = list(x = as.dendrogram(hc), 
                                                        side = "top", size = tree.size)),
