@@ -1869,8 +1869,14 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
 #' @param tree.panel.space the number of lines between the phylogeney and the matrix plot, if add.tree is TRUE
 #' @param title.space the number of lines between the title and the matrix plot, if add.tree is TRUE
 #' @param tree.size the height of the phylogeney to be plotted (number of lines), if add.tree is TRUE
-#' @param ... additional arguments for \code{Matrix::image()} or \code{lattice::levelplot()}.
-#' @return a hidden list, including the covariance matrices and simulated site by species matrices. Individual plots are saved as \code{plt_re_list} and \code{plt_sim_list}. If \code{show.image} or \code{show.sim.image} is TRUE, the corresponding final plot (\code{plt_re_all_in_one} or \code{plt_sim_all_in_one}) can be saved as external file using \code{ggplot2::ggsave} as it is a grid object.
+#' @param ... additional arguments for \code{Matrix::image()} or \code{lattice::levelplot()}. Common ones are:
+#' \code{useAbs} whether to use absolute values of the matrix; if no negative values, this will be set to TRUE if not specified. 
+#' When \code{useAbs = TRUE} the color scheme will be black-white, otherwise, it will be red/blue. 
+#' \code{colorkey} whether to draw the scale legend at the right side of each plot?
+#' @return a hidden list, including the covariance matrices and simulated site by species matrices. Individual plots are saved as 
+#' \code{plt_re_list} and \code{plt_sim_list}. If \code{show.image} or \code{show.sim.image} is TRUE, 
+#' the corresponding final plot (\code{plt_re_all_in_one} or \code{plt_sim_all_in_one}) can be saved as external file 
+#' using \code{ggplot2::ggsave} as it is a grid object.
 #' @export
 communityPGLMM.plot.random.effects <- function(
   formula, data, family = "gaussian", tree = NULL, tree_site = NULL, repulsion = FALSE, 
