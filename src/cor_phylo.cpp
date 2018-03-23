@@ -162,7 +162,12 @@ void fit_cor_phylo(LL_obj& ll_obj,
   for (unsigned i = 0; i < n_pars; i++) x[i] = ll_obj.par0(i);
   
   nlopt_opt opt;
-  if (method == "bobyqa") {
+
+  if (method == "neldermead") {
+    opt = nlopt_create(NLOPT_LN_NELDERMEAD, n_pars);
+  } else if (method == "sbplx") {
+    opt = nlopt_create(NLOPT_LN_SBPLX, n_pars);
+  } else if (method == "bobyqa") {
     opt = nlopt_create(NLOPT_LN_BOBYQA, n_pars);
   } else if (method == "cobyla") {
     opt = nlopt_create(NLOPT_LN_COBYLA, n_pars);

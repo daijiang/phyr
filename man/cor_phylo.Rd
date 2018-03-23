@@ -6,9 +6,10 @@
 \title{Correlations among Multiple Traits with Phylogenetic Signal}
 \usage{
 cor_phylo(formulas, species, phy, data = sys.frame(sys.parent()),
-  REML = TRUE, method = c("bobyqa", "cobyla", "praxis"),
-  constrain_d = FALSE, reltol = 1e-06, max_iter = 1000, tmax_SA = 1,
-  verbose = FALSE, boot = 0, boot_out = NULL, n_cores = 1)
+  REML = TRUE, method = c("neldermead", "sbplx", "bobyqa", "cobyla",
+  "praxis"), constrain_d = FALSE, reltol = 1e-06, max_iter = 1000,
+  tmax_SA = 1, verbose = FALSE, boot = 0, boot_out = NULL,
+  n_cores = 1)
 
 \method{print}{cor_phylo}(x, digits = max(3, getOption("digits") - 3), ...)
 }

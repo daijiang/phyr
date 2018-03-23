@@ -319,13 +319,19 @@
 cor_phylo <- function(formulas, species, phy,
                       data = sys.frame(sys.parent()),
                       REML = TRUE, 
-                      method = c("bobyqa", "cobyla", "praxis"), constrain_d = FALSE, 
+                      method = c("neldermead", "sbplx", "bobyqa", "cobyla", "praxis"),
+                      constrain_d = FALSE, 
                       reltol = 1e-6, max_iter = 1000, 
                       tmax_SA = 1, verbose = FALSE,
                       boot = 0, boot_out = NULL, n_cores = 1) {
   
   method <- match.arg(method)
-  
+  if (capture.output(nloptr:::LdFlags()) != " -lm" & 
+      method %in% c("neldermead", "sbplx")) {
+    warning("Using external nlopt library with \"neldermead\" or \"sbplx\" algorithms ",
+            "results in undesired behavior. Changing to \"bobyqa\" algorithm.")
+    method <- "bobyqa"
+  }
   call_ <- match.call()
   
   if (length(formulas) <= 1) {
