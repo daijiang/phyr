@@ -104,6 +104,30 @@ match_comm_tree = function(comm, tree, comm_2 = NULL){
   }
 }
 
+#' Create phylogenetic var-cov matrix
+#'
+#' This function will convert a phylogeny to a Var-cov matrix.
+#'
+#' @param phy a phylogeny with "phylo" as class.
+#' @param corr whether to return a correlation matrix instead of Var-cov matrix. Default is FALSE
+#' @return a phylogenetic var-cov matrix
+#' @export
+#'
+vcv2 = function(phy, corr = FALSE){
+  if (is.null(phy$edge.length)) stop("the tree has no branch lengths")
+  pp <- ape::prop.part(phy)
+  phy <- reorder(phy, "postorder")
+  n <- length(phy$tip.label)
+  e1 <- phy$edge[, 1]
+  e2 <- phy$edge[, 2]
+  EL <- phy$edge.length
+  xx <- numeric(n + phy$Nnode)
+  vcv = vcv_loop(xx, n, e1, e2, EL, pp, corr)
+  dimnames(vcv)[1:2] <- list(phy$tip.label)
+  vcv
+}
+
+
 #' Create phylogenetic var-cov matrix based on phylogeny and community data
 #'
 #' This function will remove species from community data that are not in the phylogeny.

@@ -33,6 +33,7 @@ dat = tidyr::gather(comm, key = "sp", value = "freq", -site) %>%
   left_join(envi, by = "site") %>% 
   left_join(traits, by = "sp")
 dat$pa = as.numeric(dat$freq > 0)
+tree = phylotree
 ```
 
 Then, we start the profvis.
@@ -115,4 +116,28 @@ profvis({
                        family = "binomial", tree = phylotree, REML = T, cpp = T, 
                        optimizer = "Nelder-Mead")
 })
+```
+
+# PSV
+
+### `psv` with R
+
+```{r prof9}
+profvis({
+  psv(comm_sim, tree_sim, cpp = FALSE)
+})
+```
+
+### `psv` with Rcpp
+
+```{r prof10}
+profvis({
+  x <- psv(comm_sim, tree_sim, cpp = TRUE)
+})
+
+microbenchmark::microbenchmark(psv(comm, tree, cpp = FALSE),
+                               psv(comm, tree, cpp = TRUE), times = 100)
+
+microbenchmark::microbenchmark(pse(comm, tree, cpp = FALSE),
+                               pse(comm, tree, cpp = TRUE), times = 100)
 ```

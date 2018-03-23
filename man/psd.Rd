@@ -9,17 +9,20 @@
 \alias{psd}
 \title{Phylogenetic Species Diversity Metrics}
 \usage{
-psv(comm, tree, compute.var = TRUE, scale.vcv = TRUE, prune.tree = FALSE)
+psv(comm, tree, compute.var = TRUE, scale.vcv = TRUE, prune.tree = FALSE,
+  cpp = TRUE)
 
-psr(comm, tree, compute.var = TRUE, scale.vcv = TRUE, prune.tree = FALSE)
+psr(comm, tree, compute.var = TRUE, scale.vcv = TRUE, prune.tree = FALSE,
+  cpp = TRUE)
 
-pse(comm, tree, scale.vcv = TRUE, prune.tree = FALSE)
+pse(comm, tree, scale.vcv = TRUE, prune.tree = FALSE, cpp = TRUE)
 
 psc(comm, tree, scale.vcv = TRUE, prune.tree = FALSE)
 
-psv.spp(comm, tree, scale.vcv = TRUE, prune.tree = FALSE)
+psv.spp(comm, tree, scale.vcv = TRUE, prune.tree = FALSE, cpp = TRUE)
 
-psd(comm, tree, compute.var = TRUE, scale.vcv = TRUE, prune.tree = FALSE)
+psd(comm, tree, compute.var = TRUE, scale.vcv = TRUE, prune.tree = FALSE,
+  cpp = TRUE)
 }
 \arguments{
 \item{comm}{Community data matrix, site as rows and species as columns, site names as row names.}
@@ -35,6 +38,8 @@ matrix to bound the metric between 0 and 1}
 \item{prune.tree}{logical, default is FALSE, prune the phylogeny before converting
 to var-cov matrix? Pruning and then converting VS converting then subsetting may
 have different var-cov matrix resulted.}
+
+\item{cpp}{logical, default is TRUE, whether to use cpp for internal calculations.}
 }
 \value{
 Returns a dataframe of the respective phylogenetic species diversity metric values

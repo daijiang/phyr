@@ -259,6 +259,59 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// which2
+IntegerVector which2(const LogicalVector x);
+RcppExport SEXP _phyr_which2(SEXP xSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const LogicalVector >::type x(xSEXP);
+    rcpp_result_gen = Rcpp::wrap(which2(x));
+    return rcpp_result_gen;
+END_RCPP
+}
+// vcv_loop
+arma::mat vcv_loop(NumericVector xx, int n, NumericVector e1, NumericVector e2, NumericVector EL, List pp, bool corr);
+RcppExport SEXP _phyr_vcv_loop(SEXP xxSEXP, SEXP nSEXP, SEXP e1SEXP, SEXP e2SEXP, SEXP ELSEXP, SEXP ppSEXP, SEXP corrSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type xx(xxSEXP);
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type e1(e1SEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type e2(e2SEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type EL(ELSEXP);
+    Rcpp::traits::input_parameter< List >::type pp(ppSEXP);
+    Rcpp::traits::input_parameter< bool >::type corr(corrSEXP);
+    rcpp_result_gen = Rcpp::wrap(vcv_loop(xx, n, e1, e2, EL, pp, corr));
+    return rcpp_result_gen;
+END_RCPP
+}
+// pse_cpp
+NumericVector pse_cpp(const NumericMatrix& comm, const arma::mat& Cmatrix);
+RcppExport SEXP _phyr_pse_cpp(SEXP commSEXP, SEXP CmatrixSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const NumericMatrix& >::type comm(commSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type Cmatrix(CmatrixSEXP);
+    rcpp_result_gen = Rcpp::wrap(pse_cpp(comm, Cmatrix));
+    return rcpp_result_gen;
+END_RCPP
+}
+// psv_cpp
+DataFrame psv_cpp(const NumericMatrix& comm, const arma::mat& Cmatrix, const bool compute_var);
+RcppExport SEXP _phyr_psv_cpp(SEXP commSEXP, SEXP CmatrixSEXP, SEXP compute_varSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const NumericMatrix& >::type comm(commSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type Cmatrix(CmatrixSEXP);
+    Rcpp::traits::input_parameter< const bool >::type compute_var(compute_varSEXP);
+    rcpp_result_gen = Rcpp::wrap(psv_cpp(comm, Cmatrix, compute_var));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_phyr_pglmm_reml_cpp", (DL_FUNC) &_phyr_pglmm_reml_cpp, 5},
@@ -275,6 +328,10 @@ static const R_CallMethodDef CallEntries[] = {
     {"_phyr_pglmm_gaussian_LL_cpp", (DL_FUNC) &_phyr_pglmm_gaussian_LL_cpp, 8},
     {"_phyr_pglmm_gaussian_LL_calc_cpp", (DL_FUNC) &_phyr_pglmm_gaussian_LL_calc_cpp, 7},
     {"_phyr_pglmm_gaussian_internal_cpp", (DL_FUNC) &_phyr_pglmm_gaussian_internal_cpp, 15},
+    {"_phyr_which2", (DL_FUNC) &_phyr_which2, 1},
+    {"_phyr_vcv_loop", (DL_FUNC) &_phyr_vcv_loop, 7},
+    {"_phyr_pse_cpp", (DL_FUNC) &_phyr_pse_cpp, 2},
+    {"_phyr_psv_cpp", (DL_FUNC) &_phyr_psv_cpp, 3},
     {NULL, NULL, 0}
 };
 

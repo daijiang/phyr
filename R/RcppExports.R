@@ -57,3 +57,19 @@ pglmm_gaussian_internal_cpp <- function(par, X, Y, Zt, St, nested, REML, verbose
     .Call(`_phyr_pglmm_gaussian_internal_cpp`, par, X, Y, Zt, St, nested, REML, verbose, optimizer, maxit, reltol, q, n, p, Pi)
 }
 
+which2 <- function(x) {
+    .Call(`_phyr_which2`, x)
+}
+
+vcv_loop <- function(xx, n, e1, e2, EL, pp, corr) {
+    .Call(`_phyr_vcv_loop`, xx, n, e1, e2, EL, pp, corr)
+}
+
+pse_cpp <- function(comm, Cmatrix) {
+    .Call(`_phyr_pse_cpp`, comm, Cmatrix)
+}
+
+psv_cpp <- function(comm, Cmatrix, compute_var) {
+    .Call(`_phyr_psv_cpp`, comm, Cmatrix, compute_var)
+}
+
