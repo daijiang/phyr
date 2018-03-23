@@ -221,13 +221,13 @@ void fit_cor_phylo(LL_obj& ll_obj,
 //' If `U` isn't empty, this function makes each column in each matrix have
 //' mean of zero and standard deviation of 1, unless all values are the same, in which
 //' case it keeps the standard deviation at zero.
-//' Divides each column of `SeM` by the original standard deviation of that column in 
+//' Divides each column of `M` by the original standard deviation of that column in 
 //' `X`.
 //' 
 //' 
 //' @inheritParams X cor_phylo_
 //' @inheritParams U cor_phylo_
-//' @inheritParams SeM cor_phylo_
+//' @inheritParams M cor_phylo_
 //' 
 //' @return Nothing. Matrices are standardized in place.
 //' 
@@ -236,7 +236,7 @@ void fit_cor_phylo(LL_obj& ll_obj,
 //' 
 void standardize_matrices(arma::mat& X,
                           std::vector<arma::mat>& U,
-                          arma::mat& SeM) {
+                          arma::mat& M) {
   
   uint_t p = X.n_cols;
   
@@ -244,7 +244,7 @@ void standardize_matrices(arma::mat& X,
     double sd = arma::stddev(X.col(i));
     X.col(i) -= arma::mean(X.col(i));
     X.col(i) /= sd;
-    SeM.col(i) /= sd;
+    M.col(i) /= sd;
   }
   
   if (U.size() > 0) {
@@ -270,7 +270,7 @@ void standardize_matrices(arma::mat& X,
 //' 
 //' @inheritParams X cor_phylo_
 //' @inheritParams U cor_phylo_
-//' @inheritParams SeM cor_phylo_
+//' @inheritParams M cor_phylo_
 //' @inheritParams Vphy_ cor_phylo_
 //' @inheritParams REML_ cor_phylo_
 //' @inheritParams constrain_d_ cor_phylo_
@@ -283,7 +283,7 @@ void standardize_matrices(arma::mat& X,
 //' 
 LL_obj::LL_obj(const arma::mat& X,
                const std::vector<arma::mat>& U,
-               const arma::mat& SeM,
+               const arma::mat& M,
                const arma::mat& Vphy_,
                const bool& REML_,
                const bool& constrain_d_,
@@ -302,7 +302,7 @@ LL_obj::LL_obj(const arma::mat& X,
   
   arma::mat Xs = X;
   std::vector<arma::mat> Us = U;
-  arma::mat SeMs = SeM;
+  arma::mat SeMs = M;
   standardize_matrices(Xs, Us, SeMs);
   
   
@@ -478,7 +478,7 @@ List cp_get_output(const arma::mat& X,
 //' @param X a n x p matrix with p columns containing the values for the n taxa.
 //' @param U a list of p matrices corresponding to the p columns of `X`, with each 
 //'   matrix containing independent variables for the corresponding column of `X`.
-//' @param SeM a n x p matrix with p columns containing standard errors of the trait 
+//' @param M a n x p matrix with p columns containing standard errors of the trait 
 //'   values in `X`. 
 //' @param Vphy_ phylogenetic variance-covariance matrix from the input phylogeny.
 //' @param REML whether REML (versus ML) is used for model fitting.
@@ -504,7 +504,7 @@ List cp_get_output(const arma::mat& X,
 //[[Rcpp::export]]
 List cor_phylo_(const arma::mat& X,
                 const std::vector<arma::mat>& U,
-                const arma::mat& SeM,
+                const arma::mat& M,
                 const arma::mat& Vphy_,
                 const bool& REML,
                 const bool& constrain_d,
@@ -513,7 +513,7 @@ List cor_phylo_(const arma::mat& X,
                 const std::string& method) {
   
   // LL_obj is C++ class to use for nlopt optimizing
-  LL_obj ll_obj(X, U, SeM, Vphy_, REML, constrain_d, verbose);
+  LL_obj ll_obj(X, U, M, Vphy_, REML, constrain_d, verbose);
   
   // Do the fitting
   fit_cor_phylo(ll_obj, max_iter, method);

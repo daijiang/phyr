@@ -89,7 +89,7 @@ public:
   LL_obj() {}
   LL_obj(const arma::mat& X,
          const std::vector<arma::mat>& U,
-         const arma::mat& SeM,
+         const arma::mat& M,
          const arma::mat& Vphy_,
          const bool& REML_,
          const bool& constrain_d_,

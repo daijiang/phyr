@@ -64,7 +64,7 @@ extract_species <- function(species, data, phy) {
 
 
 # ----------------
-# Extract X, U, and SeM matrices from one formula
+# Extract X, U, and M matrices from one formula
 # ----------------
 
 # This is to be run after `check_phy` and `extract_species` functions
@@ -82,7 +82,7 @@ extract_matrices <- function(formula, data, phy, spp_vec) {
   
   # If there are any "|" in the terms, this indicates measurement error
   # Have to do this first so the formula gets "| measurement error" part removed
-  SeM <- matrix(0, nrow = n, ncol = 1)
+  M <- matrix(0, nrow = n, ncol = 1)
   if (length(attr(terms(formula), 'term.labels')) == 1) {
     if (grepl("\\|", attr(terms(formula), 'term.labels'))) {
       term_se <- strsplit(attr(terms(formula), 'term.labels'), "\\|")[[1]]
@@ -98,21 +98,21 @@ extract_matrices <- function(formula, data, phy, spp_vec) {
              call. = FALSE)
       } 
       se <- gsub("\\s+", "", term_se[2])
-      # Extract SeM from data:
+      # Extract M from data:
       if (inherits(data, "data.frame")) {
-        SeM <- as.matrix(data[, se, drop = FALSE])
+        M <- as.matrix(data[, se, drop = FALSE])
       } else if (inherits(data, "list")) {
-        SeM <- cbind(data[[se]])
-        colnames(SeM) <- se
+        M <- cbind(data[[se]])
+        colnames(M) <- se
       } else if (inherits(data, "environment")) {
-        SeM <- eval(parse(text = se), envir = data)
-        SeM <- cbind(as.numeric(SeM))
-        colnames(SeM) <- se
+        M <- eval(parse(text = se), envir = data)
+        M <- cbind(as.numeric(M))
+        colnames(M) <- se
       }
       # Update formula:
       formula <- as.formula(paste0(terms(formula)[[2]], "~", term_se[1]))
-      # Make sure the SeM object is of proper length:
-      if (length(SeM) != n) {
+      # Make sure the M object is of proper length:
+      if (length(M) != n) {
         stop("\nIn the call to cor_phylo, the number of items in the ",
              "measurement error vector/column does not match the length of ",
              "the tree.",
@@ -146,9 +146,9 @@ extract_matrices <- function(formula, data, phy, spp_vec) {
   order_ <- match(phy$tip.label, spp_vec)
   X <- X[order_, , drop = FALSE]
   U <- U[order_, , drop = FALSE]
-  SeM <- SeM[order_, , drop = FALSE]
+  M <- M[order_, , drop = FALSE]
   
-  return(list(X = X, U = U, SeM = SeM))
+  return(list(X = X, U = U, M = M))
 }
 
 
