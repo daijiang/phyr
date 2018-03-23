@@ -1,10 +1,17 @@
 # Functions for extracting info from cor_phylo call
 
 
-# ----------------
-# Check phylogeny and reorder it
-# ----------------
-
+#' Check phylogeny for cor_phylo and reorder it.
+#' 
+#' It checks for it being `phylo` class, having branch lengths, and having tip labels.
+#'
+#' @inheritParams phy cor_phylo
+#'
+#' @return a phylogenetic tree that's been reordered using
+#'   `ape::reorder.phylo(phy, "postorder")`
+#'
+#' @noRd
+#' 
 check_phy <- function(phy) {
   if (!inherits(phy, "phylo")) {
     stop("\nIn the call to cor_phylo the input phylogeny is not of class \"phylo\".",
@@ -24,14 +31,20 @@ check_phy <- function(phy) {
 
 
 
-# ----------------
-# Extract vector of species names from the `species` argument
-# ----------------
 
+#' Extract vector of species names from the `species` argument in `cor_phylo`
+#'
+#' @inheritParams species cor_phylo
+#' @inheritParams data cor_phylo
+#' @inheritParams phy cor_phylo
+#'
+#' @return a vector of species names
+#'
+#' @noRd
+#' 
 extract_species <- function(species, data, phy) {
   
   n <- length(phy$tip.label)
-  
   
   if (!length(species) %in% c(1, n)) {
     stop("\nThe species argument to cor_phylo must be a vector ",
@@ -63,12 +76,21 @@ extract_species <- function(species, data, phy) {
 
 
 
-# ----------------
-# Extract X, U, and M matrices from one formula
-# ----------------
 
-# This is to be run after `check_phy` and `extract_species` functions
-
+#' Extract `X`, `U`, and `M` matrices from one formula.
+#' 
+#' This is to be run after `check_phy` and `extract_species` functions.
+#'
+#' @param formula a single formula from a call to `cor_phylo`.
+#'   See \code{\link{cor_phylo}} for more information on the forms these should take.
+#' @inheritParams data cor_phylo
+#' @inheritParams phy cor_phylo
+#' @param spp_vec a vector of species names
+#'
+#' @return a list containing the `X`, `U`, and `M` matrices.
+#' 
+#' @noRd
+#'
 extract_matrices <- function(formula, data, phy, spp_vec) {
   
   n <- length(phy$tip.label)
@@ -154,11 +176,14 @@ extract_matrices <- function(formula, data, phy, spp_vec) {
 
 
 
-
-# ----------------
-# Get parameter names from formulas
-# ----------------
-
+#' Get parameter names from formulas.
+#'
+#' @inheritParams formulas cor_phylo
+#'
+#' @return a vector of parameter names, first for the `U` matrix, then for the
+#' 
+#' @noRd
+#'
 get_par_names <- function(formulas) {
   
   B <- sapply(formulas, function(x) paste(x)[2])
