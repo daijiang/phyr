@@ -39,20 +39,31 @@
 #' @examples 
 #' psv(comm = comm_a, tree = phylotree) 
 
-psv <- function(comm, tree, compute.var = TRUE, scale.vcv = TRUE, prune.tree = FALSE) {
-    # Make comm matrix a pa matrix
-    comm[comm > 0] = 1
-    
-    flag = 0
-    # if the comm matrix only has one site
-    if (is.null(dim(comm))) {
-        comm = rbind(comm, comm)
-        flag = 2
-    }
-    
-    dat = align_comm_V(comm, tree, prune.tree, scale.vcv)
-    comm = dat$comm
-    Cmatrix = dat$Cmatrix
+psv <- function(comm, tree, compute.var = TRUE, scale.vcv = TRUE,
+                prune.tree = FALSE, cpp = TRUE) {
+  # Make comm matrix a pa matrix
+  if (any(comm > 1)) comm[comm > 0] = 1
+  
+  flag = 0
+  # if the comm matrix only has one site
+  if (is.null(dim(comm))) {
+    comm = rbind(comm, comm)
+    flag = 2
+  }
+  
+  dat = align_comm_V(comm, tree, prune.tree, scale.vcv)
+  comm = dat$comm
+  Cmatrix = dat$Cmatrix
+  
+  if (cpp) {
+    PSVout_cpp = psv_cpp(as.matrix(comm), Cmatrix, compute.var)
+    if (flag == 2)
+      PSVout_cpp = PSVout_cpp[-2,]
+    if (!compute.var)
+      PSVout_cpp$vars = NULL
+    row.names(PSVout_cpp) = row.names(comm)
+    return(PSVout_cpp)
+  } else {
     # numbers of locations and species
     SR = rowSums(comm)
     nlocations = dim(comm)[1]
@@ -62,68 +73,73 @@ psv <- function(comm, tree, compute.var = TRUE, scale.vcv = TRUE, prune.tree = F
     PSVs = vector(mode = "numeric", length = nlocations)  # better to pre-allocate memory
     
     for (i in 1:nlocations) {
-        index = which(comm[i, ] > 0)  #species present
-        n = length(index)  # number of species present
-        if (n > 1) {
-            C = Cmatrix[index, index]  # C for individual locations
-            PSV = (n * sum(diag(as.matrix(C))) - sum(C))/(n * (n - 1))
-        } else {
-            PSV = NA
-        }
-        PSVs[i] = PSV
+      index = which(comm[i,] > 0)  #species present
+      n = length(index)  # number of species present
+      if (n > 1) {
+        C = Cmatrix[index, index]  # C for individual locations
+        PSV = (n * sum(diag(as.matrix(C))) - sum(C)) / (n * (n - 1))
+      } else {
+        PSV = NA
+      }
+      PSVs[i] = PSV
     }
     PSVout = as.data.frame(cbind(PSVs, SR))
     
     if (flag == 2) {
-        PSVout = PSVout[-2, ]
-        return(PSVout)
-    } else {
-        if (compute.var == FALSE | nspecies == 1) {
-          if(compute.var & nspecies == 1) message("Only 1 species, no variation")
-            return(data.frame(PSVout))
-        } else {
-            X = Cmatrix - (sum(Cmatrix - diag(nspecies)))/(nspecies * (nspecies - 1))
-            diag(X) = 0
-            
-            SS1 = sum(X * X)/2
-            
-            ss2 = matrix(0, nspecies, nspecies)
-            for (i in 1:(nspecies - 1)) {
-                sumi = sum(X[i, ])
-                for (j in (i + 1):nspecies) {
-                  ss2[i, j] = X[i, j] * (sumi - X[i, j])
-                }
-            }
-            SS2 = sum(ss2[upper.tri(ss2)])
-            
-            SS3 = -SS1 - SS2
-            
-            S1 = SS1 * 2/(nspecies * (nspecies - 1))
-            S2 = SS2 * 2/(nspecies * (nspecies - 1) * (nspecies - 2))
-            
-            if (nspecies == 3) {
-                S3 = 0
-            } else {
-                S3 = SS3 * 2/(nspecies * (nspecies - 1) * (nspecies - 2) * (nspecies - 3))
-            }
-            
-            PSVvar = data.frame(x = 2:nspecies, y = NA)
-            for (n in 2:nspecies) {
-                PSVvar$y[n - 1] = 2/(n * (n - 1)) * (S1 + (n - 2) * S2 + (n - 2) * (n - 3) * S3)
-            }
-            
-            PSVout$vars = 0
-            
-            for (g in 1:nlocations) {
-                if (PSVout[g, 2] > 1) {
-                  PSVout[g, 3] = PSVvar[PSVout[g, 2] - 1, 2]
-                } else {
-                  PSVout[g, 3] = NA
-                }
-            }
-            return(PSVout)
-        }
+      PSVout = PSVout[-2,]
+      return(PSVout)
     }
+    
+    PSVout$vars = 0
+    if (flag == 0) {
+      if (compute.var == FALSE | nspecies == 1) {
+        if (compute.var &
+            nspecies == 1)
+          message("Only 1 species, no variation")
+        return(data.frame(PSVout[, -3]))
+      } else {
+        X = Cmatrix - (sum(Cmatrix - diag(nspecies))) / (nspecies * (nspecies - 1))
+        diag(X) = 0
+        
+        SS1 = sum(X * X) / 2
+        
+        ss2 = matrix(0, nspecies, nspecies)
+        for (i in 1:(nspecies - 1)) {
+          sumi = sum(X[i,])
+          for (j in (i + 1):nspecies) {
+            ss2[i, j] = X[i, j] * (sumi - X[i, j])
+          }
+        }
+        SS2 = sum(ss2[upper.tri(ss2)])
+        
+        SS3 = -SS1 - SS2
+        
+        S1 = SS1 * 2 / (nspecies * (nspecies - 1))
+        S2 = SS2 * 2 / (nspecies * (nspecies - 1) * (nspecies - 2))
+        
+        if (nspecies == 3) {
+          S3 = 0
+        } else {
+          S3 = SS3 * 2 / (nspecies * (nspecies - 1) * (nspecies - 2) * (nspecies - 3))
+        }
+        
+        PSVvar = data.frame(x = 2:nspecies, y = NA)
+        for (n in 2:nspecies) {
+          PSVvar$y[n - 1] = 2 / (n * (n - 1)) * (S1 + (n - 2) * S2 + (n - 2) * (n - 3) * S3)
+        }
+        
+        for (g in 1:nlocations) {
+          if (PSVout[g, 2] > 1) {
+            # more than 1 sp
+            PSVout[g, 3] = PSVvar[PSVout[g, 2] - 1, 2]
+          } else {
+            PSVout[g, 3] = NA
+          }
+        }
+      }
+    }
+    return(PSVout)
+  }
 }
 
 #' @rdname psd
