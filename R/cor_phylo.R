@@ -156,7 +156,8 @@ cp_extract_matrices <- function(formula, data, phy, spp_vec) {
 #'
 #' @inheritParams formulas cor_phylo
 #'
-#' @return a vector of parameter names, first for the `U` matrix, then for the
+#' @return a list of parameter names, first a character vector of names for the `U`
+#'   matrix, then a vector for the `M` matrix
 #' 
 #' @noRd
 #'
@@ -190,10 +191,15 @@ cp_get_par_names <- function(formulas) {
 
 
 
-# ----------------
-# Get row names for output based on parameter names
-# ----------------
 
+#' Get row names for output based on parameter names.
+#'
+#' @param par_names a list of parameter names
+#'
+#' @return a vector of row names
+#' 
+#' @noRd
+#'
 cp_get_row_names <- function(par_names) {
   
   row_names <- lapply(names(par_names[[1]]),
