@@ -13,31 +13,126 @@ binpglmm_inter_while_cpp2 <- function(est_B_m, B, mu, C, rcondflag, B_init, X, X
     .Call(`_phyr_binpglmm_inter_while_cpp2`, est_B_m, B, mu, C, rcondflag, B_init, X, XX, est_B, y, n, b)
 }
 
+#' Log likelihood function.
+#' 
+#' Note that this function is referred to the "objective function" in the `nlopt`
+#' documentation and the input arguments should not be changed.
+#' See
+#' [here](https://nlopt.readthedocs.io/en/latest/NLopt_Reference/#objective-function)
+#' for more information.
+#' 
+#' @param n the number of optimization parameters
+#' @param x an array of length `n` of the optimization parameters
+#' @param grad an array that is not used here, but the `nlopt` documentation describes
+#'   it as such: "an array of length `n` which should (upon return) be set to the 
+#'   gradient of the function with respect to the optimization parameters at `x`."
+#' @param f_data pointer to an object with additional information for the function.
+#'   In this function's case, it is an object of class `LL_obj`.
+#' 
+#' @return the negative log likelihood
+#' 
+#' @name cor_phylo_LL
+#' @noRd
+#' 
+NULL
+
+#' Fit cor_phylo model using nlopt.
+#'
+#'
+#' @inheritParams ll_obj cp_get_output
+#' @inheritParams max_iter cor_phylo_
+#' @inheritParams method cor_phylo_
+#' 
+#' @return Nothing. `ll_obj` is modified in place to have info from the model fit
+#'   after this function is run.
+#'
+#' @name fit_cor_phylo
+#' @noRd
+#' 
+NULL
+
+#' Standardize matrices in place.
+#' 
+#' Makes each column of the `X` matrix have mean of zero and standard deviation of 1.
+#' If `U` isn't empty, this function makes each column in each matrix have
+#' mean of zero and standard deviation of 1, unless all values are the same, in which
+#' case it keeps the standard deviation at zero.
+#' Divides each column of `SeM` by the original standard deviation of that column in 
+#' `X`.
+#' 
+#' 
+#' @inheritParams X cor_phylo_
+#' @inheritParams U cor_phylo_
+#' @inheritParams SeM cor_phylo_
+#' 
+#' @return Nothing. Matrices are standardized in place.
+#' 
+#' @name standardize_matrices
+#' @noRd
+#' 
+NULL
+
+#' Make an `LL_obj` object based on input matrices.
+#' 
+#' This `LL_obj` is used for model fitting.
+#' 
+#' @inheritParams X cor_phylo_
+#' @inheritParams U cor_phylo_
+#' @inheritParams SeM cor_phylo_
+#' @inheritParams Vphy_ cor_phylo_
+#' @inheritParams REML_ cor_phylo_
+#' @inheritParams constrain_d_ cor_phylo_
+#' @inheritParams verbose_ cor_phylo_
+#' 
+#' @return a LL_obj that contains info necessary for model fitting
+#' 
+#' @name LL_obj
+#' @noRd
+#' 
+NULL
+
+#' Retrieve objects for output `cor_phylo` object.
+#' 
+#' @inheritParams X cor_phylo_
+#' @inheritParams U cor_phylo_
+#' @param ll_obj an LL_obj object that contains info necessary to fit the model.
+#'   After optimization, it contains info from the model fit.
+#' 
+#' @return a list containing output information, to later be coerced to a `cor_phylo`
+#'   object by the `cor_phylo` function.
+#' 
+#' @name cp_get_output
+#' @noRd
+#' 
+NULL
+
 #' Inner function to create necessary matrices and do model fitting.
 #' 
 #' @param X a n x p matrix with p columns containing the values for the n taxa.
-#' @param U a list of p matrices corresponding to the p columns of X, with each 
-#'     matrix containing independent variables for the corresponding column of X.
+#' @param U a list of p matrices corresponding to the p columns of `X`, with each 
+#'   matrix containing independent variables for the corresponding column of `X`.
 #' @param SeM a n x p matrix with p columns containing standard errors of the trait 
-#'     values in X. 
-#' @param Vphy_ 
-#' @param REML whether REML or ML is used for model fitting.
-#' @param constrain_d if constrain.d is TRUE, the estimates of d are constrained to 
-#'     be between zero and 1. This can make estimation more stable and can be 
-#'     tried if convergence is problematic. This does not necessarily lead to 
-#'     loss of generality of the results, because before using corphylo, branch 
-#'     lengths of phy can be transformed so that the "starter" tree has strong 
-#'     phylogenetic signal.
-#' @param verbose if TRUE, the model logLik and running estimates of the correlation 
-#'     coefficients and values of d are printed each iteration during optimization.
+#'   values in `X`. 
+#' @param Vphy_ phylogenetic variance-covariance matrix from the input phylogeny.
+#' @param REML whether REML (versus ML) is used for model fitting.
+#' @param constrain_d if `TRUE`, the estimates of `d` 
+#'   are constrained to be between zero and 1.
+#'   This can make estimation more stable and can be tried if convergence 
+#'   is problematic.
+#'   This does not necessarily lead to loss of generality of the results, 
+#'   because before using `cor_phylo`, branch lengths of the input phylogeny
+#'   can be transformed so that the "starter" tree has strong phylogenetic signal.
+#' @param verbose if `TRUE`, the model `logLik` and running estimates of the correlation 
+#'   coefficients and values of `d` are printed each iteration during optimization.
 #' @param max_iter the maximum number of iterations in the optimization.
-#' @param method method of optimization using nlopt. Options include 
-#'     "bobyqa", "cobyla", "praxis". See
-#'     \url{https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/} for more 
-#'     information.
+#' @param method method of optimization using `nlopt`. Options include 
+#'   "neldermead", "sbplx", "bobyqa", "cobyla", "praxis". See
+#'   \url{https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/} for more 
+#'   information.
 #' 
-#' @return List containing output information, to be coerced to a cor_phylo object.
-#' 
+#' @return a list containing output information, to later be coerced to a `cor_phylo`
+#'   object by the `cor_phylo` function.
+#' @noRd
 #' 
 cor_phylo_ <- function(X, U, SeM, Vphy_, REML, constrain_d, verbose, max_iter, method) {
     .Call(`_phyr_cor_phylo_`, X, U, SeM, Vphy_, REML, constrain_d, verbose, max_iter, method)

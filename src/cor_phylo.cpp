@@ -22,20 +22,41 @@ using namespace Rcpp;
 
 
 /*
-***************************************************************************************
-***************************************************************************************
-***************************************************************************************
-***************************************************************************************
+ ***************************************************************************************
+ ***************************************************************************************
+ ***************************************************************************************
+ ***************************************************************************************
+ 
+ Log likelihood function
+ 
+ ***************************************************************************************
+ ***************************************************************************************
+ ***************************************************************************************
+ ***************************************************************************************
+ */
 
-Log likelihood function
-
-***************************************************************************************
-***************************************************************************************
-***************************************************************************************
-***************************************************************************************
-*/
-
-double corphylo_LL_(unsigned n, const double* x, double* grad, void* f_data) {
+//' Log likelihood function.
+//' 
+//' Note that this function is referred to the "objective function" in the `nlopt`
+//' documentation and the input arguments should not be changed.
+//' See
+//' [here](https://nlopt.readthedocs.io/en/latest/NLopt_Reference/#objective-function)
+//' for more information.
+//' 
+//' @param n the number of optimization parameters
+//' @param x an array of length `n` of the optimization parameters
+//' @param grad an array that is not used here, but the `nlopt` documentation describes
+//'   it as such: "an array of length `n` which should (upon return) be set to the 
+//'   gradient of the function with respect to the optimization parameters at `x`."
+//' @param f_data pointer to an object with additional information for the function.
+//'   In this function's case, it is an object of class `LL_obj`.
+//' 
+//' @return the negative log likelihood
+//' 
+//' @name cor_phylo_LL
+//' @noRd
+//' 
+double cor_phylo_LL(unsigned n, const double* x, double* grad, void* f_data) {
   
   LL_obj* ll_obj = (LL_obj*) f_data;
   
@@ -99,18 +120,33 @@ double corphylo_LL_(unsigned n, const double* x, double* grad, void* f_data) {
 
 
 /*
-***************************************************************************************
-***************************************************************************************
-***************************************************************************************
-***************************************************************************************
+ ***************************************************************************************
+ ***************************************************************************************
+ ***************************************************************************************
+ ***************************************************************************************
+ 
+ Fit using nlopt
+ 
+ ***************************************************************************************
+ ***************************************************************************************
+ ***************************************************************************************
+ ***************************************************************************************
+ */
 
-Fit using nlopt
 
-***************************************************************************************
-***************************************************************************************
-***************************************************************************************
-***************************************************************************************
-*/
+//' Fit cor_phylo model using nlopt.
+//'
+//'
+//' @inheritParams ll_obj cp_get_output
+//' @inheritParams max_iter cor_phylo_
+//' @inheritParams method cor_phylo_
+//' 
+//' @return Nothing. `ll_obj` is modified in place to have info from the model fit
+//'   after this function is run.
+//'
+//' @name fit_cor_phylo
+//' @noRd
+//' 
 void fit_cor_phylo(LL_obj& ll_obj,
                    const int& max_iter,
                    const std::string& method) {
@@ -137,7 +173,7 @@ void fit_cor_phylo(LL_obj& ll_obj,
   }
   double min_LL;
   
-  nlopt_set_min_objective(opt, corphylo_LL_, llop);
+  nlopt_set_min_objective(opt, cor_phylo_LL, llop);
   
   nlopt_set_ftol_rel(opt, VERY_SMALL_TOL);
   nlopt_set_maxeval(opt, max_iter);
@@ -160,24 +196,41 @@ void fit_cor_phylo(LL_obj& ll_obj,
 
 
 /*
-***************************************************************************************
-***************************************************************************************
-***************************************************************************************
-***************************************************************************************
+ ***************************************************************************************
+ ***************************************************************************************
+ ***************************************************************************************
+ ***************************************************************************************
+ 
+ Other functions
+ 
+ ***************************************************************************************
+ ***************************************************************************************
+ ***************************************************************************************
+ ***************************************************************************************
+ */
 
-Other functions
 
-***************************************************************************************
-***************************************************************************************
-***************************************************************************************
-***************************************************************************************
-*/
-
-/*
-Standardize matrices in place
-*/
-
-void standardize_matrices(arma::mat& X, std::vector<arma::mat>& U,
+//' Standardize matrices in place.
+//' 
+//' Makes each column of the `X` matrix have mean of zero and standard deviation of 1.
+//' If `U` isn't empty, this function makes each column in each matrix have
+//' mean of zero and standard deviation of 1, unless all values are the same, in which
+//' case it keeps the standard deviation at zero.
+//' Divides each column of `SeM` by the original standard deviation of that column in 
+//' `X`.
+//' 
+//' 
+//' @inheritParams X cor_phylo_
+//' @inheritParams U cor_phylo_
+//' @inheritParams SeM cor_phylo_
+//' 
+//' @return Nothing. Matrices are standardized in place.
+//' 
+//' @name standardize_matrices
+//' @noRd
+//' 
+void standardize_matrices(arma::mat& X,
+                          std::vector<arma::mat>& U,
                           arma::mat& SeM) {
   
   uint_t p = X.n_cols;
@@ -206,10 +259,23 @@ void standardize_matrices(arma::mat& X, std::vector<arma::mat>& U,
 
 
 
-/*
-Get matrices used for analyses based on processed input matrices
-*/
-
+//' Make an `LL_obj` object based on input matrices.
+//' 
+//' This `LL_obj` is used for model fitting.
+//' 
+//' @inheritParams X cor_phylo_
+//' @inheritParams U cor_phylo_
+//' @inheritParams SeM cor_phylo_
+//' @inheritParams Vphy_ cor_phylo_
+//' @inheritParams REML_ cor_phylo_
+//' @inheritParams constrain_d_ cor_phylo_
+//' @inheritParams verbose_ cor_phylo_
+//' 
+//' @return a LL_obj that contains info necessary for model fitting
+//' 
+//' @name LL_obj
+//' @noRd
+//' 
 LL_obj::LL_obj(const arma::mat& X,
                const std::vector<arma::mat>& U,
                const arma::mat& SeM,
@@ -291,23 +357,26 @@ LL_obj::LL_obj(const arma::mat& X,
 
 
 
-/*
-Retrieve objects for output corphylo object.
-
-Similarities and differences from corphylo_LL are shown in code, to hopefully ease
-simplification later on.
-Commented-out lines are used in corphylo_LL but not in this function.
-Lines in this function that are different from corphylo_LL are indicated.
-*/
-
-List get_output(const arma::mat& X,
-                const std::vector<arma::mat>& U,
-                LL_obj& llo) {
+//' Retrieve objects for output `cor_phylo` object.
+//' 
+//' @inheritParams X cor_phylo_
+//' @inheritParams U cor_phylo_
+//' @param ll_obj an LL_obj object that contains info necessary to fit the model.
+//'   After optimization, it contains info from the model fit.
+//' 
+//' @return a list containing output information, to later be coerced to a `cor_phylo`
+//'   object by the `cor_phylo` function.
+//' 
+//' @name cp_get_output
+//' @noRd
+//' 
+List cp_get_output(const arma::mat& X,
+                   const std::vector<arma::mat>& U,
+                   LL_obj& ll_obj) {
   
   /*
-  Extract the only info we any longer need from X and U
-  (This chunk is not present in corphylo_LL)
-  */
+   Extract the only info we any longer need from X and U
+   */
   arma::mat mean_sd_X(X.n_cols, 2);
   mean_sd_X.col(0) = arma::conv_to<arma::vec>::from(arma::mean(X));
   mean_sd_X.col(1) = arma::conv_to<arma::vec>::from(arma::stddev(X));
@@ -317,86 +386,69 @@ List get_output(const arma::mat& X,
   }
   
   
-  uint_t n = llo.Vphy.n_rows;
-  uint_t p = llo.XX.n_rows / n;
+  uint_t n = ll_obj.Vphy.n_rows;
+  uint_t p = ll_obj.XX.n_rows / n;
   
-  arma::mat L = make_L(llo.min_par, n, p);
+  arma::mat L = make_L(ll_obj.min_par, n, p);
   
   arma::mat R = L.t() * L;
-  
-  /*
-  Next line not present in corphylo_LL
-  */
+
   arma::mat corrs = make_corrs(R);
   
-  arma::vec d = make_d(llo.min_par, n, p, llo.constrain_d);
+  arma::vec d = make_d(ll_obj.min_par, n, p, ll_obj.constrain_d);
   
   // OU transform
-  arma::mat C = make_C(n, p, llo.tau, d, llo.Vphy, R);
+  arma::mat C = make_C(n, p, ll_obj.tau, d, ll_obj.Vphy, R);
   
-  arma::mat V = make_V(C, llo.MM);
-  // double rcond_dbl = arma::rcond(V);
-  // if (!arma::is_finite(rcond_dbl) || rcond_dbl < COND_MIN) return MAX_RETURN;
+  arma::mat V = make_V(C, ll_obj.MM);
   
   arma::mat iV = arma::inv(V);
   
-  arma::mat denom = tp(llo.UU) * iV * llo.UU;
-  // rcond_dbl = arma::rcond(denom);
-  // if (!arma::is_finite(rcond_dbl) || rcond_dbl < COND_MIN) return MAX_RETURN;
+  arma::mat denom = tp(ll_obj.UU) * iV * ll_obj.UU;
   
-  arma::mat num = tp(llo.UU) * iV * llo.XX;
+  arma::mat num = tp(ll_obj.UU) * iV * ll_obj.XX;
   arma::vec B0 = arma::solve(denom, num);
-  // arma::mat H = XX - UU * B0; // not necessary here, but is for corphylo_LL
   
-  /*
-  This chunk isn't in corphylo_LL
-  */
   arma::mat B;
   arma::vec sd_vec;
   arma::mat B_cov;
-  make_sd_B_mat_cov(B, sd_vec, B_cov, B0, p, iV, llo.UU, mean_sd_X, sd_U);
-  
-  
-  // double logdetV, det_sign;
-  // arma::log_det(logdetV, det_sign, iV);
-  // // if (!arma::is_finite(logdetV)) return MAX_RETURN;
-  // logdetV *= -1;
-  
-  /*
-  This chunk is pretty different from corphylo_LL
-  */
+  make_sd_B_mat_cov(B, sd_vec, B_cov, B0, p, iV, ll_obj.UU, mean_sd_X, sd_U);
   
   double logLik = -0.5 * std::log(2 * arma::datum::pi);
-  if (llo.REML) {
-    logLik *= (n * p - llo.UU.n_cols);
-    arma::mat to_det = tp(llo.XX) * llo.XX;
+  if (ll_obj.REML) {
+    logLik *= (n * p - ll_obj.UU.n_cols);
+    arma::mat to_det = tp(ll_obj.XX) * ll_obj.XX;
     double det_val, det_sign;
     arma::log_det(det_val, det_sign, to_det);
-    logLik += 0.5 * det_val - llo.LL;
+    logLik += 0.5 * det_val - ll_obj.LL;
   } else {
     logLik *= (n * p);
-    logLik -= llo.LL;
+    logLik -= ll_obj.LL;
   }
   
-  double k = llo.min_par.n_elem + llo.UU.n_cols;
+  double k = ll_obj.min_par.n_elem + ll_obj.UU.n_cols;
   double AIC, BIC;
   AIC = -2 * logLik + 2 * k;
   BIC = -2 * logLik + k * std::log(n / arma::datum::pi);
   
-  // if (verbose) {
-  //     Rcout << llo.LL << ' ';
-  //     for (uint_t i = 0; i < llo.min_par.n_elem; i++) Rcout << llo.min_par(i) << ' ';
-  //     Rcout << std::endl;
-  // }
-  
-  XPtr<cp_matrices> cpm(new cp_matrices(mean_sd_X, sd_U, llo.XX, llo.UU,
-                                        llo.MM, llo.Vphy, R, V, C, B),
+  /*
+   Making `Rcpp::XPtr` smart pointers to store C++ objects in R because these 
+   matrices shouldn't be needed directly in R.
+   I like to convert these `XPtr` objects to `SEXP` to make it very explicit that
+   I want to pass them back to R.
+   */
+  // `cp_matrices` stores matrices that we'll need for bootstrapping
+  XPtr<cp_matrices> cpm(new cp_matrices(mean_sd_X, sd_U, ll_obj.XX, ll_obj.UU,
+                                        ll_obj.MM, ll_obj.Vphy, R, V, C, B),
                                         true);
   SEXP cpm_(cpm);
   
-  XPtr<LL_obj> llop(&llo);
+  // Turning the `LL_obj` into a pointer
+  XPtr<LL_obj> llop(&ll_obj);
   SEXP llop_(llop);
   
+  
+  // Now the final output list
   List out = List::create(
     _["corrs"] = corrs,
     _["d"] = d,
@@ -405,8 +457,8 @@ List get_output(const arma::mat& X,
     _["logLik"] = logLik,
     _["AIC"] = AIC,
     _["BIC"] = BIC,
-    _["niter"] = llo.iters,
-    _["convcode"] = llo.convcode,
+    _["niter"] = ll_obj.iters,
+    _["convcode"] = ll_obj.convcode,
     _["matrices"] = cpm_,
     _["LL_obj"] = llop_
   );
@@ -419,28 +471,30 @@ List get_output(const arma::mat& X,
 //' Inner function to create necessary matrices and do model fitting.
 //' 
 //' @param X a n x p matrix with p columns containing the values for the n taxa.
-//' @param U a list of p matrices corresponding to the p columns of X, with each 
-//'     matrix containing independent variables for the corresponding column of X.
+//' @param U a list of p matrices corresponding to the p columns of `X`, with each 
+//'   matrix containing independent variables for the corresponding column of `X`.
 //' @param SeM a n x p matrix with p columns containing standard errors of the trait 
-//'     values in X. 
-//' @param Vphy_ 
-//' @param REML whether REML or ML is used for model fitting.
-//' @param constrain_d if constrain.d is TRUE, the estimates of d are constrained to 
-//'     be between zero and 1. This can make estimation more stable and can be 
-//'     tried if convergence is problematic. This does not necessarily lead to 
-//'     loss of generality of the results, because before using corphylo, branch 
-//'     lengths of phy can be transformed so that the "starter" tree has strong 
-//'     phylogenetic signal.
-//' @param verbose if TRUE, the model logLik and running estimates of the correlation 
-//'     coefficients and values of d are printed each iteration during optimization.
+//'   values in `X`. 
+//' @param Vphy_ phylogenetic variance-covariance matrix from the input phylogeny.
+//' @param REML whether REML (versus ML) is used for model fitting.
+//' @param constrain_d if `TRUE`, the estimates of `d` 
+//'   are constrained to be between zero and 1.
+//'   This can make estimation more stable and can be tried if convergence 
+//'   is problematic.
+//'   This does not necessarily lead to loss of generality of the results, 
+//'   because before using `cor_phylo`, branch lengths of the input phylogeny
+//'   can be transformed so that the "starter" tree has strong phylogenetic signal.
+//' @param verbose if `TRUE`, the model `logLik` and running estimates of the correlation 
+//'   coefficients and values of `d` are printed each iteration during optimization.
 //' @param max_iter the maximum number of iterations in the optimization.
-//' @param method method of optimization using nlopt. Options include 
-//'     "bobyqa", "cobyla", "praxis". See
-//'     \url{https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/} for more 
-//'     information.
+//' @param method method of optimization using `nlopt`. Options include 
+//'   "neldermead", "sbplx", "bobyqa", "cobyla", "praxis". See
+//'   \url{https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/} for more 
+//'   information.
 //' 
-//' @return List containing output information, to be coerced to a cor_phylo object.
-//' 
+//' @return a list containing output information, to later be coerced to a `cor_phylo`
+//'   object by the `cor_phylo` function.
+//' @noRd
 //' 
 //[[Rcpp::export]]
 List cor_phylo_(const arma::mat& X,
@@ -453,11 +507,14 @@ List cor_phylo_(const arma::mat& X,
                 const int& max_iter,
                 const std::string& method) {
   
-  LL_obj llo(X, U, SeM, Vphy_, REML, constrain_d, verbose);
+  // LL_obj is C++ class to use for nlopt optimizing
+  LL_obj ll_obj(X, U, SeM, Vphy_, REML, constrain_d, verbose);
   
-  fit_cor_phylo(llo, max_iter, method);
+  // Do the fitting
+  fit_cor_phylo(ll_obj, max_iter, method);
   
-  List output = get_output(X, U, llo);
+  // Retrieve output from `ll_obj` object and convert to list
+  List output = cp_get_output(X, U, ll_obj);
   
   return output;
 }
