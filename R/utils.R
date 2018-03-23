@@ -1,6 +1,5 @@
 #' @useDynLib phyr, .registration = TRUE
 #' @importFrom Rcpp sourceCpp
-#' @import nloptr
 NULL
 
 #' @importFrom ape read.tree write.tree drop.tip compute.brlen vcv.phylo vcv is.rooted
