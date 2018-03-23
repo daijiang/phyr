@@ -70,21 +70,21 @@ BEGIN_RCPP
 END_RCPP
 }
 // cor_phylo_
-List cor_phylo_(const arma::mat& X, const std::vector<arma::mat>& U, const arma::mat& SeM, const arma::mat& Vphy_, const bool& REML, const bool& constrain_d, const bool& verbose, const int& max_iter, const std::string& method);
-RcppExport SEXP _phyr_cor_phylo_(SEXP XSEXP, SEXP USEXP, SEXP SeMSEXP, SEXP Vphy_SEXP, SEXP REMLSEXP, SEXP constrain_dSEXP, SEXP verboseSEXP, SEXP max_iterSEXP, SEXP methodSEXP) {
+List cor_phylo_(const arma::mat& X, const std::vector<arma::mat>& U, const arma::mat& M, const arma::mat& Vphy_, const bool& REML, const bool& constrain_d, const bool& verbose, const int& max_iter, const std::string& method);
+RcppExport SEXP _phyr_cor_phylo_(SEXP XSEXP, SEXP USEXP, SEXP MSEXP, SEXP Vphy_SEXP, SEXP REMLSEXP, SEXP constrain_dSEXP, SEXP verboseSEXP, SEXP max_iterSEXP, SEXP methodSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const arma::mat& >::type X(XSEXP);
     Rcpp::traits::input_parameter< const std::vector<arma::mat>& >::type U(USEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type SeM(SeMSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type M(MSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type Vphy_(Vphy_SEXP);
     Rcpp::traits::input_parameter< const bool& >::type REML(REMLSEXP);
     Rcpp::traits::input_parameter< const bool& >::type constrain_d(constrain_dSEXP);
     Rcpp::traits::input_parameter< const bool& >::type verbose(verboseSEXP);
     Rcpp::traits::input_parameter< const int& >::type max_iter(max_iterSEXP);
     Rcpp::traits::input_parameter< const std::string& >::type method(methodSEXP);
-    rcpp_result_gen = Rcpp::wrap(cor_phylo_(X, U, SeM, Vphy_, REML, constrain_d, verbose, max_iter, method));
+    rcpp_result_gen = Rcpp::wrap(cor_phylo_(X, U, M, Vphy_, REML, constrain_d, verbose, max_iter, method));
     return rcpp_result_gen;
 END_RCPP
 }

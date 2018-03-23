@@ -57,13 +57,13 @@ NULL
 #' If `U` isn't empty, this function makes each column in each matrix have
 #' mean of zero and standard deviation of 1, unless all values are the same, in which
 #' case it keeps the standard deviation at zero.
-#' Divides each column of `SeM` by the original standard deviation of that column in 
+#' Divides each column of `M` by the original standard deviation of that column in 
 #' `X`.
 #' 
 #' 
 #' @inheritParams X cor_phylo_
 #' @inheritParams U cor_phylo_
-#' @inheritParams SeM cor_phylo_
+#' @inheritParams M cor_phylo_
 #' 
 #' @return Nothing. Matrices are standardized in place.
 #' 
@@ -78,7 +78,7 @@ NULL
 #' 
 #' @inheritParams X cor_phylo_
 #' @inheritParams U cor_phylo_
-#' @inheritParams SeM cor_phylo_
+#' @inheritParams M cor_phylo_
 #' @inheritParams Vphy_ cor_phylo_
 #' @inheritParams REML_ cor_phylo_
 #' @inheritParams constrain_d_ cor_phylo_
@@ -111,7 +111,7 @@ NULL
 #' @param X a n x p matrix with p columns containing the values for the n taxa.
 #' @param U a list of p matrices corresponding to the p columns of `X`, with each 
 #'   matrix containing independent variables for the corresponding column of `X`.
-#' @param SeM a n x p matrix with p columns containing standard errors of the trait 
+#' @param M a n x p matrix with p columns containing standard errors of the trait 
 #'   values in `X`. 
 #' @param Vphy_ phylogenetic variance-covariance matrix from the input phylogeny.
 #' @param REML whether REML (versus ML) is used for model fitting.
@@ -134,8 +134,8 @@ NULL
 #'   object by the `cor_phylo` function.
 #' @noRd
 #' 
-cor_phylo_ <- function(X, U, SeM, Vphy_, REML, constrain_d, verbose, max_iter, method) {
-    .Call(`_phyr_cor_phylo_`, X, U, SeM, Vphy_, REML, constrain_d, verbose, max_iter, method)
+cor_phylo_ <- function(X, U, M, Vphy_, REML, constrain_d, verbose, max_iter, method) {
+    .Call(`_phyr_cor_phylo_`, X, U, M, Vphy_, REML, constrain_d, verbose, max_iter, method)
 }
 
 set_seed <- function(seed) {
