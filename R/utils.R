@@ -117,14 +117,13 @@ vcv2 = function(phy, corr = FALSE){
   if (is.null(phy$edge.length)) stop("the tree has no branch lengths")
   pp <- ape::prop.part(phy)
   phy <- reorder(phy, "postorder")
-  n <- length(phy$tip.label)
+  sp = phy$tip.label
+  n <- length(sp)
   e1 <- phy$edge[, 1]
   e2 <- phy$edge[, 2]
   EL <- phy$edge.length
   xx <- numeric(n + phy$Nnode)
-  vcv = vcv_loop(xx, n, e1, e2, EL, pp, corr)
-  dimnames(vcv)[1:2] <- list(phy$tip.label)
-  vcv
+  vcv_loop(xx, n, e1, e2, EL, pp, corr, sp)
 }
 
 

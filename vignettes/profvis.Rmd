@@ -141,3 +141,14 @@ microbenchmark::microbenchmark(psv(comm, tree, cpp = FALSE),
 microbenchmark::microbenchmark(pse(comm, tree, cpp = FALSE),
                                pse(comm, tree, cpp = TRUE), times = 100)
 ```
+
+```{r prof11}
+phy = ape::rtree(n = 10000)
+profvis({
+  ape::vcv(phy, corr = T)
+})
+profvis({
+  vcv2(phy, corr = T)
+})
+```
+

@@ -21,9 +21,9 @@ IntegerVector which2(const LogicalVector x){
 }
 
 // [[Rcpp::export]]
-arma::mat vcv_loop(NumericVector xx, int n, NumericVector e1, 
-                   NumericVector e2, NumericVector EL, List pp,
-                   bool corr){
+NumericMatrix vcv_loop(NumericVector& xx, const int& n, const NumericVector& e1, 
+                   const NumericVector& e2, const NumericVector& EL, 
+                   const List& pp, bool corr, const CharacterVector& sp){
   arma::mat vcv(n, n, fill::zeros);
   int len_e1 = e1.size();
   for(int i = (len_e1 - 1); i > (-1); i--){
@@ -64,7 +64,10 @@ arma::mat vcv_loop(NumericVector xx, int n, NumericVector e1,
     vcv.each_row() %= trans(Is);
     vcv.diag().ones();
   }
-  return vcv;
+  NumericMatrix vcvv = wrap(vcv);
+  rownames(vcvv) = sp;
+  colnames(vcvv) = sp;
+  return vcvv;
 }
 
 // [[Rcpp::export]]
