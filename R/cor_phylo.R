@@ -18,7 +18,7 @@
 #'
 #' @noRd
 #' 
-extract_species <- function(species, data, phy) {
+cp_extract_species <- function(species, data, phy) {
   
   n <- length(phy$tip.label)
   
@@ -55,7 +55,7 @@ extract_species <- function(species, data, phy) {
 
 #' Extract `X`, `U`, and `M` matrices from one formula.
 #' 
-#' This is to be run after `check_phy` and `extract_species` functions.
+#' This is to be run after `check_phy` and `cp_extract_species` functions.
 #'
 #' @param formula a single formula from a call to `cor_phylo`.
 #'   See \code{\link{cor_phylo}} for more information on the forms these should take.
@@ -67,7 +67,7 @@ extract_species <- function(species, data, phy) {
 #' 
 #' @noRd
 #'
-extract_matrices <- function(formula, data, phy, spp_vec) {
+cp_extract_matrices <- function(formula, data, phy, spp_vec) {
   
   n <- length(phy$tip.label)
   
@@ -160,7 +160,7 @@ extract_matrices <- function(formula, data, phy, spp_vec) {
 #' 
 #' @noRd
 #'
-get_par_names <- function(formulas) {
+cp_get_par_names <- function(formulas) {
   
   B <- sapply(formulas, function(x) paste(x)[2])
   
@@ -194,7 +194,7 @@ get_par_names <- function(formulas) {
 # Get row names for output based on parameter names
 # ----------------
 
-get_row_names <- function(par_names) {
+cp_get_row_names <- function(par_names) {
   
   row_names <- lapply(names(par_names[[1]]),
                       function(n) {
@@ -552,16 +552,16 @@ cor_phylo <- function(formulas, species, phy,
   phy <- check_phy(phy)
   Vphy <- ape::vcv(phy)
   
-  spp_vec <- extract_species(species, data, phy)
+  spp_vec <- cp_extract_species(species, data, phy)
   
-  matrices <- lapply(formulas, extract_matrices, data = data, phy = phy,
+  matrices <- lapply(formulas, cp_extract_matrices, data = data, phy = phy,
                      spp_vec = spp_vec)
   U <- lapply(matrices, function(x) x[["U"]])
   X <- do.call(cbind, lapply(matrices, function(x) x[["X"]]))
   M <- do.call(cbind, lapply(matrices, function(x) x[["M"]]))
   
   # Parameter names as determined by the formulas
-  par_names <- get_par_names(formulas)
+  par_names <- cp_get_par_names(formulas)
   
   # `cor_phylo_` returns a list with the following objects:
   # corrs, d, B, (previously B, B_se, B_zscore, and B_pvalue),
@@ -572,9 +572,9 @@ cor_phylo <- function(formulas, species, phy,
   colnames(output$corrs) <- rownames(output$corrs) <- names(par_names[[1]])
   rownames(output$d) <- names(par_names[[1]])
   colnames(output$d) <- "d"
-  rownames(output$B) <- get_row_names(par_names)
+  rownames(output$B) <- cp_get_row_names(par_names)
   colnames(output$B) <- c("Estimate", "SE", "Z-score", "P-value")
-  colnames(output$B_cov) <- rownames(output$B_cov) <- get_row_names(par_names)
+  colnames(output$B_cov) <- rownames(output$B_cov) <- cp_get_row_names(par_names)
   
   
   output <- c(output, 
