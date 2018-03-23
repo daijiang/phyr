@@ -169,16 +169,13 @@ align_comm_V = function(comm, tree, prune.tree = FALSE, scale.vcv = TRUE){
 check_phy <- function(phy) {
   
   if (!inherits(phy, "phylo")) {
-    stop("\nThe input phylogeny is not of class \"phylo\".",
-         call. = FALSE)
+    stop("\nThe input phylogeny is not of class \"phylo\".")
   }
   if (is.null(phy$edge.length)) {
-    stop("\nThe input phylogeny has no branch lengths.",
-         call. = FALSE)
+    stop("\nThe input phylogeny has no branch lengths.")
   }
   if (is.null(phy$tip.label)) {
-    stop("\nThe input phylogeny has no tip labels.",
-         call. = FALSE)
+    stop("\nThe input phylogeny has no tip labels.")
   }
   
   phy <- ape::reorder.phylo(phy, "postorder")
