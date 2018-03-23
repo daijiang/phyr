@@ -7,36 +7,6 @@
 # ================================================================================
 
 
-#' Check phylogeny for cor_phylo and reorder it.
-#' 
-#' It checks for it being `phylo` class, having branch lengths, and having tip labels.
-#'
-#' @inheritParams phy cor_phylo
-#'
-#' @return a phylogenetic tree that's been reordered using
-#'   `ape::reorder.phylo(phy, "postorder")`
-#'
-#' @noRd
-#' 
-check_phy <- function(phy) {
-  if (!inherits(phy, "phylo")) {
-    stop("\nIn the call to cor_phylo the input phylogeny is not of class \"phylo\".",
-         call. = FALSE)
-  }
-  if (is.null(phy$edge.length)) {
-    stop("\nIn the call to cor_phylo the input phylogeny has no branch lengths.",
-         call. = FALSE)
-  }
-  if (is.null(phy$tip.label)) {
-    stop("\nIn the call to cor_phylo the input phylogeny has no tip labels.",
-         call. = FALSE)
-  }
-  
-  phy <- ape::reorder.phylo(phy, "postorder")
-}
-
-
-
 
 #' Extract vector of species names from the `species` argument in `cor_phylo`
 #'

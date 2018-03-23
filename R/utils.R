@@ -152,3 +152,34 @@ align_comm_V = function(comm, tree, prune.tree = FALSE, scale.vcv = TRUE){
     }
   }
 }
+
+
+
+#' Check phylogeny and reorder it.
+#' 
+#' It checks for it being `phylo` class, having branch lengths, and having tip labels.
+#'
+#' @param phy a phylogeny that should be a `phylo` object
+#'
+#' @return a phylogenetic tree that's been reordered using
+#'   `ape::reorder.phylo(phy, "postorder")`
+#'
+#' @noRd
+#' 
+check_phy <- function(phy) {
+  
+  if (!inherits(phy, "phylo")) {
+    stop("\nThe input phylogeny is not of class \"phylo\".",
+         call. = FALSE)
+  }
+  if (is.null(phy$edge.length)) {
+    stop("\nThe input phylogeny has no branch lengths.",
+         call. = FALSE)
+  }
+  if (is.null(phy$tip.label)) {
+    stop("\nThe input phylogeny has no tip labels.",
+         call. = FALSE)
+  }
+  
+  phy <- ape::reorder.phylo(phy, "postorder")
+}
