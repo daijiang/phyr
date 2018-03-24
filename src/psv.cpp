@@ -21,22 +21,19 @@ IntegerVector which2(const LogicalVector x){
 }
 
 // [[Rcpp::export]]
-NumericMatrix vcv_loop(NumericVector& xx, const int& n, const NumericVector& e1, 
-                   const NumericVector& e2, const NumericVector& EL, 
-                   const List& pp, bool corr, const CharacterVector& sp){
+arma::mat vcv_loop(NumericVector& xx, const int& n, const IntegerVector& e1, 
+                   const IntegerVector& e2, const NumericVector& EL, 
+                   const List& pp, bool corr //, const CharacterVector& sp
+  ){
   arma::mat vcv(n, n, fill::zeros);
   int len_e1 = e1.size();
   for(int i = (len_e1 - 1); i > (-1); i--){
-    // Rcout << "i = " << i + 1 << " ";
     double var_cur_node = xx[e1[i] - 1];
-    // Rcout << "var = " << var_cur_node << " ";
     xx[e2[i] - 1] = var_cur_node + EL[i];
     int j = (i - 1);
     while((e1[j] == e1[i]) && (j > (-1))){
-      // Rcout << "j = " << j + 1 << " ";
-      NumericVector left, right;
+      IntegerVector left, right;
       if(e2[j] > n){
-        // Rcout << "here" <<  endl;
         left = pp[e2[j] - n - 1];
       } else {
         left = e2[j];
@@ -64,10 +61,19 @@ NumericMatrix vcv_loop(NumericVector& xx, const int& n, const NumericVector& e1,
     vcv.each_row() %= trans(Is);
     vcv.diag().ones();
   }
-  NumericMatrix vcvv = wrap(vcv);
-  rownames(vcvv) = sp;
-  colnames(vcvv) = sp;
-  return vcvv;
+  // NumericMatrix vcvv = wrap(vcv);
+  // rownames(vcvv) = sp;
+  // colnames(vcvv) = sp;
+  return vcv;
+}
+
+// [[Rcpp::export]]
+void cov2cor_cpp(arma::mat& vcv){
+  arma::vec Is = sqrt(1 / vcv.diag());
+  vcv.each_col() %= Is;
+  vcv.each_row() %= trans(Is);
+  vcv.diag().ones();
+  return ;
 }
 
 // [[Rcpp::export]]

@@ -31,7 +31,7 @@ pcd_pred = function(comm_1, comm_2 = NULL, tree, reps = 10^3, cpp = TRUE) {
       tree = compute.brlen(tree, 1)
     }
     tree = drop.tip(tree, tip = tree$tip.label[tree$tip.label %nin% sp_pool])
-    V = vcv.phylo(tree, corr = TRUE)
+    V = vcv2(tree, corr = TRUE)
     comm_1 = comm_1[, tree$tip.label[tree$tip.label %in% colnames(comm_1)]]
     if (!is.null(comm_2)) {
       comm_2 = comm_2[, tree$tip.label[tree$tip.label %in% colnames(comm_2)]]
@@ -125,7 +125,7 @@ pcd = function(comm, tree, expectation = NULL, cpp = TRUE, verbose = TRUE, ...) 
     }
     dat = match_comm_tree(comm, tree)
     tree = dat$tree
-    V = ape::vcv.phylo(tree, corr = TRUE)
+    V = vcv2(tree, corr = TRUE)
     comm = dat$comm
   } else {
     V = tree

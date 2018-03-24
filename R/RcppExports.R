@@ -65,6 +65,10 @@ vcv_loop <- function(xx, n, e1, e2, EL, pp, corr) {
     .Call(`_phyr_vcv_loop`, xx, n, e1, e2, EL, pp, corr)
 }
 
+cov2cor_cpp <- function(vcv) {
+    invisible(.Call(`_phyr_cov2cor_cpp`, vcv))
+}
+
 pse_cpp <- function(comm, Cmatrix) {
     .Call(`_phyr_pse_cpp`, comm, Cmatrix)
 }

@@ -271,20 +271,30 @@ BEGIN_RCPP
 END_RCPP
 }
 // vcv_loop
-arma::mat vcv_loop(NumericVector xx, int n, NumericVector e1, NumericVector e2, NumericVector EL, List pp, bool corr);
+arma::mat vcv_loop(NumericVector& xx, const int& n, const IntegerVector& e1, const IntegerVector& e2, const NumericVector& EL, const List& pp, bool corr);
 RcppExport SEXP _phyr_vcv_loop(SEXP xxSEXP, SEXP nSEXP, SEXP e1SEXP, SEXP e2SEXP, SEXP ELSEXP, SEXP ppSEXP, SEXP corrSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericVector >::type xx(xxSEXP);
-    Rcpp::traits::input_parameter< int >::type n(nSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type e1(e1SEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type e2(e2SEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type EL(ELSEXP);
-    Rcpp::traits::input_parameter< List >::type pp(ppSEXP);
+    Rcpp::traits::input_parameter< NumericVector& >::type xx(xxSEXP);
+    Rcpp::traits::input_parameter< const int& >::type n(nSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type e1(e1SEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type e2(e2SEXP);
+    Rcpp::traits::input_parameter< const NumericVector& >::type EL(ELSEXP);
+    Rcpp::traits::input_parameter< const List& >::type pp(ppSEXP);
     Rcpp::traits::input_parameter< bool >::type corr(corrSEXP);
     rcpp_result_gen = Rcpp::wrap(vcv_loop(xx, n, e1, e2, EL, pp, corr));
     return rcpp_result_gen;
+END_RCPP
+}
+// cov2cor_cpp
+void cov2cor_cpp(arma::mat& vcv);
+RcppExport SEXP _phyr_cov2cor_cpp(SEXP vcvSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat& >::type vcv(vcvSEXP);
+    cov2cor_cpp(vcv);
+    return R_NilValue;
 END_RCPP
 }
 // pse_cpp
@@ -330,6 +340,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_phyr_pglmm_gaussian_internal_cpp", (DL_FUNC) &_phyr_pglmm_gaussian_internal_cpp, 15},
     {"_phyr_which2", (DL_FUNC) &_phyr_which2, 1},
     {"_phyr_vcv_loop", (DL_FUNC) &_phyr_vcv_loop, 7},
+    {"_phyr_cov2cor_cpp", (DL_FUNC) &_phyr_cov2cor_cpp, 1},
     {"_phyr_pse_cpp", (DL_FUNC) &_phyr_pse_cpp, 2},
     {"_phyr_psv_cpp", (DL_FUNC) &_phyr_psv_cpp, 3},
     {NULL, NULL, 0}
