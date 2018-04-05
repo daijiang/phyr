@@ -202,7 +202,7 @@ arma::vec pnorm_cpp(const arma::vec& values, const bool& lower_tail) {
 ***************************************************************************************
 ***************************************************************************************
 
-"make" functions, that create objects used in multiple functions below
+"make" functions, that create objects used in multiple functions inside corphylo.cpp
 
 ***************************************************************************************
 ***************************************************************************************
