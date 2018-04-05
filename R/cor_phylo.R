@@ -508,12 +508,37 @@ cor_phylo <- function(formulas, species, phy,
                       boot = 0, boot_out = NULL, n_cores = 1) {
   
   method <- match.arg(method)
-  if (capture.output(nloptr:::LdFlags()) != " -lm" & 
-      method %in% c("neldermead", "sbplx")) {
-    warning("Using external nlopt library with \"neldermead\" or \"sbplx\" algorithms ",
-            "results in undesired behavior. Changing to \"bobyqa\" algorithm.")
-    method <- "bobyqa"
+  
+  # Making sure the user doesn't try to run neldermead or sbplx on an external
+  # nlopt library bc it throws segfault
+  if (method %in% c("neldermead", "sbplx")) {
+    # If the LdFlags function isn't present in nloptr, then it isn't a new enough version:
+    nloptr_clib <- tryCatch(nloptr:::LdFlags(FALSE),
+                            error = function(e) {
+                              if (grepl("object 'LdFlags' not found", e)) {
+                                0
+                              } else {
+                                stop(e)
+                              }
+                            })
+    # This detects, based on output from the previous step, if the nloptr version 
+    # isn't new enough:
+    if (nloptr_clib == 0) {
+      warning("cor_phylo requires the developmental version of nloptr if you ",
+              "want to run it with method = \"neldermead\" or \"sbplx\". ",
+              "Switching to \"bobyqa\" algorithm.",
+              call. = FALSE)
+      method <- "bobyqa"
+      
+    # This now detects whether it's an external nlopt library:
+    } else if (nloptr_clib != " -lm" & .Platform$OS.type != "windows") {
+      warning("Using external nlopt library with \"neldermead\" or \"sbplx\" algorithms ",
+              "results in undesired behavior. Switching to \"bobyqa\" algorithm.",
+              call. = FALSE)
+      method <- "bobyqa"
+    }
   }
+
   call_ <- match.call()
   
   if (length(formulas) <= 1) {
