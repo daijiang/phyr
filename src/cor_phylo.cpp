@@ -464,9 +464,6 @@ List cp_get_output(const arma::mat& X,
     _["niter"] = ll_obj.iters,
     _["convcode"] = ll_obj.convcode
   );
-    // ,
-    // _["matrices"] = cpm_,
-    // _["LL_obj"] = llop_
   
   return out;
 }
@@ -512,86 +509,4 @@ List cor_phylo_(const arma::mat& X,
   List output = cp_get_output(X, U, ll_obj);
   
   return output;
-}
-
-
-
-//' Extract matrices from the `matrices` field inside a `cor_phylo` object.
-//' 
-//' @param cp_obj a `cor_phylo` object
-//' 
-//' @return a list containing the objects hidden in the `matrices` field 
-//'   inside a `cor_phylo` object:
-//'   \describe{
-//'     \item{mean_sd_X}{matrix with `p` rows and two columns. Each row has the mean
-//'       and standard deviation, respectively, for a given trait.}
-//'     \item{sd_U}{a vector of `p` matrices. Each matrix has the standard deviations for
-//'       all covariates for that trait. A matrix will be empty if that trait had no
-//'       covariates specified.}
-//'     \item{XX}{values of the traits of interest, in vectorized form, 
-//'       with each trait standardized to have mean zero and standard deviation one.}
-//'     \item{UU}{design matrix with values in `UU` corresponding to `XX`; each variable
-//'       is standardized to have mean zero and standard deviation one.}
-//'     \item{MM}{vector of measurement standard errors corresponding to `XX`, with 
-//'       the standard errors suitably standardized.}
-//'     \item{Vphy}{the phylogenetic covariance matrix computed from the input phylogeny
-//'       and standardized to have determinant equal to one.}
-//'     \item{R}{covariance matrix of trait values relative to the standardized values
-//'       of `XX`.}
-//'     \item{V}{overall estimated covariance matrix of residuals for `XX` including
-//'       trait correlations, phylogenetic signal, and measurement error variances.
-//'       This matrix can be used to simulate data for parametric bootstrapping.
-//'       See examples.}
-//'     \item{C}{matrix `V` excluding measurement error variances.}
-//'     \item{iD}{matrix with the transpose of the Cholesky deposition of `Vphy`.
-//'       This is used to generate phylogenetic signal: a vector of independent 
-//'       normal random variables, when multiplied by `iD` will have covariance
-//'       matrix equal to `Vphy`.}
-//'     \item{B}{a matrix of regression-coefficient estimates, SE, Z-scores, and P-values,
-//'       respectively. Rownames indicate which coefficient it refers to.}
-//'   }
-//' 
-//' @export
-//' 
-//[[Rcpp::export]]
-List get_matrices(List cp_obj) {
-  
-  if (as<std::string>(cp_obj.attr("class")) != "cor_phylo") {
-    stop("input to get_matrices should be a cor_phylo object");
-  }
-  
-  SEXP cpm_(cp_obj["matrices"]);
-  XPtr<cp_matrices> cpm(cpm_);
-  
-  List out = List::create(
-    _["mean_sd_X"] = cpm->mean_sd_X,
-    _["sd_U"] = cpm->sd_U,
-    _["XX"] = cpm->XX,
-    _["UU"] = cpm->UU,
-    _["MM"] = cpm->MM,
-    _["Vphy"] = cpm->Vphy,
-    _["R"] = cpm->R,
-    _["V"] = cpm->V,
-    _["C"] = cpm->C,
-    _["iD"] = cpm->iD,
-    _["B"] = cpm->B
-  );
-  
-  return out;
-}
-
-
-
-//' Extract bootstrap info from a `cor_phylo` object.
-//' 
-//' @param cp_obj a `cor_phylo` object
-//' 
-//' @return a list containing bootstrap info.
-//' 
-//' @export
-//' 
-//[[Rcpp::export]]
-List get_bootstrap(const std::string& parameter) {
-  stop("This function hasn't been implemented yet. This is just here as a placeholder.");
-  return List::create(_["boot"] = 0);
 }
