@@ -8,7 +8,7 @@
 
 
 
-#' Extract vector of species names from the `species` argument in `cor_phylo`
+#' Get values and check validity of the `species` argument passed to `cor_phylo`
 #'
 #' @inheritParams species cor_phylo
 #' @inheritParams data cor_phylo
@@ -18,20 +18,12 @@
 #'
 #' @noRd
 #' 
-cp_extract_species <- function(species, data, phy) {
+cp_get_species <- function(species, data, phy) {
   
   n <- length(phy$tip.label)
   
-  if (!length(species) %in% c(1, n)) {
-    stop("\nThe species argument to cor_phylo must be a vector ",
-         "of length 1 or n, where n is the number of elements in the input dataset",
-         call. = FALSE)
-  }
-  if (length(species) == 1) {
-    spp_vec <- eval(parse(text = "species"), envir = data)
-  } else {
-    spp_vec <- species
-  }
+  spp_vec <- eval(species, data)
+  
   if (sum(duplicated(spp_vec)) > 0) {
     stop("\nDuplicate species not allowed in cor_phylo.", call. = FALSE)
   }
@@ -53,9 +45,10 @@ cp_extract_species <- function(species, data, phy) {
 
 
 
+
 #' Extract `X`, `U`, and `M` matrices from one formula.
 #' 
-#' This is to be run after `check_phy` and `cp_extract_species` functions.
+#' This is to be run after `check_phy` and `cp_get_species` functions.
 #'
 #' @param formula a single formula from a call to `cor_phylo`.
 #'   See \code{\link{cor_phylo}} for more information on the forms these should take.
@@ -354,9 +347,10 @@ cp_get_row_names <- function(par_names) {
 #'                       cov2 = rnorm(10, mean = 10, sd = 4),
 #'                       se1 = 0.2,
 #'                       se2 = 0.4)
+#' data_df$par2 <- data_df$par2 + 0.5 * data_df$cov2
 #' 
 #' cor_phylo(list(par1 ~ 1 | se1, par2 ~ cov2 | se2),
-#'           species = "species", phy = phy, data = data_df,
+#'           species = species, phy = phy, data = data_df,
 #'           method = "neldermead")
 #' 
 #' 
@@ -445,15 +439,15 @@ cp_get_row_names <- function(par_names) {
 #'         # and (iii) just measurement error
 #'         z <- cor_phylo(list(par1 ~ 1 | se1, par2 ~ cov2 | se2),
 #'                        phy = phy,
-#'                        species = "species", data = data_df,
+#'                        species = species, data = data_df,
 #'                        method = "neldermead")
 #'         z.noM <- cor_phylo(list(par1 ~ 1, par2 ~ cov2),
 #'                            phy = phy,
-#'                            species = "species", data = data_df,
+#'                            species = species, data = data_df,
 #'                            method = "neldermead")
 #'         z.noP <- cor_phylo(list(par1 ~ 1 | se1, par2 ~ cov2 | se2),
 #'                            phy = star,
-#'                            species = "species", data = data_df,
+#'                            species = species, data = data_df,
 #'                            method = "neldermead")
 #'     
 #'         cor.list[rep] <- z$corrs[1, 2]
@@ -528,7 +522,7 @@ cor_phylo <- function(formulas, species, phy,
                       constrain_d = FALSE, 
                       reltol = 1e-6, max_iter = 1000, 
                       verbose = FALSE,
-                      boot = 0, boot_out = NULL, n_cores = 1) {
+                      boot = 0, n_cores = 1) {
   
   method <- match.arg(method)
   
@@ -573,7 +567,7 @@ cor_phylo <- function(formulas, species, phy,
   phy <- check_phy(phy)
   Vphy <- ape::vcv(phy)
   
-  spp_vec <- cp_extract_species(species, data, phy)
+  spp_vec <- cp_get_species(substitute(species), data, phy)
   
   matrices <- lapply(formulas, cp_extract_matrices, data = data, phy = phy,
                      spp_vec = spp_vec)
