@@ -4,9 +4,9 @@ NULL
 
 #' @importFrom ape read.tree write.tree drop.tip compute.brlen vcv.phylo vcv is.rooted
 #' @importClassesFrom Matrix RsparseMatrix dsCMatrix dgTMatrix
-#' @importMethodsFrom Matrix t solve %*% determinant diag crossprod tcrossprod
+#' @importMethodsFrom Matrix t solve %*% determinant diag crossprod tcrossprod image
 #' @importFrom stats pchisq model.frame model.matrix model.response lm var optim pnorm 
-#' glm binomial printCoefmat reshape na.omit reorder rnorm runif as.dist
+#' glm binomial printCoefmat reshape na.omit reorder rnorm runif dist 
 #' @importFrom methods as show is
 #' @importFrom graphics par image
 NULL
@@ -104,6 +104,42 @@ match_comm_tree = function(comm, tree, comm_2 = NULL){
   }
 }
 
+#' Create phylogenetic var-cov matrix
+#'
+#' This function will convert a phylogeny to a Var-cov matrix.
+#' 
+#' @param phy a phylogeny with "phylo" as class.
+#' @param corr whether to return a correlation matrix instead of Var-cov matrix. Default is FALSE
+#' @return a phylogenetic var-cov matrix
+#' @export
+#'
+vcv2 = function(phy, corr = FALSE){
+  if(corr){
+    vcv = ape::vcv.phylo(phy, corr = FALSE)
+    cov2cor_cpp(vcv)
+    return(vcv)
+  } else {
+    return(ape::vcv.phylo(phy, corr = FALSE))
+  }
+}
+
+# # for some reason, this version is not fast as expected.
+# vcv2 = function(phy, corr = FALSE){
+#   if (is.null(phy$edge.length)) stop("the tree has no branch lengths")
+#   pp <- ape::prop.part(phy)
+#   phy <- reorder(phy, "postorder")
+#   sp = phy$tip.label
+#   n <- length(sp)
+#   e1 <- phy$edge[, 1]
+#   e2 <- phy$edge[, 2]
+#   EL <- phy$edge.length
+#   xx <- numeric(n + phy$Nnode)
+#   vcv = vcv_loop(xx, n, e1, e2, EL, pp, corr)
+#   row.names(vcv) = colnames(vcv) = sp
+#   vcv
+# }
+
+
 #' Create phylogenetic var-cov matrix based on phylogeny and community data
 #'
 #' This function will remove species from community data that are not in the phylogeny.
@@ -130,7 +166,7 @@ align_comm_V = function(comm, tree, prune.tree = FALSE, scale.vcv = TRUE){
     }
     # Attention: prune then vcv VS. vcv then subsetting may have different Cmatrix.
     # so, by default, we won't prune the tree unless it is huge
-    Cmatrix = ape::vcv.phylo(tree, corr = scale.vcv)  # Make a correlation matrix of the species pool phylogeny
+    Cmatrix = vcv2(tree, corr = scale.vcv)  # Make a correlation matrix of the species pool phylogeny
   } else {
     # tree is a matrix
     comm = comm[, colnames(comm) %in% colnames(tree), drop = FALSE]

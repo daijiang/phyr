@@ -46,16 +46,56 @@ install.packages("https://raw.githubusercontent.com/daijiang/phyr/master/phyr_0.
 - `communityPGLMM` from the pez package
 - `binaryPGLMM` from the ape package
 
-```{r, message=FALSE}
+```{r message=FALSE}
 library(phyr)
+```
+
+
+# Benchmark for PSV family functions
+
+## `psv`
+
+```{r}
+nspp = 500
+nsite = 100
+tree_sim = ape::rtree(n = nspp)
+comm_sim = matrix(rbinom(nspp * nsite, size = 1, prob = 0.6), nrow = nsite, ncol = nspp)
+row.names(comm_sim) = paste0("site_", 1:nsite)
+colnames(comm_sim) = paste0("t", 1:nspp)
+comm_sim = comm_sim[, tree_sim$tip.label]
+# about 40 times faster
+microbenchmark::microbenchmark(
+  picante::psv(comm_sim, tree_sim),
+  psv(comm_sim, tree_sim, cpp = FALSE),
+  psv(comm_sim, tree_sim, cpp = TRUE),
+  times = 10)
+```
+
+## `pse`
+
+```{r}
+comm_sim = matrix(rpois(nspp * nsite, 3), nrow = nsite, ncol = nspp)
+row.names(comm_sim) = paste0("site_", 1:nsite)
+colnames(comm_sim) = paste0("t", 1:nspp)
+comm_sim = comm_sim[, tree_sim$tip.label]
+# about 8 times faster
+microbenchmark::microbenchmark(
+  picante::pse(comm_sim, tree_sim),
+  pse(comm_sim, tree_sim, cpp = FALSE),
+  pse(comm_sim, tree_sim, cpp = TRUE),
+  times = 10)
+```
+
+## `pcd`
+
+```{r, message=FALSE}
 # pcd is about 20 times faster
 microbenchmark::microbenchmark(phyr::pcd(comm = comm_a, tree = phylotree, reps = 1000, verbose = F),
                                picante::pcd(comm = comm_a, tree = phylotree, reps = 1000),
-                               times = 30)
-# psv, the example data is too small to compare
-microbenchmark::microbenchmark(phyr::psv(comm_a, phylotree),
-                               picante::psv(comm_a, phylotree))
+                               times = 20)
 ```
+
+# Community PGLMM
 
 `communityPGLMM` now can use similar syntax as `lme4::lmer` to specify random terms: add `__` (two underscores) at the end of grouping variable (`sp`) to specify both phylogenetic and non-phylogenetic random terms; use `(1|sp__@site)` to specify nested term. This should be the most commonly used one and is equal to `kronecker(I_site, V_sp)`. (V_sp is Vphy, used sp here so it is clearer this is for sp.) 
 

@@ -14,6 +14,7 @@
 \alias{plot.communityPGLMM}
 \alias{communityPGLMM.predicted.values}
 \alias{communityPGLMM.bayes}
+\alias{communityPGLMM.plot.random.effects}
 \title{Phylogenetic Generalised Linear Mixed Model for Community Data}
 \usage{
 prep_dat_pglmm(formula, data, tree, repulsion = FALSE,
@@ -60,6 +61,12 @@ communityPGLMM.bayes(formula, data = list(), family = "gaussian",
   sp = NULL, site = NULL, random.effects = list(), s2.init = NULL,
   B.init = NULL, verbose = FALSE, REML = FALSE, marginal.summ = "mean",
   calc.DIC = FALSE, default.prior = "inla.default")
+
+communityPGLMM.plot.random.effects(formula, data, family = "gaussian",
+  tree = NULL, tree_site = NULL, repulsion = FALSE, show.image = NULL,
+  show.sim.image = NULL, random.effects = NULL, add.tree.sp = TRUE,
+  add.tree.site = FALSE, tree.panel.space = 0.5, title.space = 5,
+  tree.size = 3, ...)
 }
 \arguments{
 \item{formula}{a two-sided linear formula object describing the
@@ -95,7 +102,8 @@ Default is FALSE, i.e. test underdispersion.}
 \item{prep.re.effects}{whether to prepare random effects for users.}
 
 \item{family}{either \code{gaussian} for a Linear Mixed Model, or
-\code{binomial} for binary dependent data.}
+\code{binomial} for binary dependent data. If \code{bayes = TRUE}, \code{poisson} is also
+supported.}
 
 \item{prep.s2.lme4}{whether to prepare initial s2 values based on lme4 theta. Default is FALSE.
 If no phylogenetic or nested random terms, should set it to TRUE since it likely will be faster.
@@ -258,6 +266,26 @@ reasons).}
 in \code{\link{print.default}}}
 
 \item{show.plot}{if \code{TRUE} (default), display plot}
+
+\item{show.image}{whether to show the images of random effects}
+
+\item{show.sim.image}{whether to show the images of simulated site by sp matrix. This can be useful to
+see how the phylogenetic information were included.}
+
+\item{add.tree.sp}{whether to add a phylogeny of species at the top of the simulated site by sp matrix plot, default is TRUE}
+
+\item{add.tree.site}{whether to add a phylogeny of sites at the right of the simulated site by sp matrix plot, default is FALSE}
+
+\item{tree.panel.space}{the number of lines between the phylogeney and the matrix plot, if add.tree is TRUE}
+
+\item{title.space}{the number of lines between the title and the matrix plot, if add.tree is TRUE}
+
+\item{tree.size}{the height of the phylogeney to be plotted (number of lines), if add.tree is TRUE}
+
+\item{...}{additional arguments for \code{Matrix::image()} or \code{lattice::levelplot()}. Common ones are:
+\code{useAbs} whether to use absolute values of the matrix; if no negative values, this will be set to TRUE if not specified.
+When \code{useAbs = TRUE} the color scheme will be black-white, otherwise, it will be red/blue.
+\code{colorkey} whether to draw the scale legend at the right side of each plot?}
 }
 \value{
 an object of class \code{communityPGLMM}
@@ -304,6 +332,11 @@ This is NULL is code{bayes = TRUE}}
 \item{niter}{number of iterations performed by \code{\link{optim}}. This is set to NULL if \code{bayes = TRUE}}
 \item{inla.model}{Model object fit by underlying \code{\link{inla}} function. Only returned
 if \code{bayes = TRUE}}
+
+a hidden list, including the covariance matrices and simulated site by species matrices. Individual plots are saved as
+\code{plt_re_list} and \code{plt_sim_list}. If \code{show.image} or \code{show.sim.image} is TRUE,
+the corresponding final plot (\code{plt_re_all_in_one} or \code{plt_sim_all_in_one}) can be saved as external file
+using \code{ggplot2::ggsave} as it is a grid object.
 }
 \description{
 This function performs Generalized Linear Mixed Models for binary
@@ -326,8 +359,7 @@ specifying the \code{bayes = TRUE}. This uses the package \code{\link[INLA:INLA-
 package, which is not available on cran. If you wish to use this option,
 you must first install \code{INLA} from \url{http://www.r-inla.org/}.
 Note that while \code{bayes = TRUE} currently only supports \code{family} arguments of
-\code{"gaussian"} and \code{"binomial"}, other families will shortly be added.
-For a full list see \code{names(INLA::inla.models()$likelihood)}.
+\code{"gaussian"}, \code{"binomial"}, and \code{"poisson"}, other families will shortly be added.
 
 \code{communityPGLMM.binary} calculates the statistical
 significance of the random effects in the generalized linear mixed
