@@ -436,21 +436,20 @@ List cp_get_output(const arma::mat& X,
   AIC = -2 * logLik + 2 * k;
   BIC = -2 * logLik + k * std::log(n / arma::datum::pi);
   
-  /*
-   Making `Rcpp::XPtr` smart pointers to store C++ objects in R because these 
-   matrices shouldn't be needed directly in R.
-   I like to convert these `XPtr` objects to `SEXP` to make it very explicit that
-   I want to pass them back to R.
-   */
-  // `cp_matrices` stores matrices that we'll need for bootstrapping
-  XPtr<cp_matrices> cpm(new cp_matrices(mean_sd_X, sd_U, ll_obj.XX, ll_obj.UU,
-                                        ll_obj.MM, ll_obj.Vphy, R, V, C, B),
-                                        true);
-  SEXP cpm_(cpm);
-  
-  // Turning the `LL_obj` into a pointer
-  XPtr<LL_obj> llop(&ll_obj);
-  SEXP llop_(llop);
+  // /*
+  //  Making `Rcpp::XPtr` smart pointers to store C++ objects in R because these 
+  //  matrices shouldn't be needed directly in R.
+  //  I like to convert these `XPtr` objects to `SEXP` to make it very explicit that
+  //  I want to pass them back to R.
+  //  */
+  // // `cp_matrices` stores matrices that we'll need for bootstrapping
+  // XPtr<cp_matrices> cpm(new cp_matrices(mean_sd_X, sd_U, ll_obj.XX, ll_obj.UU,
+  //                                       ll_obj.MM, ll_obj.Vphy, R, V, C, B));
+  // SEXP cpm_(cpm);
+  // 
+  // // Turning the `LL_obj` into a pointer
+  // XPtr<LL_obj> llop(&ll_obj);
+  // SEXP llop_(llop);
   
   
   // Now the final output list
@@ -463,10 +462,11 @@ List cp_get_output(const arma::mat& X,
     _["AIC"] = AIC,
     _["BIC"] = BIC,
     _["niter"] = ll_obj.iters,
-    _["convcode"] = ll_obj.convcode,
-    _["matrices"] = cpm_,
-    _["LL_obj"] = llop_
+    _["convcode"] = ll_obj.convcode
   );
+    // ,
+    // _["matrices"] = cpm_,
+    // _["LL_obj"] = llop_
   
   return out;
 }

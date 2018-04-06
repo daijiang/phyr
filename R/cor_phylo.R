@@ -173,6 +173,7 @@ cp_get_par_names <- function(formulas) {
   for (i in 1:p) {
     x <- formulas[[i]]
     z <- attr(terms(x), 'term.labels')
+    if (length(z) == 0) next
     if (any(grepl("\\|", z))) {
       if (length(z) > 1) {
         stop("There is something odd about this formula...")
@@ -182,7 +183,7 @@ cp_get_par_names <- function(formulas) {
       z <- strsplit(z[1], "\\+")[[1]]
       z <- gsub("\\s+", "", z)
     }
-    if (z != '1') U[[i]] <- z
+    if (z != "1") U[[i]] <- z
   }
   names(U) <- names(M) <- B
   
