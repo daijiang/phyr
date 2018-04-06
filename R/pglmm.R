@@ -46,7 +46,8 @@
 #' @param family either \code{gaussian} for a Linear Mixed Model, or
 #' \code{binomial} for binary dependent data. If \code{bayes = TRUE}, \code{poisson} is also
 #' supported.
-#' @param tree a phylogeny for column sp, with "phylo" class.
+#' @param tree a phylogeny for column sp, with "phylo" class. Or a var-cov matrix for sp, make sure to have all species in the matrix; 
+#' if the matrix is not standarized, i.e. det(tree) != 1, we will try to standarize for you.
 #' @param repulsion when nested random term specified, do you want to test repulsion or underdispersion?
 #' Default is FALSE, i.e. test underdispersion.
 #' @param random.effects pre-build list of random effects. If NULL (the default), 
@@ -472,30 +473,67 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
     # @ for nested; __ at the end for phylogenetic cov
     if(is.null(fm)) stop("No random terms specified, use lm or glm instead")
     if(any(grepl("sp__", fm))){
-      # phylogeny
-      if(length(setdiff(spl, tree$tip.label))) stop("Some species not in the phylogeny, please either drop these species or update the phylogeny")
-      if(length(setdiff(tree$tip.label, spl))){
-        warning("Drop species from the phylogeny that are not in the data", immediate. = TRUE)
-        tree = ape::drop.tip(tree, setdiff(tree$tip.label, spl))
+      if(class(tree) == "phylo"){
+        # phylogeny
+        if(length(setdiff(spl, tree$tip.label))) stop("Some species not in the phylogeny, please either drop these species or update the phylogeny")
+        if(length(setdiff(tree$tip.label, spl))){
+          warning("Drop species from the phylogeny that are not in the data", immediate. = TRUE)
+          tree = ape::drop.tip(tree, setdiff(tree$tip.label, spl))
+        }
+        Vphy <- ape::vcv(tree)
+        Vphy <- Vphy/max(Vphy)
+        Vphy <- Vphy/exp(determinant(Vphy)$modulus[1]/nspp)
+        Vphy = Vphy[spl, spl] # same order as species levels
       }
-      Vphy <- ape::vcv(tree)
-      Vphy <- Vphy/max(Vphy)
-      Vphy <- Vphy/exp(determinant(Vphy)$modulus[1]/nspp)
-      Vphy = Vphy[spl, spl] # same order as species levels
+      
+      if(inherits(tree, c("matrix", "Matrix"))){
+        # tree is already a cov matrix
+        if(length(setdiff(spl, row.names(tree)))) stop("Some species not in the cov matrix, please either drop these species or update the matrix")
+        if(length(setdiff(row.names(tree), spl))){
+          warning("Drop species from the cov matrix that are not in the data", immediate. = TRUE)
+        }
+        tree = tree[spl, spl] # drop sp and to be the same order as data$sp
+        if((det(tree) - 1) > 0.0001){
+          warning("The cov matrix is not standarized, we will do this now...", immediate. = TRUE)
+          tree <- tree/max(tree)
+          tree <- tree/exp(determinant(tree)$modulus[1]/nrow(tree))
+          if((det(tree) - 1) > 0.0001) warning("Failed to standarized the cov matrix", immediate. = TRUE)
+        }
+        Vphy = tree
+      }
     }
     
     if(any(grepl("site__", fm))){
       if(is.null(tree_site)) stop("tree_site not specified")
-      # phylogeny
-      if(length(setdiff(sitel, tree_site$tip.label))) stop("Some species not in the phylogeny tree_site, please either drop these species or update the phylogeny")
-      if(length(setdiff(tree_site$tip.label, sitel))){
-        warning("Drop species from the phylogeny tree_site that are not in the data", immediate. = TRUE)
-        tree = ape::drop.tip(tree_site, setdiff(tree_site$tip.label, sitel))
+      
+      if(class(tree_site) == "phylo"){
+        # phylogeny
+        if(length(setdiff(sitel, tree_site$tip.label))) stop("Some species not in the phylogeny tree_site, please either drop these species or update the phylogeny")
+        if(length(setdiff(tree_site$tip.label, sitel))){
+          warning("Drop species from the phylogeny tree_site that are not in the data", immediate. = TRUE)
+          tree = ape::drop.tip(tree_site, setdiff(tree_site$tip.label, sitel))
+        }
+        Vphy_site <- ape::vcv(tree_site)
+        Vphy_site <- Vphy_site/max(Vphy_site)
+        Vphy_site <- Vphy_site/exp(determinant(Vphy_site)$modulus[1]/nsite)
+        Vphy_site = Vphy_site[sitel, sitel] # same order as site levels
       }
-      Vphy_site <- ape::vcv(tree_site)
-      Vphy_site <- Vphy_site/max(Vphy_site)
-      Vphy_site <- Vphy_site/exp(determinant(Vphy_site)$modulus[1]/nsite)
-      Vphy_site = Vphy_site[sitel, sitel] # same order as site levels
+      
+      if(inherits(tree_site, c("matrix", "Matrix"))){
+        # tree_site is already a cov matrix
+        if(length(setdiff(sitel, row.names(tree_site)))) stop("Some species not in the cov matrix tree_site, please either drop these species or update the matrix tree_site")
+        if(length(setdiff(row.names(tree_site), sitel))){
+          warning("Drop species from the cov matrix that are not in the data", immediate. = TRUE)
+        }
+        tree_site = tree_site[sitel, sitel] # drop sp and to be the same order as data$sp
+        if((det(tree_site) - 1) > 0.0001){
+          warning("The cov matrix is not standarized, we will do this now...", immediate. = TRUE)
+          tree_site <- tree_site/max(tree_site)
+          tree_site <- tree_site/exp(determinant(tree_site)$modulus[1]/nrow(tree_site))
+          if((det(tree_site) - 1) > 0.0001) warning("Failed to standarized the cov matrix", immediate. = TRUE)
+        }
+        Vphy_site = tree_site
+      }
     }
     
     if(nrow(data) != nspp * nsite){
@@ -667,7 +705,8 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
 #' @param optimizer nelder-mead-nlopt (default) or bobyqa or Nelder-Mead (from the stats package) or subplex. 
 #' Nelder-Mead is from the stats package and the other ones are from the nloptr package.
 #' @param tree_site a second phylogeny for "site". This is required only if the site column contains species instead of sites.
-#' This can be used for bipartitie questions.
+#' This can be used for bipartitie questions. tree_site can also be a var-cov matrix, make sure to have all sites in the matrix; 
+#' if the matrix is not standarized, i.e. det(tree_site) != 1, we will try to standarize for you.
 #' @export
 communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, tree_site = NULL, repulsion = FALSE, sp, site,
                            random.effects = NULL, REML = TRUE, bayes = FALSE, s2.init = NULL, B.init = NULL, reltol = 10^-6, 
