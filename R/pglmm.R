@@ -664,7 +664,8 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
 }
 
 #' @rdname pglmm
-#' @param optimizer bobyqa (default) or Nelder-Mead or nelder-mead-nlopt (from the nloptr package) or subplex (from the nloptr package).
+#' @param optimizer nelder-mead-nlopt (default) or bobyqa or Nelder-Mead (from the stats package) or subplex. 
+#' Nelder-Mead is from the stats package and the other ones are from the nloptr package.
 #' @param tree_site a second phylogeny for "site". This is required only if the site column contains species instead of sites.
 #' This can be used for bipartitie questions.
 #' @export
@@ -672,7 +673,7 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, tree
                            random.effects = NULL, REML = TRUE, bayes = FALSE, s2.init = NULL, B.init = NULL, reltol = 10^-6, 
                            maxit = 500, tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE, ML.init = TRUE, 
                            marginal.summ = "mean", calc.DIC = FALSE, default.prior = "inla.default", cpp = TRUE,
-                           optimizer = c("bobyqa", "Nelder-Mead", "nelder-mead-nlopt", "subplex"), prep.s2.lme4 = FALSE) {
+                           optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"), prep.s2.lme4 = FALSE) {
   optimizer = match.arg(optimizer)
   if ((family %nin% c("gaussian", "binomial")) & (bayes == FALSE)){
     stop("\nSorry, but only binomial (binary) and gaussian options are available for
