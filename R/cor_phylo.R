@@ -304,34 +304,27 @@ cp_get_row_names <- function(par_names) {
 #' @param n_cores Number of cores to use for parametric bootstrapping.
 #'   This argument is ignored if OpenMP is not enabled. Defaults to `1`.
 #'
-#' @return
-#' 
-#' An object of class "cor_phylo".
-#' 
-#' \item{corrs}{the `p` x `p` matrix of correlation coefficients.}
-#' \item{d}{values of `d` from the OU process for each trait.}
-#' \item{B}{a matrix of regression-coefficient estimates, SE, Z-scores, and P-values,
-#'   respectively. Rownames indicate which coefficient it refers to.}
-#' \item{B_cov}{covariance matrix for regression coefficients.}
-#' \item{logLik}{the log likelihood for either the restricted likelihood
-#'   (\code{REML = TRUE}) or the overall likelihood (\code{REML = FALSE}).}
-#' \item{AIC}{AIC for either the restricted likelihood (\code{REML = TRUE}) or the
-#'   overall likelihood (\code{REML = FALSE}).}
-#' \item{BIC}{BIC for either the restricted likelihood (\code{REML = TRUE}) or the
-#'   overall likelihood (\code{REML = FALSE}).}
-#' \item{LL_obj}{External pointer to a C++ object with info to calculate the
-#'   log-likelihood.}
-#' \item{niter}{Number of iterations the optimizer used.}
-#' \item{convcode}{Conversion code for the optimizer, which is positive on success and
-#'   negative on failure. See also
-#'   \url{https://nlopt.readthedocs.io/en/latest/NLopt_Reference/#return-values}.
-#' \item{matrices}{}
-#' \item{constrain_d}{}
-#' \item{call}{the matched call.}
-#' \item{par_names}{parameter names.}
-#' \item{bootstrap}{external pointer to a C++ object storing the output from bootstrap
-#'   replicates. Use \code{\link{get_bootstrap}} to view the confidence intervals or
-#'   raw data.}
+#'
+#' @return An object of class `cor_phylo`:
+#'   \describe{
+#'     \item{`corrs`}{the `p` x `p` matrix of correlation coefficients.}
+#'     \item{`d`}{values of `d` from the OU process for each trait.}
+#'     \item{`B`}{a matrix of regression-coefficient estimates, SE, Z-scores, and P-values,
+#'       respectively. Rownames indicate which coefficient it refers to.}
+#'     \item{`B_cov`}{covariance matrix for regression coefficients.}
+#'     \item{`logLik`}{the log likelihood for either the restricted likelihood
+#'       (\code{REML = TRUE}) or the overall likelihood (\code{REML = FALSE}).}
+#'     \item{`AIC`}{AIC for either the restricted likelihood (\code{REML = TRUE}) or the
+#'       overall likelihood (\code{REML = FALSE}).}
+#'     \item{`BIC`}{BIC for either the restricted likelihood (\code{REML = TRUE}) or the
+#'       overall likelihood (\code{REML = FALSE}).}
+#'     \item{`niter`}{Number of iterations the optimizer used.}
+#'     \item{`convcode`}{Conversion code for the optimizer, which is positive on success
+#'       and negative on failure. See also
+#'       \url{https://nlopt.readthedocs.io/en/latest/NLopt_Reference/#return-values}.}
+#'     \item{`call`}{the matched call.}
+#'     \item{`par_names`}{parameter names.}
+#'   }
 #' 
 #' @export
 #'
@@ -592,10 +585,7 @@ cor_phylo <- function(formulas, species, phy,
   colnames(output$B_cov) <- rownames(output$B_cov) <- cp_get_row_names(par_names)
   
   
-  output <- c(output, 
-              list(constrain_d = constrain_d, 
-                   call = call_, par_names = par_names,
-                   bootstrap = matrix(NA, 0, 0)))
+  output <- c(output, list(call = call_))
   class(output) <- "cor_phylo"
   
   # Add bootstrapping to output
@@ -611,8 +601,6 @@ cor_phylo <- function(formulas, species, phy,
 
 
 
-
-
 # ================================================================================
 # ================================================================================
 
@@ -622,59 +610,57 @@ cor_phylo <- function(formulas, species, phy,
 # ================================================================================
 
 
-#' Printing cor_phylo objects
+
+#' `print.cor_phylo` prints `cor_phylo` objects
 #'
 #' @param x an object of class \code{cor_phylo}.
 #' @param digits the number of digits to be printed.
 #' @param ... arguments passed to and from other methods.
 #'
-#' @describeIn cor_phylo
-#'
 #' @export
+#'
+#' @rdname cor_phylo
 #'
 print.cor_phylo <- function(x, digits = max(3, getOption("digits") - 3), ...) {
   cat("\nCall to cor_phylo:\n")
-  cat(gsub("\\s+", " ", deparse(x$call)), "\n\n")
-  logLik = x$logLik
-  AIC = x$AIC
-  BIC = x$BIC
-  names(logLik) = "logLik"
-  names(AIC) = "AIC"
-  names(BIC) = "BIC"
-  print(c(logLik, AIC, BIC), digits = digits)
+  cat(paste(trimws(deparse(x$call)), collapse = " "), "\n\n")
+  nums <- c(logLik = x$logLik, AIC = x$AIC, BIC = x$BIC)
+  print(nums, digits = digits)
   cat("\ncorrelation matrix:\n")
   print(x$corrs, digits = digits)
   cat("\nfrom OU process:\n")
   d <- data.frame(d = x$d)
   print(d, digits = digits)
-  if (x$constrain_d) {
+  if (call_arg(x$call, "constrain_d")) {
     cat("\nvalues of d constrained to be in [0, 1]\n")
   }
   cat("\ncoefficients:\n")
   coef <- as.data.frame(x$B)
   printCoefmat(coef, P.values = TRUE, has.Pvalue = TRUE)
   if (x$convcode < 0) {
-    cat("\nWarning: convergence in optim() not reached\n")
+    cat("\nWarning: convergence in nlopt optimizer (method \"",
+        call_arg(x$call, "method"),
+        "\") not reached after ", x$niter," iterations", sep = "")
   }
-  if (nrow(x$bootstrap) > 0) {
+  if (length(x$bootstrap) > 0) {
     cat("\nBootstrapped 95% CI:\n")
-    if (!is.null(colnames(x$bootstrap))) {
-      for (nn in colnames(x$bootstrap)) {
-        cat(sprintf("  %-4s %9.3g [%9.3g %9.3g]\n", 
-                    nn, 
-                    mean(x$bootstrap[,nn]),
-                    as.numeric(quantile(x$bootstrap[,nn], 0.025)),
-                    as.numeric(quantile(x$bootstrap[,nn], 0.975))))
-      }
-    } else {
-      for (nn in 1:ncol(x$bootstrap)) {
-        cat(sprintf("  %-4s %9.3g [%9.3g %9.3g]\n", 
-                    paste0('col', nn), 
-                    mean(x$bootstrap[,nn]),
-                    as.numeric(quantile(x$bootstrap[,nn], 0.025)),
-                    as.numeric(quantile(x$bootstrap[,nn], 0.975))))
-      }
-    }
+    # if (!is.null(colnames(x$bootstrap))) {
+    #   for (nn in colnames(x$bootstrap)) {
+    #     cat(sprintf("  %-4s %9.3g [%9.3g %9.3g]\n", 
+    #                 nn, 
+    #                 mean(x$bootstrap[,nn]),
+    #                 as.numeric(quantile(x$bootstrap[,nn], 0.025)),
+    #                 as.numeric(quantile(x$bootstrap[,nn], 0.975))))
+    #   }
+    # } else {
+    #   for (nn in 1:ncol(x$bootstrap)) {
+    #     cat(sprintf("  %-4s %9.3g [%9.3g %9.3g]\n", 
+    #                 paste0('col', nn), 
+    #                 mean(x$bootstrap[,nn]),
+    #                 as.numeric(quantile(x$bootstrap[,nn], 0.025)),
+    #                 as.numeric(quantile(x$bootstrap[,nn], 0.975))))
+    #   }
+    # }
   }
   cat("\n")
 }

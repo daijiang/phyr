@@ -40,8 +40,8 @@ NULL
 #'
 #'
 #' @inheritParams ll_obj cp_get_output
-#' @inheritParams max_iter cor_phylo_
-#' @inheritParams method cor_phylo_
+#' @inheritParams max_iter cor_phylo
+#' @inheritParams method cor_phylo
 #' 
 #' @return Nothing. `ll_obj` is modified in place to have info from the model fit
 #'   after this function is run.
@@ -114,21 +114,11 @@ NULL
 #' @param M a n x p matrix with p columns containing standard errors of the trait 
 #'   values in `X`. 
 #' @param Vphy_ phylogenetic variance-covariance matrix from the input phylogeny.
-#' @param REML whether REML (versus ML) is used for model fitting.
-#' @param constrain_d if `TRUE`, the estimates of `d` 
-#'   are constrained to be between zero and 1.
-#'   This can make estimation more stable and can be tried if convergence 
-#'   is problematic.
-#'   This does not necessarily lead to loss of generality of the results, 
-#'   because before using `cor_phylo`, branch lengths of the input phylogeny
-#'   can be transformed so that the "starter" tree has strong phylogenetic signal.
-#' @param verbose if `TRUE`, the model `logLik` and running estimates of the correlation 
-#'   coefficients and values of `d` are printed each iteration during optimization.
-#' @param max_iter the maximum number of iterations in the optimization.
-#' @param method method of optimization using `nlopt`. Options include 
-#'   "neldermead", "sbplx", "bobyqa", "cobyla", "praxis". See
-#'   \url{https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/} for more 
-#'   information.
+#' @inheritParams REML cor_phylo
+#' @inheritParams constrain_d cor_phylo
+#' @inheritParams verbose cor_phylo
+#' @inheritParams max_iter cor_phylo
+#' @inheritParams method cor_phylo
 #' 
 #' @return a list containing output information, to later be coerced to a `cor_phylo`
 #'   object by the `cor_phylo` function.
