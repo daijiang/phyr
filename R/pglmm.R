@@ -689,13 +689,19 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, tree
   }
   
   prep_re = if(is.null(random.effects)) TRUE else FALSE
-  dat_prepared = prep_dat_pglmm(formula, data, tree, repulsion, prep_re, family, prep.s2.lme4, tree_site, bayes)
-  formula = dat_prepared$formula
-  data = dat_prepared$data
-  sp = dat_prepared$sp
-  site = dat_prepared$site
+  if(prep_re) {
+    dat_prepared = prep_dat_pglmm(formula, data, tree, repulsion, prep_re, family, prep.s2.lme4, tree_site, bayes)
+    formula = dat_prepared$formula
+    data = dat_prepared$data
+    sp = dat_prepared$sp 
+    site = dat_prepared$site
+    random.effects = dat_prepared$random.effects
+  } else {
+    formula = lme4::nobars(formula)
+    if(missing(sp)) sp = as.factor(data$sp)
+    if(missing(site)) site = as.factor(data$site)
+  }
   if(prep.s2.lme4) s2.init = dat_prepared$s2_init
-  if(prep_re) random.effects = dat_prepared$random.effects
   
   # initial values for bayesian analysis: binomial and gaussian
   if(bayes & ML.init & (family %in% c("binomial", "gaussian"))) {
@@ -815,6 +821,7 @@ get_design_matrix = function(formula, data, na.action = NULL,
           stop("random term with length 1 is not a cov matrix")
         }
         # if(nrow(covM) != nrow(X)) stop("random term with length 1 has different number of rows") # Nas problems
+        if(!inherits(covM, "Matrix")) covM = as(covM, "dgCMatrix") # to make cpp work, as cpp use sp_mat type
         nested[[jj]] = covM
       }
       
