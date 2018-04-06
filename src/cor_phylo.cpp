@@ -111,6 +111,8 @@ double cor_phylo_LL(unsigned n, const double* x, double* grad, void* f_data) {
     Rcout << std::endl;
   }
   
+  ll_obj->iters++;
+  
   return LL;
 }
 
@@ -436,22 +438,11 @@ List cp_get_output(const arma::mat& X,
   AIC = -2 * logLik + 2 * k;
   BIC = -2 * logLik + k * std::log(n / arma::datum::pi);
   
-  // /*
-  //  Making `Rcpp::XPtr` smart pointers to store C++ objects in R because these 
-  //  matrices shouldn't be needed directly in R.
-  //  I like to convert these `XPtr` objects to `SEXP` to make it very explicit that
-  //  I want to pass them back to R.
-  //  */
+
   // // `cp_matrices` stores matrices that we'll need for bootstrapping
-  // XPtr<cp_matrices> cpm(new cp_matrices(mean_sd_X, sd_U, ll_obj.XX, ll_obj.UU,
-  //                                       ll_obj.MM, ll_obj.Vphy, R, V, C, B));
-  // SEXP cpm_(cpm);
-  // 
-  // // Turning the `LL_obj` into a pointer
-  // XPtr<LL_obj> llop(&ll_obj);
-  // SEXP llop_(llop);
-  
-  
+  // cp_matrices cpm(mean_sd_X, sd_U, ll_obj.XX, ll_obj.UU,
+  //                 ll_obj.MM, ll_obj.Vphy, R, V, C, B);
+
   // Now the final output list
   List out = List::create(
     _["corrs"] = corrs,
