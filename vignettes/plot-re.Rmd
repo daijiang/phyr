@@ -123,6 +123,14 @@ communityPGLMM.plot.random.effects(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__
                        data = d, tree = phy, show.image = TRUE, show.sim.image = FALSE, colorkey = FALSE)
 ```
 
+To make all plots black or white, use `useAbs = TRUE`.
+
+```{r fig.asp=0.6}
+# all black and white
+communityPGLMM.plot.random.effects(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
+                       data = d, tree = phy, show.image = TRUE, show.sim.image = FALSE, useAbs = TRUE)
+```
+
 ## Individual plots for var-cov matrices
 
 Instead of plotting all var-cov matrices in one figure, we can also select the ones we are interested and then work from there.
