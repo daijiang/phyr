@@ -49,7 +49,14 @@
 #' @param tree a phylogeny for column sp, with "phylo" class. Or a var-cov matrix for sp, make sure to have all species in the matrix; 
 #' if the matrix is not standarized, i.e. det(tree) != 1, we will try to standarize for you.
 #' @param repulsion when nested random term specified, do you want to test repulsion or underdispersion?
-#' Default is FALSE, i.e. test underdispersion.
+#' Default is FALSE, i.e. test underdispersion. This argument can be either a logical vector of length 1 or >1.
+#' If its length is 1, then all cov matrices in nested terms will all be either inverted or not.
+#' If its length is >1, then this means the users can select which cov matrix in the nested terms to be inverted.
+#' If so, make sure to get the length right: for all the terms with \code{@}, count the number of "__" and this will be the length of repulsion. 
+#' For example, \code{sp__@site} will take one length as well as \code{sp@site__}.
+#' \code{sp__@site__} will take two elements. So, if you nested terms are \code{(1|sp__@site) + (1|sp@site__) + (1|sp__@site__)}
+#' in the formula, then you should set the repulsion to be something like \code{c(TRUE, FALSE, TURE, TURE)} (length of 4). 
+#' The T/F combinations depend on your aims.
 #' @param random.effects pre-build list of random effects. If NULL (the default), 
 #' the function prep_dat_pglmm() will prepare it for you. A list of pre-generated
 #' random terms is also accepted (mainly to be compatible with code from previous versions).
@@ -547,6 +554,15 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
       if(nrow(data) != length(nna.ind)) stop("something wrong with NAs")
     }
     
+    # number of potential repulsions (both __ and @)
+    n_repulsion = sum(sapply(fm[grepl("@", fm)], function(x){
+      xx = strsplit(as.character(x)[3], "@")[[1]]
+      sum(grepl("__", xx))
+    }))
+    if(length(repulsion) == 1) repulsion = rep(repulsion, n_repulsion)
+    if(length(repulsion) != n_repulsion) stop("the number of repulsion terms specified is not right, please double check")
+    nested_repul_i = 1
+    
     random.effects = lapply(fm, function(x){
       x2 = as.character(x)
       x2 = gsub(pattern = "^0 ?[+] ?", replacement = "", x2) # replace 0 +  x with x
@@ -588,37 +604,49 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
           } else { # has phylogenetic term
             if(sp_or_site[1] == "sp__" & !grepl("__", sp_or_site[2])){ # sp__@site or other variables w/o phylo var
               if(bayes){
-                if(repulsion){
+                if(repulsion[nested_repul_i]){
                   xout = list(1, sp, covar = solve(Vphy), data[, sp_or_site[2]])
                 } else {
                   xout = list(1, sp, covar = Vphy, data[, sp_or_site[2]])
                 }
               } else {
                 n_dim = length(unique(data[, sp_or_site[2]]))
-                if(repulsion){
+                if(repulsion[nested_repul_i]){
                   xout = as(kronecker(diag(n_dim), solve(Vphy)), "dgCMatrix")
                 } else {
                   xout = as(kronecker(diag(n_dim), Vphy), "dgCMatrix")
                 }
                 xout = list(xout)
               }
+              nested_repul_i <<- nested_repul_i + 1 # update repulsion index
             }
             
             if(sp_or_site[1] == "sp" & sp_or_site[2] == "site__"){ # sp@site__
-              if(repulsion){
+              if(repulsion[nested_repul_i]){
                 xout = as(kronecker(solve(Vphy_site), diag(nspp)), "dgCMatrix")
               } else {
                 xout = as(kronecker(Vphy_site, diag(nspp)), "dgCMatrix")
               }
               xout = list(xout)
+              nested_repul_i <<- nested_repul_i + 1
             }
             
             if(sp_or_site[1] == "sp__" & sp_or_site[2] == "site__"){ # sp__@site__
-              if(repulsion){
-                xout = as(kronecker(solve(Vphy_site), solve(Vphy)), "dgCMatrix")
+              if(repulsion[nested_repul_i]){
+                Vphy2 = solve(Vphy)
               } else {
-                xout = as(kronecker(Vphy_site, Vphy), "dgCMatrix")
+                Vphy2 = Vphy
               }
+              nested_repul_i <<- nested_repul_i + 1
+              
+              if(repulsion[nested_repul_i]){
+                Vphy_site2 = solve(Vphy_site)
+              } else {
+                Vphy_site2 = Vphy_site
+              }
+              nested_repul_i <<- nested_repul_i + 1
+              
+              xout = as(kronecker(Vphy_site2, Vphy2), "dgCMatrix")
               xout = list(xout)
             }
             

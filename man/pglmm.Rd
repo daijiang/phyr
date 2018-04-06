@@ -27,7 +27,7 @@ communityPGLMM(formula, data = NULL, family = "gaussian", tree,
   reltol = 10^-6, maxit = 500, tol.pql = 10^-6, maxit.pql = 200,
   verbose = FALSE, ML.init = TRUE, marginal.summ = "mean",
   calc.DIC = FALSE, default.prior = "inla.default", cpp = TRUE,
-  optimizer = c("bobyqa", "Nelder-Mead", "nelder-mead-nlopt", "subplex"),
+  optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"),
   prep.s2.lme4 = FALSE)
 
 communityPGLMM.gaussian(formula, data = list(), family = "gaussian",
@@ -94,10 +94,18 @@ factors specifying species (named as 'sp') and sites (named as 'site'). \code{co
 reorder rows of the data frame so that species are nested within sites (i.e. arrange first
 by column site then by column sp).}
 
-\item{tree}{a phylogeny for column sp, with "phylo" class.}
+\item{tree}{a phylogeny for column sp, with "phylo" class. Or a var-cov matrix for sp, make sure to have all species in the matrix;
+if the matrix is not standarized, i.e. det(tree) != 1, we will try to standarize for you.}
 
 \item{repulsion}{when nested random term specified, do you want to test repulsion or underdispersion?
-Default is FALSE, i.e. test underdispersion.}
+Default is FALSE, i.e. test underdispersion. This argument can be either a logical vector of length 1 or >1.
+If its length is 1, then all cov matrices in nested terms will all be either inverted or not.
+If its length is >1, then this means the users can select which cov matrix in the nested terms to be inverted.
+If so, make sure to get the length right: for all the terms with \code{@}, count the number of "__" and this will be the length of repulsion.
+For example, \code{sp__@site} will take one length as well as \code{sp@site__}.
+\code{sp__@site__} will take two elements. So, if you nested terms are \code{(1|sp__@site) + (1|sp@site__) + (1|sp__@site__)}
+in the formula, then you should set the repulsion to be something like \code{c(TRUE, FALSE, TURE, TURE)} (length of 4).
+The T/F combinations depend on your aims.}
 
 \item{prep.re.effects}{whether to prepare random effects for users.}
 
@@ -110,7 +118,8 @@ If no phylogenetic or nested random terms, should set it to TRUE since it likely
 However, in this case, you probably can just use lme4::lmer.}
 
 \item{tree_site}{a second phylogeny for "site". This is required only if the site column contains species instead of sites.
-This can be used for bipartitie questions.}
+This can be used for bipartitie questions. tree_site can also be a var-cov matrix, make sure to have all sites in the matrix;
+if the matrix is not standarized, i.e. det(tree_site) != 1, we will try to standarize for you.}
 
 \item{bayes}{whether to fit a Bayesian version of the PGLMM using
 \code{r-inla}}
@@ -195,7 +204,8 @@ complexity penalizing prior (as described in \href{https://arxiv.org/abs/1403.46
 \item{cpp}{whether to use c++ function for optim. Default is TRUE. Ignored if
 \code{bayes = TRUE}}
 
-\item{optimizer}{bobyqa (default) or Nelder-Mead or nelder-mead-nlopt (from the nloptr package) or subplex (from the nloptr package).}
+\item{optimizer}{nelder-mead-nlopt (default) or bobyqa or Nelder-Mead (from the stats package) or subplex.
+Nelder-Mead is from the stats package and the other ones are from the nloptr package.}
 
 \item{x}{communityPGLMM object to be summarised}
 

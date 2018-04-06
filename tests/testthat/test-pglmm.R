@@ -190,3 +190,44 @@ z_bipartite_bayes_2 = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site
                                          data = dat, family = "gaussian", tree = phylotree, tree_site = tree_site, 
                                          bayes = TRUE, ML.init = FALSE, default.prior = "pc.prior")
 
+# test tree and tree_site as cov matrix
+test_that("testing tree and tree_site as cov matrix",{
+  z_mat = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site__) + 
+                                 (1|sp__@site) + (1|sp@site__) + (1|sp__@site__), 
+                               data = dat, family = "gaussian", tree = vcv2(phylotree), 
+                               tree_site = vcv2(tree_site), REML = TRUE)
+  expect_equivalent(z_bipartite, z_mat)
+})
+
+# testing selecting nested terms to be repulsive
+Vphy_site <- ape::vcv(tree_site)
+Vphy_site <- Vphy_site/max(Vphy_site)
+Vphy_site <- Vphy_site/exp(determinant(Vphy_site)$modulus[1]/nsite)
+Vphy_site = Vphy_site[sitel, sitel] # same order as site levels
+
+re.site <- list(1, site = dat$site, covar = diag(nsite))
+re.site.phy <- list(1, site = dat$site, covar = Vphy_site)
+re.sp <- list(1, sp = dat$sp, covar = diag(nspp))
+re.sp.phy <- list(1, sp = dat$sp, covar = Vphy)
+# sp is nested within site
+re.sp__.site <- list(kronecker(diag(nsite), (Vphy))) # repulsion F
+re.sp.site__ <- list(kronecker(solve(Vphy_site), diag(nspp))) # repulsion T
+re.sp__.site__ <- list(kronecker(solve(Vphy_site), (Vphy))) # repulsion F T
+repul_vec = c(F, T, F, T)
+
+# can be named 
+re = list(re.sp = re.sp, re.sp.phy = re.sp.phy, re.site = re.site, re.site.phy = re.site.phy, 
+          re.sp__.site = re.sp__.site, re.sp.site__ = re.sp.site__, re.sp__.site__ = re.sp__.site__)
+test_that("testing repulsion as a vector", {
+  z_repul1 = phyr::communityPGLMM(freq ~ 1 + shade,  data = dat, family = "gaussian", random.effects = re)
+  z_repul2 = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site__) + 
+                                    (1|sp__@site) + (1|sp@site__) + (1|sp__@site__), 
+                                  data = dat, family = "gaussian", tree = phylotree, tree_site = tree_site, 
+                                  repulsion = repul_vec)
+  expect_equivalent(z_repul1$B, z_repul2$B)
+  expect_equivalent(z_repul1$B.se, z_repul2$B.se)
+  expect_equivalent(z_repul1$B.pvalue, z_repul2$B.pvalue)
+  expect_equivalent(z_repul1$ss, z_repul2$ss)
+  expect_equivalent(z_repul1$AIC, z_repul2$AIC)
+})
+
