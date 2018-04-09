@@ -151,6 +151,11 @@ align_comm_V = function(comm, tree, prune.tree = FALSE, scale.vcv = TRUE){
       attachNamespace("INLA")
     }
   }
+  # Below prevents `function 'nlopt_create' not provided by package 'nloptr'`
+  # error in `cor_phylo` when using bobyqa optimizer
+  z <- nloptr::bobyqa(0, function(.x) .x^2, 
+                      control = list(maxeval = 10))
+  invisible()
 }
 
 
