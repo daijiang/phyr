@@ -208,6 +208,49 @@ cp_get_row_names <- function(par_names) {
 
 
 
+#' Check validity of method based on nloptr version.
+#' 
+#' 
+#' Making sure the user doesn't try to run neldermead or sbplx on an external
+#' nlopt library bc it throws segfault
+#' 
+#' @inheritParams method cor_phylo
+#' 
+#' @noRd
+#' 
+cp_check_method <- function(method) {
+  if (method %in% c("neldermead", "sbplx")) {
+    # If the LdFlags function isn't present in nloptr, then it isn't a new enough version:
+    nloptr_clib <- tryCatch(nloptr:::LdFlags(FALSE),
+                            error = function(e) {
+                              if (grepl("object 'LdFlags' not found", e)) {
+                                0
+                              } else {
+                                stop(e)
+                              }
+                            })
+    # This detects, based on output from the previous step, if the nloptr version 
+    # isn't new enough:
+    if (nloptr_clib == 0) {
+      warning("cor_phylo requires the developmental version of nloptr if you ",
+              "want to run it with method = \"neldermead\" or \"sbplx\". ",
+              "Switching to \"bobyqa\" algorithm.",
+              call. = FALSE)
+      method <- "bobyqa"
+      
+      # This now detects whether it's an external nlopt library:
+    } else if (nloptr_clib != " -lm" & .Platform$OS.type != "windows") {
+      warning("Using external nlopt library with \"neldermead\" or \"sbplx\" algorithms ",
+              "results in undesired behavior. Switching to \"bobyqa\" algorithm.",
+              call. = FALSE)
+      method <- "bobyqa"
+    }
+  }
+  return(method)
+}
+
+
+
 # ================================================================================
 # ================================================================================
 
@@ -273,8 +316,9 @@ cp_get_row_names <- function(par_names) {
 #'       traits with both covariates and measurement error
 #'     }
 #'   }
-#' @param species a character vector or object in `data` indicating the order
-#'   of species for all trait and covariate values.
+#' @param species the column name or object in `data` that indicates the species.
+#'   You do not need to use quotes for this argument,
+#'   but quotes will not adversely affect the outcome.
 #' @param phy a `phylo` object giving the phylogenetic tree.
 #' @param data an optional data frame, list, or environment that contains the
 #'   variables in the model. By default, variables are taken from the environment
@@ -282,7 +326,7 @@ cp_get_row_names <- function(par_names) {
 #' @param REML whether REML (versus ML) should be used for model fitting.
 #'   Defaults to `TRUE`.
 #' @param method method of optimization using `nlopt`. Options include 
-#'   "neldermead", "sbplx", "bobyqa", "cobyla", "praxis". See
+#'   "neldermead", "bobyqa", "sbplx", "cobyla", "praxis". See
 #'   \url{https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/} for more 
 #'   information.
 #' @param constrain_d if `constrain_d` is `TRUE`, the estimates of `d` are 
@@ -292,7 +336,7 @@ cp_get_row_names <- function(par_names) {
 #'   branch lengths of `phy` can be transformed so that the "starter" tree
 #'   has strong phylogenetic signal.
 #'   Defaults to `FALSE`.
-#' @param reltol a control parameter dictating the relative tolerance for convergence 
+#' @param rel_tol a control parameter dictating the relative tolerance for convergence 
 #'   in the optimization; see `optim()`.
 #'   Defaults to `1e-6`.
 #' @param max_iter a control parameter dictating the maximum number of iterations 
@@ -306,25 +350,22 @@ cp_get_row_names <- function(par_names) {
 #'
 #'
 #' @return An object of class `cor_phylo`:
-#'   \describe{
-#'     \item{`corrs`}{the `p` x `p` matrix of correlation coefficients.}
-#'     \item{`d`}{values of `d` from the OU process for each trait.}
-#'     \item{`B`}{a matrix of regression-coefficient estimates, SE, Z-scores, and P-values,
-#'       respectively. Rownames indicate which coefficient it refers to.}
-#'     \item{`B_cov`}{covariance matrix for regression coefficients.}
-#'     \item{`logLik`}{the log likelihood for either the restricted likelihood
-#'       (\code{REML = TRUE}) or the overall likelihood (\code{REML = FALSE}).}
-#'     \item{`AIC`}{AIC for either the restricted likelihood (\code{REML = TRUE}) or the
-#'       overall likelihood (\code{REML = FALSE}).}
-#'     \item{`BIC`}{BIC for either the restricted likelihood (\code{REML = TRUE}) or the
-#'       overall likelihood (\code{REML = FALSE}).}
-#'     \item{`niter`}{Number of iterations the optimizer used.}
-#'     \item{`convcode`}{Conversion code for the optimizer, which is positive on success
-#'       and negative on failure. See also
-#'       \url{https://nlopt.readthedocs.io/en/latest/NLopt_Reference/#return-values}.}
-#'     \item{`call`}{the matched call.}
-#'     \item{`par_names`}{parameter names.}
-#'   }
+#'   \item{`corrs`}{the `p` x `p` matrix of correlation coefficients.}
+#'   \item{`d`}{values of `d` from the OU process for each trait.}
+#'   \item{`B`}{a matrix of regression-coefficient estimates, SE, Z-scores, and P-values,
+#'     respectively. Rownames indicate which coefficient it refers to.}
+#'   \item{`B_cov`}{covariance matrix for regression coefficients.}
+#'   \item{`logLik`}{the log likelihood for either the restricted likelihood
+#'     (\code{REML = TRUE}) or the overall likelihood (\code{REML = FALSE}).}
+#'   \item{`AIC`}{AIC for either the restricted likelihood (\code{REML = TRUE}) or the
+#'     overall likelihood (\code{REML = FALSE}).}
+#'   \item{`BIC`}{BIC for either the restricted likelihood (\code{REML = TRUE}) or the
+#'     overall likelihood (\code{REML = FALSE}).}
+#'   \item{`niter`}{Number of iterations the optimizer used.}
+#'   \item{`convcode`}{Conversion code for the optimizer, which is positive on success
+#'     and negative on failure. See also
+#'     \url{https://nlopt.readthedocs.io/en/latest/NLopt_Reference/#return-values}.}
+#'   \item{`call`}{the matched call.}
 #' 
 #' @export
 #'
@@ -365,7 +406,7 @@ cp_get_row_names <- function(par_names) {
 #'     phy <- rcoal(n, tip.label = 1:n)
 #'     
 #'     R <- matrix(c(1, 0.7, 0.7, 1), nrow = 2, ncol = 2)
-#'     d <- c(0.3, .95)
+#'     d <- c(0.3, 0.95)
 #'     B2 <- 1
 #'     
 #'     Se <- c(0.2, 1)
@@ -511,44 +552,20 @@ cp_get_row_names <- function(par_names) {
 cor_phylo <- function(formulas, species, phy,
                       data = sys.frame(sys.parent()),
                       REML = TRUE, 
-                      method = c("neldermead", "sbplx", "bobyqa", "cobyla", "praxis"),
+                      method = c("neldermead", "bobyqa", "sbplx", "cobyla", "praxis"),
                       constrain_d = FALSE, 
-                      reltol = 1e-6, max_iter = 1000, 
+                      rel_tol = 1e-6, 
+                      max_iter = 1000, 
                       verbose = FALSE,
                       boot = 0, n_cores = 1) {
   
-  method <- match.arg(method)
+  stopifnot(rel_tol > 0)
   
-  # Making sure the user doesn't try to run neldermead or sbplx on an external
-  # nlopt library bc it throws segfault
-  if (method %in% c("neldermead", "sbplx")) {
-    # If the LdFlags function isn't present in nloptr, then it isn't a new enough version:
-    nloptr_clib <- tryCatch(nloptr:::LdFlags(FALSE),
-                            error = function(e) {
-                              if (grepl("object 'LdFlags' not found", e)) {
-                                0
-                              } else {
-                                stop(e)
-                              }
-                            })
-    # This detects, based on output from the previous step, if the nloptr version 
-    # isn't new enough:
-    if (nloptr_clib == 0) {
-      warning("cor_phylo requires the developmental version of nloptr if you ",
-              "want to run it with method = \"neldermead\" or \"sbplx\". ",
-              "Switching to \"bobyqa\" algorithm.",
-              call. = FALSE)
-      method <- "bobyqa"
-      
-    # This now detects whether it's an external nlopt library:
-    } else if (nloptr_clib != " -lm" & .Platform$OS.type != "windows") {
-      warning("Using external nlopt library with \"neldermead\" or \"sbplx\" algorithms ",
-              "results in undesired behavior. Switching to \"bobyqa\" algorithm.",
-              call. = FALSE)
-      method <- "bobyqa"
-    }
-  }
-
+  method <- match.arg(method)
+  method <- cp_check_method(method)
+  # Converting to a C++ index
+  method <- which(c("neldermead", "bobyqa", "sbplx", "cobyla", "praxis") == method) - 1
+  
   call_ <- match.call()
   
   if (length(formulas) <= 1) {
@@ -560,7 +577,9 @@ cor_phylo <- function(formulas, species, phy,
   phy <- check_phy(phy)
   Vphy <- ape::vcv(phy)
   
-  spp_vec <- cp_get_species(substitute(species), data, phy)
+  species <- substitute(species)
+  if (is.character(species)) species <- parse(text = species)
+  spp_vec <- cp_get_species(species, data, phy)
   
   matrices <- lapply(formulas, cp_extract_matrices, data = data, phy = phy,
                      spp_vec = spp_vec)
@@ -573,9 +592,9 @@ cor_phylo <- function(formulas, species, phy,
   
   # `cor_phylo_` returns a list with the following objects:
   # corrs, d, B, (previously B, B_se, B_zscore, and B_pvalue),
-  #     B_cov, logLik, AIC, BIC, R, V, C
+  #     B_cov, logLik, AIC, BIC
   output <- cor_phylo_(X, U, M, Vphy, REML, constrain_d, verbose, 
-                       max_iter, method)
+                       rel_tol, max_iter, method)
   # Taking care of row and column names:
   colnames(output$corrs) <- rownames(output$corrs) <- names(par_names[[1]])
   rownames(output$d) <- names(par_names[[1]])

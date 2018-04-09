@@ -6,9 +6,9 @@
 \title{Correlations among multiple traits with phylogenetic signal}
 \usage{
 cor_phylo(formulas, species, phy, data = sys.frame(sys.parent()),
-  REML = TRUE, method = c("neldermead", "sbplx", "bobyqa", "cobyla",
-  "praxis"), constrain_d = FALSE, reltol = 1e-06, max_iter = 1000,
-  verbose = FALSE, boot = 0, boot_out = NULL, n_cores = 1)
+  REML = TRUE, method = c("neldermead", "bobyqa", "sbplx", "cobyla",
+  "praxis"), constrain_d = FALSE, rel_tol = 1e-06, max_iter = 1000,
+  verbose = FALSE, boot = 0, n_cores = 1)
 
 \method{print}{cor_phylo}(x, digits = max(3, getOption("digits") - 3), ...)
 }
@@ -30,8 +30,9 @@ traits with both covariates and measurement error
 }
 }}
 
-\item{species}{a character vector or object in \code{data} indicating the order
-of species for all trait and covariate values.}
+\item{species}{the column name or object in \code{data} that indicates the species.
+You do not need to use quotes for this argument,
+but quotes will not adversely affect the outcome.}
 
 \item{phy}{a \code{phylo} object giving the phylogenetic tree.}
 
@@ -43,7 +44,7 @@ from which \code{cor_phylo} was called.}
 Defaults to \code{TRUE}.}
 
 \item{method}{method of optimization using \code{nlopt}. Options include
-"neldermead", "sbplx", "bobyqa", "cobyla", "praxis". See
+"neldermead", "bobyqa", "sbplx", "cobyla", "praxis". See
 \url{https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/} for more
 information.}
 
@@ -55,7 +56,7 @@ branch lengths of \code{phy} can be transformed so that the "starter" tree
 has strong phylogenetic signal.
 Defaults to \code{FALSE}.}
 
-\item{reltol}{a control parameter dictating the relative tolerance for convergence
+\item{rel_tol}{a control parameter dictating the relative tolerance for convergence
 in the optimization; see \code{optim()}.
 Defaults to \code{1e-6}.}
 
@@ -78,28 +79,23 @@ This argument is ignored if OpenMP is not enabled. Defaults to \code{1}.}
 \item{...}{arguments passed to and from other methods.}
 }
 \value{
-An object of class "cor_phylo":
-\describe{
-\item{corrs}{the \code{p} x \code{p} matrix of correlation coefficients.}
-\item{d}{values of \code{d} from the OU process for each trait.}
-\item{B}{a matrix of regression-coefficient estimates, SE, Z-scores, and P-values,
+An object of class \code{cor_phylo}:
+\item{\code{corrs}}{the \code{p} x \code{p} matrix of correlation coefficients.}
+\item{\code{d}}{values of \code{d} from the OU process for each trait.}
+\item{\code{B}}{a matrix of regression-coefficient estimates, SE, Z-scores, and P-values,
 respectively. Rownames indicate which coefficient it refers to.}
-\item{B_cov}{covariance matrix for regression coefficients.}
-\item{logLik}{the log likelihood for either the restricted likelihood
+\item{\code{B_cov}}{covariance matrix for regression coefficients.}
+\item{\code{logLik}}{the log likelihood for either the restricted likelihood
 (\code{REML = TRUE}) or the overall likelihood (\code{REML = FALSE}).}
-\item{AIC}{AIC for either the restricted likelihood (\code{REML = TRUE}) or the
+\item{\code{AIC}}{AIC for either the restricted likelihood (\code{REML = TRUE}) or the
 overall likelihood (\code{REML = FALSE}).}
-\item{BIC}{BIC for either the restricted likelihood (\code{REML = TRUE}) or the
+\item{\code{BIC}}{BIC for either the restricted likelihood (\code{REML = TRUE}) or the
 overall likelihood (\code{REML = FALSE}).}
-\item{LL_obj}{External pointer to a C++ object with info to calculate the
-log-likelihood.}
-\item{niter}{Number of iterations the optimizer used.}
-\item{convcode}{Conversion code for the optimizer, which is positive on success
+\item{\code{niter}}{Number of iterations the optimizer used.}
+\item{\code{convcode}}{Conversion code for the optimizer, which is positive on success
 and negative on failure. See also
 \url{https://nlopt.readthedocs.io/en/latest/NLopt_Reference/#return-values}.}
-\item{call}{the matched call.}
-\item{par_names}{parameter names.}
-}
+\item{\code{call}}{the matched call.}
 }
 \description{
 This function calculates Pearson correlation coefficients for multiple continuous
@@ -151,9 +147,10 @@ data_df <- data.frame(species = phy$tip.label,
                       cov2 = rnorm(10, mean = 10, sd = 4),
                       se1 = 0.2,
                       se2 = 0.4)
+data_df$par2 <- data_df$par2 + 0.5 * data_df$cov2
 
 cor_phylo(list(par1 ~ 1 | se1, par2 ~ cov2 | se2),
-          species = "species", phy = phy, data = data_df,
+          species = species, phy = phy, data = data_df,
           method = "neldermead")
 
 
@@ -175,7 +172,7 @@ cor_phylo(list(par1 ~ 1 | se1, par2 ~ cov2 | se2),
     phy <- rcoal(n, tip.label = 1:n)
     
     R <- matrix(c(1, 0.7, 0.7, 1), nrow = 2, ncol = 2)
-    d <- c(0.3, .95)
+    d <- c(0.3, 0.95)
     B2 <- 1
     
     Se <- c(0.2, 1)
@@ -242,15 +239,15 @@ cor_phylo(list(par1 ~ 1 | se1, par2 ~ cov2 | se2),
         # and (iii) just measurement error
         z <- cor_phylo(list(par1 ~ 1 | se1, par2 ~ cov2 | se2),
                        phy = phy,
-                       species = "species", data = data_df,
+                       species = species, data = data_df,
                        method = "neldermead")
         z.noM <- cor_phylo(list(par1 ~ 1, par2 ~ cov2),
                            phy = phy,
-                           species = "species", data = data_df,
+                           species = species, data = data_df,
                            method = "neldermead")
         z.noP <- cor_phylo(list(par1 ~ 1 | se1, par2 ~ cov2 | se2),
                            phy = star,
-                           species = "species", data = data_df,
+                           species = species, data = data_df,
                            method = "neldermead")
     
         cor.list[rep] <- z$corrs[1, 2]

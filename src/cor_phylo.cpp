@@ -4,7 +4,6 @@
 #include <numeric>
 #include <cmath>
 #include <vector>
-#include <string>
 #include <nloptrAPI.h>
 
 #include "cor_phylo.h"
@@ -15,7 +14,6 @@ using namespace Rcpp;
 #define VERY_SMALL_TOL 0.00000001490116119385
 #define COND_MIN 0.0000000001
 #define MAX_RETURN 10000000000
-
 
 
 
@@ -150,8 +148,9 @@ double cor_phylo_LL(unsigned n, const double* x, double* grad, void* f_data) {
 //' @noRd
 //' 
 void fit_cor_phylo(LL_obj& ll_obj,
+                   const double& rel_tol,
                    const int& max_iter,
-                   const std::string& method) {
+                   const uint& method) {
   
   void* llop(&ll_obj);
   
@@ -163,26 +162,35 @@ void fit_cor_phylo(LL_obj& ll_obj,
   x = new double[n_pars];  // Allocate n_pars doubles and save ptr in x.
   for (unsigned i = 0; i < n_pars; i++) x[i] = ll_obj.par0(i);
   
-  nlopt_opt opt;
-
-  if (method == "neldermead") {
-    opt = nlopt_create(NLOPT_LN_NELDERMEAD, n_pars);
-  } else if (method == "sbplx") {
-    opt = nlopt_create(NLOPT_LN_SBPLX, n_pars);
-  } else if (method == "bobyqa") {
-    opt = nlopt_create(NLOPT_LN_BOBYQA, n_pars);
-  } else if (method == "cobyla") {
-    opt = nlopt_create(NLOPT_LN_COBYLA, n_pars);
-  } else if (method == "praxis") {
-    opt = nlopt_create(NLOPT_LN_PRAXIS, n_pars);
-  } else {
-    stop("method not recognized. Use bobyqa, cobyla, or praxis.");
+  
+  nlopt_algorithm alg;
+  
+  switch(method) {
+  case 0: 
+    alg = NLOPT_LN_NELDERMEAD;
+    break;
+  case 1: 
+    alg = NLOPT_LN_BOBYQA;
+    break;
+  case 2: 
+    alg = NLOPT_LN_SBPLX;
+    break;
+  case 3: 
+    alg = NLOPT_LN_COBYLA;
+    break;
+  case 4: 
+    alg = NLOPT_LN_PRAXIS;
+    break;
+  default:
+    stop("Unknown method integer passed to fit_cor_phylo");
   }
+  
+  nlopt_opt opt = nlopt_create(alg, n_pars);
   double min_LL;
   
   nlopt_set_min_objective(opt, cor_phylo_LL, llop);
   
-  nlopt_set_ftol_rel(opt, VERY_SMALL_TOL);
+  nlopt_set_ftol_rel(opt, rel_tol);
   nlopt_set_maxeval(opt, max_iter);
   
   nlopt_result res = nlopt_optimize(opt, x, &min_LL);
@@ -473,7 +481,8 @@ List cp_get_output(const arma::mat& X,
 //' @inheritParams constrain_d cor_phylo
 //' @inheritParams verbose cor_phylo
 //' @inheritParams max_iter cor_phylo
-//' @inheritParams method cor_phylo
+//' @param method the `method` input to `cor_phylo`, converted to an integer
+//'   that indexes which method it should be.
 //' 
 //' @return a list containing output information, to later be coerced to a `cor_phylo`
 //'   object by the `cor_phylo` function.
@@ -487,14 +496,15 @@ List cor_phylo_(const arma::mat& X,
                 const bool& REML,
                 const bool& constrain_d,
                 const bool& verbose,
+                const double& rel_tol,
                 const int& max_iter,
-                const std::string& method) {
+                const uint& method) {
   
   // LL_obj is C++ class to use for nlopt optimizing
   LL_obj ll_obj(X, U, M, Vphy_, REML, constrain_d, verbose);
   
   // Do the fitting
-  fit_cor_phylo(ll_obj, max_iter, method);
+  fit_cor_phylo(ll_obj, rel_tol, max_iter, method);
   
   // Retrieve output from `ll_obj` object and convert to list
   List output = cp_get_output(X, U, ll_obj);

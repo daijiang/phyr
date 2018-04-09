@@ -118,14 +118,15 @@ NULL
 #' @inheritParams constrain_d cor_phylo
 #' @inheritParams verbose cor_phylo
 #' @inheritParams max_iter cor_phylo
-#' @inheritParams method cor_phylo
+#' @param method the `method` input to `cor_phylo`, converted to an integer
+#'   that indexes which method it should be.
 #' 
 #' @return a list containing output information, to later be coerced to a `cor_phylo`
 #'   object by the `cor_phylo` function.
 #' @noRd
 #' 
-cor_phylo_ <- function(X, U, M, Vphy_, REML, constrain_d, verbose, max_iter, method) {
-    .Call(`_phyr_cor_phylo_`, X, U, M, Vphy_, REML, constrain_d, verbose, max_iter, method)
+cor_phylo_ <- function(X, U, M, Vphy_, REML, constrain_d, verbose, rel_tol, max_iter, method) {
+    .Call(`_phyr_cor_phylo_`, X, U, M, Vphy_, REML, constrain_d, verbose, rel_tol, max_iter, method)
 }
 
 set_seed <- function(seed) {
