@@ -342,7 +342,7 @@ LL_obj::LL_obj(const arma::mat& X,
   if (U.size() > 0) {
     for (uint_t i = 0; i < p; i++) {
       if (U[i].n_cols > 0) {
-        arma::mat x = Us[i];
+        const arma::mat& x(Us[i]);
         const arma::vec& y(Xs.col(i));
         arma::vec coef = arma::solve(x, y);
         arma::vec res = y - x * coef;
@@ -358,7 +358,7 @@ LL_obj::LL_obj(const arma::mat& X,
   
   tau = arma::vec(n, arma::fill::ones) * Vphy.diag().t() - Vphy;
   
-  par0 = arma::vec((p / 2) * (1 + p) + p);
+  par0 = arma::vec((static_cast<double>(p) / 2) * (1 + p) + p);
   par0.fill(0.5);
   for (uint_t i = 0, j = 0, k = p - 1; i < p; i++) {
     par0(arma::span(j, k)) = L(arma::span(i, p-1), i);
@@ -407,7 +407,7 @@ List cp_get_output(const arma::mat& X,
   arma::mat L = make_L(ll_obj.min_par, n, p);
   
   arma::mat R = L.t() * L;
-
+  
   arma::mat corrs = make_corrs(R);
   
   arma::vec d = make_d(ll_obj.min_par, n, p, ll_obj.constrain_d);
@@ -446,11 +446,11 @@ List cp_get_output(const arma::mat& X,
   AIC = -2 * logLik + 2 * k;
   BIC = -2 * logLik + k * std::log(n / arma::datum::pi);
   
-
+  
   // // `cp_matrices` stores matrices that we'll need for bootstrapping
   // cp_matrices cpm(mean_sd_X, sd_U, ll_obj.XX, ll_obj.UU,
   //                 ll_obj.MM, ll_obj.Vphy, R, V, C, B);
-
+  
   // Now the final output list
   List out = List::create(
     _["corrs"] = corrs,
