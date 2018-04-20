@@ -33,7 +33,83 @@ using namespace Rcpp;
  ***************************************************************************************
  */
 
-//' Log likelihood function.
+
+
+
+//' Inline C++ that does most of the work related to the log-likelihood function.
+//' 
+//' See below for the `nlopt` and `stats::optim` versions
+//' 
+//' 
+//' @name cor_phylo_LL_
+//' @noRd
+//' 
+//' 
+inline double cor_phylo_LL_(const unsigned& n,
+                            const arma::vec& par,
+                            const arma::mat& XX,
+                            const arma::mat& UU,
+                            const arma::mat& MM,
+                            const arma::mat& Vphy,
+                            const arma::mat& tau,
+                            const bool& REML,
+                            const bool& constrain_d,
+                            const bool& verbose) {
+  
+  
+  uint_t n_ = Vphy.n_rows;
+  uint_t p = XX.n_rows / n_;
+  
+  arma::mat L = make_L(par, n_, p);
+  
+  arma::mat R = L.t() * L;
+  
+  arma::vec d = make_d(par, n_, p, constrain_d, true);
+  if (d.n_elem == 0) return MAX_RETURN;
+  
+  // OU transform
+  arma::mat C = make_C(n_, p, tau, d, Vphy, R);
+  
+  arma::mat V = make_V(C, MM);
+  double rcond_dbl = arma::rcond(V);
+  if (!arma::is_finite(rcond_dbl) || rcond_dbl < COND_MIN) return MAX_RETURN;
+  
+  arma::mat iV = arma::inv(V);
+  arma::mat denom = tp(UU) * iV * UU;
+  rcond_dbl = arma::rcond(denom);
+  if (!arma::is_finite(rcond_dbl) || rcond_dbl < COND_MIN) return MAX_RETURN;
+  
+  arma::mat num = tp(UU) * iV * XX;
+  arma::vec B0 = arma::solve(denom, num);
+  arma::mat H = XX - UU * B0;
+  
+  double logdetV, det_sign;
+  arma::log_det(logdetV, det_sign, iV);
+  if (!arma::is_finite(logdetV)) return MAX_RETURN;
+  logdetV *= -1;
+  
+  double LL;
+  if (REML) {
+    arma::mat to_det = tp(UU) * iV * UU;
+    double det_val;
+    arma::log_det(det_val, det_sign, to_det);
+    double lhs = arma::as_scalar(tp(H) * iV * H);
+    LL = 0.5 * (logdetV + det_val + lhs);
+  } else {
+    LL = 0.5 * arma::as_scalar(logdetV + tp(H) * iV * H);
+  }
+  
+  if (verbose) {
+    Rcout << LL << ' ';
+    for (uint_t i = 0; i < par.n_elem; i++) Rcout << par(i) << ' ';
+    Rcout << std::endl;
+  }
+  
+  return LL;
+}
+
+
+//' `cor_phylo` log likelihood function for use with `nlopt`.
 //' 
 //' Note that this function is referred to the "objective function" in the `nlopt`
 //' documentation and the input arguments should not be changed.
@@ -61,53 +137,9 @@ double cor_phylo_LL(unsigned n, const double* x, double* grad, void* f_data) {
   arma::vec par(n);
   for (uint i = 0; i < n; i++) par[i] = x[i];
   
-  uint_t n_ = ll_obj->Vphy.n_rows;
-  uint_t p = ll_obj->XX.n_rows / n_;
-  
-  arma::mat L = make_L(par, n_, p);
-  
-  arma::mat R = L.t() * L;
-  
-  arma::vec d = make_d(par, n_, p, ll_obj->constrain_d, true);
-  if (d.n_elem == 0) return MAX_RETURN;
-  
-  // OU transform
-  arma::mat C = make_C(n_, p, ll_obj->tau, d, ll_obj->Vphy, R);
-  
-  arma::mat V = make_V(C, ll_obj->MM);
-  double rcond_dbl = arma::rcond(V);
-  if (!arma::is_finite(rcond_dbl) || rcond_dbl < COND_MIN) return MAX_RETURN;
-  
-  arma::mat iV = arma::inv(V);
-  arma::mat denom = tp(ll_obj->UU) * iV * ll_obj->UU;
-  rcond_dbl = arma::rcond(denom);
-  if (!arma::is_finite(rcond_dbl) || rcond_dbl < COND_MIN) return MAX_RETURN;
-  
-  arma::mat num = tp(ll_obj->UU) * iV * ll_obj->XX;
-  arma::vec B0 = arma::solve(denom, num);
-  arma::mat H = ll_obj->XX - ll_obj->UU * B0;
-  
-  double logdetV, det_sign;
-  arma::log_det(logdetV, det_sign, iV);
-  if (!arma::is_finite(logdetV)) return MAX_RETURN;
-  logdetV *= -1;
-  
-  double LL;
-  if (ll_obj->REML) {
-    arma::mat to_det = tp(ll_obj->UU) * iV * ll_obj->UU;
-    double det_val;
-    arma::log_det(det_val, det_sign, to_det);
-    double lhs = arma::as_scalar(tp(H) * iV * H);
-    LL = 0.5 * (logdetV + det_val + lhs);
-  } else {
-    LL = 0.5 * arma::as_scalar(logdetV + tp(H) * iV * H);
-  }
-  
-  if (ll_obj->verbose) {
-    Rcout << LL << ' ';
-    for (uint_t i = 0; i < par.n_elem; i++) Rcout << par(i) << ' ';
-    Rcout << std::endl;
-  }
+  double LL = cor_phylo_LL_(n, par, ll_obj->XX, ll_obj->UU, ll_obj->MM, 
+                            ll_obj->Vphy, ll_obj->tau, ll_obj->REML, 
+                            ll_obj->constrain_d, ll_obj->verbose);
   
   ll_obj->iters++;
   
@@ -116,6 +148,53 @@ double cor_phylo_LL(unsigned n, const double* x, double* grad, void* f_data) {
 
 
 
+//' `cor_phylo` log likelihood function for R's `stats::optim`.
+//' 
+//' 
+//' @param par Initial values for the parameters to be optimized over.
+//' @param ll_obj_xptr `Rcpp::Xptr` object that points to a C++ `LL_obj` object.
+//'     This object stores all the other information needed for the log likelihood
+//'     function.
+//' 
+//' @noRd
+//' 
+//' @name cor_phylo_LL_R
+//' 
+//[[Rcpp::export]]
+double cor_phylo_LL_R(const arma::vec& par,
+                      SEXP ll_obj_xptr) {
+  
+  XPtr<LL_obj> ll_obj(ll_obj_xptr);
+  const unsigned n = par.n_elem;
+  double LL = cor_phylo_LL_(n, par, ll_obj->XX, ll_obj->UU, ll_obj->MM, 
+                            ll_obj->Vphy, ll_obj->tau, ll_obj->REML, 
+                            ll_obj->constrain_d, ll_obj->verbose);
+  return LL;
+}
+
+
+
+//' Test function for if you want to run the LL function from R using R objects.
+//' 
+//' @noRd
+//' 
+//' 
+//' @name cor_phylo_LL_R2
+//' 
+//[[Rcpp::export]]
+double cor_phylo_LL_R2(const arma::vec& par,
+                      const arma::mat& XX,
+                      const arma::mat& UU,
+                      const arma::mat& MM,
+                      const arma::mat& Vphy,
+                      const arma::mat& tau,
+                      const bool& REML,
+                      const bool& constrain_d,
+                      const bool& verbose) {
+  const unsigned n = par.n_elem;
+  double LL = cor_phylo_LL_(n, par, XX, UU, MM, Vphy, tau, REML, constrain_d, verbose);
+  return LL;
+}
 
 
 
@@ -144,13 +223,13 @@ double cor_phylo_LL(unsigned n, const double* x, double* grad, void* f_data) {
 //' @return Nothing. `ll_obj` is modified in place to have info from the model fit
 //'   after this function is run.
 //'
-//' @name fit_cor_phylo
+//' @name fit_cor_phylo_nlopt
 //' @noRd
 //' 
-void fit_cor_phylo(LL_obj& ll_obj,
-                   const double& rel_tol,
-                   const int& max_iter,
-                   const uint& method) {
+void fit_cor_phylo_nlopt(LL_obj& ll_obj,
+                         const double& rel_tol,
+                         const int& max_iter,
+                         const uint& method) {
   
   void* llop(&ll_obj);
   
@@ -182,7 +261,7 @@ void fit_cor_phylo(LL_obj& ll_obj,
     alg = NLOPT_LN_PRAXIS;
     break;
   default:
-    stop("Unknown method integer passed to fit_cor_phylo");
+    stop("Unknown method integer passed to fit_cor_phylo_nlopt");
   }
   
   nlopt_opt opt = nlopt_create(alg, n_pars);
@@ -206,6 +285,55 @@ void fit_cor_phylo(LL_obj& ll_obj,
   return;
 }
 
+
+
+//' Fit `cor_phylo` model using R's `stats::optim`.
+//' 
+//' Make sure this doesn't get run in parallel!
+//'
+//'
+//' @inheritParams ll_obj_xptr cor_phylo_LL_R
+//' @inheritParams max_iter cor_phylo
+//' @inheritParams method cor_phylo
+//' 
+//' @return Nothing. `ll_obj_xptr` is modified in place to have info from the model fit
+//'   after this function is run.
+//'
+//' @name fit_cor_phylo_R
+//' @noRd
+//' 
+void fit_cor_phylo_R(XPtr<LL_obj>& ll_obj_xptr,
+                     const double& rel_tol,
+                     const int& max_iter) {
+  
+  Rcpp::Environment stats("package:stats");
+  Rcpp::Function optim = stats["optim"];
+  
+  Rcpp::List opt;
+  
+  opt = optim(_["par"] = ll_obj_xptr->par0,
+              _["fn"] = Rcpp::InternalFunction(&cor_phylo_LL_R),
+              _["ll_obj"] = ll_obj_xptr,
+              _["method"] = "Nelder-Mead",
+              _["control"] = List::create(_["maxit"] = max_iter,
+                                   _["reltol"] = rel_tol));
+  
+  ll_obj_xptr->min_par = as<arma::vec>(opt["par"]);
+  
+  ll_obj_xptr->LL = as<double>(opt["value"]);
+  ll_obj_xptr->convcode = as<int>(opt["convergence"]);
+  ll_obj_xptr->iters = as<arma::vec>(opt["counts"])(0);
+  
+  if (ll_obj_xptr->verbose) {
+    Rcout << ll_obj_xptr->LL << ' ';
+    arma::vec& par(ll_obj_xptr->min_par);
+    for (uint_t i = 0; i < par.n_elem; i++) Rcout << par(i) << ' ';
+    Rcout << std::endl;
+  }
+  
+  return;
+  
+}
 
 
 
@@ -358,6 +486,7 @@ LL_obj::LL_obj(const arma::mat& X,
   
   tau = arma::vec(n, arma::fill::ones) * Vphy.diag().t() - Vphy;
   
+
   par0 = arma::vec((static_cast<double>(p) / 2) * (1 + p) + p);
   par0.fill(0.5);
   for (uint_t i = 0, j = 0, k = p - 1; i < p; i++) {
@@ -487,6 +616,7 @@ List cp_get_output(const arma::mat& X,
 //' @return a list containing output information, to later be coerced to a `cor_phylo`
 //'   object by the `cor_phylo` function.
 //' @noRd
+//' @name cor_phylo_
 //' 
 //[[Rcpp::export]]
 List cor_phylo_(const arma::mat& X,
@@ -500,14 +630,21 @@ List cor_phylo_(const arma::mat& X,
                 const int& max_iter,
                 const uint& method) {
   
-  // LL_obj is C++ class to use for nlopt optimizing
-  LL_obj ll_obj(X, U, M, Vphy_, REML, constrain_d, verbose);
+  // LL_obj is C++ class to use for organizing info for optimizing
+  XPtr<LL_obj> ll_obj_xptr(new LL_obj(X, U, M, Vphy_, REML, constrain_d, 
+                                      verbose), true);
+  LL_obj& ll_obj(*ll_obj_xptr);
   
-  // Do the fitting
-  fit_cor_phylo(ll_obj, rel_tol, max_iter, method);
-  
+  // Do the fitting. `method < 5` means to use nlopt. Otherwise, use R's `stats::optim`.
+  if (method < 5) {
+    fit_cor_phylo_nlopt(ll_obj, rel_tol, max_iter, method);
+  } else {
+    fit_cor_phylo_R(ll_obj_xptr, rel_tol, max_iter);
+  }
+
   // Retrieve output from `ll_obj` object and convert to list
   List output = cp_get_output(X, U, ll_obj);
-  
+
   return output;
+  
 }

@@ -552,7 +552,8 @@ cp_check_method <- function(method) {
 cor_phylo <- function(formulas, species, phy,
                       data = sys.frame(sys.parent()),
                       REML = TRUE, 
-                      method = c("neldermead", "bobyqa", "sbplx", "cobyla", "praxis"),
+                      method = c("neldermead", "bobyqa", "sbplx", "cobyla", "praxis", 
+                                 "neldermead-r"),
                       constrain_d = FALSE, 
                       rel_tol = 1e-6, 
                       max_iter = 1000, 
@@ -564,7 +565,8 @@ cor_phylo <- function(formulas, species, phy,
   method <- match.arg(method)
   method <- cp_check_method(method)
   # Converting to a C++ index
-  method <- which(c("neldermead", "bobyqa", "sbplx", "cobyla", "praxis") == method) - 1
+  method <- which(c("neldermead", "bobyqa", "sbplx", "cobyla", "praxis", "neldermead-r")
+                  == method) - 1
   
   call_ <- match.call()
   
@@ -602,11 +604,11 @@ cor_phylo <- function(formulas, species, phy,
   rownames(output$B) <- cp_get_row_names(par_names)
   colnames(output$B) <- c("Estimate", "SE", "Z-score", "P-value")
   colnames(output$B_cov) <- rownames(output$B_cov) <- cp_get_row_names(par_names)
-  
-  
+
+
   output <- c(output, list(call = call_))
   class(output) <- "cor_phylo"
-  
+
   # Add bootstrapping to output
   if (boot > 0) {
     # output$bootstrap <- boot_cor_phylo(output, boot, boot_out, n_cores)

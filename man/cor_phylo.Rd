@@ -7,8 +7,8 @@
 \usage{
 cor_phylo(formulas, species, phy, data = sys.frame(sys.parent()),
   REML = TRUE, method = c("neldermead", "bobyqa", "sbplx", "cobyla",
-  "praxis"), constrain_d = FALSE, rel_tol = 1e-06, max_iter = 1000,
-  verbose = FALSE, boot = 0, n_cores = 1)
+  "praxis", "neldermead-r"), constrain_d = FALSE, rel_tol = 1e-06,
+  max_iter = 1000, verbose = FALSE, boot = 0, n_cores = 1)
 
 \method{print}{cor_phylo}(x, digits = max(3, getOption("digits") - 3), ...)
 }

@@ -13,7 +13,18 @@ binpglmm_inter_while_cpp2 <- function(est_B_m, B, mu, C, rcondflag, B_init, X, X
     .Call(`_phyr_binpglmm_inter_while_cpp2`, est_B_m, B, mu, C, rcondflag, B_init, X, XX, est_B, y, n, b)
 }
 
-#' Log likelihood function.
+#' Inline C++ that does most of the work related to the log-likelihood function.
+#' 
+#' See below for the `nlopt` and `stats::optim` versions
+#' 
+#' 
+#' @name cor_phylo_LL_
+#' @noRd
+#' 
+#' 
+NULL
+
+#' `cor_phylo` log likelihood function for use with `nlopt`.
 #' 
 #' Note that this function is referred to the "objective function" in the `nlopt`
 #' documentation and the input arguments should not be changed.
@@ -46,7 +57,24 @@ NULL
 #' @return Nothing. `ll_obj` is modified in place to have info from the model fit
 #'   after this function is run.
 #'
-#' @name fit_cor_phylo
+#' @name fit_cor_phylo_nlopt
+#' @noRd
+#' 
+NULL
+
+#' Fit `cor_phylo` model using R's `stats::optim`.
+#' 
+#' Make sure this doesn't get run in parallel!
+#'
+#'
+#' @inheritParams ll_obj_xptr cor_phylo_LL_R
+#' @inheritParams max_iter cor_phylo
+#' @inheritParams method cor_phylo
+#' 
+#' @return Nothing. `ll_obj_xptr` is modified in place to have info from the model fit
+#'   after this function is run.
+#'
+#' @name fit_cor_phylo_R
 #' @noRd
 #' 
 NULL
@@ -106,6 +134,33 @@ NULL
 #' 
 NULL
 
+#' `cor_phylo` log likelihood function for R's `stats::optim`.
+#' 
+#' 
+#' @param par Initial values for the parameters to be optimized over.
+#' @param ll_obj_xptr `Rcpp::Xptr` object that points to a C++ `LL_obj` object.
+#'     This object stores all the other information needed for the log likelihood
+#'     function.
+#' 
+#' @noRd
+#' 
+#' @name cor_phylo_LL_R
+#' 
+cor_phylo_LL_R <- function(par, ll_obj_xptr) {
+    .Call(`_phyr_cor_phylo_LL_R`, par, ll_obj_xptr)
+}
+
+#' Test function for if you want to run the LL function from R using R objects.
+#' 
+#' @noRd
+#' 
+#' 
+#' @name cor_phylo_LL_R2
+#' 
+cor_phylo_LL_R2 <- function(par, XX, UU, MM, Vphy, tau, REML, constrain_d, verbose) {
+    .Call(`_phyr_cor_phylo_LL_R2`, par, XX, UU, MM, Vphy, tau, REML, constrain_d, verbose)
+}
+
 #' Inner function to create necessary matrices and do model fitting.
 #' 
 #' @param X a n x p matrix with p columns containing the values for the n taxa.
@@ -124,6 +179,7 @@ NULL
 #' @return a list containing output information, to later be coerced to a `cor_phylo`
 #'   object by the `cor_phylo` function.
 #' @noRd
+#' @name cor_phylo_
 #' 
 cor_phylo_ <- function(X, U, M, Vphy_, REML, constrain_d, verbose, rel_tol, max_iter, method) {
     .Call(`_phyr_cor_phylo_`, X, U, M, Vphy_, REML, constrain_d, verbose, rel_tol, max_iter, method)
