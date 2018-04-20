@@ -757,10 +757,15 @@ print.cor_phylo <- function(x, digits = max(3, getOption("digits") - 3), ...) {
   cat("\ncoefficients:\n")
   coef <- as.data.frame(x$B)
   printCoefmat(coef, P.values = TRUE, has.Pvalue = TRUE)
-  if (x$convcode < 0) {
-    cat("\nWarning: convergence in nlopt optimizer (method \"",
-        call_arg(x$call, "method"),
-        "\") not reached after ", x$niter," iterations", sep = "")
+  if (phyr:::call_arg(x$call, "method") == "neldermead-r") {
+    if (x$convcode != 0) {
+      cat("\n~~~~~~~~~~~\nWarning: convergence in optim() not reached after",
+          x$niter, "iterations\n~~~~~~~~~~~\n")
+    }
+  } else if (x$convcode < 0) {
+    cat("\n~~~~~~~~~~~\nWarning: convergence in nlopt optimizer (method \"",
+        phyr:::call_arg(x$call, "method"),
+        "\") not reached after ", x$niter," iterations\n~~~~~~~~~~~\n", sep = "")
   }
   if (length(x$bootstrap) > 0) {
     cat("\nBootstrapped 95% CI:\n")

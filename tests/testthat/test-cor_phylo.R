@@ -111,7 +111,7 @@ test_that("cor_phylo produces errors when nonsense is passed to it", {
   expect_error(cor_phylo(formulas = list(par1, par2),
                          data = data_list$data, phy = data_list$phy,
                          species = species), 
-               label = "no intercept specified in formulas")
+               label = "no intercept specified in either formula")
   expect_error(cor_phylo(formulas = list(par1, par2 ~ 1),
                          data = data_list$data, phy = data_list$phy,
                          species = species), 
