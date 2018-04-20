@@ -344,57 +344,6 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
 
 
 
-#' Iterate simulated data for `cor_phylo`.
-#' 
-#' @param data_list output from `sim_cor_phylo_traits`.
-#' @inheritParams U_means sim_cor_phylo_traits
-#' @param U_means a list of means for the covariates.
-#' @param U_sds a list of standard deviations for the covariates.
-#' 
-#' 
-#' @noRd
-#' 
-iter_cor_phylo_traits <- function(data_list, U_means, U_sds) {
-  
-  n <- nrow(data_list$data)
-  p <- sum(grepl("^par", colnames(data_list$data)))
-  B <- data_list$B
-  
-  if (length(U_means) != p || !inherits(U_means, "list")) {
-    stop("U_sds must be a list of length p")
-  }
-  if (length(U_sds) != p || !inherits(U_sds, "list")) {
-    stop("U_sds must be a list of length p")
-  }
-  for (i in 1:p) {
-    nn <- length(U_means[[i]])
-    ns <- length(U_sds[[i]])
-    nu <- sum(grepl(paste0("^cov", i), colnames(data_list$data)))
-    if (nn != ns | ns != nu) {
-      stop("\nlengths don't match for U_means, U_sds, and data_list$data for parameter",
-           " number ", i)
-    }
-  }
-  
-  XX <- data_list$iD %*% rnorm(p * n)
-  
-  ii = 1
-  for (i in 1:p) {
-    dd <- XX[ii:(ii+n-1)]
-    data_list$data[,paste0("par", i)] <- dd
-    U <- data_list$data[,grepl(paste0("^cov", i), colnames(data_list$data)),FALSE]
-    if (ncol(U) > 0) {
-      for (j in 1:ncol(U)) {
-        U[,j] <- as.matrix(rnorm(n, mean = U_means[[i]][j], sd = U_sds[[i]][j]))
-        data_list$data[, paste0("par", i)] <- data_list$data[, paste0("par", i)] + 
-          B[[i]][j] * U[,j] - B[[i]][j] * mean(U[,j])
-        data_list$data[, paste0("cov", i, letters[j])] <- U[,j]
-      }
-    }
-    ii <- ii+n
-  }
-  return(data_list)
-}
 
 
 

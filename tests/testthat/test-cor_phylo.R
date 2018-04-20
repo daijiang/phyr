@@ -1,103 +1,112 @@
 # context("test cor_phylo")
 
 library(phyr)
-library(ape)
+# library(ape)
+
+# Set up parameter values for simulating data
+n <- 50
+p <- 3
+Rs <- c(0.2, 0.3, 0.8)
+d <- c(0.3, 0.95, 0.6)
+M <- matrix(c(0.2, 0.6, 1), 
+            nrow = n, ncol = p, byrow = TRUE)
+U_means <- list(NULL, 2, 20)
+U_sds <- list(NULL, 10, 20)
+B <- list(NULL, 1, 0.1)
 
 
 set.seed(1)
-# Set up parameter values for simulating data
-n <- 50
-phy <- rcoal(n, tip.label = 1:n)
+data_list <- phyr:::sim_cor_phylo_traits(n, Rs, d, M, U_means, U_sds, B)
 
-R <- matrix(c(1, 0.7, 0.7, 1), nrow = 2, ncol = 2)
-d <- c(0.3, 0.95)
-B2 <- 1
 
-Se <- c(0.2, 1)
-M <- matrix(Se, nrow = n, ncol = 2, byrow = TRUE)
+# Arguments that remain the same
+args <- list(formulas = list(par1 ~ 1 | se1, 
+                             par2 ~ cov2a | se2,
+                             par3 ~ cov3a | se3),
+             species = quote(species), method = "neldermead-r")
 
-# Set up needed matrices for the simulations
-p <- length(d)
+# This will not be changing either
+SeM <- as.matrix(data_list$data[, grepl("^se", colnames(data_list$data))])
+rownames(SeM) <- data_list$phy$tip.label
 
-Vphy <- vcv(phy)
-Vphy <- Vphy/max(Vphy)
-Vphy <- Vphy/exp(determinant(Vphy)$modulus[1]/n)
+# # Perform Nrep simulations and collect the results
+# # Takes 26.5 min
+# Nrep <- 100
+# model_fits <- list(phyr = rep(list(NA), Nrep), ape = rep(list(NA), Nrep))
+# 
+# 
+# set.seed(9)
+# for (rep in 1:Nrep) {
+  
+  X <- as.matrix(data_list$data[, grepl("^par", colnames(data_list$data))])
+  rownames(X) <- data_list$phy$tip.label
+  U <- lapply(1:p, function(i) {
+    UM <- as.matrix(data_list$data[,grepl(paste0("^cov", i), colnames(data_list$data))])
+    if (ncol(UM) == 0) return(NULL)
+    rownames(UM) <- data_list$phy$tip.label
+    return(UM)
+  })
+  
+  
+  # source(textConnection(readLines("tests/testthat/test-cor_phylo.R")[1:49]))
+  # source(textConnection(readLines("~/Desktop/corphylo.R")[63:174]))
+  
+  # Call phyr::cor_phylo and ape::corphylo
+  z <- do.call("cor_phylo", 
+               c(args, list(data = quote(data_list$data), phy = quote(data_list$phy))))
+  
+  # source("~/Desktop/corphylo.R")
+  # z.ape2 <- corphylo_(X = X, SeM = SeM, U = U, phy = data_list$phy, method = "Nelder-Mead")
+  z.ape <- ape::corphylo(X = X, SeM = SeM, U = U, phy = data_list$phy, 
+                         method = "Nelder-Mead", maxit.NM = 1e4)
 
-tau <- matrix(1, nrow = n, ncol = 1) %*% diag(Vphy) - Vphy
-C <- matrix(0, nrow = p * n, ncol = p * n)
-for (i in 1:p) for (j in 1:p) {
-  Cd <- (d[i]^tau * (d[j]^t(tau)) * (1 - (d[i] * d[j])^Vphy))/(1 - d[i] * d[j])
-  C[(n * (i - 1) + 1):(i * n), (n * (j - 1) + 1):(j * n)] <- R[i, j] * Cd
-}
-MM <- matrix(M^2, ncol = 1)
-V <- C + diag(as.numeric(MM))
+  z; cat("-----------\n\n"); z.ape  #; cat("-----------\n\n"); z.ape2
+  
+  
+  
+  model_fits$phyr[[rep]] <- z
+  model_fits$ape[[rep]] <- z.ape
+  
+  # Add noise for next iteration
+  # data_list <- phyr:::iter_cor_phylo_traits(data_list, U_means, U_sds)
+  
+# }
 
-iD <- t(chol(V))
+saveRDS(model_fits, "~/Desktop/model_fits.rds")
 
-# Create mostly empty data frame for input to cor_phylo
-data_df <- data.frame(species = phy$tip.label,
-                      par1 = numeric(n),
-                      par2 = numeric(n),
-                      cov2 = numeric(n),
-                      se1 = Se[1],
-                      se2 = Se[2])
+model_fits <- readRDS("~/Desktop/model_fits.rds")
 
-# Perform Nrep simulations and collect the results
-# Takes ~3 min
-Nrep <- 100
-cor_out <- list(phyr = matrix(0, nrow = Nrep, ncol = 1),
-                ape = matrix(0, nrow = Nrep, ncol = 1))
-
-d_out <- list(phyr = matrix(0, nrow = Nrep, ncol = 2),
-              ape = matrix(0, nrow = Nrep, ncol = 2))
-
-B_out <- list(phyr = matrix(0, nrow = Nrep, ncol = 3),
-              ape = matrix(0, nrow = Nrep, ncol = 3))
-
+cor_out <- list(phyr = matrix(0, nrow = Nrep, ncol = choose(p, 2)),
+                ape = matrix(0, nrow = Nrep, ncol = choose(p, 2)))
+d_out <- list(phyr = matrix(0, nrow = Nrep, ncol = p),
+              ape = matrix(0, nrow = Nrep, ncol = p))
+B_out <- list(phyr = matrix(0, nrow = Nrep, ncol = p + length(unlist(U_means))),
+              ape = matrix(0, nrow = Nrep, ncol = p + length(unlist(U_means))))
 LL_out <- list(phyr = matrix(0, nrow = Nrep, ncol = 1),
                ape = matrix(0, nrow = Nrep, ncol = 1))
 
-set.seed(9)
 for (rep in 1:Nrep) {
+  z <- model_fits$phyr[[rep]]
+  z.ape <- model_fits$ape[[rep]]
   
-  XX <- iD %*% rnorm(2 * n)
-  
-  data_df$cov2 <- rnorm(n, mean = 2, sd = 10)
-  data_df$par1 <- XX[1:n]
-  data_df$par2 <- XX[(n+1):(2*n)] + B2[1] * data_df$cov2 - B2[1] * 
-    mean(data_df$cov2)
-  
-  X <- as.matrix(data_df[, c("par1", "par2")])
-  U <- list(NULL, as.matrix(data_df$cov2))
-  SeM <- as.matrix(data_df[, c("se1", "se2")])
-  rownames(X) <- rownames(U[[2]]) <- rownames(SeM) <- phy$tip.label
-  
-  # Call phyr::cor_phylo and ape::corphylo
-  z <- cor_phylo(list(par1 ~ 1 | se1, par2 ~ cov2 | se2),
-                 phy = phy,
-                 species = species, data = data_df,
-                 method = "bobyqa")
-  z.ape <- ape::corphylo(X = X, SeM = SeM, U = U, phy = phy, 
-                         method = "Nelder-Mead")
-  
-  cor_out$phyr[rep] <- z$corrs[1, 2]
+  cor_out$phyr[rep, ] <- z$corrs[lower.tri(z$corrs)]
   d_out$phyr[rep, ] <- z$d
   B_out$phyr[rep, ] <- z$B[,1]
   LL_out$phyr[rep, ] <- z$logLik
   
-  cor_out$ape[rep] <- z.ape$cor.matrix[1, 2]
+  cor_out$ape[rep, ] <- z.ape$cor.matrix[lower.tri(z.ape$cor.matrix)]
   d_out$ape[rep, ] <- z.ape$d
   B_out$ape[rep, ] <- z.ape$B
   LL_out$ape[rep, ] <- z.ape$logLik
   
-  if (z$convcode < 0) cat("nlopt didn't converge.\n")
-  if (z.ape$convcode != 0) cat("stats::optim didn't converge.\n")
+  if (z$convcode < 0) cat("nlopt didn't converge at ", rep, "\n")
+  if (z.ape$convcode != 0) cat("stats::optim didn't converge at ", rep, "\n")
 }
 
 
 hist(with(cor_out, phyr - ape))
 
-hist(with(cor_out, phyr))
+hist(with(cor_out, phyr[,1]))
 abline(v = R[1, 2], lty = 3, col = "red")
 
 hist(with(cor_out, ape))
@@ -108,19 +117,28 @@ hist(with(d_out, phyr - ape))
 hist(with(B_out, phyr - ape))
 hist(with(LL_out, phyr - ape))
 
-z.ape$convcode
+
 
 
 # Comparing outputs:
-correlation <- rbind(R[1, 2], mean(cor_out$phyr), mean(cor_out$ape))
-signal.d <- rbind(d, colMeans(d_out$phyr), colMeans(d_out$ape))
-est.B <- rbind(c(0, 0, B2), colMeans(B_out$phyr), colMeans(B_out$ape))
+correlation <- rbind(R[1, 3], mean(cor_out$phyr), mean(cor_out$ape))
+signal.d <- rbind(d[-2], colMeans(d_out$phyr), colMeans(d_out$ape))
+est.B <- rbind(c(0, 0, B[[3]]), colMeans(B_out$phyr), colMeans(B_out$ape))
 colnames(est.B) <- rownames(z$B)
 rownames(correlation) <- rownames(signal.d) <- rownames(est.B) <- c("True", "phyr", "ape")
 
 correlation
 signal.d
 est.B
+
+
+xx <- matrix(0, 1000, 3)
+for (i in 1:1000) {
+  dd <- phyr:::sim_cor_phylo_traits(p, n, R, d, M, U, B)
+  xx[i,] <- c(mean(dd$data$par1), mean(dd$data$par2), mean(dd$data$par3))
+}
+hist(xx)
+
 
 # > correlation
 #           [,1]
