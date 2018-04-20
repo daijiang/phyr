@@ -708,7 +708,9 @@ cor_phylo <- function(formulas, species, phy,
 
   # Add bootstrapping to output
   if (boot > 0) {
-    # output$bootstrap <- boot_cor_phylo(output, boot, boot_out, n_cores)
+    output$bootstrap <- boot_cor_phylo(output, boot, boot_out, n_cores)
+  } else {
+    output$bootstrap <- list()
   }
   
   return(output)
