@@ -251,6 +251,154 @@ cp_check_method <- function(method) {
 
 
 
+
+
+# ================================================================================
+# ================================================================================
+
+# Simulating data
+
+# ================================================================================
+# ================================================================================
+
+#' Simulate `p` correlated traits (with phylogenetic signal) from `n` species.
+#' 
+#' Inner function used for testing. Can also incorporate covariates.
+#' 
+#' @param n number of species.
+#' @param Rs `p`-length vector of the correlations between traits.
+#' @param d `p`-length vector of trait phylogenetic signals.
+#' @param M `n` x `p` matrix of trait measurement errors by species. Set this column
+#'   to zero for no measurement error.
+#' @param U_means a list of means for the covariates. Make a parameter's item in 
+#'   this list `NULL` to make it not have a covariate.
+#' @param U_sds a list of standard deviations for the covariates.
+#'   Make a parameter's item in this list `NULL` to make it not have a covariate.
+#' @param B `p`-length list of covariate coefficients for each trait. Leave empty
+#'   as for `U_means` and `U_sds`.
+#' 
+#' 
+#' @noRd
+#' 
+sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
+  
+  p <- length(d)
+  
+  R <- matrix(1, p, p)
+  R[lower.tri(R)] <- Rs
+  R[upper.tri(R)] <- Rs
+  
+  phy <- ape::rcoal(n, tip.label = 1:n)
+  
+  Vphy <- ape::vcv(phy)
+  Vphy <- Vphy/max(Vphy)
+  Vphy <- Vphy/exp(determinant(Vphy)$modulus[1]/n)
+  
+  tau <- matrix(1, nrow = n, ncol = 1) %*% diag(Vphy) - Vphy
+  C <- matrix(0, nrow = p * n, ncol = p * n)
+  for (i in 1:p) for (j in 1:p) {
+    Cd <- (d[i]^tau * (d[j]^t(tau)) * (1 - (d[i] * d[j])^Vphy))/(1 - d[i] * d[j])
+    C[(n * (i - 1) + 1):(i * n), (n * (j - 1) + 1):(j * n)] <- R[i, j] * Cd
+  }
+  MM <- matrix(M^2, ncol = 1)
+  V <- C + diag(as.numeric(MM))
+  
+  iD <- t(chol(V))
+  
+  U <- rep(list(NULL), p)
+  for (i in 1:p) {
+    if (!is.null(U_means[[i]])) {
+      for (j in 1:length(U_means[[i]])) {
+        U[[i]] <- cbind(U[[i]],
+                        rnorm(n, mean = U_means[[i]][j], sd = U_sds[[i]][j]))
+      }
+    }
+  }
+  
+  XX <- iD %*% rnorm(p * n)
+  
+  data_df <- data.frame(species = phy$tip.label)
+  ii = 1
+  for (i in 1:p) {
+    dd <- XX[ii:(ii+n-1)]
+    data_df[,paste0("par", i)] <- dd
+    if (!is.null(U[[i]])) {
+      if (ncol(U[[i]]) != length(B[[i]])) {
+        stop("\nAll B items should have same length as number of columns in ",
+             "corresponding matrix of U")
+      }
+      for (j in 1:ncol(U[[i]])) {
+        data_df[, paste0("par", i)] <- data_df[, paste0("par", i)] + 
+          B[[i]][j] * U[[i]][,j] - B[[i]][j] * mean(U[[i]][,j])
+        data_df[, paste0("cov", i, letters[j])] <- U[[i]][,j]
+      }
+    }
+    if (sum(M[,i]) != 0) {
+      data_df[, paste0("se", i)] <- M[,i]
+    }
+    ii <- ii+n
+  }
+  
+  return(list(phy = phy, data = data_df, iD = iD, B = B))
+}
+
+
+
+#' Iterate simulated data for `cor_phylo`.
+#' 
+#' @param data_list output from `sim_cor_phylo_traits`.
+#' @inheritParams U_means sim_cor_phylo_traits
+#' @param U_means a list of means for the covariates.
+#' @param U_sds a list of standard deviations for the covariates.
+#' 
+#' 
+#' @noRd
+#' 
+iter_cor_phylo_traits <- function(data_list, U_means, U_sds) {
+  
+  n <- nrow(data_list$data)
+  p <- sum(grepl("^par", colnames(data_list$data)))
+  B <- data_list$B
+  
+  if (length(U_means) != p || !inherits(U_means, "list")) {
+    stop("U_sds must be a list of length p")
+  }
+  if (length(U_sds) != p || !inherits(U_sds, "list")) {
+    stop("U_sds must be a list of length p")
+  }
+  for (i in 1:p) {
+    nn <- length(U_means[[i]])
+    ns <- length(U_sds[[i]])
+    nu <- sum(grepl(paste0("^cov", i), colnames(data_list$data)))
+    if (nn != ns | ns != nu) {
+      stop("\nlengths don't match for U_means, U_sds, and data_list$data for parameter",
+           " number ", i)
+    }
+  }
+  
+  XX <- data_list$iD %*% rnorm(p * n)
+  
+  ii = 1
+  for (i in 1:p) {
+    dd <- XX[ii:(ii+n-1)]
+    data_list$data[,paste0("par", i)] <- dd
+    U <- data_list$data[,grepl(paste0("^cov", i), colnames(data_list$data)),FALSE]
+    if (ncol(U) > 0) {
+      for (j in 1:ncol(U)) {
+        U[,j] <- as.matrix(rnorm(n, mean = U_means[[i]][j], sd = U_sds[[i]][j]))
+        data_list$data[, paste0("par", i)] <- data_list$data[, paste0("par", i)] + 
+          B[[i]][j] * U[,j] - B[[i]][j] * mean(U[,j])
+        data_list$data[, paste0("cov", i, letters[j])] <- U[,j]
+      }
+    }
+    ii <- ii+n
+  }
+  return(data_list)
+}
+
+
+
+
 # ================================================================================
 # ================================================================================
 
