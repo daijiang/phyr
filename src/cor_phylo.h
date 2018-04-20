@@ -60,7 +60,7 @@ public:
 
 
 // Info to calculate the log-likelihood
-class LL_obj {
+class LL_info {
 public:
   arma::vec par0;  // par to start with
   arma::mat XX;
@@ -76,16 +76,16 @@ public:
   double LL;
   int convcode;
   
-  LL_obj() {}
-  LL_obj(const arma::mat& X,
-         const std::vector<arma::mat>& U,
-         const arma::mat& M,
-         const arma::mat& Vphy_,
-         const bool& REML_,
-         const bool& constrain_d_,
-         const bool& verbose_);
+  LL_info() {}
+  LL_info(const arma::mat& X,
+          const std::vector<arma::mat>& U,
+          const arma::mat& M,
+          const arma::mat& Vphy_,
+          const bool& REML_,
+          const bool& constrain_d_,
+          const bool& verbose_);
   
-  // LL_obj(cp_matrices cpm, const bool& REML_, const bool& constrain_d_, 
+  // LL_info(cp_matrices cpm, const bool& REML_, const bool& constrain_d_, 
   //        const bool& verbose_);
   
 };

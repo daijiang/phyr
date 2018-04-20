@@ -11,7 +11,6 @@
 using namespace Rcpp;
 
 
-#define VERY_SMALL_TOL 0.00000001490116119385
 #define COND_MIN 0.0000000001
 #define MAX_RETURN 10000000000
 
@@ -123,7 +122,7 @@ inline double cor_phylo_LL_(const unsigned& n,
 //'   it as such: "an array of length `n` which should (upon return) be set to the 
 //'   gradient of the function with respect to the optimization parameters at `x`."
 //' @param f_data pointer to an object with additional information for the function.
-//'   In this function's case, it is an object of class `LL_obj`.
+//'   In this function's case, it is an object of class `LL_info`.
 //' 
 //' @return the negative log likelihood
 //' 
@@ -132,16 +131,16 @@ inline double cor_phylo_LL_(const unsigned& n,
 //' 
 double cor_phylo_LL(unsigned n, const double* x, double* grad, void* f_data) {
   
-  LL_obj* ll_obj = (LL_obj*) f_data;
+  LL_info* ll_info = (LL_info*) f_data;
   
   arma::vec par(n);
   for (uint i = 0; i < n; i++) par[i] = x[i];
   
-  double LL = cor_phylo_LL_(n, par, ll_obj->XX, ll_obj->UU, ll_obj->MM, 
-                            ll_obj->Vphy, ll_obj->tau, ll_obj->REML, 
-                            ll_obj->constrain_d, ll_obj->verbose);
+  double LL = cor_phylo_LL_(n, par, ll_info->XX, ll_info->UU, ll_info->MM, 
+                            ll_info->Vphy, ll_info->tau, ll_info->REML, 
+                            ll_info->constrain_d, ll_info->verbose);
   
-  ll_obj->iters++;
+  ll_info->iters++;
   
   return LL;
 }
@@ -152,7 +151,7 @@ double cor_phylo_LL(unsigned n, const double* x, double* grad, void* f_data) {
 //' 
 //' 
 //' @param par Initial values for the parameters to be optimized over.
-//' @param ll_obj_xptr `Rcpp::Xptr` object that points to a C++ `LL_obj` object.
+//' @param ll_obj_xptr `Rcpp::Xptr` object that points to a C++ `LL_info` object.
 //'     This object stores all the other information needed for the log likelihood
 //'     function.
 //' 
@@ -164,37 +163,14 @@ double cor_phylo_LL(unsigned n, const double* x, double* grad, void* f_data) {
 double cor_phylo_LL_R(const arma::vec& par,
                       SEXP ll_obj_xptr) {
   
-  XPtr<LL_obj> ll_obj(ll_obj_xptr);
+  XPtr<LL_info> ll_info(ll_obj_xptr);
   const unsigned n = par.n_elem;
-  double LL = cor_phylo_LL_(n, par, ll_obj->XX, ll_obj->UU, ll_obj->MM, 
-                            ll_obj->Vphy, ll_obj->tau, ll_obj->REML, 
-                            ll_obj->constrain_d, ll_obj->verbose);
+  double LL = cor_phylo_LL_(n, par, ll_info->XX, ll_info->UU, ll_info->MM, 
+                            ll_info->Vphy, ll_info->tau, ll_info->REML, 
+                            ll_info->constrain_d, ll_info->verbose);
   return LL;
 }
 
-
-
-//' Test function for if you want to run the LL function from R using R objects.
-//' 
-//' @noRd
-//' 
-//' 
-//' @name cor_phylo_LL_R2
-//' 
-//[[Rcpp::export]]
-double cor_phylo_LL_R2(const arma::vec& par,
-                      const arma::mat& XX,
-                      const arma::mat& UU,
-                      const arma::mat& MM,
-                      const arma::mat& Vphy,
-                      const arma::mat& tau,
-                      const bool& REML,
-                      const bool& constrain_d,
-                      const bool& verbose) {
-  const unsigned n = par.n_elem;
-  double LL = cor_phylo_LL_(n, par, XX, UU, MM, Vphy, tau, REML, constrain_d, verbose);
-  return LL;
-}
 
 
 
@@ -216,30 +192,30 @@ double cor_phylo_LL_R2(const arma::vec& par,
 //' Fit cor_phylo model using nlopt.
 //'
 //'
-//' @inheritParams ll_obj cp_get_output
+//' @inheritParams ll_info cp_get_output
 //' @inheritParams max_iter cor_phylo
 //' @inheritParams method cor_phylo
 //' 
-//' @return Nothing. `ll_obj` is modified in place to have info from the model fit
+//' @return Nothing. `ll_info` is modified in place to have info from the model fit
 //'   after this function is run.
 //'
 //' @name fit_cor_phylo_nlopt
 //' @noRd
 //' 
-void fit_cor_phylo_nlopt(LL_obj& ll_obj,
+void fit_cor_phylo_nlopt(LL_info& ll_info,
                          const double& rel_tol,
                          const int& max_iter,
                          const uint& method) {
   
-  void* llop(&ll_obj);
+  void* llop(&ll_info);
   
-  unsigned n_pars = ll_obj.par0.n_elem;
+  unsigned n_pars = ll_info.par0.n_elem;
   
-  // Dynamic array from ll_obj
+  // Dynamic array from ll_info
   // (from http://www.fredosaurus.com/notes-cpp/newdelete/50dynamalloc.html)
   double* x = NULL;   // initialize to nothing.
   x = new double[n_pars];  // Allocate n_pars doubles and save ptr in x.
-  for (unsigned i = 0; i < n_pars; i++) x[i] = ll_obj.par0(i);
+  for (unsigned i = 0; i < n_pars; i++) x[i] = ll_info.par0(i);
   
   
   nlopt_algorithm alg;
@@ -273,10 +249,10 @@ void fit_cor_phylo_nlopt(LL_obj& ll_obj,
   nlopt_set_maxeval(opt, max_iter);
   
   nlopt_result res = nlopt_optimize(opt, x, &min_LL);
-  ll_obj.convcode = res;
+  ll_info.convcode = res;
   
-  ll_obj.LL = min_LL;
-  for (unsigned i = 0; i < n_pars; i++) ll_obj.min_par(i) = x[i];
+  ll_info.LL = min_LL;
+  for (unsigned i = 0; i < n_pars; i++) ll_info.min_par(i) = x[i];
   
   
   delete [] x;  // When done, free memory pointed to by x.
@@ -302,7 +278,7 @@ void fit_cor_phylo_nlopt(LL_obj& ll_obj,
 //' @name fit_cor_phylo_R
 //' @noRd
 //' 
-void fit_cor_phylo_R(XPtr<LL_obj>& ll_obj_xptr,
+void fit_cor_phylo_R(XPtr<LL_info>& ll_obj_xptr,
                      const double& rel_tol,
                      const int& max_iter) {
   
@@ -313,7 +289,7 @@ void fit_cor_phylo_R(XPtr<LL_obj>& ll_obj_xptr,
   
   opt = optim(_["par"] = ll_obj_xptr->par0,
               _["fn"] = Rcpp::InternalFunction(&cor_phylo_LL_R),
-              _["ll_obj"] = ll_obj_xptr,
+              _["ll_info"] = ll_obj_xptr,
               _["method"] = "Nelder-Mead",
               _["control"] = List::create(_["maxit"] = max_iter,
                                    _["reltol"] = rel_tol));
@@ -402,9 +378,9 @@ void standardize_matrices(arma::mat& X,
 
 
 
-//' Make an `LL_obj` object based on input matrices.
+//' Make an `LL_info` object based on input matrices.
 //' 
-//' This `LL_obj` is used for model fitting.
+//' This `LL_info` is used for model fitting.
 //' 
 //' @inheritParams X cor_phylo_
 //' @inheritParams U cor_phylo_
@@ -414,18 +390,18 @@ void standardize_matrices(arma::mat& X,
 //' @inheritParams constrain_d_ cor_phylo_
 //' @inheritParams verbose_ cor_phylo_
 //' 
-//' @return a LL_obj that contains info necessary for model fitting
+//' @return a LL_info that contains info necessary for model fitting
 //' 
-//' @name LL_obj
+//' @name LL_info
 //' @noRd
 //' 
-LL_obj::LL_obj(const arma::mat& X,
-               const std::vector<arma::mat>& U,
-               const arma::mat& M,
-               const arma::mat& Vphy_,
-               const bool& REML_,
-               const bool& constrain_d_,
-               const bool& verbose_) 
+LL_info::LL_info(const arma::mat& X,
+                 const std::vector<arma::mat>& U,
+                 const arma::mat& M,
+                 const arma::mat& Vphy_,
+                 const bool& REML_,
+                 const bool& constrain_d_,
+                 const bool& verbose_) 
   : REML(REML_), constrain_d(constrain_d_), verbose(verbose_), iters(0) {
   
   uint_t n = Vphy_.n_rows;
@@ -486,7 +462,7 @@ LL_obj::LL_obj(const arma::mat& X,
   
   tau = arma::vec(n, arma::fill::ones) * Vphy.diag().t() - Vphy;
   
-
+  
   par0 = arma::vec((static_cast<double>(p) / 2) * (1 + p) + p);
   par0.fill(0.5);
   for (uint_t i = 0, j = 0, k = p - 1; i < p; i++) {
@@ -505,7 +481,7 @@ LL_obj::LL_obj(const arma::mat& X,
 //' 
 //' @inheritParams X cor_phylo_
 //' @inheritParams U cor_phylo_
-//' @param ll_obj an LL_obj object that contains info necessary to fit the model.
+//' @param ll_info an LL_info object that contains info necessary to fit the model.
 //'   After optimization, it contains info from the model fit.
 //' 
 //' @return a list containing output information, to later be coerced to a `cor_phylo`
@@ -516,7 +492,7 @@ LL_obj::LL_obj(const arma::mat& X,
 //' 
 List cp_get_output(const arma::mat& X,
                    const std::vector<arma::mat>& U,
-                   LL_obj& ll_obj) {
+                   LL_info& ll_info) {
   
   /*
    Extract the only info we any longer need from X and U
@@ -530,55 +506,55 @@ List cp_get_output(const arma::mat& X,
   }
   
   
-  uint_t n = ll_obj.Vphy.n_rows;
-  uint_t p = ll_obj.XX.n_rows / n;
+  uint_t n = ll_info.Vphy.n_rows;
+  uint_t p = ll_info.XX.n_rows / n;
   
-  arma::mat L = make_L(ll_obj.min_par, n, p);
+  arma::mat L = make_L(ll_info.min_par, n, p);
   
   arma::mat R = L.t() * L;
   
   arma::mat corrs = make_corrs(R);
   
-  arma::vec d = make_d(ll_obj.min_par, n, p, ll_obj.constrain_d);
+  arma::vec d = make_d(ll_info.min_par, n, p, ll_info.constrain_d);
   
   // OU transform
-  arma::mat C = make_C(n, p, ll_obj.tau, d, ll_obj.Vphy, R);
+  arma::mat C = make_C(n, p, ll_info.tau, d, ll_info.Vphy, R);
   
-  arma::mat V = make_V(C, ll_obj.MM);
+  arma::mat V = make_V(C, ll_info.MM);
   
   arma::mat iV = arma::inv(V);
   
-  arma::mat denom = tp(ll_obj.UU) * iV * ll_obj.UU;
+  arma::mat denom = tp(ll_info.UU) * iV * ll_info.UU;
   
-  arma::mat num = tp(ll_obj.UU) * iV * ll_obj.XX;
+  arma::mat num = tp(ll_info.UU) * iV * ll_info.XX;
   arma::vec B0 = arma::solve(denom, num);
   
   arma::mat B;
   arma::vec sd_vec;
   arma::mat B_cov;
-  make_sd_B_mat_cov(B, sd_vec, B_cov, B0, p, iV, ll_obj.UU, mean_sd_X, sd_U);
+  make_sd_B_mat_cov(B, sd_vec, B_cov, B0, p, iV, ll_info.UU, mean_sd_X, sd_U);
   
   double logLik = -0.5 * std::log(2 * arma::datum::pi);
-  if (ll_obj.REML) {
-    logLik *= (n * p - ll_obj.UU.n_cols);
-    arma::mat to_det = tp(ll_obj.XX) * ll_obj.XX;
+  if (ll_info.REML) {
+    logLik *= (n * p - ll_info.UU.n_cols);
+    arma::mat to_det = tp(ll_info.XX) * ll_info.XX;
     double det_val, det_sign;
     arma::log_det(det_val, det_sign, to_det);
-    logLik += 0.5 * det_val - ll_obj.LL;
+    logLik += 0.5 * det_val - ll_info.LL;
   } else {
     logLik *= (n * p);
-    logLik -= ll_obj.LL;
+    logLik -= ll_info.LL;
   }
   
-  double k = ll_obj.min_par.n_elem + ll_obj.UU.n_cols;
+  double k = ll_info.min_par.n_elem + ll_info.UU.n_cols;
   double AIC, BIC;
   AIC = -2 * logLik + 2 * k;
   BIC = -2 * logLik + k * std::log(n / arma::datum::pi);
   
   
   // // `cp_matrices` stores matrices that we'll need for bootstrapping
-  // cp_matrices cpm(mean_sd_X, sd_U, ll_obj.XX, ll_obj.UU,
-  //                 ll_obj.MM, ll_obj.Vphy, R, V, C, B);
+  // cp_matrices cpm(mean_sd_X, sd_U, ll_info.XX, ll_info.UU,
+  //                 ll_info.MM, ll_info.Vphy, R, V, C, B);
   
   // Now the final output list
   List out = List::create(
@@ -589,8 +565,8 @@ List cp_get_output(const arma::mat& X,
     _["logLik"] = logLik,
     _["AIC"] = AIC,
     _["BIC"] = BIC,
-    _["niter"] = ll_obj.iters,
-    _["convcode"] = ll_obj.convcode
+    _["niter"] = ll_info.iters,
+    _["convcode"] = ll_info.convcode
   );
   
   return out;
@@ -630,21 +606,21 @@ List cor_phylo_(const arma::mat& X,
                 const int& max_iter,
                 const uint& method) {
   
-  // LL_obj is C++ class to use for organizing info for optimizing
-  XPtr<LL_obj> ll_obj_xptr(new LL_obj(X, U, M, Vphy_, REML, constrain_d, 
-                                      verbose), true);
-  LL_obj& ll_obj(*ll_obj_xptr);
+  // LL_info is C++ class to use for organizing info for optimizing
+  XPtr<LL_info> ll_obj_xptr(new LL_info(X, U, M, Vphy_, REML, constrain_d, 
+                                        verbose), true);
+  LL_info& ll_info(*ll_obj_xptr);
   
   // Do the fitting. `method < 5` means to use nlopt. Otherwise, use R's `stats::optim`.
   if (method < 5) {
-    fit_cor_phylo_nlopt(ll_obj, rel_tol, max_iter, method);
+    fit_cor_phylo_nlopt(ll_info, rel_tol, max_iter, method);
   } else {
     fit_cor_phylo_R(ll_obj_xptr, rel_tol, max_iter);
   }
-
-  // Retrieve output from `ll_obj` object and convert to list
-  List output = cp_get_output(X, U, ll_obj);
-
+  
+  // Retrieve output from `ll_info` object and convert to list
+  List output = cp_get_output(X, U, ll_info);
+  
   return output;
   
 }

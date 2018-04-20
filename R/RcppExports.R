@@ -38,7 +38,7 @@ NULL
 #'   it as such: "an array of length `n` which should (upon return) be set to the 
 #'   gradient of the function with respect to the optimization parameters at `x`."
 #' @param f_data pointer to an object with additional information for the function.
-#'   In this function's case, it is an object of class `LL_obj`.
+#'   In this function's case, it is an object of class `LL_info`.
 #' 
 #' @return the negative log likelihood
 #' 
@@ -50,11 +50,11 @@ NULL
 #' Fit cor_phylo model using nlopt.
 #'
 #'
-#' @inheritParams ll_obj cp_get_output
+#' @inheritParams ll_info cp_get_output
 #' @inheritParams max_iter cor_phylo
 #' @inheritParams method cor_phylo
 #' 
-#' @return Nothing. `ll_obj` is modified in place to have info from the model fit
+#' @return Nothing. `ll_info` is modified in place to have info from the model fit
 #'   after this function is run.
 #'
 #' @name fit_cor_phylo_nlopt
@@ -100,9 +100,9 @@ NULL
 #' 
 NULL
 
-#' Make an `LL_obj` object based on input matrices.
+#' Make an `LL_info` object based on input matrices.
 #' 
-#' This `LL_obj` is used for model fitting.
+#' This `LL_info` is used for model fitting.
 #' 
 #' @inheritParams X cor_phylo_
 #' @inheritParams U cor_phylo_
@@ -112,9 +112,9 @@ NULL
 #' @inheritParams constrain_d_ cor_phylo_
 #' @inheritParams verbose_ cor_phylo_
 #' 
-#' @return a LL_obj that contains info necessary for model fitting
+#' @return a LL_info that contains info necessary for model fitting
 #' 
-#' @name LL_obj
+#' @name LL_info
 #' @noRd
 #' 
 NULL
@@ -123,7 +123,7 @@ NULL
 #' 
 #' @inheritParams X cor_phylo_
 #' @inheritParams U cor_phylo_
-#' @param ll_obj an LL_obj object that contains info necessary to fit the model.
+#' @param ll_info an LL_info object that contains info necessary to fit the model.
 #'   After optimization, it contains info from the model fit.
 #' 
 #' @return a list containing output information, to later be coerced to a `cor_phylo`
@@ -138,7 +138,7 @@ NULL
 #' 
 #' 
 #' @param par Initial values for the parameters to be optimized over.
-#' @param ll_obj_xptr `Rcpp::Xptr` object that points to a C++ `LL_obj` object.
+#' @param ll_obj_xptr `Rcpp::Xptr` object that points to a C++ `LL_info` object.
 #'     This object stores all the other information needed for the log likelihood
 #'     function.
 #' 
@@ -148,17 +148,6 @@ NULL
 #' 
 cor_phylo_LL_R <- function(par, ll_obj_xptr) {
     .Call(`_phyr_cor_phylo_LL_R`, par, ll_obj_xptr)
-}
-
-#' Test function for if you want to run the LL function from R using R objects.
-#' 
-#' @noRd
-#' 
-#' 
-#' @name cor_phylo_LL_R2
-#' 
-cor_phylo_LL_R2 <- function(par, XX, UU, MM, Vphy, tau, REML, constrain_d, verbose) {
-    .Call(`_phyr_cor_phylo_LL_R2`, par, XX, UU, MM, Vphy, tau, REML, constrain_d, verbose)
 }
 
 #' Inner function to create necessary matrices and do model fitting.
