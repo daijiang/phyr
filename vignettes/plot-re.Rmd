@@ -21,10 +21,10 @@ This vignette will show how to visualize the var-covariance matrix of random ter
 
 # Main function
 
-The main function to use is `phyr::communityPGLMM.plot.random.terms()`. Here are the arguments of this function:
+The main function to use is `phyr::communityPGLMM.plot.re()`. Here are the arguments of this function:
 
 ```{r args-pglmm}
-args(phyr::communityPGLMM.plot.random.effects)
+args(phyr::communityPGLMM.plot.re)
 ```
 
 Some brief explanation of arguments:
@@ -95,7 +95,7 @@ summary(mod_1)
 
 ```{r fig.asp=0.6}
 # plot var-cov matrices of random terms
-mod1re = communityPGLMM.plot.random.effects(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
+mod1re = communityPGLMM.plot.re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
                        data = d, tree = phy, show.image = TRUE, show.sim.image = FALSE)
 ```
 
@@ -103,7 +103,7 @@ In the above plot, we can see that some of the panels are black-white but some h
 
 ```{r fig.asp=0.6}
 # all use color with useAbs = FALSE
-communityPGLMM.plot.random.effects(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
+communityPGLMM.plot.re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
                        data = d, tree = phy, show.image = TRUE, show.sim.image = FALSE, useAbs = FALSE)
 ```
 
@@ -111,7 +111,7 @@ For the above plot, notice that for `1|sp` and `1|site`, all values are either 1
 
 ```{r fig.asp=0.6}
 # suppress key with colorkey = FALSE
-communityPGLMM.plot.random.effects(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
+communityPGLMM.plot.re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
                        data = d, tree = phy, show.image = TRUE, show.sim.image = FALSE, useAbs = FALSE, colorkey = FALSE)
 ```
 
@@ -119,7 +119,7 @@ We can also just use `colorkey = FALSE` and still use black/white color for matr
 
 ```{r fig.asp=0.6}
 # suppress colorkey, let the function decide whether use color or not
-communityPGLMM.plot.random.effects(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
+communityPGLMM.plot.re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
                        data = d, tree = phy, show.image = TRUE, show.sim.image = FALSE, colorkey = FALSE)
 ```
 
@@ -127,7 +127,7 @@ To make all plots black or white, use `useAbs = TRUE`.
 
 ```{r fig.asp=0.6}
 # all black and white
-communityPGLMM.plot.random.effects(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
+communityPGLMM.plot.re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
                        data = d, tree = phy, show.image = TRUE, show.sim.image = FALSE, useAbs = TRUE)
 ```
 
@@ -175,7 +175,7 @@ For each random term, we can simulate some values for all data points. We can re
 
 ```{r fig.asp=0.6}
 # plot simulated matrices of random terms
-mod1sim = communityPGLMM.plot.random.effects(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
+mod1sim = communityPGLMM.plot.re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
                        data = d, tree = phy, show.image = FALSE, show.sim.image = TRUE)
 ```
 
@@ -184,14 +184,14 @@ For the `1|sp__` panel, we can see that closely related species have similar val
 By default, we added a phylogeny for species at the top of each panel when we show the simulated site by species matrices. This can be suppressed with `add.tree.sp = FALSE`.
 
 ```{r fig.asp=0.6}
-communityPGLMM.plot.random.effects(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
+communityPGLMM.plot.re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
                        data = d, tree = phy, show.image = FALSE, show.sim.image = TRUE, add.tree.sp = FALSE)
 ```
 
 Again, we can remove the keys with `colorkey = FALSE`. We can also use `useAbs` to force using color for all panels.
 
 ```{r fig.asp=0.6}
-communityPGLMM.plot.random.effects(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
+communityPGLMM.plot.re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
                        data = d, tree = phy, show.image = FALSE, show.sim.image = TRUE, add.tree.sp = TRUE,
                        colorkey = FALSE, useAbs = FALSE)
 ```

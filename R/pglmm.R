@@ -1953,7 +1953,7 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
 #' the corresponding final plot (\code{plt_re_all_in_one} or \code{plt_sim_all_in_one}) can be saved as external file 
 #' using \code{ggplot2::ggsave} as it is a grid object.
 #' @export
-communityPGLMM.plot.random.effects <- function(
+communityPGLMM.plot.re <- function(
   formula, data, family = "gaussian", tree = NULL, tree_site = NULL, repulsion = FALSE, 
   show.image = NULL, show.sim.image = NULL, random.effects = NULL, add.tree.sp = TRUE, add.tree.site = FALSE,
   tree.panel.space = 0.5, title.space = 5, tree.size = 3, ...) {
@@ -2147,4 +2147,3 @@ communityPGLMM.plot.random.effects <- function(
   return(invisible(list(vcv = vcv, sim = sim, tree = tree, 
                         plt_re_list = pl, plt_sim_list = pl_sim)))
 }
-
