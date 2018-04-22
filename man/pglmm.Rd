@@ -14,7 +14,7 @@
 \alias{plot.communityPGLMM}
 \alias{communityPGLMM.predicted.values}
 \alias{communityPGLMM.bayes}
-\alias{communityPGLMM.plot.random.effects}
+\alias{communityPGLMM.plot.re}
 \title{Phylogenetic Generalised Linear Mixed Model for Community Data}
 \usage{
 prep_dat_pglmm(formula, data, tree, repulsion = FALSE,
@@ -62,8 +62,8 @@ communityPGLMM.bayes(formula, data = list(), family = "gaussian",
   B.init = NULL, verbose = FALSE, REML = FALSE, marginal.summ = "mean",
   calc.DIC = FALSE, default.prior = "inla.default")
 
-communityPGLMM.plot.random.effects(formula, data, family = "gaussian",
-  tree = NULL, tree_site = NULL, repulsion = FALSE, show.image = NULL,
+communityPGLMM.plot.re(formula, data, family = "gaussian", tree = NULL,
+  tree_site = NULL, repulsion = FALSE, show.image = NULL,
   show.sim.image = NULL, random.effects = NULL, add.tree.sp = TRUE,
   add.tree.site = FALSE, tree.panel.space = 0.5, title.space = 5,
   tree.size = 3, ...)
