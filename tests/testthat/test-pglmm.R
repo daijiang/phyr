@@ -24,6 +24,31 @@ test2_binary_r = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|
                                       cpp = F, optimizer = "Nelder-Mead")
 expect_equivalent(test2_binary_cpp, test2_binary_r)
 
+test_that("test binary LRT", {
+  for(i in 1:3){
+    expect_equal(
+      phyr::communityPGLMM.binary.LRT(test2_binary_cpp, re.number = i),
+      pez::communityPGLMM.binary.LRT(test2_binary_cpp, re.number = i),
+      tolerance = 0.0001
+    )
+  }
+})
+
+test_that("test predicted values of gaussian pglmm", {
+  expect_equivalent(
+    phyr::communityPGLMM.predicted.values(test1_gaussian_cpp, show.plot = FALSE),
+    pez::communityPGLMM.predicted.values(test1_gaussian_cpp, show.plot = FALSE)
+  )
+})
+
+test_that("test predicted values of binary pglmm", {
+  expect_equivalent(
+    phyr::communityPGLMM.predicted.values(test2_binary_cpp, show.plot = FALSE),
+    pez::communityPGLMM.predicted.values(test2_binary_cpp, show.plot = FALSE)
+  )
+})
+
+
 ## test bayesian models
 test1_gaussian_bayes  = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
                                          dat, tree = phylotree, REML = F, bayes = TRUE)
