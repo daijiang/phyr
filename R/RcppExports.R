@@ -164,17 +164,6 @@ cor_phylo_LL_R <- function(par, ll_info_xptr) {
     .Call(`_phyr_cor_phylo_LL_R`, par, ll_info_xptr)
 }
 
-#' Test function for if you want to run the LL function from R using R objects.
-#'
-#' @noRd
-#'
-#'
-#' @name cor_phylo_LL_R2
-#'
-cor_phylo_LL_R2 <- function(par, XX, UU, MM, Vphy, tau, REML, constrain_d, verbose) {
-    .Call(`_phyr_cor_phylo_LL_R2`, par, XX, UU, MM, Vphy, tau, REML, constrain_d, verbose)
-}
-
 #' Inner function to create necessary matrices and do model fitting.
 #' 
 #' @param X a n x p matrix with p columns containing the values for the n taxa.
@@ -197,10 +186,6 @@ cor_phylo_LL_R2 <- function(par, XX, UU, MM, Vphy, tau, REML, constrain_d, verbo
 #' 
 cor_phylo_ <- function(X, U, M, Vphy_, REML, constrain_d, verbose, rel_tol, max_iter, method, boot) {
     .Call(`_phyr_cor_phylo_`, X, U, M, Vphy_, REML, constrain_d, verbose, rel_tol, max_iter, method, boot)
-}
-
-cor_phylo2_ <- function(X, U, M, Vphy_, REML, constrain_d, verbose, rel_tol, max_iter, method, boot) {
-    .Call(`_phyr_cor_phylo2_`, X, U, M, Vphy_, REML, constrain_d, verbose, rel_tol, max_iter, method, boot)
 }
 
 set_seed <- function(seed) {

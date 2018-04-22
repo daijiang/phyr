@@ -229,3 +229,16 @@ call_arg <- function(.call, .arg) {
     return(call_list[[.arg]])
   }
 }
+
+
+
+
+#' Generic method to output bootstrap confidence intervals from an object.
+#'
+#' Implemented only for `cor_phylo` objects thus far.
+#'
+#' @export
+#' @noRd
+#'
+boot_ci <- function(x, ...) UseMethod("boot_ci")
+

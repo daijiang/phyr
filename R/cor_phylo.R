@@ -253,6 +253,62 @@ cp_check_method <- function(method) {
 
 
 
+#' `boot_ci` returns the bootstrapped confidence intervals from a `cor_phylo` object
+#' 
+#' 
+#' @param x `cor_phylo` object that was run with the `boot` argument > 0.
+#' @param alpha Alpha used for the confidence intervals. Defaults to `0.05`.
+#' 
+#' @return A list of confidence intervals for
+#'   estimates of correlations (`corrs`),
+#'   phylogenetic signals (`d`),
+#'   coefficient estimates (`B0`), and
+#'   coefficient covariances (`B_cov`).
+#' 
+#' @export
+#' 
+#' @rdname cor_phylo
+#' 
+boot_ci.cor_phylo <- function(x, alpha = 0.05) {
+  
+  if (length(x$bootstrap) == 0) {
+    stop("\nThis `cor_phylo` object was not bootstrapped. ",
+         "Please re-run with the `boot` argument set to >0. ",
+         "We recommend >= 2000, but expect this to take 20 minutes or ",
+         "longer.", call. = FALSE)
+  }
+  corrs <- list(lower = apply(x$bootstrap$corrs, c(1, 2), quantile,
+                              probs = alpha / 2),
+                upper = apply(x$bootstrap$corrs, c(1, 2), quantile,
+                              probs = 1 - alpha / 2))
+  rownames(corrs$lower) <- rownames(corrs$upper) <- rownames(x$corrs)
+  colnames(corrs$lower) <- colnames(corrs$upper) <- colnames(x$corrs)
+  
+  ds <- t(apply(x$bootstrap$d, 1, quantile,
+                probs = c(alpha / 2, 1 - alpha / 2)))
+  rownames(ds) <- rownames(x$d)
+  
+  B0s <- t(apply(x$bootstrap$B0, 1, quantile,
+                 probs = c(alpha / 2, 1 - alpha / 2)))
+  rownames(B0s) <- rownames(x$B)
+  
+  colnames(B0s) <- colnames(ds) <- c("lower", "upper")
+  
+  B_covs <- list(lower = apply(x$bootstrap$B_cov, c(1, 2), quantile,
+                               probs = alpha / 2),
+                 upper = apply(x$bootstrap$B_cov, c(1, 2), quantile,
+                               probs = 1 - alpha / 2))
+  
+  rownames(B_covs$lower) <- rownames(B_covs$upper) <- rownames(x$B_cov)
+  colnames(B_covs$lower) <- colnames(B_covs$upper) <- colnames(x$B_cov)
+  
+  return(list(corrs = corrs, d = ds, B0 = B0s, B_cov = B_covs))
+  
+}
+
+
+
+
 # ================================================================================
 # ================================================================================
 
@@ -462,6 +518,12 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
 #'   \item{`convcode`}{Conversion code for the optimizer, which is positive on success
 #'     and negative on failure. See also
 #'     \url{https://nlopt.readthedocs.io/en/latest/NLopt_Reference/#return-values}.}
+#'   \item{`bootstrap`} A list of bootstrap output, which is simply `list()` if
+#'     `boot = 0`. If `boot > 0`, then the list contains fields for 
+#'     estimates of correlations (`corrs`), phylogenetic signals (`d`),
+#'     coefficient estimates (`B0`), and coefficient covariances (`B_cov`).
+#'     To view bootstrapped confidence intervals, do the following: `boot_ci(x, a)`,
+#'     where `x` is a `cor_phylo` object and `a` is an alpha value.
 #'   \item{`call`}{the matched call.}
 #' 
 #' @export
@@ -738,15 +800,15 @@ print.cor_phylo <- function(x, digits = max(3, getOption("digits") - 3), ...) {
   cat(paste(trimws(deparse(x$call)), collapse = " "), "\n\n")
   nums <- c(logLik = x$logLik, AIC = x$AIC, BIC = x$BIC)
   print(nums, digits = digits)
-  cat("\ncorrelation matrix:\n")
+  cat("\nCorrelation matrix:\n")
   print(x$corrs, digits = digits)
-  cat("\nfrom OU process:\n")
+  cat("\nPhylogenetic signal (OU process):\n")
   d <- data.frame(d = x$d)
   print(d, digits = digits)
   if (call_arg(x$call, "constrain_d")) {
     cat("\nvalues of d constrained to be in [0, 1]\n")
   }
-  cat("\ncoefficients:\n")
+  cat("\nCoefficients:\n")
   coef <- as.data.frame(x$B)
   printCoefmat(coef, P.values = TRUE, has.Pvalue = TRUE)
   if (phyr:::call_arg(x$call, "method") == "neldermead-r") {
@@ -760,24 +822,19 @@ print.cor_phylo <- function(x, digits = max(3, getOption("digits") - 3), ...) {
         "\") not reached after ", x$niter," iterations\n~~~~~~~~~~~\n", sep = "")
   }
   if (length(x$bootstrap) > 0) {
-    cat("\nBootstrapped 95% CI:\n")
-    # if (!is.null(colnames(x$bootstrap))) {
-    #   for (nn in colnames(x$bootstrap)) {
-    #     cat(sprintf("  %-4s %9.3g [%9.3g %9.3g]\n", 
-    #                 nn, 
-    #                 mean(x$bootstrap[,nn]),
-    #                 as.numeric(quantile(x$bootstrap[,nn], 0.025)),
-    #                 as.numeric(quantile(x$bootstrap[,nn], 0.975))))
-    #   }
-    # } else {
-    #   for (nn in 1:ncol(x$bootstrap)) {
-    #     cat(sprintf("  %-4s %9.3g [%9.3g %9.3g]\n", 
-    #                 paste0('col', nn), 
-    #                 mean(x$bootstrap[,nn]),
-    #                 as.numeric(quantile(x$bootstrap[,nn], 0.025)),
-    #                 as.numeric(quantile(x$bootstrap[,nn], 0.975))))
-    #   }
-    # }
+    cis <- boot_ci(x)
+    cat("\n---------\nBootstrapped 95% CIs:\n\n")
+    cat("* Correlation matrix:\n")
+    cat("  <lower>\n")
+    print(cis$corrs$lower, digits = digits)
+    cat("  <upper>\n")
+    print(cis$corrs$upper, digits = digits)
+    
+    cat("\n* Phylogenetic signal:\n")
+    print(cis$d, digits = digits)
+    
+    cat("\n* Coefficients:\n")
+    print(cis$B0, digits = digits)
   }
   cat("\n")
 }

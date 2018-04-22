@@ -668,15 +668,6 @@ List cor_phylo_(const arma::mat& X,
   
   // Retrieve output from `ll_info` object and convert to list
   List output = cp_get_output(X, U, ll_info_xptr, rel_tol, max_iter, method, boot);
-  /*
-   cp_get_output(const arma::mat& X,
-   const std::vector<arma::mat>& U,
-  XPtr<LL_info> ll_info_xptr,
-  const double& rel_tol,
-  const int& max_iter,
-  const uint& method,
-  const uint& boot) {
-   */
   
   return output;
   
@@ -735,7 +726,7 @@ boot_mats::boot_mats(const arma::mat& mean_sd_X_, const std::vector<arma::vec>& 
 //' @name boot_mats_iterate
 //' @noRd
 //' 
-void boot_mats::iterate(LL_info& ll_info, boot_results& br) {
+void boot_mats::iterate(LL_info& ll_info) {
   
   // Reset this matrix to original
   mean_sd_X = mean_sd_X0;
@@ -775,9 +766,9 @@ void one_boot(XPtr<LL_info>& ll_info_xptr, boot_results& br, boot_mats& bm,
   LL_info& ll_info(*ll_info_xptr);
   
   // Generate new data
-  bm.iterate(ll_info, br);
+  bm.iterate(ll_info);
   
-  // Do the fitting. `method < 5` means to use nlopt. Otherwise, use R's `stats::optim`.
+  // Do the fitting
   fit_cor_phylo_nlopt(ll_info_xptr, rel_tol, max_iter, method);
   
   arma::mat corrs;
@@ -799,10 +790,10 @@ void one_boot(XPtr<LL_info>& ll_info_xptr, boot_results& br, boot_mats& bm,
   
   LL_info& ll_info(*ll_info_xptr);
   
-  // // Generate new data
-  bm.iterate(ll_info, br);
+  // Generate new data
+  bm.iterate(ll_info);
   
-  // Do the fitting. `method < 5` means to use nlopt. Otherwise, use R's `stats::optim`.
+  // Do the fitting.
   fit_cor_phylo_R(ll_info_xptr, rel_tol, max_iter);
 
   arma::mat corrs;

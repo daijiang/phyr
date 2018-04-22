@@ -63,8 +63,8 @@ test_that("cor_phylo produces a proper cor_phylo object", {
   phyr_cp_names <- sapply(names(phyr_cp), function(x) class(phyr_cp[[x]]))
   expected_classes <- c(corrs = "matrix", d = "matrix", B = "matrix", B_cov = "matrix", 
                         logLik = "numeric", AIC = "numeric", BIC = "numeric", 
-                        niter = "numeric", convcode = "integer", call = "call", 
-                        bootstrap = "list")
+                        niter = "numeric", convcode = "integer", bootstrap = "list",
+                        call = "call")
   expect_class_equal <- function(par_name) {
     eval(bquote(expect_equal(class(phyr_cp[[.(par_name)]]), 
                              expected_classes[[.(par_name)]])))

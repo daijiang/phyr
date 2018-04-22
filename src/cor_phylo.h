@@ -73,9 +73,6 @@ public:
     convcode = ll_info2.convcode;
   }
   
-  // LL_info(cp_matrices cpm, const bool& REML_, const bool& constrain_d_, 
-  //        const bool& verbose_);
-  
 };
 
 
@@ -94,13 +91,7 @@ public:
       d(p, n_reps, arma::fill::zeros), 
       B0(B_rows, n_reps, arma::fill::zeros), 
       B_cov(B_rows, B_rows, n_reps, arma::fill::zeros) {};
-  // boot_results(const XPtr<cp_matrices> cpm, const uint_t& n_reps) 
-  //   : corrs(cpm->mean_sd_X.n_rows, cpm->mean_sd_X.n_rows, n_reps), 
-  //     d(cpm->mean_sd_X.n_rows, n_reps),
-  //     B0(cpm->UU.n_cols, n_reps),
-  //     B_cov(cpm->UU.n_cols, cpm->UU.n_cols, n_reps),
-  //     X_means_sds(cpm->mean_sd_X.n_rows, 2, n_reps) {};
-  
+
   // Insert values into a boot_results object
   void insert_values(const uint_t& i,
                      const arma::mat& corrs_i,
@@ -119,29 +110,27 @@ public:
 };
 
 
-
-// Matrices to be kept for bootstrapping
-// One per core if doing multi-threaded
+/*
+ Matrices to be kept for bootstrapping
+ One per core if doing multi-threaded
+ */
 class boot_mats {
 public:
-  arma::mat mean_sd_X0; // original estimates
   arma::mat mean_sd_X;  // estimates for a given replicate
   std::vector<arma::vec> sd_U;
   arma::mat XX;
   arma::mat MM;
   arma::vec B0;
   arma::mat iD;
-  // arma::mat UU;
-  // arma::mat Vphy;
-  // arma::mat R;
-  // arma::mat V;
-  // arma::mat C;
   
   boot_mats() {}
   boot_mats(const arma::mat& mean_sd_X_, const std::vector<arma::vec>& sd_U_,
             const arma::mat& B_, const arma::vec& d_, const LL_info& ll_info);
   
-  void iterate(LL_info& ll_info, boot_results& br);
+  void iterate(LL_info& ll_info);
+  
+private:
+  arma::mat mean_sd_X0; // original estimates
   
 };
 
