@@ -693,7 +693,7 @@ cor_phylo <- function(formulas, species, phy,
   # corrs, d, B, (previously B, B_se, B_zscore, and B_pvalue),
   #     B_cov, logLik, AIC, BIC
   output <- cor_phylo_(X, U, M, Vphy, REML, constrain_d, verbose, 
-                       rel_tol, max_iter, method)
+                       rel_tol, max_iter, method, boot)
   # Taking care of row and column names:
   colnames(output$corrs) <- rownames(output$corrs) <- names(par_names[[1]])
   rownames(output$d) <- names(par_names[[1]])
@@ -702,16 +702,8 @@ cor_phylo <- function(formulas, species, phy,
   colnames(output$B) <- c("Estimate", "SE", "Z-score", "P-value")
   colnames(output$B_cov) <- rownames(output$B_cov) <- cp_get_row_names(par_names)
 
-
   output <- c(output, list(call = call_))
   class(output) <- "cor_phylo"
-
-  # Add bootstrapping to output
-  if (boot > 0) {
-    output$bootstrap <- boot_cor_phylo(output, boot, boot_out, n_cores)
-  } else {
-    output$bootstrap <- list()
-  }
   
   return(output)
 }

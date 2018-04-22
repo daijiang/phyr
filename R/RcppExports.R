@@ -67,11 +67,11 @@ NULL
 #' Make sure this doesn't get run in parallel!
 #'
 #'
-#' @inheritParams ll_obj_xptr cor_phylo_LL_R
+#' @inheritParams ll_info_xptr cor_phylo_LL_R
 #' @inheritParams max_iter cor_phylo
 #' @inheritParams method cor_phylo
 #' 
-#' @return Nothing. `ll_obj_xptr` is modified in place to have info from the model fit
+#' @return Nothing. `ll_info_xptr` is modified in place to have info from the model fit
 #'   after this function is run.
 #'
 #' @name fit_cor_phylo_R
@@ -134,11 +134,25 @@ NULL
 #' 
 NULL
 
+#' Iterate from a boot_mats object in prep for a bootstrap replicate.
+#' 
+#' This ultimately updates the LL_info object with new XX and MM matrices,
+#' and updates the boot_results object with the mean and sd.
+#' 
+#' @param ll_info An LL_info object that will inform the next call to the
+#'     log-likelihood function.
+#' @param br A boot_results object that stores output from bootstrapping.
+#' 
+#' @name boot_mats_iterate
+#' @noRd
+#' 
+NULL
+
 #' `cor_phylo` log likelihood function for R's `stats::optim`.
 #' 
 #' 
 #' @param par Initial values for the parameters to be optimized over.
-#' @param ll_obj_xptr `Rcpp::Xptr` object that points to a C++ `LL_info` object.
+#' @param ll_info_xptr `Rcpp::Xptr` object that points to a C++ `LL_info` object.
 #'     This object stores all the other information needed for the log likelihood
 #'     function.
 #' 
@@ -146,8 +160,19 @@ NULL
 #' 
 #' @name cor_phylo_LL_R
 #' 
-cor_phylo_LL_R <- function(par, ll_obj_xptr) {
-    .Call(`_phyr_cor_phylo_LL_R`, par, ll_obj_xptr)
+cor_phylo_LL_R <- function(par, ll_info_xptr) {
+    .Call(`_phyr_cor_phylo_LL_R`, par, ll_info_xptr)
+}
+
+#' Test function for if you want to run the LL function from R using R objects.
+#'
+#' @noRd
+#'
+#'
+#' @name cor_phylo_LL_R2
+#'
+cor_phylo_LL_R2 <- function(par, XX, UU, MM, Vphy, tau, REML, constrain_d, verbose) {
+    .Call(`_phyr_cor_phylo_LL_R2`, par, XX, UU, MM, Vphy, tau, REML, constrain_d, verbose)
 }
 
 #' Inner function to create necessary matrices and do model fitting.
@@ -170,8 +195,12 @@ cor_phylo_LL_R <- function(par, ll_obj_xptr) {
 #' @noRd
 #' @name cor_phylo_
 #' 
-cor_phylo_ <- function(X, U, M, Vphy_, REML, constrain_d, verbose, rel_tol, max_iter, method) {
-    .Call(`_phyr_cor_phylo_`, X, U, M, Vphy_, REML, constrain_d, verbose, rel_tol, max_iter, method)
+cor_phylo_ <- function(X, U, M, Vphy_, REML, constrain_d, verbose, rel_tol, max_iter, method, boot) {
+    .Call(`_phyr_cor_phylo_`, X, U, M, Vphy_, REML, constrain_d, verbose, rel_tol, max_iter, method, boot)
+}
+
+cor_phylo2_ <- function(X, U, M, Vphy_, REML, constrain_d, verbose, rel_tol, max_iter, method, boot) {
+    .Call(`_phyr_cor_phylo2_`, X, U, M, Vphy_, REML, constrain_d, verbose, rel_tol, max_iter, method, boot)
 }
 
 set_seed <- function(seed) {

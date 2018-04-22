@@ -151,7 +151,7 @@ double cor_phylo_LL(unsigned n, const double* x, double* grad, void* f_data) {
 //' 
 //' 
 //' @param par Initial values for the parameters to be optimized over.
-//' @param ll_obj_xptr `Rcpp::Xptr` object that points to a C++ `LL_info` object.
+//' @param ll_info_xptr `Rcpp::Xptr` object that points to a C++ `LL_info` object.
 //'     This object stores all the other information needed for the log likelihood
 //'     function.
 //' 
@@ -161,9 +161,9 @@ double cor_phylo_LL(unsigned n, const double* x, double* grad, void* f_data) {
 //' 
 //[[Rcpp::export]]
 double cor_phylo_LL_R(const arma::vec& par,
-                      SEXP ll_obj_xptr) {
+                      SEXP ll_info_xptr) {
   
-  XPtr<LL_info> ll_info(ll_obj_xptr);
+  XPtr<LL_info> ll_info(ll_info_xptr);
   const unsigned n = par.n_elem;
   double LL = cor_phylo_LL_(n, par, ll_info->XX, ll_info->UU, ll_info->MM, 
                             ll_info->Vphy, ll_info->tau, ll_info->REML, 
@@ -202,11 +202,12 @@ double cor_phylo_LL_R(const arma::vec& par,
 //' @name fit_cor_phylo_nlopt
 //' @noRd
 //' 
-void fit_cor_phylo_nlopt(LL_info& ll_info,
+void fit_cor_phylo_nlopt(XPtr<LL_info> ll_info_xptr,
                          const double& rel_tol,
                          const int& max_iter,
                          const uint& method) {
   
+  LL_info& ll_info(*ll_info_xptr);
   void* llop(&ll_info);
   
   unsigned n_pars = ll_info.par0.n_elem;
@@ -268,17 +269,17 @@ void fit_cor_phylo_nlopt(LL_info& ll_info,
 //' Make sure this doesn't get run in parallel!
 //'
 //'
-//' @inheritParams ll_obj_xptr cor_phylo_LL_R
+//' @inheritParams ll_info_xptr cor_phylo_LL_R
 //' @inheritParams max_iter cor_phylo
 //' @inheritParams method cor_phylo
 //' 
-//' @return Nothing. `ll_obj_xptr` is modified in place to have info from the model fit
+//' @return Nothing. `ll_info_xptr` is modified in place to have info from the model fit
 //'   after this function is run.
 //'
 //' @name fit_cor_phylo_R
 //' @noRd
 //' 
-void fit_cor_phylo_R(XPtr<LL_info>& ll_obj_xptr,
+void fit_cor_phylo_R(XPtr<LL_info>& ll_info_xptr,
                      const double& rel_tol,
                      const int& max_iter) {
   
@@ -287,22 +288,22 @@ void fit_cor_phylo_R(XPtr<LL_info>& ll_obj_xptr,
   
   Rcpp::List opt;
   
-  opt = optim(_["par"] = ll_obj_xptr->par0,
+  opt = optim(_["par"] = ll_info_xptr->par0,
               _["fn"] = Rcpp::InternalFunction(&cor_phylo_LL_R),
-              _["ll_info"] = ll_obj_xptr,
+              _["ll_info"] = ll_info_xptr,
               _["method"] = "Nelder-Mead",
               _["control"] = List::create(_["maxit"] = max_iter,
                                    _["reltol"] = rel_tol));
   
-  ll_obj_xptr->min_par = as<arma::vec>(opt["par"]);
+  ll_info_xptr->min_par = as<arma::vec>(opt["par"]);
   
-  ll_obj_xptr->LL = as<double>(opt["value"]);
-  ll_obj_xptr->convcode = as<int>(opt["convergence"]);
-  ll_obj_xptr->iters = as<arma::vec>(opt["counts"])(0);
+  ll_info_xptr->LL = as<double>(opt["value"]);
+  ll_info_xptr->convcode = as<int>(opt["convergence"]);
+  ll_info_xptr->iters = as<arma::vec>(opt["counts"])(0);
   
-  if (ll_obj_xptr->verbose) {
-    Rcout << ll_obj_xptr->LL << ' ';
-    arma::vec& par(ll_obj_xptr->min_par);
+  if (ll_info_xptr->verbose) {
+    Rcout << ll_info_xptr->LL << ' ';
+    arma::vec& par(ll_info_xptr->min_par);
     for (uint_t i = 0; i < par.n_elem; i++) Rcout << par(i) << ' ';
     Rcout << std::endl;
   }
@@ -477,6 +478,46 @@ LL_info::LL_info(const arma::mat& X,
 
 
 
+inline void main_output(arma::mat& corrs, arma::mat& B, arma::mat& B_cov, arma::vec& d,
+                        const LL_info& ll_info, const uint_t& n, const uint_t& p,
+                        const arma::mat& mean_sd_X, const std::vector<arma::vec>& sd_U) {
+  
+  arma::mat L = make_L(ll_info.min_par, n, p);
+  
+  arma::mat R = L.t() * L;
+  
+  corrs = make_corrs(R);
+  
+  d = make_d(ll_info.min_par, n, p, ll_info.constrain_d);
+  
+  // OU transform
+  arma::mat C = make_C(n, p, ll_info.tau, d, ll_info.Vphy, R);
+  
+  arma::mat V = make_V(C, ll_info.MM);
+  
+  arma::mat iV = arma::inv(V);
+  
+  arma::mat denom = tp(ll_info.UU) * iV * ll_info.UU;
+  
+  arma::mat num = tp(ll_info.UU) * iV * ll_info.XX;
+  arma::vec B0 = arma::solve(denom, num);
+  
+  make_B_B_cov(B, B_cov, B0, p, iV, ll_info.UU, mean_sd_X, sd_U);
+  
+  return;
+}
+
+
+
+// Defining these here so they're usable in `cp_get_output`
+
+void one_boot(XPtr<LL_info>& ll_info_xptr, boot_results& br, boot_mats& bm, 
+              const uint_t& i, const double& rel_tol, const int& max_iter,
+              const uint_t& method);
+void one_boot(XPtr<LL_info>& ll_info_xptr, boot_results& br, boot_mats& bm, 
+              const uint_t& i, const double& rel_tol, const int& max_iter);
+
+
 //' Retrieve objects for output `cor_phylo` object.
 //' 
 //' @inheritParams X cor_phylo_
@@ -492,7 +533,13 @@ LL_info::LL_info(const arma::mat& X,
 //' 
 List cp_get_output(const arma::mat& X,
                    const std::vector<arma::mat>& U,
-                   LL_info& ll_info) {
+                   XPtr<LL_info> ll_info_xptr,
+                   const double& rel_tol,
+                   const int& max_iter,
+                   const uint& method,
+                   const uint& boot) {
+  
+  LL_info& ll_info(*ll_info_xptr);
   
   /*
    Extract the only info we any longer need from X and U
@@ -507,32 +554,18 @@ List cp_get_output(const arma::mat& X,
   
   
   uint_t n = ll_info.Vphy.n_rows;
-  uint_t p = ll_info.XX.n_rows / n;
+  uint_t p = mean_sd_X.n_rows;
   
-  arma::mat L = make_L(ll_info.min_par, n, p);
-  
-  arma::mat R = L.t() * L;
-  
-  arma::mat corrs = make_corrs(R);
-  
-  arma::vec d = make_d(ll_info.min_par, n, p, ll_info.constrain_d);
-  
-  // OU transform
-  arma::mat C = make_C(n, p, ll_info.tau, d, ll_info.Vphy, R);
-  
-  arma::mat V = make_V(C, ll_info.MM);
-  
-  arma::mat iV = arma::inv(V);
-  
-  arma::mat denom = tp(ll_info.UU) * iV * ll_info.UU;
-  
-  arma::mat num = tp(ll_info.UU) * iV * ll_info.XX;
-  arma::vec B0 = arma::solve(denom, num);
-  
+  /*
+   Get the main output from cor_phylo: correlations, coefficient estimates, 
+   coefficient covariances, and phylogenetic signals.
+   The objects constructed below correspond to this information.
+   */
+  arma::mat corrs;
   arma::mat B;
-  arma::vec sd_vec;
   arma::mat B_cov;
-  make_sd_B_mat_cov(B, sd_vec, B_cov, B0, p, iV, ll_info.UU, mean_sd_X, sd_U);
+  arma::vec d;
+  main_output(corrs, B, B_cov, d, ll_info, n, p, mean_sd_X, sd_U);
   
   double logLik = -0.5 * std::log(2 * arma::datum::pi);
   if (ll_info.REML) {
@@ -552,9 +585,23 @@ List cp_get_output(const arma::mat& X,
   BIC = -2 * logLik + k * std::log(n / arma::datum::pi);
   
   
-  // // `cp_matrices` stores matrices that we'll need for bootstrapping
-  // cp_matrices cpm(mean_sd_X, sd_U, ll_info.XX, ll_info.UU,
-  //                 ll_info.MM, ll_info.Vphy, R, V, C, B);
+  List boot_list = List::create();
+  if (boot > 0) {
+    // `boot_mats` stores matrices that we'll need for bootstrapping
+    boot_mats bm(mean_sd_X, sd_U, B, d, ll_info);
+    boot_results br(p, B.n_rows, boot);
+    if (method < 5) {
+      for (uint_t b = 0; b < boot; b++) {
+        one_boot(ll_info_xptr, br, bm, b, rel_tol, max_iter, method);
+      }
+    } else {
+      for (uint_t b = 0; b < boot; b++) {
+        one_boot(ll_info_xptr, br, bm, b, rel_tol, max_iter);
+      }
+    }
+    boot_list = List::create(_["corrs"] = br.corrs, _["d"] = br.d, _["B0"] = br.B0,
+                             _["B_cov"] = br.B_cov);
+  }
   
   // Now the final output list
   List out = List::create(
@@ -566,7 +613,8 @@ List cp_get_output(const arma::mat& X,
     _["AIC"] = AIC,
     _["BIC"] = BIC,
     _["niter"] = ll_info.iters,
-    _["convcode"] = ll_info.convcode
+    _["convcode"] = ll_info.convcode,
+    _["bootstrap"] = boot_list
   );
   
   return out;
@@ -604,23 +652,169 @@ List cor_phylo_(const arma::mat& X,
                 const bool& verbose,
                 const double& rel_tol,
                 const int& max_iter,
-                const uint& method) {
+                const uint& method,
+                const uint& boot) {
   
   // LL_info is C++ class to use for organizing info for optimizing
-  XPtr<LL_info> ll_obj_xptr(new LL_info(X, U, M, Vphy_, REML, constrain_d, 
+  XPtr<LL_info> ll_info_xptr(new LL_info(X, U, M, Vphy_, REML, constrain_d, 
                                         verbose), true);
-  LL_info& ll_info(*ll_obj_xptr);
-  
+
   // Do the fitting. `method < 5` means to use nlopt. Otherwise, use R's `stats::optim`.
   if (method < 5) {
-    fit_cor_phylo_nlopt(ll_info, rel_tol, max_iter, method);
+    fit_cor_phylo_nlopt(ll_info_xptr, rel_tol, max_iter, method);
   } else {
-    fit_cor_phylo_R(ll_obj_xptr, rel_tol, max_iter);
+    fit_cor_phylo_R(ll_info_xptr, rel_tol, max_iter);
   }
   
   // Retrieve output from `ll_info` object and convert to list
-  List output = cp_get_output(X, U, ll_info);
+  List output = cp_get_output(X, U, ll_info_xptr, rel_tol, max_iter, method, boot);
+  /*
+   cp_get_output(const arma::mat& X,
+   const std::vector<arma::mat>& U,
+  XPtr<LL_info> ll_info_xptr,
+  const double& rel_tol,
+  const int& max_iter,
+  const uint& method,
+  const uint& boot) {
+   */
   
   return output;
   
 }
+
+
+
+
+
+
+
+
+
+
+/*
+ ***************************************************************************************
+ ***************************************************************************************
+ ***************************************************************************************
+ ***************************************************************************************
+ 
+ Bootstrapping functions
+ 
+ ***************************************************************************************
+ ***************************************************************************************
+ ***************************************************************************************
+ ***************************************************************************************
+ */
+
+
+
+boot_mats::boot_mats(const arma::mat& mean_sd_X_, const std::vector<arma::vec>& sd_U_,
+                     const arma::mat& B_, const arma::vec& d_, const LL_info& ll_info)
+  : mean_sd_X0(mean_sd_X_), mean_sd_X(mean_sd_X_), sd_U(sd_U_), 
+    XX(ll_info.XX), MM(ll_info.MM), B0(B_.col(0)), iD() {
+  
+  uint_t n = ll_info.Vphy.n_rows;
+  uint_t p = mean_sd_X_.n_rows;
+  
+  arma::mat L = make_L(ll_info.min_par, n, p);
+  arma::mat R = L.t() * L;
+  arma::mat C = make_C(n, p, ll_info.tau, d_, ll_info.Vphy, R);
+  arma::mat V = make_V(C, MM);
+  iD = arma::chol(V).t();
+  
+}
+
+//' Iterate from a boot_mats object in prep for a bootstrap replicate.
+//' 
+//' This ultimately updates the LL_info object with new XX and MM matrices,
+//' and updates the boot_results object with the mean and sd.
+//' 
+//' @param ll_info An LL_info object that will inform the next call to the
+//'     log-likelihood function.
+//' @param br A boot_results object that stores output from bootstrapping.
+//' 
+//' @name boot_mats_iterate
+//' @noRd
+//' 
+void boot_mats::iterate(LL_info& ll_info, boot_results& br) {
+  
+  // Reset this matrix to original
+  mean_sd_X = mean_sd_X0;
+  
+  uint_t n = ll_info.Vphy.n_rows;
+  uint_t p = mean_sd_X.n_cols;
+  
+  arma::mat M = MM;
+  arma::vec rnd(rnorm(n * p));
+  arma::mat X = ll_info.UU * B0 + iD * rnd;
+  M.reshape(n, p);
+  X.reshape(n, p);
+  for (uint_t i = 0; i < p; i++) {
+    double sd_ = arma::stddev(X.col(i));
+    double mean_ = arma::mean(X.col(i));
+    // Filling in mean_sd_X before normalizing
+    // (I'm multiplying by original sd to convert to back non-normalized scale)
+    mean_sd_X(i, 0) += (mean_ * mean_sd_X0(i, 1));
+    mean_sd_X(i, 1) *= sd_;
+    X.col(i) -= mean_;
+    X.col(i) /= sd_;
+    M.col(i) /= sd_;
+  }
+  M.reshape(M.n_elem, 1);
+  X.reshape(X.n_elem, 1);
+  
+  ll_info.XX = X;
+  ll_info.MM = M;
+  
+  return;
+}
+
+void one_boot(XPtr<LL_info>& ll_info_xptr, boot_results& br, boot_mats& bm, 
+              const uint_t& i, const double& rel_tol, const int& max_iter,
+              const uint_t& method) {
+  
+  LL_info& ll_info(*ll_info_xptr);
+  
+  // Generate new data
+  bm.iterate(ll_info, br);
+  
+  // Do the fitting. `method < 5` means to use nlopt. Otherwise, use R's `stats::optim`.
+  fit_cor_phylo_nlopt(ll_info_xptr, rel_tol, max_iter, method);
+  
+  arma::mat corrs;
+  arma::mat B;
+  arma::mat B_cov;
+  arma::vec d;
+  main_output(corrs, B, B_cov, d, ll_info, ll_info.Vphy.n_rows, bm.mean_sd_X.n_rows,
+              bm.mean_sd_X, bm.sd_U);
+  
+  // Add values to boot_results
+  br.insert_values(i, corrs, d, B.col(0), B_cov);
+  
+  return;
+}
+
+
+void one_boot(XPtr<LL_info>& ll_info_xptr, boot_results& br, boot_mats& bm, 
+              const uint_t& i, const double& rel_tol, const int& max_iter) {
+  
+  LL_info& ll_info(*ll_info_xptr);
+  
+  // // Generate new data
+  bm.iterate(ll_info, br);
+  
+  // Do the fitting. `method < 5` means to use nlopt. Otherwise, use R's `stats::optim`.
+  fit_cor_phylo_R(ll_info_xptr, rel_tol, max_iter);
+
+  arma::mat corrs;
+  arma::mat B;
+  arma::mat B_cov;
+  arma::vec d;
+  main_output(corrs, B, B_cov, d, ll_info, ll_info.Vphy.n_rows, bm.mean_sd_X.n_rows,
+              bm.mean_sd_X, bm.sd_U);
+
+  // Add values to boot_results
+  br.insert_values(i, corrs, d, B.col(0), B_cov);
+  
+  return;
+}
+

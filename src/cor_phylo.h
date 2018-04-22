@@ -29,34 +29,6 @@ using namespace Rcpp;
  */
 
 
-// Matrices to be kept in output
-class cp_matrices {
-public:
-  arma::mat mean_sd_X;
-  std::vector<arma::vec> sd_U;
-  arma::mat XX;
-  arma::mat UU;
-  arma::mat MM;
-  arma::mat Vphy;
-  arma::mat R;
-  arma::mat V;
-  arma::mat C;
-  arma::mat iD;
-  arma::mat B;
-  
-  cp_matrices() {}
-  cp_matrices(const arma::mat& mean_sd_X_, const std::vector<arma::vec>& sd_U_, 
-              const arma::mat& XX_, const arma::mat& UU_, const arma::mat& MM_, 
-              const arma::mat& Vphy_, const arma::mat& R_, const arma::mat& V_, 
-              const arma::mat& C_, const arma::mat& B_) 
-    : mean_sd_X(mean_sd_X_), sd_U(sd_U_), XX(XX_), UU(UU_), MM(MM_), Vphy(Vphy_), 
-      R(R_), V(V_), C(C_), B(B_) {
-    iD = arma::chol(V).t();
-  };
-  
-  
-};
-
 
 
 // Info to calculate the log-likelihood
@@ -84,6 +56,22 @@ public:
           const bool& REML_,
           const bool& constrain_d_,
           const bool& verbose_);
+  // Copy constructor
+  LL_info(const LL_info& ll_info2) {
+    par0 = ll_info2.par0;
+    XX = ll_info2.XX;
+    UU = ll_info2.UU;
+    MM = ll_info2.MM;
+    Vphy = ll_info2.Vphy;
+    tau = ll_info2.tau;
+    REML = ll_info2.REML;
+    constrain_d = ll_info2.constrain_d;
+    verbose = ll_info2.verbose;
+    iters = ll_info2.iters;
+    min_par = ll_info2.min_par;
+    LL = ll_info2.LL;
+    convcode = ll_info2.convcode;
+  }
   
   // LL_info(cp_matrices cpm, const bool& REML_, const bool& constrain_d_, 
   //        const bool& verbose_);
@@ -91,27 +79,72 @@ public:
 };
 
 
+
+// Results from bootstrapping
+
 class boot_results {
 public:
   arma::cube corrs;
   arma::mat d;
   arma::mat B0;
   arma::cube B_cov;
-  arma::cube X_means_sds;
+
+  boot_results(const uint_t& p, const uint_t& B_rows, const uint_t& n_reps) 
+    : corrs(p, p, n_reps, arma::fill::zeros), 
+      d(p, n_reps, arma::fill::zeros), 
+      B0(B_rows, n_reps, arma::fill::zeros), 
+      B_cov(B_rows, B_rows, n_reps, arma::fill::zeros) {};
+  // boot_results(const XPtr<cp_matrices> cpm, const uint_t& n_reps) 
+  //   : corrs(cpm->mean_sd_X.n_rows, cpm->mean_sd_X.n_rows, n_reps), 
+  //     d(cpm->mean_sd_X.n_rows, n_reps),
+  //     B0(cpm->UU.n_cols, n_reps),
+  //     B_cov(cpm->UU.n_cols, cpm->UU.n_cols, n_reps),
+  //     X_means_sds(cpm->mean_sd_X.n_rows, 2, n_reps) {};
   
-  boot_results(const uint_t& p, const uint_t& n_covs, const uint_t& n_reps) 
-    : corrs(p,p, n_reps), 
-      d(p, n_reps), 
-      B0(p + n_covs, n_reps), 
-      B_cov(p + n_covs, p + n_covs, n_reps),
-      X_means_sds(p, 2, n_reps) {};
-  boot_results(const XPtr<cp_matrices> cpm, const uint_t& n_reps) 
-    : corrs(cpm->mean_sd_X.n_rows, cpm->mean_sd_X.n_rows, n_reps), 
-      d(cpm->mean_sd_X.n_rows, n_reps),
-      B0(cpm->UU.n_cols, n_reps),
-      B_cov(cpm->UU.n_cols, cpm->UU.n_cols, n_reps),
-      X_means_sds(cpm->mean_sd_X.n_rows, 2, n_reps) {};
+  // Insert values into a boot_results object
+  void insert_values(const uint_t& i,
+                     const arma::mat& corrs_i,
+                     const arma::vec& d_i,
+                     const arma::vec& B0_i,
+                     const arma::mat& B_cov_i) {
+    
+    corrs.slice(i) = corrs_i;
+    d.col(i) = d_i;
+    B0.col(i) = B0_i;
+    B_cov.slice(i) = B_cov_i;
+    return;
+    
+  }
+  
 };
+
+
+
+// Matrices to be kept for bootstrapping
+// One per core if doing multi-threaded
+class boot_mats {
+public:
+  arma::mat mean_sd_X0; // original estimates
+  arma::mat mean_sd_X;  // estimates for a given replicate
+  std::vector<arma::vec> sd_U;
+  arma::mat XX;
+  arma::mat MM;
+  arma::vec B0;
+  arma::mat iD;
+  // arma::mat UU;
+  // arma::mat Vphy;
+  // arma::mat R;
+  // arma::mat V;
+  // arma::mat C;
+  
+  boot_mats() {}
+  boot_mats(const arma::mat& mean_sd_X_, const std::vector<arma::vec>& sd_U_,
+            const arma::mat& B_, const arma::vec& d_, const LL_info& ll_info);
+  
+  void iterate(LL_info& ll_info, boot_results& br);
+  
+};
+
 
 
 
@@ -134,13 +167,13 @@ public:
 // Flexible power function needed for multiple functions below
 // a^b
 
-arma::vec flex_pow(const arma::vec& a, const double& b) {
+inline arma::vec flex_pow(const arma::vec& a, const double& b) {
   uint_t n = a.n_elem;
   arma::vec x(n);
   for (uint_t i = 0; i < n; i++) x(i) = std::pow(a(i), b);
   return x;
 }
-arma::mat flex_pow(const double& a, const arma::mat& b) {
+inline arma::mat flex_pow(const double& a, const arma::mat& b) {
   uint_t nr = b.n_rows, nc = b.n_cols;
   arma::mat x(nr, nc);
   for (uint_t i = 0; i < nr; i++) {
@@ -150,7 +183,7 @@ arma::mat flex_pow(const double& a, const arma::mat& b) {
   }
   return x;
 }
-arma::mat flex_pow(const arma::mat& a, const double& b) {
+inline arma::mat flex_pow(const arma::mat& a, const double& b) {
   uint_t nr = a.n_rows, nc = a.n_cols;
   arma::mat x(nr, nc);
   for (uint_t i = 0; i < nr; i++) {
@@ -173,7 +206,7 @@ inline arma::vec tp(const arma::rowvec& V){
 }
 
 // pnorm for standard normal (i.e., ~ N(0,1))
-arma::vec pnorm_cpp(const arma::vec& values, const bool& lower_tail) {
+inline arma::vec pnorm_cpp(const arma::vec& values, const bool& lower_tail) {
   arma::vec out(values.n_elem);
   for (uint_t i = 0; i < values.size(); i++) {
     out(i) = 0.5 * std::erfc(-values(i) * M_SQRT1_2);
@@ -277,18 +310,18 @@ inline arma::mat make_corrs(const arma::mat& R) {
 
 
 /*
- Make vector of standard deviations and correct matrix of coefficient estimates
- and standard errors.
+ Make matrices of coefficient estimates and standard errors, and matrix of covariances.
  */
-inline void make_sd_B_mat_cov(arma::mat& B, arma::vec& sd_vec,
-                              arma::mat& B_cov, arma::vec& B0,
-                              const uint_t& p, 
-                              const arma::mat& iV,
-                              const arma::mat& UU,
-                              const arma::mat& mean_sd_X,
-                              const std::vector<arma::vec>& sd_U) {
+inline void make_B_B_cov(arma::mat& B, arma::mat& B_cov, arma::vec& B0,
+                         const uint_t& p, 
+                         const arma::mat& iV,
+                         const arma::mat& UU,
+                         const arma::mat& mean_sd_X,
+                         const std::vector<arma::vec>& sd_U) {
   
-  sd_vec.zeros(UU.n_cols);
+  
+  arma::vec sd_vec(UU.n_cols, arma::fill::zeros);
+  
   for (uint_t counter = 0, i = 0; i < p; counter++, i++) {
     B0[counter] += mean_sd_X(i,0);
     sd_vec[counter] = mean_sd_X(i,1);
