@@ -253,63 +253,6 @@ cp_check_method <- function(method) {
 
 
 
-#' `boot_ci` returns the bootstrapped confidence intervals from a `cor_phylo` object
-#' 
-#' 
-#' @param x `cor_phylo` object that was run with the `boot` argument > 0.
-#' @param alpha Alpha used for the confidence intervals. Defaults to `0.05`.
-#' 
-#' @return A list of confidence intervals for
-#'   estimates of correlations (`corrs`),
-#'   phylogenetic signals (`d`),
-#'   coefficient estimates (`B0`), and
-#'   coefficient covariances (`B_cov`).
-#' 
-#' @export
-#' 
-#' @rdname cor_phylo
-#' 
-boot_ci.cor_phylo <- function(x, alpha = 0.05) {
-  
-  if (length(x$bootstrap) == 0) {
-    stop("\nThis `cor_phylo` object was not bootstrapped. ",
-         "Please re-run with the `boot` argument set to >0. ",
-         "We recommend >= 2000, but expect this to take 20 minutes or ",
-         "longer.", call. = FALSE)
-  }
-  f <- x$bootstrap$failed
-  if (length(f) == 0) f <- ncol(x$bootstrap$d) + 1
-  corrs <- list(lower = apply(x$bootstrap$corrs[,,-f,drop=FALSE], 
-                              c(1, 2), quantile, probs = alpha / 2),
-                upper = apply(x$bootstrap$corrs[,,-f,drop=FALSE],
-                              c(1, 2), quantile, probs = 1 - alpha / 2))
-  rownames(corrs$lower) <- rownames(corrs$upper) <- rownames(x$corrs)
-  colnames(corrs$lower) <- colnames(corrs$upper) <- colnames(x$corrs)
-  
-  ds <- t(apply(x$bootstrap$d[,-f,drop=FALSE], 1, quantile,
-                probs = c(alpha / 2, 1 - alpha / 2)))
-  rownames(ds) <- rownames(x$d)
-  
-  B0s <- t(apply(x$bootstrap$B0[,-f,drop=FALSE], 1, quantile,
-                 probs = c(alpha / 2, 1 - alpha / 2)))
-  rownames(B0s) <- rownames(x$B)
-  
-  colnames(B0s) <- colnames(ds) <- c("lower", "upper")
-  
-  B_covs <- list(lower = apply(x$bootstrap$B_cov[,,-f,drop=FALSE], c(1, 2), quantile,
-                               probs = alpha / 2),
-                 upper = apply(x$bootstrap$B_cov[,,-f,drop=FALSE], c(1, 2), quantile,
-                               probs = 1 - alpha / 2))
-  
-  rownames(B_covs$lower) <- rownames(B_covs$upper) <- rownames(x$B_cov)
-  colnames(B_covs$lower) <- colnames(B_covs$upper) <- colnames(x$B_cov)
-  
-  return(list(corrs = corrs, d = ds, B0 = B0s, B_cov = B_covs))
-  
-}
-
-
-
 
 # ================================================================================
 # ================================================================================
@@ -780,14 +723,73 @@ cor_phylo <- function(formulas, species, phy,
 # ================================================================================
 # ================================================================================
 
-# Printing
+# Printing and extracting bootstrap info
 
 # ================================================================================
 # ================================================================================
 
 
 
-#' `print.cor_phylo` prints `cor_phylo` objects
+
+
+#' @describeIn cor_phylo returns bootstrapped confidence intervals from a `cor_phylo` object
+#' 
+#' 
+#' @param x `cor_phylo` object that was run with the `boot` argument > 0.
+#' @param alpha Alpha used for the confidence intervals. Defaults to `0.05`.
+#' 
+#' @return A list of confidence intervals for
+#'   estimates of correlations (`corrs`),
+#'   phylogenetic signals (`d`),
+#'   coefficient estimates (`B0`), and
+#'   coefficient covariances (`B_cov`).
+#' 
+#' @export
+#' 
+#' 
+boot_ci.cor_phylo <- function(x, alpha = 0.05) {
+  
+  if (length(x$bootstrap) == 0) {
+    stop("\nThis `cor_phylo` object was not bootstrapped. ",
+         "Please re-run with the `boot` argument set to >0. ",
+         "We recommend >= 2000, but expect this to take 20 minutes or ",
+         "longer.", call. = FALSE)
+  }
+  f <- x$bootstrap$failed
+  if (length(f) == 0) f <- ncol(x$bootstrap$d) + 1
+  corrs <- list(lower = apply(x$bootstrap$corrs[,,-f,drop=FALSE], 
+                              c(1, 2), quantile, probs = alpha / 2),
+                upper = apply(x$bootstrap$corrs[,,-f,drop=FALSE],
+                              c(1, 2), quantile, probs = 1 - alpha / 2))
+  rownames(corrs$lower) <- rownames(corrs$upper) <- rownames(x$corrs)
+  colnames(corrs$lower) <- colnames(corrs$upper) <- colnames(x$corrs)
+  
+  ds <- t(apply(x$bootstrap$d[,-f,drop=FALSE], 1, quantile,
+                probs = c(alpha / 2, 1 - alpha / 2)))
+  rownames(ds) <- rownames(x$d)
+  
+  B0s <- t(apply(x$bootstrap$B0[,-f,drop=FALSE], 1, quantile,
+                 probs = c(alpha / 2, 1 - alpha / 2)))
+  rownames(B0s) <- rownames(x$B)
+  
+  colnames(B0s) <- colnames(ds) <- c("lower", "upper")
+  
+  B_covs <- list(lower = apply(x$bootstrap$B_cov[,,-f,drop=FALSE], c(1, 2), quantile,
+                               probs = alpha / 2),
+                 upper = apply(x$bootstrap$B_cov[,,-f,drop=FALSE], c(1, 2), quantile,
+                               probs = 1 - alpha / 2))
+  
+  rownames(B_covs$lower) <- rownames(B_covs$upper) <- rownames(x$B_cov)
+  colnames(B_covs$lower) <- colnames(B_covs$upper) <- colnames(x$B_cov)
+  
+  return(list(corrs = corrs, d = ds, B0 = B0s, B_cov = B_covs))
+  
+}
+
+
+
+
+#' @describeIn cor_phylo prints `cor_phylo` objects
 #'
 #' @param x an object of class \code{cor_phylo}.
 #' @param digits the number of digits to be printed.
@@ -795,7 +797,6 @@ cor_phylo <- function(formulas, species, phy,
 #'
 #' @export
 #'
-#' @rdname cor_phylo
 #'
 print.cor_phylo <- function(x, digits = max(3, getOption("digits") - 3), ...) {
   cat("\nCall to cor_phylo:\n")
