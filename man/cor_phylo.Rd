@@ -8,16 +8,15 @@
 \usage{
 cor_phylo(formulas, species, phy, data = sys.frame(sys.parent()),
   REML = TRUE, method = c("neldermead", "bobyqa", "sbplx", "cobyla",
-  "praxis", "neldermead-r"), constrain_d = FALSE, rel_tol = 1e-06,
-  max_iter = 1000, verbose = FALSE, boot = 0)
+  "praxis", "neldermead-r", "sann-r"), constrain_d = FALSE, rel_tol = 1e-06,
+  max_iter = 1000, maxit_SA = 1000, temp_SA = 1, tmax_SA = 1,
+  verbose = FALSE, boot = 0)
+
+\method{boot_ci}{cor_phylo}(x, alpha = 0.05)
 
 \method{print}{cor_phylo}(x, digits = max(3, getOption("digits") - 3), ...)
 }
 \arguments{
-\item{x}{\code{cor_phylo} object that was run with the \code{boot} argument > 0.}
-
-\item{alpha}{Alpha used for the confidence intervals. Defaults to \code{0.05}.}
-
 \item{formulas}{a list of \code{p} formulas (class \code{\link{formula}}),
 one formula for each trait of interest. Formulas should take one of the following
 forms:
@@ -67,6 +66,18 @@ Defaults to \code{1e-6}.}
 
 \item{max_iter}{a control parameter dictating the maximum number of iterations
 in the optimization. Defaults to \code{1000}.}
+
+\item{maxit_SA}{A control parameter dictating the maximum number of iterations in the
+optimization with SANN minimization; see \code{\link{stats::optim}}.
+Defaults to \code{1000}.}
+
+\item{temp_SA}{A control parameter dictating the starting temperature in the
+optimization with SANN minimization; see \code{\link{stats::optim}}.
+Defaults to \code{1}.}
+
+\item{tmax_SA}{A control parameter dictating the number of function evaluations
+at each temperature in the optimization with SANN minimization; see
+\code{\link{stats::optim}}. Defaults to \code{1}.}
 
 \item{verbose}{if \code{TRUE}, the model \code{logLik} and running estimates of the
 correlation coefficients and values of \code{d} are printed each iteration

@@ -439,6 +439,15 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
 #'   Defaults to `1e-6`.
 #' @param max_iter a control parameter dictating the maximum number of iterations 
 #'   in the optimization. Defaults to \code{1000}.
+#' @param maxit_SA A control parameter dictating the maximum number of iterations in the
+#'   optimization with SANN minimization; see \code{\link{stats::optim}}.
+#'   Defaults to `1000`.
+#' @param temp_SA A control parameter dictating the starting temperature in the
+#'   optimization with SANN minimization; see \code{\link{stats::optim}}.
+#'   Defaults to `1`.
+#' @param tmax_SA A control parameter dictating the number of function evaluations
+#'   at each temperature in the optimization with SANN minimization; see
+#'   \code{\link{stats::optim}}. Defaults to `1`.
 #' @param verbose if `TRUE`, the model `logLik` and running estimates of the
 #'   correlation coefficients and values of `d` are printed each iteration
 #'   during optimization. Defaults to `FALSE`.
@@ -657,19 +666,23 @@ cor_phylo <- function(formulas, species, phy,
                       data = sys.frame(sys.parent()),
                       REML = TRUE, 
                       method = c("neldermead", "bobyqa", "sbplx", "cobyla", "praxis", 
-                                 "neldermead-r"),
+                                 "neldermead-r", "sann-r"),
                       constrain_d = FALSE, 
                       rel_tol = 1e-6, 
                       max_iter = 1000, 
+                      maxit_SA = 1000, temp_SA = 1, tmax_SA = 1,
                       verbose = FALSE,
                       boot = 0) {
   
   stopifnot(rel_tol > 0)
   
+  sann <- c(maxit_SA, temp_SA, tmax_SA)
+
   method <- match.arg(method)
   method <- cp_check_method(method)
   # Converting to a C++ index
-  method <- which(c("neldermead", "bobyqa", "sbplx", "cobyla", "praxis", "neldermead-r")
+  method <- which(c("neldermead", "bobyqa", "sbplx", "cobyla", "praxis", "neldermead-r",
+                    "sann-r")
                   == method) - 1
   
   call_ <- match.call()
@@ -700,7 +713,7 @@ cor_phylo <- function(formulas, species, phy,
   # corrs, d, B, (previously B, B_se, B_zscore, and B_pvalue),
   #     B_cov, logLik, AIC, BIC
   output <- cor_phylo_(X, U, M, Vphy, REML, constrain_d, verbose, 
-                       rel_tol, max_iter, method, boot)
+                       rel_tol, max_iter, method, boot, sann)
   # Taking care of row and column names:
   colnames(output$corrs) <- rownames(output$corrs) <- names(par_names[[1]])
   rownames(output$d) <- names(par_names[[1]])

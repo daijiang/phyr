@@ -281,12 +281,26 @@ void fit_cor_phylo_nlopt(XPtr<LL_info> ll_info_xptr,
 //' 
 void fit_cor_phylo_R(XPtr<LL_info>& ll_info_xptr,
                      const double& rel_tol,
-                     const int& max_iter) {
+                     const int& max_iter,
+                     const uint& method,
+                     const std::vector<double>& sann) {
   
   Rcpp::Environment stats("package:stats");
   Rcpp::Function optim = stats["optim"];
   
   Rcpp::List opt;
+  
+  if (method > 5) {
+    opt = optim(_["par"] = ll_info_xptr->par0,
+                _["fn"] = Rcpp::InternalFunction(&cor_phylo_LL_R),
+                _["ll_info"] = ll_info_xptr,
+                _["method"] = "SANN",
+                _["control"] = List::create(_["maxit"] = sann[0],
+                                     _["temp"] = sann[1],
+                                     _["tmax"] = sann[2],
+                                     _["reltol"] = rel_tol));
+    ll_info_xptr->par0 = as<arma::vec>(opt["par"]);
+  }
   
   opt = optim(_["par"] = ll_info_xptr->par0,
               _["fn"] = Rcpp::InternalFunction(&cor_phylo_LL_R),
@@ -514,7 +528,8 @@ void one_boot(XPtr<LL_info>& ll_info_xptr, boot_results& br, boot_mats& bm,
               const uint_t& i, const double& rel_tol, const int& max_iter,
               const uint_t& method);
 void one_boot(XPtr<LL_info>& ll_info_xptr, boot_results& br, boot_mats& bm, 
-              const uint_t& i, const double& rel_tol, const int& max_iter);
+              const uint_t& i, const double& rel_tol, const int& max_iter,
+              const uint_t& method, const std::vector<double>& sann);
 
 
 //' Retrieve objects for output `cor_phylo` object.
@@ -536,7 +551,8 @@ List cp_get_output(const arma::mat& X,
                    const double& rel_tol,
                    const int& max_iter,
                    const uint& method,
-                   const uint& boot) {
+                   const uint& boot,
+                   const std::vector<double>& sann) {
   
   LL_info& ll_info(*ll_info_xptr);
   
@@ -596,8 +612,8 @@ List cp_get_output(const arma::mat& X,
       }
     } else {
       for (uint_t b = 0; b < boot; b++) {
-        one_boot(ll_info_xptr, br, bm, b, rel_tol, max_iter);
         Rcpp::checkUserInterrupt();
+        one_boot(ll_info_xptr, br, bm, b, rel_tol, max_iter, method, sann);
       }
     }
     boot_list = List::create(_["corrs"] = br.corrs, _["d"] = br.d, _["B0"] = br.B0,
@@ -654,7 +670,8 @@ List cor_phylo_(const arma::mat& X,
                 const double& rel_tol,
                 const int& max_iter,
                 const uint& method,
-                const uint& boot) {
+                const uint& boot,
+                const std::vector<double>& sann) {
   
   // LL_info is C++ class to use for organizing info for optimizing
   XPtr<LL_info> ll_info_xptr(new LL_info(X, U, M, Vphy_, REML, constrain_d, 
@@ -664,11 +681,12 @@ List cor_phylo_(const arma::mat& X,
   if (method < 5) {
     fit_cor_phylo_nlopt(ll_info_xptr, rel_tol, max_iter, method);
   } else {
-    fit_cor_phylo_R(ll_info_xptr, rel_tol, max_iter);
+    fit_cor_phylo_R(ll_info_xptr, rel_tol, max_iter, method, sann);
   }
   
   // Retrieve output from `ll_info` object and convert to list
-  List output = cp_get_output(X, U, ll_info_xptr, rel_tol, max_iter, method, boot);
+  List output = cp_get_output(X, U, ll_info_xptr, rel_tol, max_iter, method, boot,
+                              sann);
   
   return output;
   
@@ -846,7 +864,8 @@ void one_boot(XPtr<LL_info>& ll_info_xptr, boot_results& br, boot_mats& bm,
 
 
 void one_boot(XPtr<LL_info>& ll_info_xptr, boot_results& br, boot_mats& bm, 
-              const uint_t& i, const double& rel_tol, const int& max_iter) {
+              const uint_t& i, const double& rel_tol, const int& max_iter,
+              const uint_t& method, const std::vector<double>& sann) {
   
   LL_info& ll_info(*ll_info_xptr);
   
@@ -854,7 +873,7 @@ void one_boot(XPtr<LL_info>& ll_info_xptr, boot_results& br, boot_mats& bm,
   bm.iterate(ll_info);
   
   // Do the fitting.
-  fit_cor_phylo_R(ll_info_xptr, rel_tol, max_iter);
+  fit_cor_phylo_R(ll_info_xptr, rel_tol, max_iter, method, sann);
   
   if (ll_info_xptr->convcode != 0) br.failed.push_back(i+1);
 

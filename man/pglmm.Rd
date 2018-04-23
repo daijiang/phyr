@@ -95,7 +95,8 @@ Default is FALSE, i.e. test underdispersion.}
 \item{prep.re.effects}{whether to prepare random effects for users.}
 
 \item{family}{either \code{gaussian} for a Linear Mixed Model, or
-\code{binomial} for binary dependent data.}
+\code{binomial} for binary dependent data. If \code{bayes = TRUE}, \code{poisson} is also
+supported.}
 
 \item{prep.s2.lme4}{whether to prepare initial s2 values based on lme4 theta. Default is FALSE.
 If no phylogenetic or nested random terms, should set it to TRUE since it likely will be faster.
@@ -326,8 +327,7 @@ specifying the \code{bayes = TRUE}. This uses the package \code{\link[INLA:INLA-
 package, which is not available on cran. If you wish to use this option,
 you must first install \code{INLA} from \url{http://www.r-inla.org/}.
 Note that while \code{bayes = TRUE} currently only supports \code{family} arguments of
-\code{"gaussian"} and \code{"binomial"}, other families will shortly be added.
-For a full list see \code{names(INLA::inla.models()$likelihood)}.
+\code{"gaussian"}, \code{"binomial"}, and \code{"poisson"}, other families will shortly be added.
 
 \code{communityPGLMM.binary} calculates the statistical
 significance of the random effects in the generalized linear mixed
