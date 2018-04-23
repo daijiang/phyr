@@ -721,6 +721,16 @@ cor_phylo <- function(formulas, species, phy,
   rownames(output$B) <- cp_get_row_names(par_names)
   colnames(output$B) <- c("Estimate", "SE", "Z-score", "P-value")
   colnames(output$B_cov) <- rownames(output$B_cov) <- cp_get_row_names(par_names)
+  
+  # Ordering failed matrices back to original order (bc they were previously 
+  # reordered based on the phylogeny)
+  if (length(output$bootstrap$failed_mats) > 0) {
+    order_ <- match(spp_vec, phy$tip.label)
+    for (i in 1:length(output$bootstrap$failed_mats)) {
+      output$bootstrap$failed_mats[[i]] <- 
+        output$bootstrap$failed_mats[[i]][order_, , drop = FALSE]
+    }
+  }
 
   output <- c(output, list(call = call_))
   class(output) <- "cor_phylo"

@@ -85,14 +85,15 @@ public:
   arma::mat d;
   arma::mat B0;
   arma::cube B_cov;
-  std::vector<uint> failed;
+  std::vector<arma::mat> failed_mats;
+  std::vector<uint> failed_inds;
 
   boot_results(const uint_t& p, const uint_t& B_rows, const uint_t& n_reps) 
     : corrs(p, p, n_reps, arma::fill::zeros), 
       d(p, n_reps, arma::fill::zeros), 
       B0(B_rows, n_reps, arma::fill::zeros), 
       B_cov(B_rows, B_rows, n_reps, arma::fill::zeros),
-      failed(0) {};
+      failed_mats(), failed_inds() {};
 
   // Insert values into a boot_results object
   void insert_values(const uint_t& i,
@@ -128,6 +129,14 @@ public:
   
   void iterate(LL_info& ll_info);
   
+  void one_boot(XPtr<LL_info>& ll_info_xptr, boot_results& br,
+                const uint_t& i, const double& rel_tol, const int& max_iter,
+                const uint_t& method);
+  
+  void one_boot(XPtr<LL_info>& ll_info_xptr, boot_results& br,
+                const uint_t& i, const double& rel_tol, const int& max_iter,
+                const uint_t& method, const std::vector<double>& sann);
+  
 private:
   arma::mat mean_sd_X0; // original estimates
   arma::mat XX;
@@ -136,6 +145,9 @@ private:
   arma::mat iD;
   arma::mat U_add;
   std::vector<arma::mat> Us;
+  
+  // Method for returning data when convergence fails
+  void failed(LL_info& ll_info, boot_results& br, const uint& i);
 
 };
 

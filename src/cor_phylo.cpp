@@ -433,12 +433,12 @@ LL_info::LL_info(const arma::mat& X,
   
   arma::mat Xs = X;
   std::vector<arma::mat> Us = U;
-  arma::mat SeMs = M;
-  standardize_matrices(Xs, Us, SeMs);
+  arma::mat Ms = M;
+  standardize_matrices(Xs, Us, Ms);
   
   
   XX = arma::reshape(Xs, Xs.n_elem, 1);
-  MM = flex_pow(SeMs, 2);
+  MM = flex_pow(Ms, 2);
   MM.reshape(MM.n_elem, 1);
   UU = arma::kron(arma::eye<arma::mat>(p,p),
                   arma::mat(n, 1, arma::fill::ones));
@@ -521,17 +521,6 @@ inline void main_output(arma::mat& corrs, arma::mat& B, arma::mat& B_cov, arma::
 }
 
 
-
-// Defining these here so they're usable in `cp_get_output`
-
-void one_boot(XPtr<LL_info>& ll_info_xptr, boot_results& br, boot_mats& bm, 
-              const uint_t& i, const double& rel_tol, const int& max_iter,
-              const uint_t& method);
-void one_boot(XPtr<LL_info>& ll_info_xptr, boot_results& br, boot_mats& bm, 
-              const uint_t& i, const double& rel_tol, const int& max_iter,
-              const uint_t& method, const std::vector<double>& sann);
-
-
 //' Retrieve objects for output `cor_phylo` object.
 //' 
 //' @inheritParams X cor_phylo_
@@ -608,16 +597,21 @@ List cp_get_output(const arma::mat& X,
     if (method < 5) {
       for (uint_t b = 0; b < boot; b++) {
         Rcpp::checkUserInterrupt();
-        one_boot(ll_info_xptr, br, bm, b, rel_tol, max_iter, method);
+        bm.one_boot(ll_info_xptr, br, b, rel_tol, max_iter, method);
       }
     } else {
       for (uint_t b = 0; b < boot; b++) {
         Rcpp::checkUserInterrupt();
-        one_boot(ll_info_xptr, br, bm, b, rel_tol, max_iter, method, sann);
+        bm.one_boot(ll_info_xptr, br, b, rel_tol, max_iter, method, sann);
       }
     }
+    std::vector<NumericMatrix> failed_mats(br.failed_inds.size());
+    for (uint i = 0; i < br.failed_inds.size(); i++) {
+      failed_mats[i] = wrap(br.failed_mats[i]);
+    }
     boot_list = List::create(_["corrs"] = br.corrs, _["d"] = br.d, _["B0"] = br.B0,
-                             _["B_cov"] = br.B_cov, _["failed"] = br.failed);
+                             _["B_cov"] = br.B_cov, _["failed"] = br.failed_inds,
+                             _["failed_mats"] = failed_mats);
   }
   
   // Now the final output list
@@ -835,26 +829,50 @@ void boot_mats::iterate(LL_info& ll_info) {
   return;
 }
 
-void one_boot(XPtr<LL_info>& ll_info_xptr, boot_results& br, boot_mats& bm, 
-              const uint_t& i, const double& rel_tol, const int& max_iter,
-              const uint_t& method) {
+
+
+// Method to return data when convergence fails
+void boot_mats::failed(LL_info& ll_info, boot_results& br, const uint& i) {
+  
+  br.failed_inds.push_back(i+1);
+  
+  uint n = ll_info.Vphy.n_rows;
+  uint p = mean_sd_X.n_rows;
+
+  arma::mat X = ll_info.XX;
+  arma::mat M = ll_info.MM;
+  X.reshape(n, p);
+  M.reshape(n, p);
+  for (uint i = 0; i < p; i++) {
+    X.col(i) *= mean_sd_X(i, 1);
+    X.col(i) += mean_sd_X(i, 0);
+    M.col(i) *= mean_sd_X(i, 1);
+  }
+  arma::mat XM = arma::join_horiz(X, M);
+  br.failed_mats.push_back(XM);
+  return;
+}
+
+void boot_mats::one_boot(XPtr<LL_info>& ll_info_xptr, boot_results& br,
+                         const uint_t& i, const double& rel_tol, const int& max_iter,
+                         const uint_t& method) {
   
   LL_info& ll_info(*ll_info_xptr);
   
   // Generate new data
-  bm.iterate(ll_info);
+  iterate(ll_info);
   
   // Do the fitting
   fit_cor_phylo_nlopt(ll_info_xptr, rel_tol, max_iter, method);
   
-  if (ll_info_xptr->convcode < 0) br.failed.push_back(i+1);
+  if (ll_info_xptr->convcode < 0) failed(ll_info, br, i);
   
   arma::mat corrs;
   arma::mat B;
   arma::mat B_cov;
   arma::vec d;
-  main_output(corrs, B, B_cov, d, ll_info, ll_info.Vphy.n_rows, bm.mean_sd_X.n_rows,
-              bm.mean_sd_X, bm.sd_U);
+  main_output(corrs, B, B_cov, d, ll_info, ll_info.Vphy.n_rows, mean_sd_X.n_rows,
+              mean_sd_X, sd_U);
   
   // Add values to boot_results
   br.insert_values(i, corrs, d, B.col(0), B_cov);
@@ -863,26 +881,26 @@ void one_boot(XPtr<LL_info>& ll_info_xptr, boot_results& br, boot_mats& bm,
 }
 
 
-void one_boot(XPtr<LL_info>& ll_info_xptr, boot_results& br, boot_mats& bm, 
-              const uint_t& i, const double& rel_tol, const int& max_iter,
-              const uint_t& method, const std::vector<double>& sann) {
+void boot_mats::one_boot(XPtr<LL_info>& ll_info_xptr, boot_results& br,
+                         const uint_t& i, const double& rel_tol, const int& max_iter,
+                         const uint_t& method, const std::vector<double>& sann) {
   
   LL_info& ll_info(*ll_info_xptr);
   
   // Generate new data
-  bm.iterate(ll_info);
+  iterate(ll_info);
   
   // Do the fitting.
   fit_cor_phylo_R(ll_info_xptr, rel_tol, max_iter, method, sann);
   
-  if (ll_info_xptr->convcode != 0) br.failed.push_back(i+1);
+  if (ll_info_xptr->convcode != 0) failed(ll_info, br, i);
 
   arma::mat corrs;
   arma::mat B;
   arma::mat B_cov;
   arma::vec d;
-  main_output(corrs, B, B_cov, d, ll_info, ll_info.Vphy.n_rows, bm.mean_sd_X.n_rows,
-              bm.mean_sd_X, bm.sd_U);
+  main_output(corrs, B, B_cov, d, ll_info, ll_info.Vphy.n_rows, mean_sd_X.n_rows,
+              mean_sd_X, sd_U);
 
   // Add values to boot_results
   br.insert_values(i, corrs, d, B.col(0), B_cov);
