@@ -85,12 +85,14 @@ public:
   arma::mat d;
   arma::mat B0;
   arma::cube B_cov;
+  std::vector<uint> failed;
 
   boot_results(const uint_t& p, const uint_t& B_rows, const uint_t& n_reps) 
     : corrs(p, p, n_reps, arma::fill::zeros), 
       d(p, n_reps, arma::fill::zeros), 
       B0(B_rows, n_reps, arma::fill::zeros), 
-      B_cov(B_rows, B_rows, n_reps, arma::fill::zeros) {};
+      B_cov(B_rows, B_rows, n_reps, arma::fill::zeros),
+      failed(0) {};
 
   // Insert values into a boot_results object
   void insert_values(const uint_t& i,
@@ -118,20 +120,23 @@ class boot_mats {
 public:
   arma::mat mean_sd_X;  // estimates for a given replicate
   std::vector<arma::vec> sd_U;
-  arma::mat XX;
-  arma::mat MM;
-  arma::vec B0;
-  arma::mat iD;
   
   boot_mats() {}
   boot_mats(const arma::mat& mean_sd_X_, const std::vector<arma::vec>& sd_U_,
-            const arma::mat& B_, const arma::vec& d_, const LL_info& ll_info);
+            const arma::mat& B_, const arma::vec& d_, const LL_info& ll_info,
+            const std::vector<arma::mat>& U);
   
   void iterate(LL_info& ll_info);
   
 private:
   arma::mat mean_sd_X0; // original estimates
-  
+  arma::mat XX;
+  arma::mat MM;
+  arma::vec B0;
+  arma::mat iD;
+  arma::mat U_add;
+  std::vector<arma::mat> Us;
+
 };
 
 

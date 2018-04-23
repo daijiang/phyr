@@ -277,26 +277,28 @@ boot_ci.cor_phylo <- function(x, alpha = 0.05) {
          "We recommend >= 2000, but expect this to take 20 minutes or ",
          "longer.", call. = FALSE)
   }
-  corrs <- list(lower = apply(x$bootstrap$corrs, c(1, 2), quantile,
-                              probs = alpha / 2),
-                upper = apply(x$bootstrap$corrs, c(1, 2), quantile,
-                              probs = 1 - alpha / 2))
+  f <- x$bootstrap$failed
+  if (length(f) == 0) f <- ncol(x$bootstrap$d) + 1
+  corrs <- list(lower = apply(x$bootstrap$corrs[,,-f,drop=FALSE], 
+                              c(1, 2), quantile, probs = alpha / 2),
+                upper = apply(x$bootstrap$corrs[,,-f,drop=FALSE],
+                              c(1, 2), quantile, probs = 1 - alpha / 2))
   rownames(corrs$lower) <- rownames(corrs$upper) <- rownames(x$corrs)
   colnames(corrs$lower) <- colnames(corrs$upper) <- colnames(x$corrs)
   
-  ds <- t(apply(x$bootstrap$d, 1, quantile,
+  ds <- t(apply(x$bootstrap$d[,-f,drop=FALSE], 1, quantile,
                 probs = c(alpha / 2, 1 - alpha / 2)))
   rownames(ds) <- rownames(x$d)
   
-  B0s <- t(apply(x$bootstrap$B0, 1, quantile,
+  B0s <- t(apply(x$bootstrap$B0[,-f,drop=FALSE], 1, quantile,
                  probs = c(alpha / 2, 1 - alpha / 2)))
   rownames(B0s) <- rownames(x$B)
   
   colnames(B0s) <- colnames(ds) <- c("lower", "upper")
   
-  B_covs <- list(lower = apply(x$bootstrap$B_cov, c(1, 2), quantile,
+  B_covs <- list(lower = apply(x$bootstrap$B_cov[,,-f,drop=FALSE], c(1, 2), quantile,
                                probs = alpha / 2),
-                 upper = apply(x$bootstrap$B_cov, c(1, 2), quantile,
+                 upper = apply(x$bootstrap$B_cov[,,-f,drop=FALSE], c(1, 2), quantile,
                                probs = 1 - alpha / 2))
   
   rownames(B_covs$lower) <- rownames(B_covs$upper) <- rownames(x$B_cov)
@@ -498,9 +500,7 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
 #'   correlation coefficients and values of `d` are printed each iteration
 #'   during optimization. Defaults to `FALSE`.
 #' @param boot Number of parametric bootstrap replicates. Defaults to `0`.
-#' @param n_cores Number of cores to use for parametric bootstrapping.
-#'   This argument is ignored if OpenMP is not enabled. Defaults to `1`.
-#'
+#' 
 #'
 #' @return An object of class `cor_phylo`:
 #'   \item{`corrs`}{the `p` x `p` matrix of correlation coefficients.}
@@ -518,12 +518,14 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
 #'   \item{`convcode`}{Conversion code for the optimizer, which is positive on success
 #'     and negative on failure. See also
 #'     \url{https://nlopt.readthedocs.io/en/latest/NLopt_Reference/#return-values}.}
-#'   \item{`bootstrap`} A list of bootstrap output, which is simply `list()` if
+#'   \item{`bootstrap`}{A list of bootstrap output, which is simply `list()` if
 #'     `boot = 0`. If `boot > 0`, then the list contains fields for 
 #'     estimates of correlations (`corrs`), phylogenetic signals (`d`),
-#'     coefficient estimates (`B0`), and coefficient covariances (`B_cov`).
+#'     coefficient estimates (`B0`), and coefficient covariances (`B_cov`), 
+#'     as well as a vector of indices for bootstrap replicates that failed to converge
+#'     (`failed`).
 #'     To view bootstrapped confidence intervals, do the following: `boot_ci(x, a)`,
-#'     where `x` is a `cor_phylo` object and `a` is an alpha value.
+#'     where `x` is a `cor_phylo` object and `a` is an alpha value.}
 #'   \item{`call`}{the matched call.}
 #' 
 #' @export
@@ -717,7 +719,7 @@ cor_phylo <- function(formulas, species, phy,
                       rel_tol = 1e-6, 
                       max_iter = 1000, 
                       verbose = FALSE,
-                      boot = 0, n_cores = 1) {
+                      boot = 0) {
   
   stopifnot(rel_tol > 0)
   
@@ -835,6 +837,11 @@ print.cor_phylo <- function(x, digits = max(3, getOption("digits") - 3), ...) {
     
     cat("\n* Coefficients:\n")
     print(cis$B0, digits = digits)
+    
+    if (length(x$bootstrap$failed) > 0) {
+      cat("\n~~~~~~~~~~~\nWarning: convergence failed on ", length(x$bootstrap$failed),
+          "bootstrap replicates\n~~~~~~~~~~~\n")
+    }
   }
   cat("\n")
 }

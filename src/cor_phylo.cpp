@@ -415,6 +415,8 @@ LL_info::LL_info(const arma::mat& X,
   val = std::exp(val / n);
   Vphy /= val;
   
+  tau = arma::vec(n, arma::fill::ones) * Vphy.diag().t() - Vphy;
+  
   arma::mat Xs = X;
   std::vector<arma::mat> Us = U;
   arma::mat SeMs = M;
@@ -460,9 +462,6 @@ LL_info::LL_info(const arma::mat& X,
   L = arma::cov(eps);
   L = arma::chol(L);
   L = tp(L);
-  
-  tau = arma::vec(n, arma::fill::ones) * Vphy.diag().t() - Vphy;
-  
   
   par0 = arma::vec((static_cast<double>(p) / 2) * (1 + p) + p);
   par0.fill(0.5);
@@ -588,19 +587,21 @@ List cp_get_output(const arma::mat& X,
   List boot_list = List::create();
   if (boot > 0) {
     // `boot_mats` stores matrices that we'll need for bootstrapping
-    boot_mats bm(mean_sd_X, sd_U, B, d, ll_info);
+    boot_mats bm(mean_sd_X, sd_U, B, d, ll_info, U);
     boot_results br(p, B.n_rows, boot);
     if (method < 5) {
       for (uint_t b = 0; b < boot; b++) {
+        Rcpp::checkUserInterrupt();
         one_boot(ll_info_xptr, br, bm, b, rel_tol, max_iter, method);
       }
     } else {
       for (uint_t b = 0; b < boot; b++) {
         one_boot(ll_info_xptr, br, bm, b, rel_tol, max_iter);
+        Rcpp::checkUserInterrupt();
       }
     }
     boot_list = List::create(_["corrs"] = br.corrs, _["d"] = br.d, _["B0"] = br.B0,
-                             _["B_cov"] = br.B_cov);
+                             _["B_cov"] = br.B_cov, _["failed"] = br.failed);
   }
   
   // Now the final output list
@@ -699,9 +700,10 @@ List cor_phylo_(const arma::mat& X,
 
 
 boot_mats::boot_mats(const arma::mat& mean_sd_X_, const std::vector<arma::vec>& sd_U_,
-                     const arma::mat& B_, const arma::vec& d_, const LL_info& ll_info)
-  : mean_sd_X0(mean_sd_X_), mean_sd_X(mean_sd_X_), sd_U(sd_U_), 
-    XX(ll_info.XX), MM(ll_info.MM), B0(B_.col(0)), iD() {
+                     const arma::mat& B_, const arma::vec& d_, const LL_info& ll_info,
+                     const std::vector<arma::mat>& U)
+  : mean_sd_X(mean_sd_X_), sd_U(sd_U_), mean_sd_X0(mean_sd_X_),
+    XX(ll_info.XX), MM(ll_info.MM), B0(B_.col(0)), iD(), U_add(), Us(U) {
   
   uint_t n = ll_info.Vphy.n_rows;
   uint_t p = mean_sd_X_.n_rows;
@@ -712,6 +714,27 @@ boot_mats::boot_mats(const arma::mat& mean_sd_X_, const std::vector<arma::vec>& 
   arma::mat V = make_V(C, MM);
   iD = arma::chol(V).t();
   
+  // For adding to X values
+  if (ll_info.UU.n_cols > p) {
+    U_add = ll_info.UU;
+    U_add.cols(0, p).fill(0); // keeps means at zero;
+    U_add = tp(B0) * tp(U_add);
+    U_add = tp(U_add);
+  } else {
+    U_add = arma::mat(n * p, 1, arma::fill::zeros);
+  }
+  
+  // Standardized U vector of matrices
+  if (Us.size() > 0) {
+    for (uint_t i = 0; i < U.size(); i++) {
+      arma::mat& Ui(Us[i]);
+      for (uint_t j = 0; j < Ui.n_cols; j++) {
+        double sd = arma::stddev(Ui.col(j));
+        Ui.col(j) -= arma::mean(Ui.col(j));
+        if (sd > 0) Ui.col(j) /= sd;
+      }
+    }
+  }
 }
 
 //' Iterate from a boot_mats object in prep for a bootstrap replicate.
@@ -736,7 +759,7 @@ void boot_mats::iterate(LL_info& ll_info) {
   
   arma::mat M = MM;
   arma::vec rnd(rnorm(n * p));
-  arma::mat X = ll_info.UU * B0 + iD * rnd;
+  arma::mat X = iD * rnd + U_add;
   M.reshape(n, p);
   X.reshape(n, p);
   for (uint_t i = 0; i < p; i++) {
@@ -750,6 +773,41 @@ void boot_mats::iterate(LL_info& ll_info) {
     X.col(i) /= sd_;
     M.col(i) /= sd_;
   }
+  
+  arma::mat eps = X;
+  
+  arma::mat L;
+  if (Us.size() > 0) {
+    for (uint_t i = 0; i < p; i++) {
+      if (Us[i].n_cols > 0) {
+        const arma::mat& x(Us[i]);
+        const arma::vec& y(X.col(i));
+        arma::vec coef = arma::solve(x, y);
+        arma::vec res = y - x * coef;
+        eps.col(i) = res;
+      } else {
+        eps.col(i) = X.col(i) - arma::mean(X.col(i));
+      }
+    }
+  }
+  L = arma::cov(eps);
+  L = arma::chol(L);
+  L = tp(L);
+  
+  
+  arma::vec& par0(ll_info.par0);
+  
+  par0 = arma::vec((static_cast<double>(p) / 2) * (1 + p) + p);
+  par0.fill(0.5);
+  for (uint_t i = 0, j = 0, k = p - 1; i < p; i++) {
+    par0(arma::span(j, k)) = L(arma::span(i, p-1), i);
+    j = k + 1;
+    k += (p - i - 1);
+  }
+  
+  ll_info.min_par = par0;
+  
+  
   M.reshape(M.n_elem, 1);
   X.reshape(X.n_elem, 1);
   
@@ -770,6 +828,8 @@ void one_boot(XPtr<LL_info>& ll_info_xptr, boot_results& br, boot_mats& bm,
   
   // Do the fitting
   fit_cor_phylo_nlopt(ll_info_xptr, rel_tol, max_iter, method);
+  
+  if (ll_info_xptr->convcode < 0) br.failed.push_back(i+1);
   
   arma::mat corrs;
   arma::mat B;
@@ -795,6 +855,8 @@ void one_boot(XPtr<LL_info>& ll_info_xptr, boot_results& br, boot_mats& bm,
   
   // Do the fitting.
   fit_cor_phylo_R(ll_info_xptr, rel_tol, max_iter);
+  
+  if (ll_info_xptr->convcode != 0) br.failed.push_back(i+1);
 
   arma::mat corrs;
   arma::mat B;

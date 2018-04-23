@@ -11,7 +11,7 @@
 cor_phylo(formulas, species, phy, data = sys.frame(sys.parent()),
   REML = TRUE, method = c("neldermead", "bobyqa", "sbplx", "cobyla",
   "praxis", "neldermead-r"), constrain_d = FALSE, rel_tol = 1e-06,
-  max_iter = 1000, verbose = FALSE, boot = 0, n_cores = 1)
+  max_iter = 1000, verbose = FALSE, boot = 0)
 
 \method{print}{cor_phylo}(x, digits = max(3, getOption("digits") - 3), ...)
 }
@@ -76,9 +76,6 @@ during optimization. Defaults to \code{FALSE}.}
 
 \item{boot}{Number of parametric bootstrap replicates. Defaults to \code{0}.}
 
-\item{n_cores}{Number of cores to use for parametric bootstrapping.
-This argument is ignored if OpenMP is not enabled. Defaults to \code{1}.}
-
 \item{digits}{the number of digits to be printed.}
 
 \item{...}{arguments passed to and from other methods.}
@@ -108,12 +105,14 @@ overall likelihood (\code{REML = FALSE}).}
 \item{\code{convcode}}{Conversion code for the optimizer, which is positive on success
 and negative on failure. See also
 \url{https://nlopt.readthedocs.io/en/latest/NLopt_Reference/#return-values}.}
-\item{\code{bootstrap}} A list of bootstrap output, which is simply \code{list()} if
+\item{\code{bootstrap}}{A list of bootstrap output, which is simply \code{list()} if
 \code{boot = 0}. If \code{boot > 0}, then the list contains fields for
 estimates of correlations (\code{corrs}), phylogenetic signals (\code{d}),
-coefficient estimates (\code{B0}), and coefficient covariances (\code{B_cov}).
+coefficient estimates (\code{B0}), and coefficient covariances (\code{B_cov}),
+as well as a vector of indices for bootstrap replicates that failed to converge
+(\code{failed}).
 To view bootstrapped confidence intervals, do the following: \code{boot_ci(x, a)},
-where \code{x} is a \code{cor_phylo} object and \code{a} is an alpha value.
+where \code{x} is a \code{cor_phylo} object and \code{a} is an alpha value.}
 \item{\code{call}}{the matched call.}
 }
 \description{
