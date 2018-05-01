@@ -555,10 +555,14 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
     }
     
     # number of potential repulsions (both __ and @)
-    n_repulsion = sum(sapply(fm[grepl("@", fm)], function(x){
-      xx = strsplit(as.character(x)[3], "@")[[1]]
-      sum(grepl("__", xx))
-    }))
+    if(all(grepl("@", fm) == FALSE)) {# no nested term
+      n_repulsion = 1
+    } else {
+      n_repulsion = sum(sapply(fm[grepl("@", fm)], function(x){
+        xx = strsplit(as.character(x)[3], "@")[[1]]
+        sum(grepl("__", xx))
+      }))
+    }
     if(length(repulsion) == 1) repulsion = rep(repulsion, n_repulsion)
     if(length(repulsion) != n_repulsion) stop("the number of repulsion terms specified is not right, please double check")
     nested_repul_i = 1
