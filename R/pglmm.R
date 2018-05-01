@@ -728,9 +728,12 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
   
   formula = lme4::nobars(formula)
   
+  if(!is.object(Vphy)) Vphy = NULL
+  if(!is.object(Vphy_site)) Vphy_site = NULL
   return(list(formula = formula, data = data, sp = sp, site = site, 
               random.effects = random.effects, s2_init = s2_init,
-              tree = tree, tree_site = tree_site))
+              tree = tree, tree_site = tree_site, 
+              Vphy = Vphy, Vphy_site = Vphy_site))
 }
 
 #' @rdname pglmm
