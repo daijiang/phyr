@@ -228,6 +228,7 @@ test_that("testing tree and tree_site as cov matrix",{
 Vphy_site <- ape::vcv(tree_site)
 Vphy_site <- Vphy_site/max(Vphy_site)
 Vphy_site <- Vphy_site/exp(determinant(Vphy_site)$modulus[1]/nsite)
+sitel = levels(dat$site)
 Vphy_site = Vphy_site[sitel, sitel] # same order as site levels
 
 re.site <- list(1, site = dat$site, covar = diag(nsite))

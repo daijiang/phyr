@@ -508,6 +508,8 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
         }
         Vphy = tree
       }
+    } else {
+      Vphy = NULL
     }
     
     if(any(grepl("site__", fm))){
@@ -541,6 +543,8 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
         }
         Vphy_site = tree_site
       }
+    } else {
+      Vphy_site = NULL
     }
     
     if(nrow(data) != nspp * nsite){
@@ -728,8 +732,6 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
   
   formula = lme4::nobars(formula)
   
-  if(!is.object(Vphy)) Vphy = NULL
-  if(!is.object(Vphy_site)) Vphy_site = NULL
   return(list(formula = formula, data = data, sp = sp, site = site, 
               random.effects = random.effects, s2_init = s2_init,
               tree = tree, tree_site = tree_site, 
