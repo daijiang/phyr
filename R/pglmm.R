@@ -763,6 +763,7 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, tree
     }
   }
   
+  fm_original = formula
   prep_re = if(is.null(random.effects)) TRUE else FALSE
   if(prep_re) {
     dat_prepared = prep_dat_pglmm(formula, data, tree, repulsion, prep_re, family, prep.s2.lme4, tree_site, bayes)
@@ -838,6 +839,7 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, tree
     }
   }
   
+  z$formula_original = fm_original
   return(z)
 }
 
