@@ -8,7 +8,13 @@ dat = tidyr::gather(comm, key = "sp", value = "freq", -site) %>%
   left_join(traits, by = "sp")
 dat$pa = as.numeric(dat$freq > 0)
 
-
+test_fit_equal = function(m1, m2){
+  expect_equivalent(m1$B, m2$B)
+  expect_equivalent(m1$B.se, m2$B.se)
+  expect_equivalent(m1$B.pvalue, m2$B.pvalue)
+  expect_equivalent(m1$ss, m2$ss)
+  expect_equivalent(m1$AIC, m2$AIC)
+}
 
 test1_gaussian_cpp = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
                              dat, tree = phylotree, REML = F, cpp = T, optimizer = "Nelder-Mead")
@@ -36,14 +42,14 @@ test_that("test binary LRT", {
 
 test_that("test predicted values of gaussian pglmm", {
   expect_equivalent(
-    phyr::communityPGLMM.predicted.values(test1_gaussian_cpp, show.plot = FALSE),
+    phyr::communityPGLMM.predicted.values(test1_gaussian_cpp)$Y_hat,
     pez::communityPGLMM.predicted.values(test1_gaussian_cpp, show.plot = FALSE)
   )
 })
 
 test_that("test predicted values of binary pglmm", {
   expect_equivalent(
-    phyr::communityPGLMM.predicted.values(test2_binary_cpp, show.plot = FALSE),
+    phyr::communityPGLMM.predicted.values(test2_binary_cpp)$Y_hat,
     pez::communityPGLMM.predicted.values(test2_binary_cpp, show.plot = FALSE)
   )
 })
@@ -118,43 +124,27 @@ re = list(re.sp = re.sp, re.sp.phy = re.sp.phy, re.nested.phy = re.nested.phy, r
 test1_gaussian_pez <- pez::communityPGLMM(freq ~ 1 + shade, data = dat, sp = dat$sp, 
                                           site = dat$site, random.effects = re, REML = F)
 test_that("testing gaussian models with pez package, should have same results", {
-  expect_equivalent(test1_gaussian_cpp$B, test1_gaussian_pez$B)
-  expect_equivalent(test1_gaussian_cpp$B.se, test1_gaussian_pez$B.se)
-  expect_equivalent(test1_gaussian_cpp$B.pvalue, test1_gaussian_pez$B.pvalue)
-  expect_equivalent(test1_gaussian_cpp$ss, test1_gaussian_pez$ss)
-  expect_equivalent(test1_gaussian_cpp$AIC, test1_gaussian_pez$AIC)
+  test_fit_equal(test1_gaussian_cpp, test1_gaussian_pez)
 })
 
 test_that("phyr should be able to run in the format of pez: gaussian", {
   pglmm_phyr_pez = phyr::communityPGLMM(freq ~ 1 + shade, data = dat, sp = dat$sp, site = dat$site, 
                        random.effects = re, REML = F, optimizer = "Nelder-Mead")
-  expect_equivalent(test1_gaussian_pez$B, pglmm_phyr_pez$B)
-  expect_equivalent(test1_gaussian_pez$B.se, pglmm_phyr_pez$B.se)
-  expect_equivalent(test1_gaussian_pez$B.pvalue, pglmm_phyr_pez$B.pvalue)
-  expect_equivalent(test1_gaussian_pez$ss, pglmm_phyr_pez$ss)
-  expect_equivalent(test1_gaussian_pez$AIC, pglmm_phyr_pez$AIC)
+  test_fit_equal(test1_gaussian_pez, pglmm_phyr_pez)
 })
 
 test2_binary_pez <- pez::communityPGLMM(pa ~ 1 + shade, data = dat, family = "binomial", 
                                         sp = dat$sp, site = dat$site, random.effects = re, REML = F)
 
 test_that("testing binomial models with pez package, should have same results", {
-  expect_equivalent(test2_binary_cpp$B, test2_binary_pez$B)
-  expect_equivalent(test2_binary_cpp$B.se, test2_binary_pez$B.se)
-  expect_equivalent(test2_binary_cpp$B.pvalue, test2_binary_pez$B.pvalue)
-  expect_equivalent(test2_binary_cpp$ss, test2_binary_pez$ss)
-  expect_equivalent(test2_binary_cpp$AIC, test2_binary_pez$AIC)
+  test_fit_equal(test2_binary_cpp, test2_binary_pez)
 })
 
 test_that("phyr should be able to run in the format of pez: binomial", {
   pglmm_phyr_pez = phyr::communityPGLMM(pa ~ 1 + shade, data = dat, family = "binomial", 
                                         sp = dat$sp, site = dat$site, random.effects = re, 
                                         REML = F, optimizer = "Nelder-Mead")
-  expect_equivalent(test2_binary_pez$B, pglmm_phyr_pez$B)
-  expect_equivalent(test2_binary_pez$B.se, pglmm_phyr_pez$B.se)
-  expect_equivalent(test2_binary_pez$B.pvalue, pglmm_phyr_pez$B.pvalue)
-  expect_equivalent(test2_binary_pez$ss, pglmm_phyr_pez$ss)
-  expect_equivalent(test2_binary_pez$AIC, pglmm_phyr_pez$AIC)
+  test_fit_equal(test2_binary_pez, pglmm_phyr_pez)
 })
 
 # test NAs
@@ -168,11 +158,7 @@ test_that("testing data with NA, gaussian models", {
   z.na.rm = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
                                  dat.na.rm, tree = phylotree, REML = F)
   # NOTE: freq = NA is DIFFERENT from freq = 0 !
-  expect_equivalent(z.na$B, z.na.rm$B)
-  expect_equivalent(z.na$B.se, z.na.rm$B.se)
-  expect_equivalent(z.na$B.pvalue, z.na.rm$B.pvalue)
-  expect_equivalent(z.na$ss, z.na.rm$ss)
-  expect_equivalent(z.na$AIC, z.na.rm$AIC)
+  test_fit_equal(z.na, z.na.rm)
 })
 
 ina = sample(nrow(dat), 10)
@@ -185,11 +171,7 @@ test_that("testing data with NA, binomial models", {
   z2.na.rm = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), dat.na.rm, 
                                  family = "binomial", tree = phylotree, REML = F)
   # NOTE: pa = NA is DIFFERENT from pa = 0 !
-  expect_equivalent(z2.na$B, z2.na.rm$B)
-  expect_equivalent(z2.na$B.se, z2.na.rm$B.se)
-  expect_equivalent(z2.na$B.pvalue, z2.na.rm$B.pvalue)
-  expect_equivalent(z2.na$ss, z2.na.rm$ss)
-  expect_equivalent(z2.na$AIC, z2.na.rm$AIC)
+  test_fit_equal(z2.na, z2.na.rm)
 })
 
 # test communityPGLMM.binary.LRT
@@ -221,7 +203,7 @@ test_that("testing tree and tree_site as cov matrix",{
                                  (1|sp__@site) + (1|sp@site__) + (1|sp__@site__), 
                                data = dat, family = "gaussian", tree = vcv2(phylotree), 
                                tree_site = vcv2(tree_site), REML = TRUE)
-  expect_equivalent(z_bipartite, z_mat)
+  test_fit_equal(z_bipartite, z_mat)
 })
 
 # testing selecting nested terms to be repulsive
@@ -250,10 +232,6 @@ test_that("testing repulsion as a vector", {
                                     (1|sp__@site) + (1|sp@site__) + (1|sp__@site__), 
                                   data = dat, family = "gaussian", tree = phylotree, tree_site = tree_site, 
                                   repulsion = repul_vec)
-  expect_equivalent(z_repul1$B, z_repul2$B)
-  expect_equivalent(z_repul1$B.se, z_repul2$B.se)
-  expect_equivalent(z_repul1$B.pvalue, z_repul2$B.pvalue)
-  expect_equivalent(z_repul1$ss, z_repul2$ss)
-  expect_equivalent(z_repul1$AIC, z_repul2$AIC)
+  test_fit_equal(z_repul1, z_repul2)
 })
 

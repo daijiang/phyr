@@ -745,7 +745,7 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
 #' This can be used for bipartitie questions. tree_site can also be a var-cov matrix, make sure to have all sites in the matrix; 
 #' if the matrix is not standarized, i.e. det(tree_site) != 1, we will try to standarize for you.
 #' @export
-communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, tree_site = NULL, repulsion = FALSE, sp, site,
+communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NULL, tree_site = NULL, repulsion = FALSE, sp, site,
                            random.effects = NULL, REML = TRUE, bayes = FALSE, s2.init = NULL, B.init = NULL, reltol = 10^-6, 
                            maxit = 500, tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE, ML.init = TRUE, 
                            marginal.summ = "mean", calc.DIC = FALSE, default.prior = "inla.default", cpp = TRUE,
@@ -774,6 +774,8 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, tree
     sp = dat_prepared$sp 
     site = dat_prepared$site
     random.effects = dat_prepared$random.effects
+    tree = dat_prepared$tree
+    tree_site = dat_prepared$tree_site
   } else {
     formula = lme4::nobars(formula)
     if(missing(sp)) sp = as.factor(data$sp)
@@ -842,6 +844,8 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree, tree
   }
   
   z$formula_original = fm_original
+  z$tree = tree # updated tree
+  z$tree_site = tree_site
   return(z)
 }
 
@@ -1664,34 +1668,64 @@ print.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ..
   summary.communityPGLMM(x, digits = digits)
 }
 
+#' Plot the original dataset and predicted values (optional)
+#' 
 #' @rdname pglmm
 #' @method plot communityPGLMM
-#' @importFrom graphics par image
+#' @importFrom graphics image
+#' @param show.sp.name whether to print species names
+#' @param show.site.name whether to print site names
+#' @param predicted whether to also plot predicted values
+#' @param ... additional arguments for lattice::xyplot
 #' @export
-plot.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ...) {
-  if (!requireNamespace("plotrix")) {
-    stop("The 'plotrix' package is required to plot images from this function")
-  }
-  
+plot.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), 
+                                show.sp.names = FALSE, show.site.names = FALSE,
+                                predicted = FALSE,
+                                ...) {
   W <- data.frame(Y = x$Y, sp = x$sp, site = x$site)
   Y <- reshape(W, v.names = "Y", idvar = "sp", timevar = "site", direction = "wide")
   row.names(Y) = Y$sp
   Y <- Y[, -1]
+  y = as(as.matrix(Y), "dgCMatrix")
+  p = image(y, xlab = "Site", ylab = "Species", sub = "", useAbs = FALSE, 
+            scales = list(tck = c(1,0)), ...)
+  if(show.sp.names){
+    p = update(p, scales = list(y = list(at = 1:length(rownames(y)), labels = rownames(y))))
+  }
+  if(show.site.names){
+    p = update(p, scales = list(x = list(at = 1:length(colnames(y)), labels = colnames(y))))
+  }
+  print(p)
   
-  par(mfrow = c(1, 1), las = 1, mar = c(4, 4, 2, 2) - 0.1)
+  if(predicted){
+    W2 = communityPGLMM.predicted.values(x)
+    Y2 <- reshape(W2, v.names = "Y_hat", idvar = "sp", timevar = "site", direction = "wide")
+    row.names(Y2) = Y2$sp
+    Y2 <- Y2[, -1]
+    y2 = as(as.matrix(Y2), "dgCMatrix")
+    p2 = image(y2, xlab = "Site", ylab = "Species", main = "Predicted value",
+              sub = "", useAbs = FALSE, 
+              scales = list(tck = c(1,0)), ...)
+    if(show.sp.names){
+      p2 = update(p2, scales = list(y = list(at = 1:length(rownames(y2)), labels = rownames(y2))))
+    }
+    if(show.site.names){
+      p2 = update(p2, scales = list(x = list(at = 1:length(colnames(y2)), labels = colnames(y2))))
+    }
+    p = update(p, main = "Observed value")
+    p = gridExtra::grid.arrange(p, p2, nrow = 1)
+  }
   
-  plotrix::color2D.matplot(Y, ylab = "species", xlab = "sites", main = "Observed values")
+  return(invisible(p))
 }
 
 #' \code{communityPGLMM.predicted.values} calculates the predicted
 #' values of Y; for the generalized linear mixed model (family =
 #' "binomial"), these values are in the logit-1 transformed space.
+#' 
 #' @rdname pglmm
-#' @param show.plot if \code{TRUE} (default), display plot
-#' @importFrom graphics par
 #' @export
-communityPGLMM.predicted.values <- function(x, show.plot = TRUE, ...) {
-  
+communityPGLMM.predicted.values <- function(x) {
   if(x$bayes) {
     marginal.summ <- x$marginal.summ
     if(marginal.summ == "median") marginal.summ <- "0.5quant"
@@ -1711,20 +1745,8 @@ communityPGLMM.predicted.values <- function(x, show.plot = TRUE, ...) {
       predicted.values <- as.numeric(h)
     }
   }
-  if (show.plot == TRUE) {
-    if (!requireNamespace("plotrix")) {
-      stop("The 'plotrix' package is required to plot images from this function")
-    }
     
-    W <- data.frame(Y = predicted.values, sp = x$sp, site = x$site)
-    Y <- reshape(W, v.names = "Y", idvar = "sp", timevar = "site", direction = "wide")
-    row.names(Y) = Y$sp
-    Y <- Y[, -1]
-    par(mfrow = c(1, 1), las = 1, mar = c(4, 4, 2, 2) - 0.1)
-    
-    plotrix::color2D.matplot(Y, ylab = "species", xlab = "sites", main = "Predicted values")
-  }
-  return(predicted.values)
+  data.frame(Y_hat = predicted.values, sp = x$sp, site = x$site)
 }
 
 #' @rdname pglmm
@@ -1946,6 +1968,14 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   results
 }
 
+#' Visualize random terms of communityPGLMMs
+#' 
+#' Plot variance-cov matrix of random terms; also it is optional to simulate and 
+#' visualize data based on these var-cov matrices. The input can be a communityPGLMM
+#' model (by setting argument x). If no model has been fitted, you can also specify
+#' data, formula, and family, etc. without actually fitting the model, which will
+#' save time.
+#' 
 #' @rdname pglmm
 #' @param show.image whether to show the images of random effects
 #' @param show.sim.image whether to show the images of simulated site by sp matrix. This can be useful to 
@@ -1963,28 +1993,42 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
 #' \code{plt_re_list} and \code{plt_sim_list}. If \code{show.image} or \code{show.sim.image} is TRUE, 
 #' the corresponding final plot (\code{plt_re_all_in_one} or \code{plt_sim_all_in_one}) can be saved as external file 
 #' using \code{ggplot2::ggsave} as it is a grid object.
+#' @aliases communityPGLMM.show.re
 #' @export
 communityPGLMM.plot.re <- function(
-  formula, data, family = "gaussian", tree = NULL, tree_site = NULL, repulsion = FALSE, 
-  show.image = NULL, show.sim.image = NULL, random.effects = NULL, add.tree.sp = TRUE, add.tree.site = FALSE,
+  formula = NULL, data = NULL, family = "gaussian", 
+  tree = NULL, tree_site = NULL, repulsion = FALSE, x = NULL, 
+  show.image = NULL, show.sim.image = NULL, random.effects = NULL, 
+  add.tree.sp = TRUE, add.tree.site = FALSE,
   tree.panel.space = 0.5, title.space = 5, tree.size = 3, ...) {
-  data$sp <- as.factor(data$sp)
-  data$site <- as.factor(data$site)
   
-  if (is.null(random.effects)) {
-    pd <- prep_dat_pglmm(formula = formula, data = data, tree = tree, repulsion = repulsion, 
-                         prep.re.effects = TRUE, family = family, prep.s2.lme4 = FALSE, tree_site = tree_site)
-    random.effects <- pd$random.effects
-    sp <- pd$sp
-    site <- pd$site
-    formula <- pd$formula
-    data <- pd$data # re-arranged
-    tree <- pd$tree
+  if(!is.null(x)){ # model input
+    random.effects <- x$random.effects
+    data <- x$data
+    sp <- x$sp
+    site <- x$site
+    formula <- x$formula
+    tree <- x$tree
+    tree_site <- x$tree_site
   } else {
-    # in case users prepared their own list of re
-    names(random.effects) <- paste0("re_", 1:length(random.effects))
-    sp <- data$sp
-    site <- data$site
+    data$sp <- as.factor(data$sp)
+    data$site <- as.factor(data$site)
+    
+    if (is.null(random.effects)) {
+      pd <- prep_dat_pglmm(formula = formula, data = data, tree = tree, repulsion = repulsion, 
+                           prep.re.effects = TRUE, family = family, prep.s2.lme4 = FALSE, tree_site = tree_site)
+      random.effects <- pd$random.effects
+      sp <- pd$sp
+      site <- pd$site
+      formula <- pd$formula
+      data <- pd$data # re-arranged
+      tree <- pd$tree
+    } else {
+      # in case users prepared their own list of re
+      names(random.effects) <- paste0("re_", 1:length(random.effects))
+      sp <- data$sp
+      site <- data$site
+    }
   }
   
   nv <- length(random.effects)
@@ -2158,3 +2202,7 @@ communityPGLMM.plot.re <- function(
   return(invisible(list(vcv = vcv, sim = sim, tree = tree, 
                         plt_re_list = pl, plt_sim_list = pl_sim)))
 }
+
+#' @export
+#' @aliases communityPGLMM.plot.re
+communityPGLMM.show.re <- communityPGLMM.plot.re

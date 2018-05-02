@@ -25,7 +25,6 @@ Imports:
     graphics,
     dplyr,
     lme4,
-    plotrix,
     nloptr,
     gridExtra,
     mvtnorm,

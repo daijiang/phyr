@@ -21,7 +21,7 @@ This vignette will show how to visualize the var-covariance matrix of random ter
 
 # Main function
 
-The main function to use is `phyr::communityPGLMM.plot.re()`. Here are the arguments of this function:
+The main function to use is `phyr::communityPGLMM.plot.re()` (alias: `phyr::communityPGLMM.show.re()`). Here are the arguments of this function:
 
 ```{r args-pglmm}
 args(phyr::communityPGLMM.plot.re)
@@ -29,6 +29,7 @@ args(phyr::communityPGLMM.plot.re)
 
 Some brief explanation of arguments:
 
+- `x`: a model with class communityPGLMM, if it is specified, then all other argument before x will be ignored.
 - `show.image` (`TRUE` or `FALSE`): whether to plot the var-cov matrix of random terms?
 - `show.sim.image` (`TRUE` or `FALSE`): whether to plot simulated site by species matrix for all random terms?
 - `add.tree.sp` (`TRUE` or `FALSE`): when `show.sim.image = TRUE`, whether to add a phylogeny of species at the top of each matrix plot?
@@ -215,3 +216,14 @@ gridExtra::grid.arrange(grobs = lapply(mod1sim$plt_sim_list[c(2, 6)],
                                                                   main = 5))), 
                         nrow = 1)
 ```
+
+## Fitted model as input
+
+If you don't have the model fitted, then the above way with specified formula, data, etc. can save you lots of time. Becuase it won't actually fit the model, instead, it only return and plot the variance-cov matrices of random terms. However, if you already have the model fitted, you can just use the model as the input.
+
+```{r fig.asp=0.6}
+communityPGLMM.plot.re(x = mod_1, show.image = FALSE, show.sim.image = TRUE, add.tree.sp = TRUE,
+                       colorkey = FALSE, useAbs = FALSE)
+communityPGLMM.show.re(x = mod_1, show.image = TRUE, show.sim.image = FALSE, useAbs = TRUE)
+```
+

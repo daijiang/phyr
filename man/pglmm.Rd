@@ -15,13 +15,14 @@
 \alias{communityPGLMM.predicted.values}
 \alias{communityPGLMM.bayes}
 \alias{communityPGLMM.plot.re}
+\alias{communityPGLMM.show.re}
 \title{Phylogenetic Generalised Linear Mixed Model for Community Data}
 \usage{
 prep_dat_pglmm(formula, data, tree, repulsion = FALSE,
   prep.re.effects = TRUE, family = "gaussian", prep.s2.lme4 = FALSE,
   tree_site = NULL, bayes = FALSE)
 
-communityPGLMM(formula, data = NULL, family = "gaussian", tree,
+communityPGLMM(formula, data = NULL, family = "gaussian", tree = NULL,
   tree_site = NULL, repulsion = FALSE, sp, site, random.effects = NULL,
   REML = TRUE, bayes = FALSE, s2.init = NULL, B.init = NULL,
   reltol = 10^-6, maxit = 500, tol.pql = 10^-6, maxit.pql = 200,
@@ -53,20 +54,20 @@ communityPGLMM.matrix.structure(formula, data = list(), family = "binomial",
   ...)
 
 \method{plot}{communityPGLMM}(x, digits = max(3, getOption("digits") - 3),
-  ...)
+  show.sp.names = FALSE, show.site.names = FALSE, predicted = FALSE, ...)
 
-communityPGLMM.predicted.values(x, show.plot = TRUE, ...)
+communityPGLMM.predicted.values(x)
 
 communityPGLMM.bayes(formula, data = list(), family = "gaussian",
   sp = NULL, site = NULL, random.effects = list(), s2.init = NULL,
   B.init = NULL, verbose = FALSE, REML = FALSE, marginal.summ = "mean",
   calc.DIC = FALSE, default.prior = "inla.default")
 
-communityPGLMM.plot.re(formula, data, family = "gaussian", tree = NULL,
-  tree_site = NULL, repulsion = FALSE, show.image = NULL,
-  show.sim.image = NULL, random.effects = NULL, add.tree.sp = TRUE,
-  add.tree.site = FALSE, tree.panel.space = 0.5, title.space = 5,
-  tree.size = 3, ...)
+communityPGLMM.plot.re(formula = NULL, data = NULL, family = "gaussian",
+  tree = NULL, tree_site = NULL, repulsion = FALSE, x = NULL,
+  show.image = NULL, show.sim.image = NULL, random.effects = NULL,
+  add.tree.sp = TRUE, add.tree.site = FALSE, tree.panel.space = 0.5,
+  title.space = 5, tree.size = 3, ...)
 }
 \arguments{
 \item{formula}{a two-sided linear formula object describing the
@@ -275,7 +276,7 @@ reasons).}
 \item{digits}{minimal number of significant digits for printing, as
 in \code{\link{print.default}}}
 
-\item{show.plot}{if \code{TRUE} (default), display plot}
+\item{predicted}{whether to also plot predicted values}
 
 \item{show.image}{whether to show the images of random effects}
 
@@ -291,6 +292,12 @@ see how the phylogenetic information were included.}
 \item{title.space}{the number of lines between the title and the matrix plot, if add.tree is TRUE}
 
 \item{tree.size}{the height of the phylogeney to be plotted (number of lines), if add.tree is TRUE}
+
+\item{show.sp.name}{whether to print species names}
+
+\item{show.site.name}{whether to print site names}
+
+\item{...}{additional arguments for lattice::xyplot}
 
 \item{...}{additional arguments for \code{Matrix::image()} or \code{lattice::levelplot()}. Common ones are:
 \code{useAbs} whether to use absolute values of the matrix; if no negative values, this will be set to TRUE if not specified.
@@ -382,9 +389,17 @@ ratio test
 \code{communityPGLMM.matrix.structure} produces the entire
 covariance matrix structure (V) when you specify random effects.
 
+Plot the original dataset and predicted values (optional)
+
 \code{communityPGLMM.predicted.values} calculates the predicted
 values of Y; for the generalized linear mixed model (family =
 "binomial"), these values are in the logit-1 transformed space.
+
+Plot variance-cov matrix of random terms; also it is optional to simulate and
+visualize data based on these var-cov matrices. The input can be a communityPGLMM
+model (by setting argument x). If no model has been fitted, you can also specify
+data, formula, and family, etc. without actually fitting the model, which will
+save time.
 }
 \note{
 These function \emph{do not} use a
