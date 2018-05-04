@@ -1,37 +1,33 @@
 context("test phylogenetic species varaition, psv")
 
 test_that("psv should return the same results as picante::psv", {
-  expect_equal(psv(comm_a, phylotree),
-               picante::psv(comm_a, phylotree))
+    expect_equal(psv(comm_a, phylotree), picante::psv(comm_a, phylotree))
 })
 
 test_that("psv should return the same results as picante::psr", {
-  expect_equal(psr(comm_a, phylotree),
-               picante::psr(comm_a, phylotree))
+    expect_equal(psr(comm_a, phylotree), picante::psr(comm_a, phylotree))
 })
 
 test_that("psv should return the same results as picante::pse", {
-  expect_equal(pse(comm_a, phylotree),
-               picante::pse(comm_a, phylotree))
+    expect_equal(pse(comm_a, phylotree), picante::pse(comm_a, phylotree))
 })
 
 test_that("psv should return the same results as picante::psc", {
-  x = psc(comm_a, phylotree)
-  x$PSCs = 1 - x$PSCs # check with Matt, the CRAN and github version are different
-  expect_equal(x,
-               picante::psc(comm_a, phylotree))
+    x = psc(comm_a, phylotree)
+    x$PSCs = 1 - x$PSCs  # check with Matt, the CRAN and github version are different
+    expect_equal(x, picante::psc(comm_a, phylotree))
 })
 
 test_that("psv should return the same results as picante::psd", {
-  x = psd(comm_a, phylotree)
-  x$PSCs = 1 - x$PSCs # check with Matt, the CRAN and github version are different
-  expect_equivalent(x, picante::psd(comm_a, phylotree))
+    x = psd(comm_a, phylotree)
+    x$PSCs = 1 - x$PSCs  # check with Matt, the CRAN and github version are different
+    expect_equivalent(x, picante::psd(comm_a, phylotree))
 })
 
 test_that("psd should run when comm has only one row", {
-  x = psd(comm_a[2, ], phylotree)
-  x$PSCs = 1 - x$PSCs
-  expect_equivalent(x, picante::psd(comm_a[2,], phylotree))
+    x = psd(comm_a[2, ], phylotree)
+    x$PSCs = 1 - x$PSCs
+    expect_equivalent(x, picante::psd(comm_a[2, ], phylotree))
 })
 
 nspp = 100
@@ -42,12 +38,12 @@ row.names(comm_sim) = paste0("site_", 1:nsite)
 colnames(comm_sim) = paste0("t", 1:nspp)
 comm_sim = comm_sim[, tree_sim$tip.label]
 
-test_that("psv with cpp should have same results with r",{
-  a <- psv(comm_sim, tree_sim, cpp = FALSE)
-  b <- psv(comm_sim, tree_sim, cpp = TRUE)
-  c <- picante::psv(comm_sim, tree_sim)
-  expect_equal(a, b)
-  expect_equal(a, c)
+test_that("psv with cpp should have same results with r", {
+    a = psv(comm_sim, tree_sim, cpp = FALSE)
+    b = psv(comm_sim, tree_sim, cpp = TRUE)
+    c = picante::psv(comm_sim, tree_sim)
+    expect_equal(a, b)
+    expect_equal(a, c)
 })
 
 comm_sim = matrix(rpois(nspp * nsite, 3), nrow = nsite, ncol = nspp)
@@ -55,11 +51,11 @@ row.names(comm_sim) = paste0("site_", 1:nsite)
 colnames(comm_sim) = paste0("t", 1:nspp)
 comm_sim = comm_sim[, tree_sim$tip.label]
 
-test_that("pse with cpp should have same results with r",{
-  ae <- pse(comm_sim, tree_sim, cpp = FALSE)
-  be <- pse(comm_sim, tree_sim, cpp = TRUE)
-  ce <- picante::pse(comm_sim, tree_sim)
-  expect_equal(ae, be)
-  expect_equal(ae, ce)
+test_that("pse with cpp should have same results with r", {
+    ae = pse(comm_sim, tree_sim, cpp = FALSE)
+    be = pse(comm_sim, tree_sim, cpp = TRUE)
+    ce = picante::pse(comm_sim, tree_sim)
+    expect_equal(ae, be)
+    expect_equal(ae, ce)
 })
 

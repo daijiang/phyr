@@ -181,10 +181,10 @@ align_comm_V = function(comm, tree, prune.tree = FALSE, scale.vcv = TRUE){
   return(list(Cmatrix = Cmatrix, comm = comm))
 }
 
-.onLoad <- function(libname, pkgname){
-  if (isTRUE(requireNamespace("INLA", quietly = TRUE))) {
-    if (!is.element("INLA", (.packages()))) {
-      attachNamespace("INLA")
-    }
-  }
-}
+# .onLoad <- function(libname, pkgname){
+#   if (isTRUE(requireNamespace("INLA", quietly = TRUE))) {
+#     if (!is.element("INLA", (.packages()))) {
+#       attachNamespace("INLA")
+#     }
+#   }
+# }

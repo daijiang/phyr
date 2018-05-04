@@ -27,7 +27,9 @@ Calculate pairwise site PCD, users can specify expected values from \code{pcd_pr
 }
 \examples{
 x1 = pcd_pred(comm_1 = comm_a, comm_2 = comm_b, tree = tree, reps = 100)
-pcd(comm = comm_a,
-      tree = tree,
-      expectation = x1)
+pcd(comm = comm_a, tree = tree, expectation = x1)
+}
+\references{
+Ives, A. R., & Helmus, M. R. 2010. Phylogenetic metrics of community similarity.
+The American Naturalist, 176(5), E128-E142.
 }

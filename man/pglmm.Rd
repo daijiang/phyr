@@ -2,9 +2,8 @@
 % Please edit documentation in R/pglmm.R
 \name{pglmm}
 \alias{pglmm}
+\alias{communityPGLMM}
 \alias{prep_dat_pglmm}
-\alias{communityPGLMM}
-\alias{communityPGLMM}
 \alias{communityPGLMM.gaussian}
 \alias{communityPGLMM.binary}
 \alias{communityPGLMM.binary.LRT}
@@ -18,10 +17,6 @@
 \alias{communityPGLMM.show.re}
 \title{Phylogenetic Generalised Linear Mixed Model for Community Data}
 \usage{
-prep_dat_pglmm(formula, data, tree, repulsion = FALSE,
-  prep.re.effects = TRUE, family = "gaussian", prep.s2.lme4 = FALSE,
-  tree_site = NULL, bayes = FALSE)
-
 communityPGLMM(formula, data = NULL, family = "gaussian", tree = NULL,
   tree_site = NULL, repulsion = FALSE, sp, site, random.effects = NULL,
   REML = TRUE, bayes = FALSE, s2.init = NULL, B.init = NULL,
@@ -30,6 +25,10 @@ communityPGLMM(formula, data = NULL, family = "gaussian", tree = NULL,
   calc.DIC = FALSE, default.prior = "inla.default", cpp = TRUE,
   optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"),
   prep.s2.lme4 = FALSE)
+
+prep_dat_pglmm(formula, data, tree, repulsion = FALSE,
+  prep.re.effects = TRUE, family = "gaussian", prep.s2.lme4 = FALSE,
+  tree_site = NULL, bayes = FALSE)
 
 communityPGLMM.gaussian(formula, data = list(), family = "gaussian",
   sp = NULL, site = NULL, random.effects = list(), REML = TRUE,
@@ -71,69 +70,73 @@ communityPGLMM.plot.re(formula = NULL, data = NULL, family = "gaussian",
 }
 \arguments{
 \item{formula}{a two-sided linear formula object describing the
-mixed-effects of the model; it follows similar syntax as \code{\link[lme4:lmer]{lmer}}.
-There are some differences though. First, to specify that a random term should have phylogenetic cov matrix too,
-add \code{__} at the end of the group variable, e.g. \code{+ (1 | sp__)} will
-construct two random terms, one with phylogenetic cov matrix and another
-with non-phylogenetic (Identity) matrix; However, \code{__} in the nested terms (below)
-will only create a phlylogenetic cov-matrix. Therefore, nested random term has three forms:
+mixed-effects of the model; it follows similar syntax with \code{\link[lme4:lmer]{lmer}}.
+There are some differences though.
+First, to specify that a random term should have phylogenetic cov matrix along
+with non-phylogenetic one, add \code{__} (two underscores) at the end of the group variable,
+e.g. \code{+ (1 | sp__)} will construct two random terms,
+one with phylogenetic cov matrix and another with non-phylogenetic (Identity) matrix;
+However, \code{__} in the nested terms (below) will only create a phlylogenetic cov-matrix.
+Therefore, nested random term has four forms:
 \enumerate{
-\item \code{(1|sp__@site)} represents correlated species are nested within independent sites (i.e. kronecker(I_sites, V_sp)).
-This should be the most common one for community analysis.
-\item \code{(1|sp@site__)} represents independent species are nested within correlated sites (i.e. kron(V_sites, I_sp)). This one can be used for bipartite questions. You can, for example, treat sp as insects and site as plants. Remember to set the argument \code{tree_site} to a phylogeny.
-\item \code{(1|sp__@site__)} represents correlated species are nested within correlated sites (i.e. kron(V_sites, V_sp)). This one is also used for bipartite questions.
-\item \code{(1|sp@site)} will generate a identity matrix, which will be the same as the residual of LMM. So not meaningful.
+\item \code{(1|sp__@site)} represents correlated species are nested within independent sites
+(i.e. kronecker(I_sites, V_sp)). This should be the most common one for community analysis.
+\item \code{(1|sp@site__)} represents independent species are nested within correlated sites
+(i.e. kron(V_sites, I_sp)). This one can be used for bipartite questions.
+You can, for example, treat sp as insects and site as plants.
+Remember to set the argument \code{tree_site} to a phylogeny.
+\item \code{(1|sp__@site__)} represents correlated species are nested within correlated sites
+(i.e. kron(V_sites, V_sp)). This one can also be used for bipartite questions.
+\item \code{(1|sp@site)} will generate a identity matrix, which will be the same as
+the residual of LMM. So not meaningful.
 }
 
 Second, note that correlated random terms will not be allowed at this moment. For example,
-\code{(x|g)} will be equal with \code{(0 + x|g)} in the lmer syntax;
+\code{(x|g)} will be equal with \code{(0 + x|g)} in the \code{lme4::lmer} syntax;
 also, \code{(x1 + x2|g)} won't work.}
 
 \item{data}{a \code{\link{data.frame}} containing the variables
 named in formula. The data frame should have long format with
-factors specifying species (named as 'sp') and sites (named as 'site'). \code{communityPGLMM} will
-reorder rows of the data frame so that species are nested within sites (i.e. arrange first
-by column site then by column sp).}
-
-\item{tree}{a phylogeny for column sp, with "phylo" class. Or a var-cov matrix for sp, make sure to have all species in the matrix;
-if the matrix is not standarized, i.e. det(tree) != 1, we will try to standarize for you.}
-
-\item{repulsion}{when nested random term specified, do you want to test repulsion or underdispersion?
-Default is FALSE, i.e. test underdispersion. This argument can be either a logical vector of length 1 or >1.
-If its length is 1, then all cov matrices in nested terms will all be either inverted or not.
-If its length is >1, then this means the users can select which cov matrix in the nested terms to be inverted.
-If so, make sure to get the length right: for all the terms with \code{@}, count the number of "__" and this will be the length of repulsion.
-For example, \code{sp__@site} will take one length as well as \code{sp@site__}.
-\code{sp__@site__} will take two elements. So, if you nested terms are \code{(1|sp__@site) + (1|sp@site__) + (1|sp__@site__)}
-in the formula, then you should set the repulsion to be something like \code{c(TRUE, FALSE, TURE, TURE)} (length of 4).
-The T/F combinations depend on your aims.}
-
-\item{prep.re.effects}{whether to prepare random effects for users.}
+a column for species (named as 'sp') and a column for sites (named as 'site').
+\code{communityPGLMM} will reorder rows of the data frame so that species
+are nested within sites (i.e. arrange first by column site then by column sp).}
 
 \item{family}{either \code{gaussian} for a Linear Mixed Model, or
 \code{binomial} for binary dependent data. If \code{bayes = TRUE}, \code{poisson} is also
 supported.}
 
-\item{prep.s2.lme4}{whether to prepare initial s2 values based on lme4 theta. Default is FALSE.
-If no phylogenetic or nested random terms, should set it to TRUE since it likely will be faster.
-However, in this case, you probably can just use lme4::lmer.}
+\item{tree}{a phylogeny for column sp, with "phylo" class. Or a var-cov matrix for sp,
+make sure to have all species in the matrix; if the matrix is not standarized,
+i.e. det(tree) != 1, we will try to standarize it for you.}
 
 \item{tree_site}{a second phylogeny for "site". This is required only if the site column contains species instead of sites.
 This can be used for bipartitie questions. tree_site can also be a var-cov matrix, make sure to have all sites in the matrix;
 if the matrix is not standarized, i.e. det(tree_site) != 1, we will try to standarize for you.}
 
-\item{bayes}{whether to fit a Bayesian version of the PGLMM using
-\code{r-inla}}
+\item{repulsion}{when nested random term specified, do you want to test repulsion
+(i.e. overdispersion) or underdispersion? Default is FALSE, i.e. test underdispersion.
+This argument can be either a logical vector of length 1 or >1.
+If its length is 1, then all cov matrices in nested terms will be either inverted (overdispersion) or not.
+If its length is >1, then this means the users can select which cov matrix in the nested terms to be inverted.
+If so, make sure to get the length right: for all the terms with \code{@},
+count the number of "__" and this will be the length of repulsion.
+For example, \code{sp__@site} will take one length as well as \code{sp@site__}.
+\code{sp__@site__} will take two elements. So, if you nested terms are
+\code{(1|sp__@site) + (1|sp@site__) + (1|sp__@site__)}
+in the formula, then you should set the repulsion to be something like
+\code{c(TRUE, FALSE, TURE, TURE)} (length of 4).
+The T/F combinations depend on your questions.}
 
 \item{sp}{no longer used, keep here for compatibility}
 
 \item{site}{no longer used, keep here for compatibility}
 
-\item{random.effects}{pre-build list of random effects. If NULL (the default),
-the function prep_dat_pglmm() will prepare it for you. A list of pre-generated
+\item{random.effects}{pre-build list of random effects. If \code{NULL} (the default),
+the function \code{prep_dat_pglmm()} will prepare it for you. A list of pre-generated
 random terms is also accepted (mainly to be compatible with code from previous versions).
 If so, make sure that the orders of sp and site in the generated list are the same as the
-data, which will be arranged first by site than by sp.}
+data. This argument can be useful if users want to use other correlations (e.g. spatial)
+in their models instead of phylogenetic relationships.}
 
 \item{REML}{whether REML or ML is used for model fitting. For the
 generalized linear mixed model for binary data, these don't have
@@ -143,23 +146,25 @@ that can be used in likelihood ratio tests. If \code{bayes = TRUE},
 effects, which should produce more comparable results to a REML analysis
 in a maximum likelihood context.}
 
+\item{bayes}{whether to fit a Bayesian version of the PGLMM using \code{r-inla}.}
+
 \item{s2.init}{an array of initial estimates of s2 for each random
 effect that scales the variance. If s2.init is not provided for
 \code{family="gaussian"}, these are estimated using in a clunky way
-using \code{\link{lm}} assuming no phylogenetic signal.  A better
+using \code{\link{lm}} assuming no phylogenetic signal. A better
 approach is to run \code{link[lme4:lmer]{lmer}} and use the output
 random effects for \code{s2.init}. If \code{s2.init} is not
-provided for \code{family="binomial"}, these are set to 0.25.}
+provided for \code{family = "binomial"}, these are set to 0.25.}
 
 \item{B.init}{initial estimates of \eqn{B}{B}, a matrix containing
 regression coefficients in the model for the fixed effects. This
-matrix must have \code{dim(B.init)=c(p+1,1)}, where \code{p} is the
+matrix must have \code{dim(B.init) = c(p + 1, 1)}, where \code{p} is the
 number of predictor (independent) variables; the first element of
 \code{B} corresponds to the intercept, and the remaining elements
 correspond in order to the predictor (independent) variables in the
-formula.  If \code{B.init} is not provided, these are estimated
+formula. If \code{B.init} is not provided, these are estimated
 using in a clunky way using \code{\link{lm}} or \code{\link{glm}}
-assuming no phylogenetic signal.  A better approach is to run
+assuming no phylogenetic signal. A better approach is to run
 \code{\link[lme4:lmer]{lmer}} and use the output fixed effects for
 \code{B.init}. When \code{bayes = TRUE}, initial values are estimated
 using the maximum likelihood fit unless \code{ML.init = FALSE}, in
@@ -189,7 +194,7 @@ the bayesian model fit? Recommended when possible. Only used if
 \code{family = "binomial"} or \code{family = "gaussian"}, ignored otherwise.}
 
 \item{marginal.summ}{Summary statistic to use for the estimate of coefficients when
-doing a bayesian PGLMM (when \code{bayes = TRUE}). Options are: "mean",
+doing a Bayesian PGLMM (when \code{bayes = TRUE}). Options are: "mean",
 "median", or "mode", referring to different characterizations of the central
 tendency of the bayesian posterior marginal distributions. Ignored if \code{bayes == FALSE}}
 
@@ -199,14 +204,20 @@ when doing a bayesian PGLMM? Ignored if \code{bayes = FALSE}}
 \item{default.prior}{Which type of default prior should be used by \code{communityPGLMM}?
 Only used if \code{bayes = TRUE}, ignored otherwise. There are currently two options:
 "inla.default", which uses the default \code{INLA} priors, or "pc.prior", which uses a
-complexity penalizing prior (as described in \href{https://arxiv.org/abs/1403.4630v3}{Simpson et al. (2017)}).
+complexity penalizing prior (as described in
+\href{https://arxiv.org/abs/1403.4630v3}{Simpson et al. (2017)}).
 "pc.prior" is only implemented for \code{family = "gaussian"} currently.}
 
-\item{cpp}{whether to use c++ function for optim. Default is TRUE. Ignored if
-\code{bayes = TRUE}}
+\item{cpp}{whether to use c++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE}.}
 
 \item{optimizer}{nelder-mead-nlopt (default) or bobyqa or Nelder-Mead (from the stats package) or subplex.
 Nelder-Mead is from the stats package and the other ones are from the nloptr package.}
+
+\item{prep.s2.lme4}{whether to prepare initial s2 values based on lme4 theta. Default is FALSE.
+If no phylogenetic or nested random terms, should set it to TRUE since it likely will be faster.
+However, in this case, you probably can just use lme4::lmer.}
+
+\item{prep.re.effects}{whether to prepare random effects for users.}
 
 \item{x}{communityPGLMM object to be summarised}
 
@@ -231,6 +242,10 @@ assumed to depend on the phylogenetic relatedness among species
 given by \eqn{V_{sp}}{V_(sp_}; if species are closely related,
 their specific responses to \eqn{x}{x} will be similar. This
 particular model would be specified as
+
+\code{z <- communityPGLMM(Y ~ X + (1|sp__), data = data, family = "gaussian", tree = phy)}
+
+Or you can prepare the random terms manually (not recommended):
 
 \code{re.1 <- list(1, sp = dat$sp, covar = diag(nspp))}
 \code{re.2 <- list(dat$X, sp = dat$sp, covar = Vsp)}
@@ -260,16 +275,12 @@ effects, and \eqn{V_{sp}}{V_(sp)} is a variance-covariance matrix
 derived from a phylogeny (typically under the assumption of
 Brownian motion evolution).
 
-\code{z <- communityPGLMM(Y ~ X, data = data, family =
-'binomial', random.effects = list(re.1, re.2))}
+\code{z <- communityPGLMM(Y ~ X + (1|sp__), data = data, family = "binomial", tree = phy)}
 
 As with the linear mixed model, it is a very good idea to
 standardize the predictor (independent) variables to have mean 0
 and variance 1. This will make the function more robust and improve
-the interpretation of the regression coefficients. For categorical
-(factor) predictor variables, you will need to construct 0-1 dummy
-variables, and these should not be standardized (for obvious
-reasons).}
+the interpretation of the regression coefficients.}
 
 \item{ss}{which of the \code{random.effects} to produce}
 
@@ -307,12 +318,15 @@ When \code{useAbs = TRUE} the color scheme will be black-white, otherwise, it wi
 \value{
 an object of class \code{communityPGLMM}
 \item{formula}{the formula for fixed effects}
+\item{formula_original}{the formula for both fixed effects and random effects}
 \item{data}{the dataset}
-\item{family}{either \code{gaussian} or \code{binomial} depending on the model fit}
+\item{family}{either \code{gaussian} or \code{binomial} or \code{poisson} depending on the model fit}
 \item{random.effects}{the list of random effects}
 \item{B}{estimates of the regression coefficients}
-\item{B.se}{approximate standard errors of the fixed effects regression coefficients. This is set to NULL if \code{bayes = TRUE}.}
-\item{B.ci}{approximate bayesian credible interval of the fixed effects regression coefficients. This is set to NULL if \code{bayes = FALSE}}
+\item{B.se}{approximate standard errors of the fixed effects regression coefficients.
+This is set to NULL if \code{bayes = TRUE}.}
+\item{B.ci}{approximate bayesian credible interval of the fixed effects regression coefficients.
+This is set to NULL if \code{bayes = FALSE}}
 \item{B.cov}{approximate covariance matrix for the fixed effects regression coefficients}
 \item{B.zscore}{approximate Z scores for the fixed effects regression coefficients. This is set to NULL if \code{bayes = TRUE}}
 \item{B.pvalue}{approximate tests for the fixed effects regression coefficients being different from zero. This is set to NULL if \code{bayes = TRUE}}
@@ -326,7 +340,7 @@ This is set to NULL if \code{bayes = FALSE}}
 This is set to NULL if \code{bayes = FALSE}}
 \item{s2resid.ci}{Bayesian credible interval for linear mixed models, the residual variance.
 This is set to NULL if \code{bayes = FALSE}}
-\item{logLIK}{for linear mixed models, the log-likelihood for either the restricted likelihood (\code{REML=TRUE}) or the overall likelihood (\code{REML=FALSE}). This is set to NULL for generalised linear mixed models. If \code{bayes = TRUE}, this is the marginal log-likelihood}
+\item{logLik}{for linear mixed models, the log-likelihood for either the restricted likelihood (\code{REML=TRUE}) or the overall likelihood (\code{REML=FALSE}). This is set to NULL for generalised linear mixed models. If \code{bayes = TRUE}, this is the marginal log-likelihood}
 \item{AIC}{for linear mixed models, the AIC for either the restricted likelihood (\code{REML=TRUE}) or the overall likelihood (\code{REML=FALSE}). This is set to NULL for generalised linear mixed models}
 \item{BIC}{for linear mixed models, the BIC for either the restricted likelihood (\code{REML=TRUE}) or the overall likelihood (\code{REML=FALSE}). This is set to NULL for generalised linear mixed models}
 \item{DIC}{for bayesian PGLMM, this is the Deviance Information Criterion metric of model fit. This is set to NULL if \code{bayes = FALSE}.}
@@ -342,13 +356,16 @@ Only present if \code{bayes = TRUE}}
 \item{iV}{the inverse of the covariance matrix for the entire system (of dimension (nsp\emph{nsite) by (nsp}nsite)).
 This is NULL is code{bayes = TRUE}}
 \item{mu}{predicted mean values for the generalized linear mixed model. Set to NULL for linear mixed models}
-\item{sp, sp}{matrices used to construct the nested design matrix. This is set to NULL if \code{bayes = TRUE}}
+\item{nested}{matrices used to construct the nested design matrix. This is set to NULL if \code{bayes = TRUE}}
 \item{Zt}{the design matrix for random effects. This is set to NULL if \code{bayes = TRUE}}
 \item{St}{diagonal matrix that maps the random effects variances onto the design matrix}
 \item{convcode}{the convergence code provided by \code{\link{optim}}. This is set to NULL if \code{bayes = TRUE}}
 \item{niter}{number of iterations performed by \code{\link{optim}}. This is set to NULL if \code{bayes = TRUE}}
 \item{inla.model}{Model object fit by underlying \code{\link{inla}} function. Only returned
 if \code{bayes = TRUE}}
+\item{sp, site}{the sp and site columns}
+\item{tree}{the reordered phylogeny to generate Vsp}
+\item{tree_site}{the reordered site phylogeny (if specified)}
 
 a hidden list, including the covariance matrices and simulated site by species matrices. Individual plots are saved as
 \code{plt_re_list} and \code{plt_sim_list}. If \code{show.image} or \code{show.sim.image} is TRUE,
@@ -364,19 +381,12 @@ correlation structure within random effects; these correlations can
 be phylogenetic among species, or any other correlation structure,
 such as geographical correlations among sites. It is, however, much
 more specific than \code{\link[lme4:lmer]{lmer}} in that it can
-only analyze a subset of1 the types of model designed handled by
+only analyze a subset of the types of model designed handled by
 \code{\link[lme4:lmer]{lmer}}. It is also much slower than
-\code{\link[lme4:lmer]{lmer}} and requires users to specify
-correlation structures as covariance
-matrices. \code{communityPGLMM} can analyze models in Ives and
+\code{\link[lme4:lmer]{lmer}}. \code{communityPGLMM} can analyze models in Ives and
 Helmus (2011). It can also analyze bipartite phylogenetic data,
 such as that analyzed in Rafferty and Ives (2011), by giving sites
-phylogenetic correlations. A Bayesian version of PGLMM can be fit by
-specifying the \code{bayes = TRUE}. This uses the package \code{\link[INLA:INLA-package]{INLA}}
-package, which is not available on cran. If you wish to use this option,
-you must first install \code{INLA} from \url{http://www.r-inla.org/}.
-Note that while \code{bayes = TRUE} currently only supports \code{family} arguments of
-\code{"gaussian"}, \code{"binomial"}, and \code{"poisson"}, other families will shortly be added.
+phylogenetic correlations.
 
 \code{communityPGLMM.binary} calculates the statistical
 significance of the random effects in the generalized linear mixed
@@ -401,15 +411,15 @@ model (by setting argument x). If no model has been fitted, you can also specify
 data, formula, and family, etc. without actually fitting the model, which will
 save time.
 }
-\note{
-These function \emph{do not} use a
-\code{\link{comparative.comm}} object, but you can use
-\code{\link{as.data.frame.comparative.comm}} to
-create a \code{data.frame} for use with these functions. The power
-of this method comes from deciding your own parameters parameters
-to be determined (the data for regression, the random effects,
-etc.), and it is our hope that this interface gives you more
-flexibility in model selection/fitting.
+\details{
+A Bayesian version of PGLMM can be fit by specifying the \code{bayes = TRUE}.
+This uses the package \code{\link[INLA:INLA-package]{INLA}} package,
+which is not available on CRAN yet. If you wish to use this option,
+you must first install \code{INLA} from \url{http://www.r-inla.org/} by running
+\code{install.packages('INLA', repos='https://www.math.ntnu.no/inla/R/stable')} in R.
+Note that while \code{bayes = TRUE} currently only supports \code{family} arguments of
+\code{"gaussian"}, \code{"binomial"}, and \code{"poisson"},
+other families will shortly be added.
 }
 \examples{
 ## Structure of examples:
@@ -423,7 +433,7 @@ flexibility in model selection/fitting.
 #First section; brief summary of models and their use####
 #########################################################
 ## Model structures from Ives & Helmus (2011)
-# dat = data set for regression (note: *not* an comparative.comm object)
+# dat = data set for regression (note: must have a column "sp" and a column "site")
 # phy = phylogeney of class "phylo"
 # repulsion = to test phylogenetic repulsion or not
 
@@ -441,10 +451,8 @@ z <- communityPGLMM(freq ~ sp*X + (1|site) + (1|sp__@site), data = dat, family =
 
 ## Model structure from Rafferty & Ives (2013) (Eq. 3)
 # dat = data set
-# nspp = number of pollinators (sp)
-# nsite = number of plants (site)
-# phyPol = phylogeny for pollinators
-# phyPlt = phylogeny for plants
+# phyPol = phylogeny for pollinators (sp)
+# phyPlt = phylogeny for plants (site)
 
 z <- communityPGLMM(freq ~ sp * X + (1|sp__) + (1|site__) + (1|sp__@site) + (1|sp@site__) + (1|sp__@site__), 
 data = dat, family = "binomial", tree = phyPol, tree_site = phyPlt, REML = TRUE, verbose = TRUE, s2.init=.1)
@@ -453,6 +461,8 @@ data = dat, family = "binomial", tree = phyPol, tree_site = phyPlt, REML = TRUE,
 #########################################################
 #Second section; detailed simulation and analysis #######
 #########################################################
+library(ape)
+
 # Generate simulated data for nspp species and nsite sites
 nspp <- 15
 nsite <- 10
@@ -493,14 +503,14 @@ iD <- t(chol(Vphy))
 
 # Set up species-specific regression coefficients as random effects
 if (signal.B0 == TRUE) {
-		b0 <- beta0 + iD \%*\% rnorm(nspp, sd = sd.B0)
+  b0 <- beta0 + iD \%*\% rnorm(nspp, sd = sd.B0)
 } else {
-		b0 <- beta0 + rnorm(nspp, sd = sd.B0)
+  b0 <- beta0 + rnorm(nspp, sd = sd.B0)
 }
 if (signal.B1 == TRUE) {
-		b1 <- beta1 + iD \%*\% rnorm(nspp, sd = sd.B1)
+  b1 <- beta1 + iD \%*\% rnorm(nspp, sd = sd.B1)
 } else {
-		b1 <- beta1 + rnorm(nspp, sd = sd.B1)
+  b1 <- beta1 + rnorm(nspp, sd = sd.B1)
 }
 
 # Simulate species abundances among sites to give matrix Y that
@@ -510,7 +520,7 @@ y <- y + rep(b1, each=nsite) * rep(X, nspp)
 y <- y + rnorm(nspp*nsite) #add some random 'error'
 Y <- rbinom(length(y), size=1, prob=exp(y)/(1+exp(y)))
 y <- matrix(outer(b0, array(1, dim = c(1, nsite))), nrow = nspp,
-ncol = nsite) + matrix(outer(b1, X), nrow = nspp, ncol = nsite)
+            ncol = nsite) + matrix(outer(b1, X), nrow = nspp, ncol = nsite)
 e <- rnorm(nspp * nsite, sd = sd.resid)
 y <- y + matrix(e, nrow = nspp, ncol = nsite)
 y <- matrix(y, nrow = nspp * nsite, ncol = 1)
@@ -529,92 +539,70 @@ hist(b1, xlab = "b1", main = "b1 among species")
 
 #Plot out; you get essentially this from plot(your.pglmm.model)
 image(t(Y), ylab = "species", xlab = "sites", main = "abundance",
-col=c("black","white"))
+      col=c("black","white"))
 
 # Transform data matrices into "long" form, and generate a data frame
 YY <- matrix(Y, nrow = nspp * nsite, ncol = 1)
 
 XX <- matrix(kronecker(X, matrix(1, nrow = nspp, ncol = 1)), nrow =
-nspp * nsite, ncol = 1)
+               nspp * nsite, ncol = 1)
 
 site <- matrix(kronecker(1:nsite, matrix(1, nrow = nspp, ncol =
-1)), nrow = nspp * nsite, ncol = 1)
-sp <- matrix(kronecker(matrix(1, nrow = nsite, ncol = 1), 1:nspp),
-nrow = nspp * nsite, ncol = 1)
+                                           1)), nrow = nspp * nsite, ncol = 1)
+sp <- paste0("t", matrix(kronecker(matrix(1, nrow = nsite, ncol = 1), 1:nspp),
+                         nrow = nspp * nsite, ncol = 1))
 
 dat <- data.frame(Y = YY, X = XX, site = as.factor(site), sp = as.factor(sp))
 
-# Format input and perform communityPGLMM()
-# set up random effects
-
+# Random effects
 # random intercept with species independent
-re.1 <- list(1, sp = dat$sp, covar = diag(nspp))
-
 # random intercept with species showing phylogenetic covariances
-re.2 <- list(1, sp = dat$sp, covar = Vphy)
-
 # random slope with species independent
-re.3 <- list(dat$X, sp = dat$sp, covar = diag(nspp))
-
 # random slope with species showing phylogenetic covariances
-re.4 <- list(dat$X, sp = dat$sp, covar = Vphy)
-
 # random effect for site
-re.site <- list(1, site = dat$site, covar = diag(nsite))
-
-simple <- communityPGLMM(Y ~ X, data = dat, family = "binomial", sp
-= dat$sp, site = dat$site, random.effects = list(re.site),
-REML=TRUE, verbose=FALSE)
-
+communityPGLMM(Y ~ X + (1|site), data = dat, family = "binomial",
+               tree = phy, REML = TRUE)
 # The rest of these tests are not run to save CRAN server time;
 # - please take a look at them because they're *very* useful!
 \dontrun{ 
-z.binary <- communityPGLMM(Y ~ X, data = dat, family = "binomial",
-sp = dat$sp, site = dat$site, random.effects = list(re.1, re.2,
-re.3, re.4), REML = TRUE, verbose = FALSE)
-
-# output results
-z.binary
-plot(z.binary)
-
-# test statistical significance of the phylogenetic random effect
-# on species slopes using a likelihood ratio test
-communityPGLMM.binary.LRT(z.binary, re.number = 4)$Pr
-
-# extract the predicted values of Y
-communityPGLMM.predicted.values(z.binary, show.plot = TRUE)
-
-# examine the structure of the overall covariance matrix
-communityPGLMM.matrix.structure(Y ~ X, data = dat, family =
-"binomial", sp = dat$sp, site = dat$site, random.effects =
-list(re.1, re.2, re.3, re.4))
-
-# look at the structure of re.1
-communityPGLMM.matrix.structure(Y ~ X, data = dat, family =
-"binomial", sp = dat$sp, site = dat$site, random.effects =
-list(re.1))
-
-# compare results to glmer() when the model contains no
-# phylogenetic covariance among species; the results should be
-# similar.
-communityPGLMM(Y ~ X, data = dat, family = "binomial", sp = dat$sp,
-site = dat$site, random.effects = list(re.1, re.3), REML = FALSE,
-verbose = FALSE)
-
-# lmer
-if(require(lme4)){
-summary(glmer(Y ~ X + (1 | sp) + (0 + X | sp), data=dat, family =
-"binomial"))
-
-# compare results to lmer() when the model contains no phylogenetic
-# covariance among species; the results should be similar.
-communityPGLMM(Y ~ X, data = dat, family = "gaussian", sp = dat$sp,
-site = dat$site, random.effects = list(re.1, re.3), REML = FALSE,
-verbose = FALSE)
-
-# lmer
-summary(lmer(Y ~ X + (1 | sp) + (0 + X | sp), data=dat, REML = FALSE))
-}
+  z.binary <- communityPGLMM(Y ~ X + (1|sp__) + (X|sp__), data = dat, family = "binomial",
+                             tree = phy, REML = TRUE, verbose = FALSE, optimizer = "Nelder-Mead")
+  
+  # output results
+  z.binary
+  plot(z.binary) # orginal data
+  
+  # test statistical significance of the phylogenetic random effect
+  # on species slopes using a likelihood ratio test
+  communityPGLMM.binary.LRT(z.binary, re.number = 4)$Pr
+  
+  # extract the predicted values of Y
+  communityPGLMM.predicted.values(z.binary)
+  # plot both orginal data and predicted data (in logit^-1 space)
+  plot(z.binary, predicted = TRUE) 
+  
+  # examine the structure of the first covariance matrix
+  ar1 = communityPGLMM.matrix.structure(Y ~ X + (1|sp__) + (X|sp__), data = dat, 
+                                        family = "binomial", tree = phy, ss = 1)
+  Matrix::image(ar1)
+  
+  # plot random terms' var-cov matrix
+  communityPGLMM.plot.re(x = z.binary, show.sim.image = FALSE)
+  
+  # compare results to glmer() when the model contains no
+  # phylogenetic covariance among species; the results should be
+  # similar.
+  communityPGLMM(Y ~ X + (1|sp) + (X|sp), data = dat, family = "binomial", REML = FALSE)
+  
+  # lmer
+  if(require(lme4)){
+    summary(lme4::glmer(Y ~ X + (1 | sp) + (0 + X | sp), data=dat, family = "binomial"))
+    
+    # compare results to lmer() when the model contains no phylogenetic
+    # covariance among species; the results should be similar.
+    communityPGLMM(Y ~ X + (1 | sp) + (0 + X | sp), data = dat, family = "gaussian", REML = FALSE)
+    summary(lme4::lmer(Y ~ X + (1 | sp) + (0 + X | sp), data=dat, REML = FALSE))    
+  }  
 }
 }
 \references{
@@ -625,10 +613,14 @@ structure. Ecological Monographs 81:511-525.
 Rafferty, N. E., and A. R. Ives. 2013. Phylogenetic
 trait-based analyses of ecological networks. Ecology 94:2321-2333.
 
-Simpson, Daniel, et al. "Penalising model component complexity:
-A principled, practical approach to constructing priors."
-Statistical science 32.1 (2017): 1-28.
+Simpson, Daniel, et al. 2017. Penalising model component complexity:
+A principled, practical approach to constructing priors.
+Statistical science 32(1): 1-28.
+
+Li, D., Ives, A. R., & Waller, D. M. 2017.
+Can functional traits account for phylogenetic signal in community composition?
+New Phytologist, 214(2), 607-618.
 }
 \author{
-Anthony R. Ives
+Anthony R. Ives, Daijiang Li, Russell Dinnage
 }

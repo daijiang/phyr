@@ -27,13 +27,13 @@ psd(comm, tree, compute.var = TRUE, scale.vcv = TRUE, prune.tree = FALSE,
 \arguments{
 \item{comm}{Community data matrix, site as rows and species as columns, site names as row names.}
 
-\item{tree}{A phylo tree object or a phylogenetic covariance matrix.}
+\item{tree}{A phylo tree object with class "phylo" or a phylogenetic covariance matrix.}
 
 \item{compute.var}{logical, default is TRUE, computes the expected variances
-for PSV and PSR for each community}
+for PSV and PSR for each community.}
 
 \item{scale.vcv}{logical, default is TRUE, scale the phylogenetic covariance
-matrix to bound the metric between 0 and 1}
+matrix to bound the metric between 0 and 1 (i.e. correlations).}
 
 \item{prune.tree}{logical, default is FALSE, prune the phylogeny before converting
 to var-cov matrix? Pruning and then converting VS converting then subsetting may
@@ -71,11 +71,9 @@ than two species, but conclusions drawn from assigning communities zero values
 need be carefully explored for any data set. The data sets need not be
 species-community data sets but may be any commle data set with an associated phylogeny.
 }
-\examples{
-psv(comm = comm_a, tree = phylotree) 
-}
 \references{
-Helmus M.R., Bland T.J., Williams C.K. & Ives A.R. (2007) Phylogenetic measures of biodiversity. American Naturalist, 169, E68-E83
+Helmus M.R., Bland T.J., Williams C.K. & Ives A.R. 2007.
+Phylogenetic measures of biodiversity. American Naturalist, 169, E68-E83
 }
 \author{
 Matthew Helmus \email{mrhelmus@gmail.com}
