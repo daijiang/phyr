@@ -3,18 +3,6 @@
 \name{pglmm}
 \alias{pglmm}
 \alias{communityPGLMM}
-\alias{prep_dat_pglmm}
-\alias{communityPGLMM.gaussian}
-\alias{communityPGLMM.binary}
-\alias{communityPGLMM.binary.LRT}
-\alias{communityPGLMM.matrix.structure}
-\alias{summary.communityPGLMM}
-\alias{print.communityPGLMM}
-\alias{plot.communityPGLMM}
-\alias{communityPGLMM.predicted.values}
-\alias{communityPGLMM.bayes}
-\alias{communityPGLMM.plot.re}
-\alias{communityPGLMM.show.re}
 \title{Phylogenetic Generalised Linear Mixed Model for Community Data}
 \usage{
 communityPGLMM(formula, data = NULL, family = "gaussian", tree = NULL,
@@ -25,53 +13,12 @@ communityPGLMM(formula, data = NULL, family = "gaussian", tree = NULL,
   calc.DIC = FALSE, default.prior = "inla.default", cpp = TRUE,
   optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"),
   prep.s2.lme4 = FALSE)
-
-prep_dat_pglmm(formula, data, tree, repulsion = FALSE,
-  prep.re.effects = TRUE, family = "gaussian", prep.s2.lme4 = FALSE,
-  tree_site = NULL, bayes = FALSE)
-
-communityPGLMM.gaussian(formula, data = list(), family = "gaussian",
-  sp = NULL, site = NULL, random.effects = list(), REML = TRUE,
-  s2.init = NULL, B.init = NULL, reltol = 10^-8, maxit = 500,
-  verbose = FALSE, cpp = TRUE, optimizer = "bobyqa")
-
-communityPGLMM.binary(formula, data = list(), family = "binomial",
-  sp = NULL, site = NULL, random.effects = list(), REML = TRUE,
-  s2.init = 0.05, B.init = NULL, reltol = 10^-5, maxit = 40,
-  tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE, cpp = TRUE,
-  optimizer = "bobyqa")
-
-communityPGLMM.binary.LRT(x, re.number = 0, cpp = TRUE, ...)
-
-communityPGLMM.matrix.structure(formula, data = list(), family = "binomial",
-  tree, repulsion = FALSE, ss = 1, cpp = TRUE)
-
-\method{summary}{communityPGLMM}(x, digits = max(3, getOption("digits") - 3),
-  ...)
-
-\method{print}{communityPGLMM}(x, digits = max(3, getOption("digits") - 3),
-  ...)
-
-\method{plot}{communityPGLMM}(x, digits = max(3, getOption("digits") - 3),
-  show.sp.names = FALSE, show.site.names = FALSE, predicted = FALSE, ...)
-
-communityPGLMM.predicted.values(x)
-
-communityPGLMM.bayes(formula, data = list(), family = "gaussian",
-  sp = NULL, site = NULL, random.effects = list(), s2.init = NULL,
-  B.init = NULL, verbose = FALSE, REML = FALSE, marginal.summ = "mean",
-  calc.DIC = FALSE, default.prior = "inla.default")
-
-communityPGLMM.plot.re(formula = NULL, data = NULL, family = "gaussian",
-  tree = NULL, tree_site = NULL, repulsion = FALSE, x = NULL,
-  show.image = NULL, show.sim.image = NULL, random.effects = NULL,
-  add.tree.sp = TRUE, add.tree.site = FALSE, tree.panel.space = 0.5,
-  title.space = 5, tree.size = 3, ...)
 }
 \arguments{
 \item{formula}{a two-sided linear formula object describing the
 mixed-effects of the model; it follows similar syntax with \code{\link[lme4:lmer]{lmer}}.
 There are some differences though.
+
 First, to specify that a random term should have phylogenetic cov matrix along
 with non-phylogenetic one, add \code{__} (two underscores) at the end of the group variable,
 e.g. \code{+ (1 | sp__)} will construct two random terms,
@@ -132,7 +79,7 @@ The T/F combinations depend on your questions.}
 \item{site}{no longer used, keep here for compatibility}
 
 \item{random.effects}{pre-build list of random effects. If \code{NULL} (the default),
-the function \code{prep_dat_pglmm()} will prepare it for you. A list of pre-generated
+the function \code{\link{prep_dat_pglmm()}} will prepare it for you. A list of pre-generated
 random terms is also accepted (mainly to be compatible with code from previous versions).
 If so, make sure that the orders of sp and site in the generated list are the same as the
 data. This argument can be useful if users want to use other correlations (e.g. spatial)
@@ -210,113 +157,15 @@ complexity penalizing prior (as described in
 
 \item{cpp}{whether to use c++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE}.}
 
-\item{optimizer}{nelder-mead-nlopt (default) or bobyqa or Nelder-Mead (from the stats package) or subplex.
+\item{optimizer}{nelder-mead-nlopt (default) or bobyqa or Nelder-Mead or subplex.
 Nelder-Mead is from the stats package and the other ones are from the nloptr package.}
 
 \item{prep.s2.lme4}{whether to prepare initial s2 values based on lme4 theta. Default is FALSE.
 If no phylogenetic or nested random terms, should set it to TRUE since it likely will be faster.
 However, in this case, you probably can just use lme4::lmer.}
-
-\item{prep.re.effects}{whether to prepare random effects for users.}
-
-\item{x}{communityPGLMM object to be summarised}
-
-\item{...}{additional arguments to summary and plotting functions
-(currently ignored), or additional arguments to \code{\link[INLA:inla]{inla}}
-when \code{bayes = TRUE}.
-
-\deqn{Y = \beta_0 + \beta_1x + b_0 + b_1x}{y = beta_0 + beta_1x + b_0 + b_1x}
-\deqn{b_0 ~ Gaussian(0, \sigma_0^2I_{sp})}{b_0 ~ Gaussian(0, sigma_0^2I_(sp))}
-\deqn{b_1 ~ Gaussian(0, \sigma_0^2V_{sp})}{b_0 ~ Gaussian(0, sigma_0^2V_(sp))}
-\deqn{\eta ~ Gaussian(0,\sigma^2)}{e ~ Gaussian(0,sigma^2)}
-
-where \eqn{\beta_0}{beta_0} and \eqn{\beta_1}{beta_1} are fixed
-effects, and \eqn{V_{sp}}{V_(sp)} is a variance-covariance matrix
-derived from a phylogeny (typically under the assumption of
-Brownian motion evolution). Here, the variation in the mean
-(intercept) for each species is given by the random effect
-\eqn{b_0}{b_0} that is assumed to be independent among
-species. Variation in species' responses to predictor variable
-\eqn{x}{x} is given by a random effect \eqn{b_0}{b_0} that is
-assumed to depend on the phylogenetic relatedness among species
-given by \eqn{V_{sp}}{V_(sp_}; if species are closely related,
-their specific responses to \eqn{x}{x} will be similar. This
-particular model would be specified as
-
-\code{z <- communityPGLMM(Y ~ X + (1|sp__), data = data, family = "gaussian", tree = phy)}
-
-Or you can prepare the random terms manually (not recommended):
-
-\code{re.1 <- list(1, sp = dat$sp, covar = diag(nspp))}
-\code{re.2 <- list(dat$X, sp = dat$sp, covar = Vsp)}
-\code{z <- communityPGLMM(Y ~ X, data = data, family = "gaussian", random.effects = list(re.1, re.2))}
-
-The covariance matrix covar is standardized to have its determinant
-equal to 1. This in effect standardizes the interpretation of the
-scalar \eqn{\sigma^2}{sigma^2}. Although mathematically this is
-not required, it is a very good idea to standardize the predictor
-(independent) variables to have mean 0 and variance 1. This will
-make the function more robust and improve the interpretation of the
-regression coefficients. For categorical (factor) predictor
-variables, you will need to construct 0-1 dummy variables, and
-these should not be standardized (for obvious reasons).
-
-For binary generalized linear mixed models (\code{family =
-'binomial'}), the function estimates parameters for the model of
-the form, for example,
-
-\deqn{y = \beta_0 + \beta_1x + b_0 + b_1x}{y = beta_0 + beta_1x + b_0 + b_1x}
-\deqn{Y = logit^{-1}(y)}{Y = logit^(-1)(y)}
-\deqn{b_0 ~ Gaussian(0, \sigma_0^2I_{sp})}{b_0 ~ Gaussian(0, sigma_0^2I_(sp))}
-\deqn{b_1 ~ Gaussian(0, \sigma_0^2V_{sp})}{b_0 ~ Gaussian(0, sigma_0^2V_(sp))}
-
-where \eqn{\beta_0}{beta_0} and \eqn{\beta_1}{beta_1} are fixed
-effects, and \eqn{V_{sp}}{V_(sp)} is a variance-covariance matrix
-derived from a phylogeny (typically under the assumption of
-Brownian motion evolution).
-
-\code{z <- communityPGLMM(Y ~ X + (1|sp__), data = data, family = "binomial", tree = phy)}
-
-As with the linear mixed model, it is a very good idea to
-standardize the predictor (independent) variables to have mean 0
-and variance 1. This will make the function more robust and improve
-the interpretation of the regression coefficients.}
-
-\item{ss}{which of the \code{random.effects} to produce}
-
-\item{digits}{minimal number of significant digits for printing, as
-in \code{\link{print.default}}}
-
-\item{predicted}{whether to also plot predicted values}
-
-\item{show.image}{whether to show the images of random effects}
-
-\item{show.sim.image}{whether to show the images of simulated site by sp matrix. This can be useful to
-see how the phylogenetic information were included.}
-
-\item{add.tree.sp}{whether to add a phylogeny of species at the top of the simulated site by sp matrix plot, default is TRUE}
-
-\item{add.tree.site}{whether to add a phylogeny of sites at the right of the simulated site by sp matrix plot, default is FALSE}
-
-\item{tree.panel.space}{the number of lines between the phylogeney and the matrix plot, if add.tree is TRUE}
-
-\item{title.space}{the number of lines between the title and the matrix plot, if add.tree is TRUE}
-
-\item{tree.size}{the height of the phylogeney to be plotted (number of lines), if add.tree is TRUE}
-
-\item{show.sp.name}{whether to print species names}
-
-\item{show.site.name}{whether to print site names}
-
-\item{...}{additional arguments for lattice::xyplot}
-
-\item{...}{additional arguments for \code{Matrix::image()} or \code{lattice::levelplot()}. Common ones are:
-\code{useAbs} whether to use absolute values of the matrix; if no negative values, this will be set to TRUE if not specified.
-When \code{useAbs = TRUE} the color scheme will be black-white, otherwise, it will be red/blue.
-\code{colorkey} whether to draw the scale legend at the right side of each plot?}
 }
 \value{
-an object of class \code{communityPGLMM}
+An object (list) of class \code{communityPGLMM} with the following elements:
 \item{formula}{the formula for fixed effects}
 \item{formula_original}{the formula for both fixed effects and random effects}
 \item{data}{the dataset}
@@ -366,11 +215,6 @@ if \code{bayes = TRUE}}
 \item{sp, site}{the sp and site columns}
 \item{tree}{the reordered phylogeny to generate Vsp}
 \item{tree_site}{the reordered site phylogeny (if specified)}
-
-a hidden list, including the covariance matrices and simulated site by species matrices. Individual plots are saved as
-\code{plt_re_list} and \code{plt_sim_list}. If \code{show.image} or \code{show.sim.image} is TRUE,
-the corresponding final plot (\code{plt_re_all_in_one} or \code{plt_sim_all_in_one}) can be saved as external file
-using \code{ggplot2::ggsave} as it is a grid object.
 }
 \description{
 This function performs Generalized Linear Mixed Models for binary
@@ -387,31 +231,6 @@ only analyze a subset of the types of model designed handled by
 Helmus (2011). It can also analyze bipartite phylogenetic data,
 such as that analyzed in Rafferty and Ives (2011), by giving sites
 phylogenetic correlations.
-
-\code{communityPGLMM.binary} calculates the statistical
-significance of the random effects in the generalized linear mixed
-model from the marginal profile likelihood.
-
-\code{communityPGLMM.binary.LRT} tests statistical significance of
-the phylogenetic random effect on species slopes using a likelihood
-ratio test
-
-\code{communityPGLMM.matrix.structure} produces the entire
-covariance matrix structure (V) when you specify random effects.
-
-Plot the original dataset and predicted values (optional)
-
-\code{communityPGLMM.predicted.values} calculates the predicted
-values of Y; for the generalized linear mixed model (family =
-"binomial"), these values are in the logit-1 transformed space.
-
-Plot variance-cov matrix of random terms; also it is optional to simulate and
-visualize data based on these var-cov matrices. The input can be a communityPGLMM
-model (by setting argument x). If no model has been fitted, you can also specify
-data, formula, and family, etc. without actually fitting the model, which will
-save time.
-}
-\details{
 A Bayesian version of PGLMM can be fit by specifying the \code{bayes = TRUE}.
 This uses the package \code{\link[INLA:INLA-package]{INLA}} package,
 which is not available on CRAN yet. If you wish to use this option,
@@ -420,6 +239,66 @@ you must first install \code{INLA} from \url{http://www.r-inla.org/} by running
 Note that while \code{bayes = TRUE} currently only supports \code{family} arguments of
 \code{"gaussian"}, \code{"binomial"}, and \code{"poisson"},
 other families will shortly be added.
+}
+\details{
+\deqn{Y = \beta_0 + \beta_1x + b_0 + b_1x}{y = beta_0 + beta_1x + b_0 + b_1x}
+\deqn{b_0 ~ Gaussian(0, \sigma_0^2I_{sp})}{b_0 ~ Gaussian(0, sigma_0^2I_(sp))}
+\deqn{b_1 ~ Gaussian(0, \sigma_0^2V_{sp})}{b_0 ~ Gaussian(0, sigma_0^2V_(sp))}
+\deqn{\eta ~ Gaussian(0,\sigma^2)}{e ~ Gaussian(0,sigma^2)}
+
+where \eqn{\beta_0}{beta_0} and \eqn{\beta_1}{beta_1} are fixed
+effects, and \eqn{V_{sp}}{V_(sp)} is a variance-covariance matrix
+derived from a phylogeny (typically under the assumption of
+Brownian motion evolution). Here, the variation in the mean
+(intercept) for each species is given by the random effect
+\eqn{b_0}{b_0} that is assumed to be independent among
+species. Variation in species' responses to predictor variable
+\eqn{x}{x} is given by a random effect \eqn{b_0}{b_0} that is
+assumed to depend on the phylogenetic relatedness among species
+given by \eqn{V_{sp}}{V_(sp_}; if species are closely related,
+their specific responses to \eqn{x}{x} will be similar. This
+particular model would be specified as
+
+\code{z <- communityPGLMM(Y ~ X + (1|sp__), data = data, family = "gaussian", tree = phy)}
+
+Or you can prepare the random terms manually (not recommended):
+
+\code{re.1 <- list(1, sp = dat$sp, covar = diag(nspp))}
+
+\code{re.2 <- list(dat$X, sp = dat$sp, covar = Vsp)}
+
+\code{z <- communityPGLMM(Y ~ X, data = data, family = "gaussian", random.effects = list(re.1, re.2))}
+
+The covariance matrix covar is standardized to have its determinant
+equal to 1. This in effect standardizes the interpretation of the
+scalar \eqn{\sigma^2}{sigma^2}. Although mathematically this is
+not required, it is a very good idea to standardize the predictor
+(independent) variables to have mean 0 and variance 1. This will
+make the function more robust and improve the interpretation of the
+regression coefficients. For categorical (factor) predictor
+variables, you will need to construct 0-1 dummy variables, and
+these should not be standardized (for obvious reasons).
+
+For binary generalized linear mixed models (\code{family =
+'binomial'}), the function estimates parameters for the model of
+the form, for example,
+
+\deqn{y = \beta_0 + \beta_1x + b_0 + b_1x}{y = beta_0 + beta_1x + b_0 + b_1x}
+\deqn{Y = logit^{-1}(y)}{Y = logit^(-1)(y)}
+\deqn{b_0 ~ Gaussian(0, \sigma_0^2I_{sp})}{b_0 ~ Gaussian(0, sigma_0^2I_(sp))}
+\deqn{b_1 ~ Gaussian(0, \sigma_0^2V_{sp})}{b_0 ~ Gaussian(0, sigma_0^2V_(sp))}
+
+where \eqn{\beta_0}{beta_0} and \eqn{\beta_1}{beta_1} are fixed
+effects, and \eqn{V_{sp}}{V_(sp)} is a variance-covariance matrix
+derived from a phylogeny (typically under the assumption of
+Brownian motion evolution).
+
+\code{z <- communityPGLMM(Y ~ X + (1|sp__), data = data, family = "binomial", tree = phy)}
+
+As with the linear mixed model, it is a very good idea to
+standardize the predictor (independent) variables to have mean 0
+and variance 1. This will make the function more robust and improve
+the interpretation of the regression coefficients.
 }
 \examples{
 ## Structure of examples:

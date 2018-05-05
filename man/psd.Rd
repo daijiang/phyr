@@ -71,6 +71,9 @@ than two species, but conclusions drawn from assigning communities zero values
 need be carefully explored for any data set. The data sets need not be
 species-community data sets but may be any commle data set with an associated phylogeny.
 }
+\examples{
+psv(comm = comm_a, tree = phylotree) 
+}
 \references{
 Helmus M.R., Bland T.J., Williams C.K. & Ives A.R. 2007.
 Phylogenetic measures of biodiversity. American Naturalist, 169, E68-E83

@@ -66,7 +66,7 @@ test_that("test binary PGLMM random terms LRT", {
 
 test_that("test predicted values of gaussian pglmm", {
     expect_equivalent(phyr::communityPGLMM.predicted.values(test1_gaussian_cpp)$Y_hat, 
-        pez::communityPGLMM.predicted.values(test1_gaussian_cpp, show.plot = FALSE))
+        pez::communityPGLMM.predicted.values(test1_gaussian_cpp, show.plot = FALSE)[, 1])
 })
 
 test_that("test predicted values of binary pglmm", {

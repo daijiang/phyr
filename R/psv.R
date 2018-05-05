@@ -38,7 +38,7 @@
 #' @author Matthew Helmus \email{mrhelmus@@gmail.com}
 #' @export
 #' @rdname psd
-#' @example
+#' @examples
 #' psv(comm = comm_a, tree = phylotree) 
 psv <- function(comm, tree, compute.var = TRUE, scale.vcv = TRUE,
                 prune.tree = FALSE, cpp = TRUE) {
