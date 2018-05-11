@@ -1,11 +1,11 @@
 context("test phylogenetic GLMMs")
 
 library(dplyr)
-comm = comm_a
+comm = phyr::comm_a
 comm$site = row.names(comm)
 dat = tidyr::gather(comm, key = "sp", value = "freq", -site) %>% 
-  left_join(envi, by = "site") %>% 
-  left_join(traits, by = "sp")
+  left_join(phyr::envi, by = "site") %>% 
+  left_join(phyr::traits, by = "sp")
 dat$pa = as.numeric(dat$freq > 0)
 
 test_fit_equal = function(m1, m2) {
@@ -194,13 +194,13 @@ z_bipartite_bayes_2 = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | 
     (1 | sp__@site) + (1 | sp@site__) + (1 | sp__@site__), data = dat, family = "gaussian", 
     tree = phylotree, tree_site = tree_site, bayes = TRUE, ML.init = FALSE, default.prior = "pc.prior")
 
-# test tree and tree_site as cov matrix
-test_that("testing tree and tree_site as cov matrix", {
-    z_mat = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site__) + (1 | 
-        sp__@site) + (1 | sp@site__) + (1 | sp__@site__), data = dat, family = "gaussian", 
-        tree = vcv2(phylotree), tree_site = vcv2(tree_site), REML = TRUE)
-    test_fit_equal(z_bipartite, z_mat)
-})
+# # test tree and tree_site as cov matrix
+# test_that("testing tree and tree_site as cov matrix", {
+#     z_mat = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site__) + (1 | 
+#         sp__@site) + (1 | sp@site__) + (1 | sp__@site__), data = dat, family = "gaussian", 
+#         tree = vcv2(phylotree), tree_site = vcv2(tree_site), REML = TRUE)
+#     test_fit_equal(z_bipartite, z_mat)
+# })
 
 # testing selecting nested terms to be repulsive
 Vphy_site <- ape::vcv(tree_site)

@@ -45,6 +45,10 @@ sexp_type <- function(x) {
     .Call(`_phyr_sexp_type`, x)
 }
 
+pglmm_gaussian_predict <- function(iV, H) {
+    .Call(`_phyr_pglmm_gaussian_predict`, iV, H)
+}
+
 pglmm_gaussian_LL_cpp <- function(par, X, Y, Zt, St, nested, REML, verbose) {
     .Call(`_phyr_pglmm_gaussian_LL_cpp`, par, X, Y, Zt, St, nested, REML, verbose)
 }

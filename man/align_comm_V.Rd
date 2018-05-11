@@ -13,6 +13,8 @@ align_comm_V(comm, tree, prune.tree = FALSE, scale.vcv = TRUE)
 
 \item{prune.tree}{whether to prune the tree first then use vcv.phylo function. Default
 is FALSE: use vcv.phylo first then subsetting the matrix}
+
+\item{scale.vcv}{whether to scale vcv to a correlation matrix}
 }
 \value{
 a list of the community data and the phylogenetic var-cov matrix

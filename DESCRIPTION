@@ -15,12 +15,11 @@ License: GPL-3
 Encoding: UTF-8
 LazyData: true
 Depends:
-    R (>= 3.1) 
+    R (>= 3.1), stats
 Imports: 
     ape,
     Rcpp,
     Matrix,
-    stats,
     methods,
     graphics,
     dplyr,

@@ -333,8 +333,9 @@ z <- communityPGLMM(freq ~ sp*X + (1|site) + (1|sp__@site), data = dat, family =
 # phyPol = phylogeny for pollinators (sp)
 # phyPlt = phylogeny for plants (site)
 
-z <- communityPGLMM(freq ~ sp * X + (1|sp__) + (1|site__) + (1|sp__@site) + (1|sp@site__) + (1|sp__@site__), 
-data = dat, family = "binomial", tree = phyPol, tree_site = phyPlt, REML = TRUE, verbose = TRUE, s2.init=.1)
+z <- communityPGLMM(freq ~ sp * X + (1|sp__) + (1|site__) + (1|sp__@site) +
+ (1|sp@site__) + (1|sp__@site__), data = dat, family = "binomial", 
+ tree = phyPol, tree_site = phyPlt, REML = TRUE, verbose = TRUE, s2.init=.1)
 }
 
 #########################################################

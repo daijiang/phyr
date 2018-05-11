@@ -5,8 +5,6 @@ NULL
 #' @importFrom ape read.tree write.tree drop.tip compute.brlen vcv.phylo vcv is.rooted
 #' @importClassesFrom Matrix RsparseMatrix dsCMatrix dgTMatrix
 #' @importMethodsFrom Matrix t solve %*% determinant diag crossprod tcrossprod image
-#' @importFrom stats pchisq model.frame model.matrix model.response lm var optim pnorm 
-#' glm binomial printCoefmat reshape na.omit reorder rnorm runif dist 
 #' @importFrom methods as show is
 #' @importFrom graphics par image
 NULL
@@ -150,6 +148,7 @@ vcv2 = function(phy, corr = FALSE){
 #' @param tree a phylogeny with "phylo" as class; or a phylogenetic var-covar matrix.
 #' @param prune.tree whether to prune the tree first then use vcv.phylo function. Default
 #' is FALSE: use vcv.phylo first then subsetting the matrix
+#' @param scale.vcv whether to scale vcv to a correlation matrix
 #' @return a list of the community data and the phylogenetic var-cov matrix
 #' @export
 #'

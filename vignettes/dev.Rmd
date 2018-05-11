@@ -300,3 +300,66 @@ ss <- as.vector(array(s2.init^0.5, dim = c(1, q)))
 par = s
 ```
 
+```{r eval=F}
+library(tidyverse)
+sim_dat = function(nspp = 30, nsite = 30, physig.trait1 = TRUE,
+                    physig.trait2 = TRUE,
+                    alpha = 1, beta_1 = 1, beta_2 = 1, beta_3 = 1,
+                    beta_4 = 1, beta_5 = 0, beta_6 = 1){
+  # simulate the phylogeny
+  phy = geiger::sim.bdtree(b = 1, d = 0, stop = "taxa", n = nspp, extinct = FALSE)
+  phy$tip.label = paste0("sp", 1:nspp)
+  # vphy = ape::vcv(phy) # var-cov matrix
+  # vphy = vphy/(det(vphy)^(1/nspp)) # to standardize the matrix
+  # corphy = cov2cor(vphy) # corr matrix
+  # simulate traits
+  if(physig.trait1){
+    trait1 = phytools::fastBM(tree = phy, mu = 0, sig2 = 1)
+  } else {
+    trait1 = rnorm(nspp, 0, 1)
+  }
+  if(physig.trait2){
+    trait2 = phytools::fastBM(tree = phy, mu = 0, sig2 = 1)
+  } else {
+    trait2 = rnorm(nspp, 0, 1)
+  }
+  trait = data.frame(sp = paste0("sp", 1:nspp),
+                     trait1 = trait1,
+                     trait2 = trait2, stringsAsFactors = FALSE)
+  
+  # simulate two envi variables
+  envi = data.frame(site = paste0("site", 1:nsite),
+                    envi1 = sort(runif(n = nsite, min = -1, max = 1)),
+                    envi2 = rnorm(n = nsite),
+                    stringsAsFactors = FALSE)
+  
+  # simulate abundance data
+  dat = expand.grid(sp = paste0("sp", 1:nspp),
+                    site = paste0("site", 1:nsite)) %>%
+    mutate(sp = as.character(sp), site = as.character(site))
+  dat = left_join(dat, trait, by = "sp") %>%
+    left_join(envi, by = "site")
+  dat = mutate(dat,
+               abund = alpha + beta_1 * envi1 + beta_2 * envi2 +
+                 beta_3 * trait1  + beta_4 * trait2 +
+                 beta_5 * envi1 * trait1 +
+                 beta_6 * envi1 * trait2 +
+                 rnorm(nspp * nsite, 0, 1)) %>%
+    mutate(sp = factor(sp, levels = paste0("sp", 1:nspp)),
+           site = factor(site, levels = paste0("site", 1:nsite))) %>% 
+    as.tibble()
+  
+  list(dat = dat, phy = phy)
+}
+d = sim_dat()
+
+z.phy = phyr::communityPGLMM(abund ~ 1 + envi1 * trait1 + (1|sp__) + (envi1|sp__) + (1|site),
+                             data = d$dat, tree = d$phy, family = "gaussian", REML = FALSE)
+z.phy$ss
+z.no.interaction = phyr::communityPGLMM(abund ~ 1 + envi1 + trait1 + (1|sp__) + (envi1|sp__) + (1|site),
+                                         data = d$dat, tree = d$phy, family = "gaussian", REML = FALSE)
+
+microbenchmark::microbenchmark(communityPGLMM.predicted.values(x, cpp = T),
+                               communityPGLMM.predicted.values(x, cpp = F), times = 20)
+```
+

@@ -199,6 +199,18 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// pglmm_gaussian_predict
+arma::vec pglmm_gaussian_predict(const arma::mat& iV, const arma::mat& H);
+RcppExport SEXP _phyr_pglmm_gaussian_predict(SEXP iVSEXP, SEXP HSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type iV(iVSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type H(HSEXP);
+    rcpp_result_gen = Rcpp::wrap(pglmm_gaussian_predict(iV, H));
+    return rcpp_result_gen;
+END_RCPP
+}
 // pglmm_gaussian_LL_cpp
 double pglmm_gaussian_LL_cpp(NumericVector par, const arma::mat& X, const arma::vec& Y, const arma::sp_mat& Zt, const arma::sp_mat& St, const List& nested, bool REML, bool verbose);
 RcppExport SEXP _phyr_pglmm_gaussian_LL_cpp(SEXP parSEXP, SEXP XSEXP, SEXP YSEXP, SEXP ZtSEXP, SEXP StSEXP, SEXP nestedSEXP, SEXP REMLSEXP, SEXP verboseSEXP) {
@@ -335,6 +347,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_phyr_plmm_binary_LL_cpp", (DL_FUNC) &_phyr_plmm_binary_LL_cpp, 9},
     {"_phyr_pglmm_binary_internal_cpp", (DL_FUNC) &_phyr_pglmm_binary_internal_cpp, 17},
     {"_phyr_sexp_type", (DL_FUNC) &_phyr_sexp_type, 1},
+    {"_phyr_pglmm_gaussian_predict", (DL_FUNC) &_phyr_pglmm_gaussian_predict, 2},
     {"_phyr_pglmm_gaussian_LL_cpp", (DL_FUNC) &_phyr_pglmm_gaussian_LL_cpp, 8},
     {"_phyr_pglmm_gaussian_LL_calc_cpp", (DL_FUNC) &_phyr_pglmm_gaussian_LL_calc_cpp, 7},
     {"_phyr_pglmm_gaussian_internal_cpp", (DL_FUNC) &_phyr_pglmm_gaussian_internal_cpp, 15},
