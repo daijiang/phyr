@@ -892,7 +892,8 @@ communityPGLMM.predicted.values <- function(
       # x$H is calculated by the following lines of code
       # Z <- X %*% B + b + (Y - mu)/(mu * (1 - mu))
       # H <- Z - X %*% B
-      # this gives the solutions to the over-determined set of equations for the random effects
+      # this gives the solutions to the over-determined set of equations for the fixed 
+      # effects X %*% B and random effects b
       h <- x$H + x$X %*% x$B - (x$Y - x$mu)/(x$mu * (1 - x$mu)) 
       predicted.values <- as.numeric(h)
     }
