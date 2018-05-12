@@ -108,8 +108,8 @@ pcd_pred = function(comm_1, comm_2 = NULL, tree, reps = 10^3, cpp = TRUE) {
 #'   The American Naturalist, 176(5), E128-E142.
 #' @export
 #' @examples
-#' x1 = pcd_pred(comm_1 = comm_a, comm_2 = comm_b, tree = tree, reps = 100)
-#' pcd(comm = comm_a, tree = tree, expectation = x1)
+#' x1 = pcd_pred(comm_1 = comm_a, comm_2 = comm_b, tree = phylotree, reps = 100)
+#' pcd(comm = comm_a, tree = phylotree, expectation = x1)
 pcd = function(comm, tree, expectation = NULL, cpp = TRUE, verbose = TRUE, ...) {
   if (is.null(expectation)) {
     expectation = pcd_pred(comm_1 = comm, tree = tree, ...)

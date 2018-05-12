@@ -148,15 +148,16 @@ tool for this. See Examples below.
 }
 \examples{
 
+\dontrun{
 ## Illustration of binaryPGLMM() with simulated data
 
 # Generate random phylogeny
 
 n <- 100
-phy <- compute.brlen(rtree(n=n), method = "Grafen", power = 1)
+phy <- ape::compute.brlen(rtree(n=n), method = "Grafen", power = 1)
 
 # Generate random data and standardize to have mean 0 and variance 1
-X1 <- rTraitCont(phy, model = "BM", sigma = 1)
+X1 <- ape::rTraitCont(phy, model = "BM", sigma = 1)
 X1 <- (X1 - mean(X1))/var(X1)
 
 # Simulate binary Y
@@ -167,7 +168,6 @@ sim.dat$Y <- binaryPGLMM.sim(Y ~ X1, phy=phy, data=sim.dat, s2=.5,
 # Fit model
 binaryPGLMM(Y ~ X1, phy=phy, data=sim.dat)
 
-\dontrun{
 # Compare with phyloglm()
 library(phylolm)
 summary(phyloglm(Y ~ X1, phy=phy, data=sim.dat))

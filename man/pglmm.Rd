@@ -79,7 +79,7 @@ The T/F combinations depend on your questions.}
 \item{site}{no longer used, keep here for compatibility}
 
 \item{random.effects}{pre-build list of random effects. If \code{NULL} (the default),
-the function \code{\link{prep_dat_pglmm()}} will prepare it for you. A list of pre-generated
+the function \code{\link{prep_dat_pglmm}} will prepare it for you. A list of pre-generated
 random terms is also accepted (mainly to be compatible with code from previous versions).
 If so, make sure that the orders of sp and site in the generated list are the same as the
 data. This argument can be useful if users want to use other correlations (e.g. spatial)
@@ -210,7 +210,7 @@ This is NULL is code{bayes = TRUE}}
 \item{St}{diagonal matrix that maps the random effects variances onto the design matrix}
 \item{convcode}{the convergence code provided by \code{\link{optim}}. This is set to NULL if \code{bayes = TRUE}}
 \item{niter}{number of iterations performed by \code{\link{optim}}. This is set to NULL if \code{bayes = TRUE}}
-\item{inla.model}{Model object fit by underlying \code{\link{inla}} function. Only returned
+\item{inla.model}{Model object fit by underlying \code{inla} function. Only returned
 if \code{bayes = TRUE}}
 \item{sp, site}{the sp and site columns}
 \item{tree}{the reordered phylogeny to generate Vsp}

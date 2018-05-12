@@ -71,13 +71,15 @@ in the formula, then you should set the repulsion to be something like
 \code{c(TRUE, FALSE, TURE, TURE)} (length of 4).
 The T/F combinations depend on your questions.}
 
+\item{x}{a fitted model with class communityPGLMM}
+
 \item{show.image}{whether to show the images of random effects}
 
 \item{show.sim.image}{whether to show the images of simulated site by sp matrix.
 This can be useful to see how the phylogenetic information were included.}
 
 \item{random.effects}{pre-build list of random effects. If \code{NULL} (the default),
-the function \code{\link{prep_dat_pglmm()}} will prepare it for you. A list of pre-generated
+the function \code{\link{prep_dat_pglmm}} will prepare it for you. A list of pre-generated
 random terms is also accepted (mainly to be compatible with code from previous versions).
 If so, make sure that the orders of sp and site in the generated list are the same as the
 data. This argument can be useful if users want to use other correlations (e.g. spatial)

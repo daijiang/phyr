@@ -6,8 +6,8 @@
 #' @method plot communityPGLMM
 #' @importFrom graphics image
 #' @inheritParams communityPGLMM.binary.LRT
-#' @param show.sp.name whether to print species names as y-axis labels
-#' @param show.site.name whether to print site names as x-axis labels
+#' @param show.sp.names whether to print species names as y-axis labels
+#' @param show.site.names whether to print site names as x-axis labels
 #' @param predicted whether to plot predicted values side by side with observed ones
 #' @inheritParams communityPGLMM.plot.re
 #' @note the underlying plot grid object is returned but invisible. It can be saved for later uses.
@@ -62,6 +62,7 @@ plot.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3),
 #' 
 #' @rdname pglmm-plot-re
 #' @inheritParams pglmm
+#' @param x a fitted model with class communityPGLMM
 #' @param show.image whether to show the images of random effects
 #' @param show.sim.image whether to show the images of simulated site by sp matrix. 
 #'   This can be useful to see how the phylogenetic information were included.

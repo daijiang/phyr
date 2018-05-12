@@ -725,9 +725,11 @@ communityPGLMM.matrix.structure <- function(formula, data = list(), family = "bi
 
 #' @rdname pglmm-utils
 #' @method summary communityPGLMM
+#' @param object a fitted model with class communityPGLMM
 #' @param digits minimal number of significant digits for printing, as in \code{\link{print.default}}
 #' @export
-summary.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3)) {
+summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") - 3), ...) {
+  x <- object # summary generic function first argument is object, not x.
   if(is.null(x$bayes)) x$bayes = FALSE # to be compatible with models fitting by pez
   
   if(x$bayes) {
@@ -834,8 +836,9 @@ summary.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3)) 
 
 #' @rdname pglmm-utils
 #' @method print communityPGLMM
+#' @param ... additional arguments, currently ignored.
 #' @export
-print.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3)) {
+print.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ...) {
   summary.communityPGLMM(x, digits = digits)
 }
 
@@ -844,29 +847,54 @@ print.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3)) {
 #' "binomial"), these values are in the logit-1 transformed space.
 #' 
 #' @rdname pglmm-utils
+#' @param gaussian.pred when family is gaussian, which type of prediction to calculate?
+#'   Option nearest_node will predict values to the nearest node, which is same as lme4::predict or
+#'   fitted. Option tip_rm will remove the point then predict the value of this point with remaining ones.
 #' @export
 #' @return a data frame with three columns: Y_hat (predicted values), sp, and site.
-communityPGLMM.predicted.values <- function(x, cpp = TRUE) {
+communityPGLMM.predicted.values <- function(
+  x, cpp = TRUE, gaussian.pred = c("nearest_node", "tip_rm")) {
+  ptype = match.arg(gaussian.pred)
   if(x$bayes) {
     marginal.summ <- x$marginal.summ
     if(marginal.summ == "median") marginal.summ <- "0.5quant"
     predicted.values <- x$inla.model$summary.fitted.values[ , marginal.summ, drop = TRUE]
   } else {
     if (x$family == "gaussian") {
-      if(cpp){
-        predicted.values <- pglmm_gaussian_predict(x$iV, x$H)
-      } else {
-        V <- solve(x$iV)
-        h <- matrix(0, nrow = length(x$Y), ncol = 1)
-        for (i in 1:length(x$Y)) {
-          h[i] <- as.numeric(V[i, -i] %*% solve(V[-i, -i]) %*% matrix(x$H[-i]))
+      n <- dim(X)[1]
+      fit <- x$X %*% x$B
+      V <- solve(x$iV)
+      if(ptype == "nearest_node"){
+        R <- x$Y - fit # similar as lme4. predict(merMod, re.form = NA); no random effects
+        v <- V
+        for(i in 1:n) {
+          v[i, i] <- max(V[i, -i])
         }
-        predicted.values <- h
+        Rhat <- v %*% x$iV %*% R # random effects
+        predicted.values <- as.numeric(fit + Rhat)
+      }
+      if(ptype == "tip_rm"){
+        if(cpp){
+          predicted.values <- pglmm_gaussian_predict(x$iV, x$H)
+        } else {
+          V <- solve(x$iV)
+          h <- matrix(0, nrow = n, ncol = 1)
+          for (i in 1:n) {
+            h[i] <- as.numeric(V[i, -i] %*% solve(V[-i, -i]) %*% matrix(x$H[-i]))
+            # H is Y - X %*% B
+          }
+          predicted.values <- h
+        }
       }
     }
     
     if (x$family == "binomial") {
-      h <- x$H + x$X %*% x$B
+      # x$H is calculated by the following lines of code
+      # Z <- X %*% B + b + (Y - mu)/(mu * (1 - mu))
+      # H <- Z - X %*% B
+      # so x$H already accounts for both fixed and random effects
+      h <- x$H + x$X %*% x$B # this is equal to Z, which is diff from mu ...
+      # mu is predicted mean XB + Zb, between 0-1.
       predicted.values <- as.numeric(h)
     }
   }

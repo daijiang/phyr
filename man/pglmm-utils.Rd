@@ -21,11 +21,14 @@ communityPGLMM.binary.LRT(x, re.number = 0, cpp = TRUE)
 communityPGLMM.matrix.structure(formula, data = list(), family = "binomial",
   tree, repulsion = FALSE, ss = 1, cpp = TRUE)
 
-\method{summary}{communityPGLMM}(x, digits = max(3, getOption("digits") - 3))
+\method{summary}{communityPGLMM}(object, digits = max(3, getOption("digits") -
+  3), ...)
 
-\method{print}{communityPGLMM}(x, digits = max(3, getOption("digits") - 3))
+\method{print}{communityPGLMM}(x, digits = max(3, getOption("digits") - 3),
+  ...)
 
-communityPGLMM.predicted.values(x, cpp = TRUE)
+communityPGLMM.predicted.values(x, cpp = TRUE,
+  gaussian.pred = c("nearest_node", "tip_rm"))
 }
 \arguments{
 \item{formula}{a two-sided linear formula object describing the
@@ -102,7 +105,7 @@ if the matrix is not standarized, i.e. det(tree_site) != 1, we will try to stand
 \item{site}{no longer used, keep here for compatibility}
 
 \item{random.effects}{pre-build list of random effects. If \code{NULL} (the default),
-the function \code{\link{prep_dat_pglmm()}} will prepare it for you. A list of pre-generated
+the function \code{\link{prep_dat_pglmm}} will prepare it for you. A list of pre-generated
 random terms is also accepted (mainly to be compatible with code from previous versions).
 If so, make sure that the orders of sp and site in the generated list are the same as the
 data. This argument can be useful if users want to use other correlations (e.g. spatial)
@@ -116,7 +119,15 @@ in their models instead of phylogenetic relationships.}
 
 \item{ss}{which of the \code{random.effects} to produce}
 
+\item{object}{a fitted model with class communityPGLMM}
+
 \item{digits}{minimal number of significant digits for printing, as in \code{\link{print.default}}}
+
+\item{...}{additional arguments, currently ignored.}
+
+\item{gaussian.pred}{when family is gaussian, which type of prediction to calculate?
+Option nearest_node will predict values to the nearest node, which is same as lme4::predict or
+fitted. Option tip_rm will remove the point then predict the value of this point with remaining ones.}
 }
 \value{
 a data frame with three columns: Y_hat (predicted values), sp, and site.
