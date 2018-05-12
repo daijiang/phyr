@@ -861,7 +861,7 @@ communityPGLMM.predicted.values <- function(
     predicted.values <- x$inla.model$summary.fitted.values[ , marginal.summ, drop = TRUE]
   } else {
     if (x$family == "gaussian") {
-      n <- dim(X)[1]
+      n <- dim(x$X)[1]
       fit <- x$X %*% x$B
       V <- solve(x$iV)
       if(ptype == "nearest_node"){
