@@ -250,7 +250,7 @@
 #'   \eqn{logit^{-1}}{logit -1} space}.
 #' \item{iV}{the inverse of the covariance matrix for the entire system (of dimension (nsp*nsite) by (nsp*nsite)). 
 #'   This is NULL is code{bayes = TRUE}}.
-#' \item{mu}{predicted mean values for the generalized linear mixed model. Set to NULL for linear mixed models}
+#' \item{mu}{predicted mean values for the generalized linear mixed model (i.e. similar to \code{fitted(merMod)}). Set to NULL for linear mixed models, for which we can use [communityPGLMM.predicted.values()]}.
 #' \item{nested}{matrices used to construct the nested design matrix. This is set to NULL if \code{bayes = TRUE}}
 #' \item{Zt}{the design matrix for random effects. This is set to NULL if \code{bayes = TRUE}}
 #' \item{St}{diagonal matrix that maps the random effects variances onto the design matrix}

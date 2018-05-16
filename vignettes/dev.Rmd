@@ -363,3 +363,81 @@ microbenchmark::microbenchmark(communityPGLMM.predicted.values(x, cpp = T),
                                communityPGLMM.predicted.values(x, cpp = F), times = 20)
 ```
 
+```{r eval=F}
+nsite <- 10
+nsp <- 15
+n <- nsp*nsite
+library(ape)
+phy <- rtree(nsp)
+
+d <- data.frame(x1=0, x2=0, y=0, sp=rep(1:nsp, times=nsite), site=rep(1:nsite, each=nsp))
+d$sp <- as.factor(d$sp)
+d$site <- as.factor(d$site)
+
+b1 <- 1
+b2 <- 0
+sd1 <- 1.5
+
+d$x1 <- rnorm(n=n)
+d$x2 <- rnorm(n=n)
+d$y <- b1 * d$x1 + b2 * d$x2 + rep(rnorm(n=nsp, sd=sd1), each=nsite) + rep(rnorm(n=nsite, sd=sd1), times=nsp) + rnorm(n=n)
+
+
+d$p <- d$y > 0
+library(lme4)
+z <- glmer(p ~ x1 + (1 | sp), data=d, family="binomial")
+library(phyr)
+mod <- communityPGLMM(p ~ x1 + (1 | sp), data=d, tree = phy, REML=F, reltol=10^-10, family="binomial")
+summary(z)
+
+# predictions
+pred_lmer <- predict(z)
+logit = make.link("logit")$linkfun
+plot(logit(fitted(z)), pred_lmer) # same
+pred_phyr <- communityPGLMM.predicted.values(mod)$Y_hat # XB + b
+plot(pred_lmer, pred_phyr) # good
+
+# residuals
+hat_phyr = rr2::inv.logit(pred_phyr)
+hat_lmer = fitted(z)
+plot(resid(z), (d$p - mod$mu)/sqrt(mod$mu * (1 - mod$mu))) # hum...
+plot(resid(z), (d$p - hat_phyr)/sqrt(hat_phyr * (1 - hat_phyr))) # hum...
+plot(resid(z), (d$p - hat_lmer)/sqrt(hat_lmer * (1 - hat_lmer))) # hum...
+plot(mod$mu, fitted(z)) # same
+plot(pred_phyr, fitted(z))
+plot(fitted(z), predict(z))
+
+plot(resid(z), (d$p - fitted(z))/sqrt(fitted(z) * (1 - fitted(z))))
+plot(resid(z), d$p - pred_lmer)
+plot(resid(z), rr2::inv.logit(mod$H[, 1])) # hum...
+plot(resid(z), mod$H[, 1]) # hum...
+plot(make.link("logit")$linkfun(mod$mu), residuals(z))
+plot(d$p - d$mod, residuals(z))
+plot(make.link("logit")$linkfun(mod$mu), d$p - d$mod)
+
+
+with(d, plot(z, mod))
+
+
+z1 = lmer(y ~ x1 + (1 | sp), data=d)
+z1_phyr = communityPGLMM(y ~ x1 + (1|sp), data = d)
+summary(z1)
+z1_phyr
+# fitted values
+plot(fitted(z1), predict(z1)) # same
+pred_phyr <- communityPGLMM.predicted.values(z1_phyr, gaussian.pred = "nearest_node")$Y_hat
+plot(predict(z1), pred_phyr) # good
+plot(predict(z1), communityPGLMM.predicted.values(z1_phyr, gaussian.pred = "tip_rm")$Y_hat)
+# different way
+
+# residuals
+resi_lmer = resid(z1)
+resi_phyr = z1_phyr$H[,1]
+plot(resi_phyr, resi_lmer) # err...
+plot(d$y - predict(z1), resi_lmer) # same
+plot(d$y - pred_phyr, resi_lmer) # good
+# so why z1_phyr$H is not exactly the residual? Because it does not account for random terms
+plot(resi_phyr, d$y - predict(z1, re.form = NA))
+
+```
+
