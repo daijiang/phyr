@@ -1,7 +1,7 @@
 Package: phyr
 Type: Package
 Title: Phylogenetic Analysis with R
-Version: 0.1.4
+Version: 0.1.5
 Authors@R: c(
     person("Anthony", "Ives", , "arives@wisc.edu", role = c("aut")),
     person("Matthew", "Helmus", , "", role = c("aut")),

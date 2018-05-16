@@ -4,9 +4,10 @@
 #' 
 #' \code{prep_dat_pglmm} prepares data for later model fitting
 #' 
-#' @rdname pglmm-utils
+#' @rdname prep_dat_pglmm
 #' @inheritParams pglmm
 #' @param prep.re.effects whether to prepare random effects for users.
+#' @return a list with formula, data, random.effects, etc.
 #' @export
 prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE, 
                           prep.re.effects = TRUE, family = "gaussian", 
@@ -289,9 +290,10 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
 
 #' \code{get_design_matrix} gets design matrix for both gaussian and binomial models
 #' 
-#' @rdname pglmm-utils
+#' @rdname get_design_matrix_pglmm
 #' @param na.action what to do with NAs?
 #' @inheritParams pglmm
+#' @return a list of design matrices.
 #' @export
 get_design_matrix = function(formula, data, na.action = NULL, 
                              sp, site, random.effects){
@@ -689,7 +691,8 @@ communityPGLMM.binary.LRT <- function(x, re.number = 0, cpp = TRUE) {
   }
   
   P.H0.s2 <- pchisq(2 * (logLik - logLik0), df = df, lower.tail = F)/2
-  return(list(LR = logLik - logLik0, df = df, Pr = P.H0.s2))
+  
+  list(LR = logLik - logLik0, df = df, Pr = P.H0.s2)
 }
 
 #' \code{communityPGLMM.matrix.structure} produces the entire
@@ -725,7 +728,7 @@ communityPGLMM.matrix.structure <- function(formula, data = list(), family = "bi
 
 #' @rdname pglmm-utils
 #' @method summary communityPGLMM
-#' @param object a fitted model with class communityPGLMM
+#' @param object a fitted model with class communityPGLMM.
 #' @param digits minimal number of significant digits for printing, as in \code{\link{print.default}}
 #' @export
 summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") - 3), ...) {
@@ -846,12 +849,13 @@ print.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ..
 #' values of Y; for the generalized linear mixed model (family =
 #' "binomial"), these values are in the logit-1 transformed space.
 #' 
-#' @rdname pglmm-utils
+#' @rdname communityPGLMM.predicted.values
 #' @param gaussian.pred when family is gaussian, which type of prediction to calculate?
 #'   Option nearest_node will predict values to the nearest node, which is same as lme4::predict or
 #'   fitted. Option tip_rm will remove the point then predict the value of this point with remaining ones.
 #' @export
-#' @return a data frame with three columns: Y_hat (predicted values), sp, and site.
+#' @return a data frame with three columns: Y_hat (predicted values accounting for 
+#'   both fixed and random terms), sp, and site.
 communityPGLMM.predicted.values <- function(
   x, cpp = TRUE, gaussian.pred = c("nearest_node", "tip_rm")) {
   ptype = match.arg(gaussian.pred)
@@ -894,10 +898,54 @@ communityPGLMM.predicted.values <- function(
       # H <- Z - X %*% B
       # this gives the solutions to the over-determined set of equations for the fixed 
       # effects X %*% B and random effects b
-      h <- x$H + x$X %*% x$B - (x$Y - x$mu)/(x$mu * (1 - x$mu)) 
-      predicted.values <- as.numeric(h)
+      # h <- x$H + x$X %*% x$B - (x$Y - x$mu)/(x$mu * (1 - x$mu)) 
+      predicted.values <- logit(x$mu)
     }
   }
   
   data.frame(Y_hat = predicted.values, sp = x$sp, site = x$site)
+}
+
+#' Residuals of communityPGLMM objects
+#' 
+#' Getting different types of residuals for communityPGLMM objects.
+#' 
+#' @param object a fitted model with class communityPGLMM.
+#' @param type type of residuals, currently only "response" for gaussian pglmm;
+#'   "deviance" (default) and "response" for binomial pglmm.
+#'   @param scaled scale residuals by residual standard deviation for gaussian pglmm.
+#' @param \dots additional arguments, ignored for method compatibility
+#' @rdname residuals.pglmm
+#' @method residuals communityPGLMM
+#' @export
+residuals.communityPGLMM <- function(
+  object, 
+  type = if(object$family == "binomial") "deviance" else "response",
+  scaled = FALSE, ...){
+  if(object$family == "gaussian"){
+    y <- object$Y
+    mu <- communityPGLMM.predicted.values(object)$Y_hat
+    res <- switch(type,
+                  deviance = stop("no deviance residuals for gaussian model", call. = FALSE),
+                  response = y - mu
+    )
+    if(scaled) res/sqrt(object$s2resid)
+  }
+  
+  if(object$family == "binomial"){
+    y <- as.numeric(object$Y)
+    mu <- unname(object$mu[, 1])
+    res <- switch(type,
+           deviance = {
+             dres <- sqrt(binomial()$dev.resids(y, mu, 1))
+             ifelse(y > mu, dres, - dres)
+           },
+           response = y - mu
+    )
+  }
+  
+  if(object$family %nin% c("gaussian", "binomial"))
+    stop("no residual methods for family other than gaussian and binomial yet", call. = FALSE)
+  
+  unname(res)
 }

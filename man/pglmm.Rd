@@ -201,10 +201,15 @@ Only present if \code{bayes = TRUE}}
 \item{B.init}{the user-provided initial estimates of \code{B}}
 \item{Y}{the response (dependent) variable returned in matrix form}
 \item{X}{the predictor (independent) variables returned in matrix form (including 1s in the first column)}
-\item{H}{the residuals. For the generalized linear mixed model, these are the predicted residuals in the \eqn{logit^{-1}}{logit -1} space}
+\item{H}{the residuals. For linear mixed models, this does not account for random terms,
+i.e. it is similar to \code{Y - predict(merMod, re.form = NA)} for models fitted with lme4.
+To get residuals after accounting for both fixed and random terms,
+use \code{Y - communityPGLMM.predicted.values(mod_phyr)$Y_hat}.
+For the generalized linear mixed model, these are the predicted residuals in the
+\eqn{logit^{-1}}{logit -1} space}.
 \item{iV}{the inverse of the covariance matrix for the entire system (of dimension (nsp\emph{nsite) by (nsp}nsite)).
-This is NULL is code{bayes = TRUE}}
-\item{mu}{predicted mean values for the generalized linear mixed model. Set to NULL for linear mixed models}
+This is NULL is code{bayes = TRUE}}.
+\item{mu}{predicted mean values for the generalized linear mixed model (i.e. similar to \code{fitted(merMod)}). Set to NULL for linear mixed models, for which we can use \code{\link[=communityPGLMM.predicted.values]{communityPGLMM.predicted.values()}}}.
 \item{nested}{matrices used to construct the nested design matrix. This is set to NULL if \code{bayes = TRUE}}
 \item{Zt}{the design matrix for random effects. This is set to NULL if \code{bayes = TRUE}}
 \item{St}{diagonal matrix that maps the random effects variances onto the design matrix}

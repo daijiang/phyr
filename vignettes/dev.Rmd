@@ -364,11 +364,11 @@ microbenchmark::microbenchmark(communityPGLMM.predicted.values(x, cpp = T),
 ```
 
 ```{r eval=F}
+library(lme4)
+library(phyr)
 nsite <- 10
 nsp <- 15
 n <- nsp*nsite
-library(ape)
-phy <- rtree(nsp)
 
 d <- data.frame(x1=0, x2=0, y=0, sp=rep(1:nsp, times=nsite), site=rep(1:nsite, each=nsp))
 d$sp <- as.factor(d$sp)
@@ -384,26 +384,36 @@ d$y <- b1 * d$x1 + b2 * d$x2 + rep(rnorm(n=nsp, sd=sd1), each=nsite) + rep(rnorm
 
 
 d$p <- d$y > 0
-library(lme4)
-z <- glmer(p ~ x1 + (1 | sp), data=d, family="binomial")
-library(phyr)
-mod <- communityPGLMM(p ~ x1 + (1 | sp), data=d, tree = phy, REML=F, reltol=10^-10, family="binomial")
-summary(z)
+z_lmer <- glmer(p ~ x1 + (1 | sp) + (1|site), data=d, family="binomial")
+z_phyr <- communityPGLMM(p ~ x1 + (1 | sp) + (1|site), data=d, REML=F, family="binomial")
+summary(z_lmer)
+z_phyr
 
 # predictions
-pred_lmer <- predict(z)
+pred_lmer <- predict(z_lmer)
 logit = make.link("logit")$linkfun
-plot(logit(fitted(z)), pred_lmer) # same
+plot(logit(fitted(z_lmer)), pred_lmer) # same
 pred_phyr <- communityPGLMM.predicted.values(mod)$Y_hat # XB + b
-plot(pred_lmer, pred_phyr) # good
+plot(pred_lmer, pred_phyr) # same
+plot(mod$mu, fitted(z_lmer)) # same
+plot(logit(mod$mu), pred_phyr)
+plot(fitted(z_lmer), z_lmer@resp$mu) # same
 
 # residuals
+plot(residuals(z_lmer, type = "response"), 
+     residuals(z_phyr, type = "response"))
+
+
+
 hat_phyr = rr2::inv.logit(pred_phyr)
-hat_lmer = fitted(z)
+hat_lmer = predict(z, re.form = NULL)
+hat_lmer = rr2::inv.logit(hat_lmer)
+resi_lmer = residuals(z, type="pearson")
+plot(resi_lmer, d$p - hat_lmer)
+plot(resid(z), d$p - hat_lmer)
 plot(resid(z), (d$p - mod$mu)/sqrt(mod$mu * (1 - mod$mu))) # hum...
 plot(resid(z), (d$p - hat_phyr)/sqrt(hat_phyr * (1 - hat_phyr))) # hum...
-plot(resid(z), (d$p - hat_lmer)/sqrt(hat_lmer * (1 - hat_lmer))) # hum...
-plot(mod$mu, fitted(z)) # same
+plot(resi_lmer, (d$p - hat_lmer)/sqrt(hat_lmer * (1 - hat_lmer))) # hum...
 plot(pred_phyr, fitted(z))
 plot(fitted(z), predict(z))
 
@@ -419,7 +429,7 @@ plot(make.link("logit")$linkfun(mod$mu), d$p - d$mod)
 with(d, plot(z, mod))
 
 
-z1 = lmer(y ~ x1 + (1 | sp), data=d)
+z1_lmer = lmer(y ~ x1 + (1 | sp), data=d)
 z1_phyr = communityPGLMM(y ~ x1 + (1|sp), data = d)
 summary(z1)
 z1_phyr
@@ -431,6 +441,8 @@ plot(predict(z1), communityPGLMM.predicted.values(z1_phyr, gaussian.pred = "tip_
 # different way
 
 # residuals
+plot(residuals(z1_lmer, type = "response"), 
+     residuals(z1_phyr, type = "response"))
 resi_lmer = resid(z1)
 resi_phyr = z1_phyr$H[,1]
 plot(resi_phyr, resi_lmer) # err...
