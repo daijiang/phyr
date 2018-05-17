@@ -914,7 +914,7 @@ communityPGLMM.predicted.values <- function(
 #' @param type type of residuals, currently only "response" for gaussian pglmm;
 #'   "deviance" (default) and "response" for binomial pglmm.
 #'   @param scaled scale residuals by residual standard deviation for gaussian pglmm.
-#' @param \dots additional arguments, ignored for method compatibility
+#' @param \dots additional arguments, ignored for method compatibility.
 #' @rdname residuals.pglmm
 #' @method residuals communityPGLMM
 #' @export
@@ -948,4 +948,29 @@ residuals.communityPGLMM <- function(
     stop("no residual methods for family other than gaussian and binomial yet", call. = FALSE)
   
   unname(res)
+}
+
+#' Fitted values for communityPGLMM
+#' 
+#' @method fitted communityPGLMM
+#' @param object a fitted model with class communityPGLMM.
+#' @param \dots additional arguments, ignored for method compatibility.
+#' @return fitted values. For binomial PGLMMs, this is equal to mu (i.e. between 0 and 1).
+#' @export
+fitted.communityPGLMM <- function(object, ...){
+  if(object$family == "binomial"){
+    ft = object$mu[, 1]
+  } else {
+    ft = communityPGLMM.predicted.values(object)$Y_hat
+  }
+  
+  ft
+}
+
+#' Extract coefficience for fixed terms
+#' 
+#' @method fixef communityPGLMM
+#' @return a named, numeric vector of fixed-effects estimates.
+fixef.communityPGLMM <- function(object, ...){
+  object$B
 }

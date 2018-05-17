@@ -367,9 +367,10 @@ microbenchmark::microbenchmark(communityPGLMM.predicted.values(x, cpp = T),
 library(lme4)
 library(phyr)
 nsite <- 10
-nsp <- 15
+nsp <- 20
 n <- nsp*nsite
 
+set.seed(12345)
 d <- data.frame(x1=0, x2=0, y=0, sp=rep(1:nsp, times=nsite), site=rep(1:nsite, each=nsp))
 d$sp <- as.factor(d$sp)
 d$site <- as.factor(d$site)
@@ -382,12 +383,40 @@ d$x1 <- rnorm(n=n)
 d$x2 <- rnorm(n=n)
 d$y <- b1 * d$x1 + b2 * d$x2 + rep(rnorm(n=nsp, sd=sd1), each=nsite) + rep(rnorm(n=nsite, sd=sd1), times=nsp) + rnorm(n=n)
 
-
 d$p <- d$y > 0
-z_lmer <- glmer(p ~ x1 + (1 | sp) + (1|site), data=d, family="binomial")
-z_phyr <- communityPGLMM(p ~ x1 + (1 | sp) + (1|site), data=d, REML=F, family="binomial")
-summary(z_lmer)
-z_phyr
+fm = as.formula("p ~ x1 + (1 | sp)")
+# fm = as.formula("p ~ x1 + (1 | sp) + (1|site)")
+z_lmer_bi <- glmer(fm, data=d, family="binomial")
+z_phyr_bi <- communityPGLMM(fm, data=d, REML=F, family="binomial")
+summary(z_lmer_bi)
+z_phyr_bi
+
+z_lmer_ga = lmer(fm, data=d)
+z_phyr_ga = communityPGLMM(fm, data = d)
+summary(z_lmer_ga)
+z_phyr_ga
+
+# fitted
+round(unname(fitted(z_lmer_ga)) - communityPGLMM.predicted.values(z_phyr_ga)$Y_hat, 3)
+plot(unname(fitted(z_lmer_ga)), communityPGLMM.predicted.values(z_phyr_ga)$Y_hat)
+abline(a = 0, b = 1) # almost there
+round(unname(predict(z_lmer_bi)) - communityPGLMM.predicted.values(z_phyr_bi)$Y_hat, 3)
+plot(unname(predict(z_lmer_bi)), communityPGLMM.predicted.values(z_phyr_bi)$Y_hat)
+abline(a = 0, b = 1) # close
+unname(fitted(z_lmer_bi)) == z_lmer_bi@resp$mu # true
+plot(z_phyr_bi$mu, z_lmer_bi@resp$mu)
+abline(a = 0, b = 1) # close
+unname(fitted(z_lmer_ga)) == z_lmer_ga@resp$mu # true; ==  communityPGLMM.predicted.values(z_phyr_ga)$Y_hat
+
+# residuals
+residuals(z_phyr_ga, type = "deviance")
+plot(residuals(z_lmer_ga, type = "response"), residuals(z_phyr_ga, type = "response"))
+abline(a = 0, b = 1) # close
+plot(residuals(z_lmer_bi, type = "response"), residuals(z_phyr_bi, type = "response"))
+abline(a = 0, b = 1) # close
+plot(residuals(z_lmer_bi, type = "deviance"), residuals(z_phyr_bi, type = "deviance"))
+abline(a = 0, b = 1) # close
+
 
 # predictions
 pred_lmer <- predict(z_lmer)
@@ -398,12 +427,6 @@ plot(pred_lmer, pred_phyr) # same
 plot(mod$mu, fitted(z_lmer)) # same
 plot(logit(mod$mu), pred_phyr)
 plot(fitted(z_lmer), z_lmer@resp$mu) # same
-
-# residuals
-plot(residuals(z_lmer, type = "response"), 
-     residuals(z_phyr, type = "response"))
-
-
 
 hat_phyr = rr2::inv.logit(pred_phyr)
 hat_lmer = predict(z, re.form = NULL)
@@ -429,7 +452,7 @@ plot(make.link("logit")$linkfun(mod$mu), d$p - d$mod)
 with(d, plot(z, mod))
 
 
-z1_lmer = lmer(y ~ x1 + (1 | sp), data=d)
+z1 = lmer(y ~ x1 + (1 | sp), data=d)
 z1_phyr = communityPGLMM(y ~ x1 + (1|sp), data = d)
 summary(z1)
 z1_phyr

@@ -5,14 +5,17 @@ NULL
 #' @importFrom ape read.tree write.tree drop.tip compute.brlen vcv.phylo vcv is.rooted
 #' @importClassesFrom Matrix RsparseMatrix dsCMatrix dgTMatrix
 #' @importMethodsFrom Matrix t solve %*% determinant diag crossprod tcrossprod image
-#' @importFrom stats as.dendrogram as.dist as.formula binomial dist family formula glm lm model.frame 
-#' make.link model.matrix model.response na.omit optim pchisq pnorm printCoefmat 
-#' reorder reshape residuals rnorm runif sd update var
+#' @importFrom stats as.dendrogram as.dist as.formula binomial dist family fitted 
+#'   formula glm lm model.frame make.link model.matrix model.response na.omit 
+#'   optim pchisq pnorm printCoefmat reorder reshape residuals rnorm runif sd 
+#'   update var
 #' @importFrom methods as show is
 #' @importFrom graphics par image
 NULL
 
 logit <- make.link("logit")$linkfun
+
+inv.logit <- make.link("logit")$linkinv
 
 #' Remove species that not observed in any site.
 #'

@@ -14,7 +14,7 @@
 "deviance" (default) and "response" for binomial pglmm.
 @param scaled scale residuals by residual standard deviation for gaussian pglmm.}
 
-\item{\dots}{additional arguments, ignored for method compatibility}
+\item{\dots}{additional arguments, ignored for method compatibility.}
 }
 \description{
 Getting different types of residuals for communityPGLMM objects.
