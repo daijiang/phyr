@@ -967,10 +967,22 @@ fitted.communityPGLMM <- function(object, ...){
   ft
 }
 
+
 #' Extract coefficience for fixed terms
 #' 
-#' @method fixef communityPGLMM
-#' @return a named, numeric vector of fixed-effects estimates.
-fixef.communityPGLMM <- function(object, ...){
-  object$B
+#' @return a dataframe of fixed-effects estimates.
+#' @export
+fixef <- function(x) {
+  if (x$bayes) {
+    coef <- data.frame(Value = x$B, lower.CI = x$B.ci[, 1], upper.CI = x$B.ci[, 2],
+                       Pvalue = ifelse(apply(x$B.ci, 1, function(y)
+                         findInterval(0, y[1], y[2])) == 0,
+                         0.04, 0.6))
+  } else {
+    coef <- data.frame(Value = x$B, Std.Error = x$B.se, 
+                       Zscore = x$B.zscore, Pvalue = x$B.pvalue)
+  }
+  
+  coef
 }
+
