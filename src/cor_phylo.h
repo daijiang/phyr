@@ -82,30 +82,30 @@ public:
 class boot_results {
 public:
   arma::cube corrs;
-  arma::mat d;
   arma::mat B0;
   arma::cube B_cov;
+  arma::mat d;
   std::vector<arma::mat> failed_mats;
   std::vector<uint> failed_inds;
 
   boot_results(const uint_t& p, const uint_t& B_rows, const uint_t& n_reps) 
     : corrs(p, p, n_reps, arma::fill::zeros), 
-      d(p, n_reps, arma::fill::zeros), 
       B0(B_rows, n_reps, arma::fill::zeros), 
       B_cov(B_rows, B_rows, n_reps, arma::fill::zeros),
+      d(p, n_reps, arma::fill::zeros), 
       failed_mats(), failed_inds() {};
 
   // Insert values into a boot_results object
   void insert_values(const uint_t& i,
                      const arma::mat& corrs_i,
-                     const arma::vec& d_i,
                      const arma::vec& B0_i,
-                     const arma::mat& B_cov_i) {
+                     const arma::mat& B_cov_i,
+                     const arma::vec& d_i) {
     
     corrs.slice(i) = corrs_i;
-    d.col(i) = d_i;
     B0.col(i) = B0_i;
     B_cov.slice(i) = B_cov_i;
+    d.col(i) = d_i;
     return;
     
   }
@@ -119,15 +119,17 @@ public:
  */
 class boot_mats {
 public:
-  arma::mat mean_sd_X;  // estimates for a given replicate
-  std::vector<arma::vec> sd_U;
+  // original input matrices
+  const arma::mat X;  
+  const std::vector<arma::mat> U;
+  const arma::mat M;
+  arma::mat X_new;
   
-  boot_mats() {}
-  boot_mats(const arma::mat& mean_sd_X_, const std::vector<arma::vec>& sd_U_,
-            const arma::mat& B_, const arma::vec& d_, const LL_info& ll_info,
-            const std::vector<arma::mat>& U);
+  boot_mats(const arma::mat& X_, const std::vector<arma::mat>& U_,
+            const arma::mat& M_,
+            const arma::mat& B_, const arma::vec& d_, const LL_info& ll_info);
   
-  void iterate(LL_info& ll_info);
+  XPtr<LL_info> iterate(LL_info& ll_info);
   
   void one_boot(XPtr<LL_info>& ll_info_xptr, boot_results& br,
                 const uint_t& i, const double& rel_tol, const int& max_iter,
@@ -137,14 +139,10 @@ public:
                 const uint_t& i, const double& rel_tol, const int& max_iter,
                 const uint_t& method, const std::vector<double>& sann);
   
+  
 private:
-  arma::mat mean_sd_X0; // original estimates
-  arma::mat XX;
-  arma::mat MM;
-  arma::vec B0;
   arma::mat iD;
   arma::mat U_add;
-  std::vector<arma::mat> Us;
   
   // Method for returning data when convergence fails
   void failed(LL_info& ll_info, boot_results& br, const uint& i);
@@ -319,16 +317,22 @@ inline arma::mat make_corrs(const arma::mat& R) {
  Make matrices of coefficient estimates and standard errors, and matrix of covariances.
  */
 inline void make_B_B_cov(arma::mat& B, arma::mat& B_cov, arma::vec& B0,
-                         const uint_t& p, 
                          const arma::mat& iV,
                          const arma::mat& UU,
-                         const arma::mat& mean_sd_X,
-                         const std::vector<arma::vec>& sd_U) {
+                         const arma::mat& X,
+                         const std::vector<arma::mat>& U) {
   
+  arma::mat mean_sd_X(X.n_cols, 2);
+  mean_sd_X.col(0) = arma::conv_to<arma::vec>::from(arma::mean(X));
+  mean_sd_X.col(1) = arma::conv_to<arma::vec>::from(arma::stddev(X));
+  std::vector<arma::vec> sd_U(U.size());
+  for (uint i = 0; i < U.size(); i++) {
+    if (U[i].n_cols > 0) sd_U[i] = arma::conv_to<arma::vec>::from(arma::stddev(U[i]));
+  }
   
   arma::vec sd_vec(UU.n_cols, arma::fill::zeros);
   
-  for (uint_t counter = 0, i = 0; i < p; counter++, i++) {
+  for (uint_t counter = 0, i = 0; i < X.n_cols; counter++, i++) {
     B0[counter] += mean_sd_X(i,0);
     sd_vec[counter] = mean_sd_X(i,1);
     if (sd_U[i].n_elem > 0) {
