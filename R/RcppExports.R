@@ -119,6 +119,31 @@ NULL
 #' 
 NULL
 
+#' Make an `LL_info` object based on input matrices and another LL_info object.
+#' 
+#' The output `LL_info` is used for model fitting.
+#' 
+#' *Note:* This version is used for bootstrapping.
+#' It's different from the one above in that it doesn't re-normalize Vphy, UU, or tau.
+#' If you normalize Vphy and tau twice (which would happen if I used the previous
+#' version of this constructor), it can result in weird behavior.
+#' Notably, the bootstrap replicate will sometimes not converge, but when I output the
+#' same data and re-run cor_phylo on it, it'll converge.
+#' This is confusing, so I'm trying to avoid that.
+#' 
+#' 
+#' @inheritParams X cor_phylo_
+#' @inheritParams U cor_phylo_
+#' @inheritParams M cor_phylo_
+#' @param other Another LL_info object from which to derive much of the information.
+#' 
+#' @return a LL_info that contains info necessary for model fitting
+#' 
+#' @name LL_info
+#' @noRd
+#' 
+NULL
+
 #' Retrieve objects for output `cor_phylo` object.
 #' 
 #' @inheritParams X cor_phylo_
@@ -184,8 +209,8 @@ cor_phylo_LL_R <- function(par, ll_info_xptr) {
 #' @noRd
 #' @name cor_phylo_
 #' 
-cor_phylo_ <- function(X, U, M, Vphy_, REML, constrain_d, verbose, rel_tol, max_iter, method, boot, sann) {
-    .Call(`_phyr_cor_phylo_`, X, U, M, Vphy_, REML, constrain_d, verbose, rel_tol, max_iter, method, boot, sann)
+cor_phylo_ <- function(X, U, M, Vphy_, REML, constrain_d, verbose, rel_tol, max_iter, method, boot, keep_boots, sann) {
+    .Call(`_phyr_cor_phylo_`, X, U, M, Vphy_, REML, constrain_d, verbose, rel_tol, max_iter, method, boot, keep_boots, sann)
 }
 
 set_seed <- function(seed) {

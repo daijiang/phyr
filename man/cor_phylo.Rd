@@ -10,7 +10,7 @@ cor_phylo(formulas, species, phy, data = sys.frame(sys.parent()),
   REML = TRUE, method = c("neldermead", "bobyqa", "sbplx", "cobyla",
   "praxis", "neldermead-r", "sann-r"), constrain_d = FALSE, rel_tol = 1e-06,
   max_iter = 1000, maxit_SA = 1000, temp_SA = 1, tmax_SA = 1,
-  verbose = FALSE, boot = 0)
+  verbose = FALSE, boot = 0, keep_boots = c("fail", "none", "all"))
 
 \method{boot_ci}{cor_phylo}(x, alpha = 0.05)
 
@@ -34,25 +34,29 @@ traits with both covariates and measurement error
 }
 }}
 
-\item{species}{the column name or object in \code{data} that indicates the species.
+\item{species}{The column name or object in \code{data} that indicates the species.
 You do not need to use quotes for this argument,
 but quotes will not adversely affect the outcome.}
 
-\item{phy}{a \code{phylo} object giving the phylogenetic tree.}
+\item{phy}{A \code{phylo} object giving the phylogenetic tree.}
 
-\item{data}{an optional data frame, list, or environment that contains the
+\item{data}{An optional data frame, list, or environment that contains the
 variables in the model. By default, variables are taken from the environment
 from which \code{cor_phylo} was called.}
 
-\item{REML}{whether REML (versus ML) should be used for model fitting.
+\item{REML}{Whether REML (versus ML) should be used for model fitting.
 Defaults to \code{TRUE}.}
 
-\item{method}{method of optimization using \code{nlopt}. Options include
-"neldermead", "bobyqa", "sbplx", "cobyla", "praxis". See
-\url{https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/} for more
-information.}
+\item{method}{Method of optimization using \code{nlopt} or \code{\link[stats]{optim}}.
+Options include \code{"neldermead"}, \code{"bobyqa"}, \code{"sbplx"}, \code{"cobyla"},  \code{"praxis"},
+\code{"neldermead-r"}, and \code{"sann-r"}.
+The first five are carried out by nlopt, and the latter two by
+\code{\link[stats]{optim}}.
+See \url{https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/} for information
+on the nlopt algorithms.
+Defaults to \code{"neldermead"}.}
 
-\item{constrain_d}{if \code{constrain_d} is \code{TRUE}, the estimates of \code{d} are
+\item{constrain_d}{If \code{constrain_d} is \code{TRUE}, the estimates of \code{d} are
 constrained to be between zero and 1. This can make estimation more stable and
 can be tried if convergence is problematic. This does not necessarily lead to
 loss of generality of the results, because before using \code{cor_phylo},
@@ -60,30 +64,38 @@ branch lengths of \code{phy} can be transformed so that the "starter" tree
 has strong phylogenetic signal.
 Defaults to \code{FALSE}.}
 
-\item{rel_tol}{a control parameter dictating the relative tolerance for convergence
-in the optimization; see \code{optim()}.
-Defaults to \code{1e-6}.}
+\item{rel_tol}{A control parameter dictating the relative tolerance for convergence
+in the optimization. Defaults to \code{1e-6}.}
 
-\item{max_iter}{a control parameter dictating the maximum number of iterations
+\item{max_iter}{A control parameter dictating the maximum number of iterations
 in the optimization. Defaults to \code{1000}.}
 
 \item{maxit_SA}{A control parameter dictating the maximum number of iterations in the
-optimization with SANN minimization; see \code{\link{stats::optim}}.
-Defaults to \code{1000}.}
+optimization with SANN minimization; see \code{\link[stats]{optim}}.
+Only relevant if \code{method == "sann"}. Defaults to \code{1000}.}
 
 \item{temp_SA}{A control parameter dictating the starting temperature in the
-optimization with SANN minimization; see \code{\link{stats::optim}}.
-Defaults to \code{1}.}
+optimization with SANN minimization; see \code{\link[stats]{optim}}.
+Only relevant if \code{method == "sann"}. Defaults to \code{1}.}
 
 \item{tmax_SA}{A control parameter dictating the number of function evaluations
 at each temperature in the optimization with SANN minimization; see
-\code{\link{stats::optim}}. Defaults to \code{1}.}
+\code{\link[stats]{optim}}. Only relevant if \code{method == "sann"}. Defaults to \code{1}.}
 
-\item{verbose}{if \code{TRUE}, the model \code{logLik} and running estimates of the
+\item{verbose}{If \code{TRUE}, the model \code{logLik} and running estimates of the
 correlation coefficients and values of \code{d} are printed each iteration
 during optimization. Defaults to \code{FALSE}.}
 
 \item{boot}{Number of parametric bootstrap replicates. Defaults to \code{0}.}
+
+\item{keep_boots}{Character specifying when to output data (indices, convergence codes,
+and simulated parametric data) from bootstrap replicates.
+This is useful for troubleshooting when one or more bootstrap replicates
+fails to converge or outputs ridiculous results.
+Setting this to \code{"all"} keeps all \code{boot} parameter sets,
+\code{"fail"} keeps parameter sets from replicates that failed to converge,
+and \code{"none"} keeps no parameter sets.
+Defaults to \code{"fail"}.}
 
 \item{x}{\code{cor_phylo} object that was run with the \code{boot} argument > 0.}
 
@@ -97,30 +109,37 @@ during optimization. Defaults to \code{FALSE}.}
 }
 \value{
 An object of class \code{cor_phylo}:
-\item{\code{corrs}}{the \code{p} x \code{p} matrix of correlation coefficients.}
-\item{\code{d}}{values of \code{d} from the OU process for each trait.}
-\item{\code{B}}{a matrix of regression-coefficient estimates, SE, Z-scores, and P-values,
+\item{\code{call}}{The matched call.}
+\item{\code{corrs}}{The \code{p} x \code{p} matrix of correlation coefficients.}
+\item{\code{d}}{Values of \code{d} from the OU process for each trait.}
+\item{\code{B}}{A matrix of regression-coefficient estimates, SE, Z-scores, and P-values,
 respectively. Rownames indicate which coefficient it refers to.}
-\item{\code{B_cov}}{covariance matrix for regression coefficients.}
-\item{\code{logLik}}{the log likelihood for either the restricted likelihood
+\item{\code{B_cov}}{Covariance matrix for regression coefficients.}
+\item{\code{logLik}}{The log likelihood for either the restricted likelihood
 (\code{REML = TRUE}) or the overall likelihood (\code{REML = FALSE}).}
 \item{\code{AIC}}{AIC for either the restricted likelihood (\code{REML = TRUE}) or the
 overall likelihood (\code{REML = FALSE}).}
 \item{\code{BIC}}{BIC for either the restricted likelihood (\code{REML = TRUE}) or the
 overall likelihood (\code{REML = FALSE}).}
 \item{\code{niter}}{Number of iterations the optimizer used.}
-\item{\code{convcode}}{Conversion code for the optimizer, which is positive on success
-and negative on failure. See also
-\url{https://nlopt.readthedocs.io/en/latest/NLopt_Reference/#return-values}.}
+\item{\code{convcode}}{Conversion code for the optimizer.
+This number is \code{0} on success and positive on failure if using
+\code{\link[stats]{optim}}.
+This number is positive on success and negative on failure if using nlopt
+(see also
+\url{https://nlopt.readthedocs.io/en/latest/NLopt_Reference/#return-values}).}
 \item{\code{bootstrap}}{A list of bootstrap output, which is simply \code{list()} if
 \code{boot = 0}. If \code{boot > 0}, then the list contains fields for
 estimates of correlations (\code{corrs}), phylogenetic signals (\code{d}),
-coefficient estimates (\code{B0}), and coefficient covariances (\code{B_cov}),
-as well as a vector of indices for bootstrap replicates that failed to converge
-(\code{failed}).
-To view bootstrapped confidence intervals, do the following: \code{boot_ci(x, a)},
-where \code{x} is a \code{cor_phylo} object and \code{a} is an alpha value.}
-\item{\code{call}}{the matched call.}
+coefficients (\code{B0}), and coefficient covariances (\code{B_cov}).
+It also contains the following information about the bootstrap replicates:
+a vector of indices relating each set of information to the bootstrapped
+estimates (\code{inds}),
+convergence codes (\code{codes}), and
+matrices of the bootstrapped parameters in the order they appear in the input
+argument (\code{mats});
+these three fields will be empty if \code{keep_boots == "none"}.
+To view bootstrapped confidence intervals, use \code{\link{boot_ci}}.}
 
 A list of confidence intervals for
 estimates of correlations (\code{corrs}),
@@ -186,8 +205,7 @@ data_df <- data.frame(species = phy$tip.label,
 data_df$par2 <- data_df$par2 + 0.5 * data_df$cov2
 
 cor_phylo(list(par1 ~ 1 | se1, par2 ~ cov2 | se2),
-          species = species, phy = phy, data = data_df,
-          method = "neldermead")
+          species = species, phy = phy, data = data_df)
 
 
 \dontrun{
@@ -275,16 +293,13 @@ cor_phylo(list(par1 ~ 1 | se1, par2 ~ cov2 | se2),
         # and (iii) just measurement error
         z <- cor_phylo(list(par1 ~ 1 | se1, par2 ~ cov2 | se2),
                        phy = phy,
-                       species = species, data = data_df,
-                       method = "neldermead")
+                       species = species, data = data_df)
         z.noM <- cor_phylo(list(par1 ~ 1, par2 ~ cov2),
                            phy = phy,
-                           species = species, data = data_df,
-                           method = "neldermead")
+                           species = species, data = data_df)
         z.noP <- cor_phylo(list(par1 ~ 1 | se1, par2 ~ cov2 | se2),
                            phy = star,
-                           species = species, data = data_df,
-                           method = "neldermead")
+                           species = species, data = data_df)
     
         cor.list[rep] <- z$corrs[1, 2]
         cor.noM.list[rep] <- z.noM$corrs[1, 2]

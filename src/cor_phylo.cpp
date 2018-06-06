@@ -520,7 +520,7 @@ LL_info::LL_info(const arma::mat& X,
     REML(other.REML), constrain_d(other.constrain_d), verbose(other.verbose),
     iters(0) {
 
-  uint_t n = Vphy.n_rows;
+  // uint_t n = Vphy.n_rows;
   uint_t p = X.n_cols;
   
   arma::mat Xs = X;

@@ -414,71 +414,89 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
 #'       traits with both covariates and measurement error
 #'     }
 #'   }
-#' @param species the column name or object in `data` that indicates the species.
+#' @param species The column name or object in `data` that indicates the species.
 #'   You do not need to use quotes for this argument,
 #'   but quotes will not adversely affect the outcome.
-#' @param phy a `phylo` object giving the phylogenetic tree.
-#' @param data an optional data frame, list, or environment that contains the
+#' @param phy A `phylo` object giving the phylogenetic tree.
+#' @param data An optional data frame, list, or environment that contains the
 #'   variables in the model. By default, variables are taken from the environment
 #'   from which `cor_phylo` was called.
-#' @param REML whether REML (versus ML) should be used for model fitting.
+#' @param REML Whether REML (versus ML) should be used for model fitting.
 #'   Defaults to `TRUE`.
-#' @param method method of optimization using `nlopt`. Options include 
-#'   "neldermead", "bobyqa", "sbplx", "cobyla", "praxis". See
-#'   \url{https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/} for more 
-#'   information.
-#' @param constrain_d if `constrain_d` is `TRUE`, the estimates of `d` are 
+#' @param method Method of optimization using `nlopt` or \code{\link[stats]{optim}}. 
+#'   Options include `"neldermead"`, `"bobyqa"`, `"sbplx"`, `"cobyla"`,  `"praxis"`,
+#'   `"neldermead-r"`, and `"sann-r"`.
+#'   The first five are carried out by nlopt, and the latter two by
+#'   \code{\link[stats]{optim}}.
+#'   See \url{https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/} for information
+#'   on the nlopt algorithms.
+#'   Defaults to `"neldermead"`.
+#' @param constrain_d If `constrain_d` is `TRUE`, the estimates of `d` are 
 #'   constrained to be between zero and 1. This can make estimation more stable and 
 #'   can be tried if convergence is problematic. This does not necessarily lead to 
 #'   loss of generality of the results, because before using `cor_phylo`, 
 #'   branch lengths of `phy` can be transformed so that the "starter" tree
 #'   has strong phylogenetic signal.
 #'   Defaults to `FALSE`.
-#' @param rel_tol a control parameter dictating the relative tolerance for convergence 
-#'   in the optimization; see `optim()`.
-#'   Defaults to `1e-6`.
-#' @param max_iter a control parameter dictating the maximum number of iterations 
+#' @param rel_tol A control parameter dictating the relative tolerance for convergence 
+#'   in the optimization. Defaults to `1e-6`.
+#' @param max_iter A control parameter dictating the maximum number of iterations 
 #'   in the optimization. Defaults to \code{1000}.
 #' @param maxit_SA A control parameter dictating the maximum number of iterations in the
-#'   optimization with SANN minimization; see \code{\link{stats::optim}}.
-#'   Defaults to `1000`.
+#'   optimization with SANN minimization; see \code{\link[stats]{optim}}.
+#'   Only relevant if `method == "sann"`. Defaults to `1000`.
 #' @param temp_SA A control parameter dictating the starting temperature in the
-#'   optimization with SANN minimization; see \code{\link{stats::optim}}.
-#'   Defaults to `1`.
+#'   optimization with SANN minimization; see \code{\link[stats]{optim}}.
+#'   Only relevant if `method == "sann"`. Defaults to `1`.
 #' @param tmax_SA A control parameter dictating the number of function evaluations
 #'   at each temperature in the optimization with SANN minimization; see
-#'   \code{\link{stats::optim}}. Defaults to `1`.
-#' @param verbose if `TRUE`, the model `logLik` and running estimates of the
+#'   \code{\link[stats]{optim}}. Only relevant if `method == "sann"`. Defaults to `1`.
+#' @param verbose If `TRUE`, the model `logLik` and running estimates of the
 #'   correlation coefficients and values of `d` are printed each iteration
 #'   during optimization. Defaults to `FALSE`.
 #' @param boot Number of parametric bootstrap replicates. Defaults to `0`.
+#' @param keep_boots Character specifying when to output data (indices, convergence codes,
+#'   and simulated parametric data) from bootstrap replicates.
+#'   This is useful for troubleshooting when one or more bootstrap replicates
+#'   fails to converge or outputs ridiculous results.
+#'   Setting this to `"all"` keeps all `boot` parameter sets,
+#'   `"fail"` keeps parameter sets from replicates that failed to converge,
+#'   and `"none"` keeps no parameter sets.
+#'   Defaults to `"fail"`.
 #' 
 #'
 #' @return An object of class `cor_phylo`:
-#'   \item{`corrs`}{the `p` x `p` matrix of correlation coefficients.}
-#'   \item{`d`}{values of `d` from the OU process for each trait.}
-#'   \item{`B`}{a matrix of regression-coefficient estimates, SE, Z-scores, and P-values,
+#'   \item{`call`}{The matched call.}
+#'   \item{`corrs`}{The `p` x `p` matrix of correlation coefficients.}
+#'   \item{`d`}{Values of `d` from the OU process for each trait.}
+#'   \item{`B`}{A matrix of regression-coefficient estimates, SE, Z-scores, and P-values,
 #'     respectively. Rownames indicate which coefficient it refers to.}
-#'   \item{`B_cov`}{covariance matrix for regression coefficients.}
-#'   \item{`logLik`}{the log likelihood for either the restricted likelihood
+#'   \item{`B_cov`}{Covariance matrix for regression coefficients.}
+#'   \item{`logLik`}{The log likelihood for either the restricted likelihood
 #'     (\code{REML = TRUE}) or the overall likelihood (\code{REML = FALSE}).}
 #'   \item{`AIC`}{AIC for either the restricted likelihood (\code{REML = TRUE}) or the
 #'     overall likelihood (\code{REML = FALSE}).}
 #'   \item{`BIC`}{BIC for either the restricted likelihood (\code{REML = TRUE}) or the
 #'     overall likelihood (\code{REML = FALSE}).}
 #'   \item{`niter`}{Number of iterations the optimizer used.}
-#'   \item{`convcode`}{Conversion code for the optimizer, which is positive on success
-#'     and negative on failure. See also
-#'     \url{https://nlopt.readthedocs.io/en/latest/NLopt_Reference/#return-values}.}
+#'   \item{`convcode`}{Conversion code for the optimizer.
+#'     This number is \code{0} on success and positive on failure if using
+#'     \code{\link[stats]{optim}}.
+#'     This number is positive on success and negative on failure if using nlopt
+#'     (see also
+#'     \url{https://nlopt.readthedocs.io/en/latest/NLopt_Reference/#return-values}).}
 #'   \item{`bootstrap`}{A list of bootstrap output, which is simply `list()` if
 #'     `boot = 0`. If `boot > 0`, then the list contains fields for 
 #'     estimates of correlations (`corrs`), phylogenetic signals (`d`),
-#'     coefficient estimates (`B0`), and coefficient covariances (`B_cov`), 
-#'     as well as a vector of indices for bootstrap replicates that failed to converge
-#'     (`failed`).
-#'     To view bootstrapped confidence intervals, do the following: `boot_ci(x, a)`,
-#'     where `x` is a `cor_phylo` object and `a` is an alpha value.}
-#'   \item{`call`}{the matched call.}
+#'     coefficients (`B0`), and coefficient covariances (`B_cov`).
+#'     It also contains the following information about the bootstrap replicates: 
+#'     a vector of indices relating each set of information to the bootstrapped
+#'     estimates (`inds`),
+#'     convergence codes (`codes`), and
+#'     matrices of the bootstrapped parameters in the order they appear in the input
+#'     argument (`mats`);
+#'     these three fields will be empty if `keep_boots == "none"`.
+#'     To view bootstrapped confidence intervals, use \code{\link{boot_ci}}.}
 #' 
 #' @export
 #'
@@ -497,8 +515,7 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
 #' data_df$par2 <- data_df$par2 + 0.5 * data_df$cov2
 #' 
 #' cor_phylo(list(par1 ~ 1 | se1, par2 ~ cov2 | se2),
-#'           species = species, phy = phy, data = data_df,
-#'           method = "neldermead")
+#'           species = species, phy = phy, data = data_df)
 #' 
 #' 
 #' \dontrun{
@@ -586,16 +603,13 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
 #'         # and (iii) just measurement error
 #'         z <- cor_phylo(list(par1 ~ 1 | se1, par2 ~ cov2 | se2),
 #'                        phy = phy,
-#'                        species = species, data = data_df,
-#'                        method = "neldermead")
+#'                        species = species, data = data_df)
 #'         z.noM <- cor_phylo(list(par1 ~ 1, par2 ~ cov2),
 #'                            phy = phy,
-#'                            species = species, data = data_df,
-#'                            method = "neldermead")
+#'                            species = species, data = data_df)
 #'         z.noP <- cor_phylo(list(par1 ~ 1 | se1, par2 ~ cov2 | se2),
 #'                            phy = star,
-#'                            species = species, data = data_df,
-#'                            method = "neldermead")
+#'                            species = species, data = data_df)
 #'     
 #'         cor.list[rep] <- z$corrs[1, 2]
 #'         cor.noM.list[rep] <- z.noM$corrs[1, 2]
