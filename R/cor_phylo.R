@@ -672,12 +672,14 @@ cor_phylo <- function(formulas, species, phy,
                       max_iter = 1000, 
                       maxit_SA = 1000, temp_SA = 1, tmax_SA = 1,
                       verbose = FALSE,
-                      boot = 0) {
+                      boot = 0, keep_boots = c("fail", "none", "all")) {
   
   stopifnot(rel_tol > 0)
   
   sann <- c(maxit_SA, temp_SA, tmax_SA)
 
+  keep_boots <- match.arg(keep_boots)
+  
   method <- match.arg(method)
   method <- cp_check_method(method)
   # Converting to a C++ index
@@ -713,7 +715,7 @@ cor_phylo <- function(formulas, species, phy,
   # corrs, d, B, (previously B, B_se, B_zscore, and B_pvalue),
   #     B_cov, logLik, AIC, BIC
   output <- cor_phylo_(X, U, M, Vphy, REML, constrain_d, verbose, 
-                       rel_tol, max_iter, method, boot, sann)
+                       rel_tol, max_iter, method, boot, keep_boots, sann)
   # Taking care of row and column names:
   colnames(output$corrs) <- rownames(output$corrs) <- names(par_names[[1]])
   rownames(output$d) <- names(par_names[[1]])

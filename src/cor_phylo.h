@@ -90,16 +90,16 @@ public:
   arma::mat B0;
   arma::cube B_cov;
   arma::mat d;
-  std::vector<arma::mat> failed_mats;
-  std::vector<uint_t> failed_inds;
-  std::vector<int> failed_codes;
+  std::vector<arma::mat> out_mats;
+  std::vector<uint_t> out_inds;
+  std::vector<int> out_codes;
 
   boot_results(const uint_t& p, const uint_t& B_rows, const uint_t& n_reps) 
     : corrs(p, p, n_reps, arma::fill::zeros), 
       B0(B_rows, n_reps, arma::fill::zeros), 
       B_cov(B_rows, B_rows, n_reps, arma::fill::zeros),
       d(p, n_reps, arma::fill::zeros), 
-      failed_mats(), failed_inds() {};
+      out_mats(), out_inds(), out_codes() {};
 
   // Insert values into a boot_results object
   void insert_values(const uint_t& i,
@@ -139,11 +139,8 @@ public:
   
   void one_boot(XPtr<LL_info>& ll_info_xptr, boot_results& br,
                 const uint_t& i, const double& rel_tol, const int& max_iter,
-                const uint_t& method);
-  
-  void one_boot(XPtr<LL_info>& ll_info_xptr, boot_results& br,
-                const uint_t& i, const double& rel_tol, const int& max_iter,
-                const uint_t& method, const std::vector<double>& sann);
+                const uint_t& method, const std::string& keep_boots,
+                const std::vector<double>& sann);
   
   
 private:
