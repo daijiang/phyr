@@ -376,14 +376,12 @@ void standardize_matrices(arma::mat& X,
     M.col(i) /= sd;
   }
   
-  if (U.size() > 0) {
-    for (uint_t i = 0; i < U.size(); i++) {
-      arma::mat& Ui(U[i]);
-      for (uint_t j = 0; j < Ui.n_cols; j++) {
-        double sd = arma::stddev(Ui.col(j));
-        Ui.col(j) -= arma::mean(Ui.col(j));
-        if (sd > 0) Ui.col(j) /= sd;
-      }
+  for (uint_t i = 0; i < U.size(); i++) {
+    arma::mat& Ui(U[i]);
+    for (uint_t j = 0; j < Ui.n_cols; j++) {
+      double sd = arma::stddev(Ui.col(j));
+      Ui.col(j) -= arma::mean(Ui.col(j));
+      if (sd > 0) Ui.col(j) /= sd;
     }
   }
   
@@ -395,7 +393,7 @@ void standardize_matrices(arma::mat& X,
 
 //' Make an `LL_info` object based on input matrices.
 //' 
-//' This `LL_info` is used for model fitting.
+//' The output `LL_info` is used for model fitting.
 //' 
 //' @inheritParams X cor_phylo_
 //' @inheritParams U cor_phylo_
@@ -488,6 +486,82 @@ LL_info::LL_info(const arma::mat& X,
   min_par = par0;
   
 }
+
+
+
+//' Make an `LL_info` object based on input matrices and another LL_info object.
+//' 
+//' The output `LL_info` is used for model fitting.
+//' 
+//' *Note:* This version is used for bootstrapping.
+//' It's different from the one above in that it doesn't re-normalize Vphy, UU, or tau.
+//' If you normalize Vphy and tau twice (which would happen if I used the previous
+//' version of this constructor), it can result in weird behavior.
+//' Notably, the bootstrap replicate will sometimes not converge, but when I output the
+//' same data and re-run cor_phylo on it, it'll converge.
+//' This is confusing, so I'm trying to avoid that.
+//' 
+//' 
+//' @inheritParams X cor_phylo_
+//' @inheritParams U cor_phylo_
+//' @inheritParams M cor_phylo_
+//' @param other Another LL_info object from which to derive much of the information.
+//' 
+//' @return a LL_info that contains info necessary for model fitting
+//' 
+//' @name LL_info
+//' @noRd
+//' 
+LL_info::LL_info(const arma::mat& X,
+                 const std::vector<arma::mat>& U,
+                 const arma::mat& M,
+                 const LL_info& other) 
+  : UU(other.UU), Vphy(other.Vphy), tau(other.tau),
+    REML(other.REML), constrain_d(other.constrain_d), verbose(other.verbose),
+    iters(0) {
+
+  uint_t n = Vphy.n_rows;
+  uint_t p = X.n_cols;
+  
+  arma::mat Xs = X;
+  std::vector<arma::mat> Us = U;
+  arma::mat Ms = M;
+  standardize_matrices(Xs, Us, Ms);
+  
+  
+  XX = arma::reshape(Xs, Xs.n_elem, 1);
+  MM = flex_pow(Ms, 2);
+  MM.reshape(MM.n_elem, 1);
+  
+  arma::mat L;
+  arma::mat eps = Xs;
+  if (U.size() > 0) {
+    for (uint_t i = 0; i < p; i++) {
+      if (U[i].n_cols > 0) {
+        const arma::mat& x(Us[i]);
+        const arma::vec& y(Xs.col(i));
+        arma::vec coef = arma::solve(x, y);
+        arma::vec res = y - x * coef;
+        eps.col(i) = res;
+      }
+    }
+  }
+  L = arma::cov(eps);
+  L = arma::chol(L);
+  L = tp(L);
+  
+  par0 = arma::vec((static_cast<double>(p) / 2) * (1 + p) + p);
+  par0.fill(0.5);
+  for (uint_t i = 0, j = 0, k = p - 1; i < p; i++) {
+    par0(arma::span(j, k)) = L(arma::span(i, p-1), i);
+    j = k + 1;
+    k += (p - i - 1);
+  }
+  
+  min_par = par0;
+  
+}
+
 
 
 
@@ -604,6 +678,7 @@ List cp_get_output(const arma::mat& X,
     }
     boot_list = List::create(_["corrs"] = br.corrs, _["d"] = br.d, _["B0"] = br.B0,
                              _["B_cov"] = br.B_cov, _["failed"] = br.failed_inds,
+                             _["failed_codes"] = br.failed_codes,
                              _["failed_mats"] = failed_mats);
   }
   
@@ -707,7 +782,7 @@ List cor_phylo_(const arma::mat& X,
 boot_mats::boot_mats(const arma::mat& X_, const std::vector<arma::mat>& U_,
                      const arma::mat& M_,
                      const arma::mat& B_, const arma::vec& d_, const LL_info& ll_info)
-  : X(X_), U(U_), M(M_), X_new(), iD(), U_add() {
+  : X(X_), U(U_), M(M_), X_new(), iD(), X_pred() {
   
   uint_t n = ll_info.Vphy.n_rows;
   uint_t p = X.n_cols;
@@ -718,15 +793,12 @@ boot_mats::boot_mats(const arma::mat& X_, const std::vector<arma::mat>& U_,
   arma::mat V = make_V(C, ll_info.MM);
   iD = arma::chol(V).t();
   
-  // For adding to X values
-  if (ll_info.UU.n_cols > p) {
-    U_add = ll_info.UU;
-    U_add.cols(0, p).fill(0); // keeps means at zero;
-    U_add = tp(arma::conv_to<arma::vec>::from(B_.col(0))) * tp(U_add);
-    U_add = tp(U_add);
-  } else {
-    U_add = arma::mat(n * p, 1, arma::fill::zeros);
-  }
+  // For predicted X values (i.e., without error)
+  X_pred = ll_info.UU;
+  X_pred = tp(arma::conv_to<arma::vec>::from(B_.col(0))) * tp(X_pred);
+  X_pred = tp(X_pred);
+  X_pred.reshape(n, p);
+  
   return;
 }
 
@@ -747,47 +819,31 @@ XPtr<LL_info> boot_mats::iterate(LL_info& ll_info) {
   uint_t n = X.n_rows;
   uint_t p = X.n_cols;
   
-  arma::vec rnd(rnorm(n * p));
-  X_new = iD * rnd + U_add;
-  X_new.reshape(n, p);
+  X_new = X_pred;
+  
+  arma::mat X_rnd = iD * as<arma::vec>(rnorm(n * p));
+  X_rnd.reshape(n, p);
+  
   for (uint_t i = 0; i < p; i++) {
     double sd_ = arma::stddev(X.col(i));
-    double mean_ = arma::mean(X.col(i));
-    X_new.col(i) *= sd_;
-    X_new.col(i) += mean_;
+    X_new.col(i) += (X_rnd.col(i) * sd_);
   }
-  
-  XPtr<LL_info> ll_info_new_xptr(new LL_info(X_new, U, M, ll_info.Vphy, 
-                                             ll_info.REML, ll_info.constrain_d, 
-                                             ll_info.verbose));
+
+  XPtr<LL_info> ll_info_new_xptr(new LL_info(X_new, U, M, ll_info));
 
   return ll_info_new_xptr;
 }
 
 
 
-// Method to return data when convergence fails
-void boot_mats::failed(LL_info& ll_info, boot_results& br, const uint_t& i) {
+// Method to return bootstrapped data
+void boot_mats::boot_data(LL_info& ll_info, boot_results& br, const uint_t& i) {
   
   br.failed_inds.push_back(i+1);
+  br.failed_codes.push_back(ll_info.convcode);
   
-  uint_t n = X.n_rows;
-  uint_t p = X.n_cols;
-
-  arma::mat Xf = ll_info.XX;
-  arma::mat Mf = ll_info.MM;
-  Xf.reshape(n, p);
-  Mf.reshape(n, p);
-  for (uint_t i = 0; i < p; i++) {
-    // X_new is the matrix used to fit this replicate
-    double sd_ = arma::stddev(X_new.col(i));
-    double mean_ = arma::mean(X_new.col(i));
-    Xf.col(i) *= sd_;
-    Xf.col(i) += mean_;
-    Mf.col(i) *= sd_;
-  }
-  arma::mat XM = arma::join_horiz(Xf, Mf);
-  br.failed_mats.push_back(XM);
+  br.failed_mats.push_back(X_new);
+  
   return;
 }
 
@@ -803,14 +859,13 @@ void boot_mats::one_boot(XPtr<LL_info>& ll_info_xptr, boot_results& br,
   // Do the fitting
   fit_cor_phylo_nlopt(new_ll_info_xptr, rel_tol, max_iter, method);
   
-  if (new_ll_info_xptr->convcode < 0) failed(*new_ll_info_xptr, br, i);
+  if (new_ll_info_xptr->convcode < 0) boot_data(*new_ll_info_xptr, br, i);
   
   arma::mat corrs;
   arma::mat B;
   arma::mat B_cov;
   arma::vec d;
   main_output(corrs, B, B_cov, d, *new_ll_info_xptr, X_new, U);
-  
   
   // Add values to boot_results
   br.insert_values(i, corrs, B.col(0), B_cov, d);
@@ -831,7 +886,7 @@ void boot_mats::one_boot(XPtr<LL_info>& ll_info_xptr, boot_results& br,
   // Do the fitting.
   fit_cor_phylo_R(new_ll_info_xptr, rel_tol, max_iter, method, sann);
   
-  if (new_ll_info_xptr->convcode != 0) failed(*new_ll_info_xptr, br, i);
+  if (new_ll_info_xptr->convcode != 0) boot_data(*new_ll_info_xptr, br, i);
 
   arma::mat corrs;
   arma::mat B;

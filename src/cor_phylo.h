@@ -56,6 +56,11 @@ public:
           const bool& REML_,
           const bool& constrain_d_,
           const bool& verbose_);
+  // Used in bootstrapping
+  LL_info(const arma::mat& X,
+          const std::vector<arma::mat>& U,
+          const arma::mat& M,
+          const LL_info& other);
   // Copy constructor
   LL_info(const LL_info& ll_info2) {
     par0 = ll_info2.par0;
@@ -86,7 +91,8 @@ public:
   arma::cube B_cov;
   arma::mat d;
   std::vector<arma::mat> failed_mats;
-  std::vector<uint> failed_inds;
+  std::vector<uint_t> failed_inds;
+  std::vector<int> failed_codes;
 
   boot_results(const uint_t& p, const uint_t& B_rows, const uint_t& n_reps) 
     : corrs(p, p, n_reps, arma::fill::zeros), 
@@ -142,10 +148,10 @@ public:
   
 private:
   arma::mat iD;
-  arma::mat U_add;
-  
-  // Method for returning data when convergence fails
-  void failed(LL_info& ll_info, boot_results& br, const uint& i);
+  arma::mat X_pred;
+
+  // Method for returning bootstrapped data
+  void boot_data(LL_info& ll_info, boot_results& br, const uint_t& i);
 
 };
 
@@ -326,7 +332,7 @@ inline void make_B_B_cov(arma::mat& B, arma::mat& B_cov, arma::vec& B0,
   mean_sd_X.col(0) = arma::conv_to<arma::vec>::from(arma::mean(X));
   mean_sd_X.col(1) = arma::conv_to<arma::vec>::from(arma::stddev(X));
   std::vector<arma::vec> sd_U(U.size());
-  for (uint i = 0; i < U.size(); i++) {
+  for (uint_t i = 0; i < U.size(); i++) {
     if (U[i].n_cols > 0) sd_U[i] = arma::conv_to<arma::vec>::from(arma::stddev(U[i]));
   }
   

@@ -102,7 +102,7 @@ NULL
 
 #' Make an `LL_info` object based on input matrices.
 #' 
-#' This `LL_info` is used for model fitting.
+#' The output `LL_info` is used for model fitting.
 #' 
 #' @inheritParams X cor_phylo_
 #' @inheritParams U cor_phylo_
