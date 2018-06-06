@@ -7,8 +7,8 @@
 \title{Correlations among multiple traits with phylogenetic signal}
 \usage{
 cor_phylo(formulas, species, phy, data = sys.frame(sys.parent()),
-  REML = TRUE, method = c("neldermead", "bobyqa", "sbplx", "cobyla",
-  "praxis", "neldermead-r", "sann-r"), constrain_d = FALSE, rel_tol = 1e-06,
+  REML = TRUE, method = c("nelder-mead-nlopt", "bobyqa", "subplex",
+  "nelder-mead-r", "sann"), constrain_d = FALSE, rel_tol = 1e-06,
   max_iter = 1000, maxit_SA = 1000, temp_SA = 1, tmax_SA = 1,
   verbose = FALSE, boot = 0, keep_boots = c("fail", "none", "all"))
 
@@ -48,13 +48,13 @@ from which \code{cor_phylo} was called.}
 Defaults to \code{TRUE}.}
 
 \item{method}{Method of optimization using \code{nlopt} or \code{\link[stats]{optim}}.
-Options include \code{"neldermead"}, \code{"bobyqa"}, \code{"sbplx"}, \code{"cobyla"},  \code{"praxis"},
-\code{"neldermead-r"}, and \code{"sann-r"}.
-The first five are carried out by nlopt, and the latter two by
+Options include \code{"nelder-mead-nlopt"}, \code{"bobyqa"}, \code{"subplex"}, \code{"nelder-mead-r"},
+and \code{"sann"}.
+The first three are carried out by \code{nlopt}, and the latter two by
 \code{\link[stats]{optim}}.
 See \url{https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/} for information
-on the nlopt algorithms.
-Defaults to \code{"neldermead"}.}
+on the \code{nlopt} algorithms.
+Defaults to \code{"nelder-mead-nlopt"}.}
 
 \item{constrain_d}{If \code{constrain_d} is \code{TRUE}, the estimates of \code{d} are
 constrained to be between zero and 1. This can make estimation more stable and
@@ -125,7 +125,7 @@ overall likelihood (\code{REML = FALSE}).}
 \item{\code{convcode}}{Conversion code for the optimizer.
 This number is \code{0} on success and positive on failure if using
 \code{\link[stats]{optim}}.
-This number is positive on success and negative on failure if using nlopt
+This number is positive on success and negative on failure if using \code{nlopt}
 (see also
 \url{https://nlopt.readthedocs.io/en/latest/NLopt_Reference/#return-values}).}
 \item{\code{bootstrap}}{A list of bootstrap output, which is simply \code{list()} if

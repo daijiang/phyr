@@ -212,7 +212,7 @@ cp_get_row_names <- function(par_names) {
 #' 
 #' 
 #' Making sure the user doesn't try to run neldermead or sbplx on an external
-#' nlopt library bc it throws segfault
+#' `nlopt` library bc it throws segfault
 #' 
 #' @inheritParams method cor_phylo
 #' 
@@ -424,13 +424,13 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
 #' @param REML Whether REML (versus ML) should be used for model fitting.
 #'   Defaults to `TRUE`.
 #' @param method Method of optimization using `nlopt` or \code{\link[stats]{optim}}. 
-#'   Options include `"neldermead"`, `"bobyqa"`, `"sbplx"`, `"cobyla"`,  `"praxis"`,
-#'   `"neldermead-r"`, and `"sann-r"`.
-#'   The first five are carried out by nlopt, and the latter two by
+#'   Options include `"nelder-mead-nlopt"`, `"bobyqa"`, `"subplex"`, `"nelder-mead-r"`,
+#'   and `"sann"`.
+#'   The first three are carried out by `nlopt`, and the latter two by
 #'   \code{\link[stats]{optim}}.
 #'   See \url{https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/} for information
-#'   on the nlopt algorithms.
-#'   Defaults to `"neldermead"`.
+#'   on the `nlopt` algorithms.
+#'   Defaults to `"nelder-mead-nlopt"`.
 #' @param constrain_d If `constrain_d` is `TRUE`, the estimates of `d` are 
 #'   constrained to be between zero and 1. This can make estimation more stable and 
 #'   can be tried if convergence is problematic. This does not necessarily lead to 
@@ -482,7 +482,7 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
 #'   \item{`convcode`}{Conversion code for the optimizer.
 #'     This number is \code{0} on success and positive on failure if using
 #'     \code{\link[stats]{optim}}.
-#'     This number is positive on success and negative on failure if using nlopt
+#'     This number is positive on success and negative on failure if using `nlopt`
 #'     (see also
 #'     \url{https://nlopt.readthedocs.io/en/latest/NLopt_Reference/#return-values}).}
 #'   \item{`bootstrap`}{A list of bootstrap output, which is simply `list()` if
@@ -679,8 +679,8 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
 cor_phylo <- function(formulas, species, phy,
                       data = sys.frame(sys.parent()),
                       REML = TRUE, 
-                      method = c("neldermead", "bobyqa", "sbplx", "cobyla", "praxis", 
-                                 "neldermead-r", "sann-r"),
+                      method = c("nelder-mead-nlopt", "bobyqa", "subplex",
+                                 "nelder-mead-r", "sann"),
                       constrain_d = FALSE, 
                       rel_tol = 1e-6, 
                       max_iter = 1000, 
@@ -697,8 +697,7 @@ cor_phylo <- function(formulas, species, phy,
   method <- match.arg(method)
   method <- cp_check_method(method)
   # Converting to a C++ index
-  method <- which(c("neldermead", "bobyqa", "sbplx", "cobyla", "praxis", "neldermead-r",
-                    "sann-r")
+  method <- which(c("nelder-mead-nlopt", "bobyqa", "subplex", "nelder-mead-r", "sann")
                   == method) - 1
   
   call_ <- match.call()

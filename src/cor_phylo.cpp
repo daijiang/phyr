@@ -231,12 +231,6 @@ void fit_cor_phylo_nlopt(XPtr<LL_info> ll_info_xptr,
   case 2: 
     alg = NLOPT_LN_SBPLX;
     break;
-  case 3: 
-    alg = NLOPT_LN_COBYLA;
-    break;
-  case 4: 
-    alg = NLOPT_LN_PRAXIS;
-    break;
   default:
     stop("Unknown method integer passed to fit_cor_phylo_nlopt");
   }
@@ -290,7 +284,7 @@ void fit_cor_phylo_R(XPtr<LL_info>& ll_info_xptr,
   
   Rcpp::List opt;
   
-  if (method > 5) {
+  if (method > 3) {
     opt = optim(_["par"] = ll_info_xptr->par0,
                 _["fn"] = Rcpp::InternalFunction(&cor_phylo_LL_R),
                 _["ll_info"] = ll_info_xptr,
@@ -735,8 +729,8 @@ List cor_phylo_(const arma::mat& X,
   XPtr<LL_info> ll_info_xptr(new LL_info(X, U, M, Vphy_, REML, constrain_d, 
                                         verbose), true);
 
-  // Do the fitting. `method < 5` means to use nlopt. Otherwise, use R's `stats::optim`.
-  if (method < 5) {
+  // Do the fitting. `method < 3` means to use nlopt. Otherwise, use R's `stats::optim`.
+  if (method < 3) {
     fit_cor_phylo_nlopt(ll_info_xptr, rel_tol, max_iter, method);
   } else {
     fit_cor_phylo_R(ll_info_xptr, rel_tol, max_iter, method, sann);
@@ -856,8 +850,8 @@ void boot_mats::one_boot(XPtr<LL_info>& ll_info_xptr, boot_results& br,
   // For whether convergence failed...
   bool failed = false;
   
-  // Do the fitting. `method < 5` means to use nlopt. Otherwise, use R's `stats::optim`.
-  if (method < 5) {
+  // Do the fitting. `method < 3` means to use nlopt. Otherwise, use R's `stats::optim`.
+  if (method < 3) {
     // Do the fitting:
     fit_cor_phylo_nlopt(new_ll_info_xptr, rel_tol, max_iter, method);
     // Keep bootstrap info if necessary:
