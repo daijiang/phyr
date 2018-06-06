@@ -42,7 +42,7 @@ NULL
 #' 
 #' @return the negative log likelihood
 #' 
-#' @name cor_phylo_LL
+#' @name cor_phylo_LL_nlopt
 #' @noRd
 #' 
 NULL
@@ -201,8 +201,7 @@ cor_phylo_LL_R <- function(par, ll_info_xptr) {
 #' @inheritParams constrain_d cor_phylo
 #' @inheritParams verbose cor_phylo
 #' @inheritParams max_iter cor_phylo
-#' @param method the `method` input to `cor_phylo`, converted to an integer
-#'   that indexes which method it should be.
+#' @param method the `method` input to `cor_phylo`.
 #' 
 #' @return a list containing output information, to later be coerced to a `cor_phylo`
 #'   object by the `cor_phylo` function.

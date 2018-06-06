@@ -139,7 +139,7 @@ public:
   
   void one_boot(XPtr<LL_info>& ll_info_xptr, boot_results& br,
                 const uint_t& i, const double& rel_tol, const int& max_iter,
-                const uint_t& method, const std::string& keep_boots,
+                const std::string& method, const std::string& keep_boots,
                 const std::vector<double>& sann);
   
   

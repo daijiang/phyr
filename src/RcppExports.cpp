@@ -82,7 +82,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // cor_phylo_
-List cor_phylo_(const arma::mat& X, const std::vector<arma::mat>& U, const arma::mat& M, const arma::mat& Vphy_, const bool& REML, const bool& constrain_d, const bool& verbose, const double& rel_tol, const int& max_iter, const uint_fast32_t& method, const uint_fast32_t& boot, const std::string& keep_boots, const std::vector<double>& sann);
+List cor_phylo_(const arma::mat& X, const std::vector<arma::mat>& U, const arma::mat& M, const arma::mat& Vphy_, const bool& REML, const bool& constrain_d, const bool& verbose, const double& rel_tol, const int& max_iter, const std::string& method, const uint_fast32_t& boot, const std::string& keep_boots, const std::vector<double>& sann);
 RcppExport SEXP _phyr_cor_phylo_(SEXP XSEXP, SEXP USEXP, SEXP MSEXP, SEXP Vphy_SEXP, SEXP REMLSEXP, SEXP constrain_dSEXP, SEXP verboseSEXP, SEXP rel_tolSEXP, SEXP max_iterSEXP, SEXP methodSEXP, SEXP bootSEXP, SEXP keep_bootsSEXP, SEXP sannSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -96,7 +96,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const bool& >::type verbose(verboseSEXP);
     Rcpp::traits::input_parameter< const double& >::type rel_tol(rel_tolSEXP);
     Rcpp::traits::input_parameter< const int& >::type max_iter(max_iterSEXP);
-    Rcpp::traits::input_parameter< const uint_fast32_t& >::type method(methodSEXP);
+    Rcpp::traits::input_parameter< const std::string& >::type method(methodSEXP);
     Rcpp::traits::input_parameter< const uint_fast32_t& >::type boot(bootSEXP);
     Rcpp::traits::input_parameter< const std::string& >::type keep_boots(keep_bootsSEXP);
     Rcpp::traits::input_parameter< const std::vector<double>& >::type sann(sannSEXP);

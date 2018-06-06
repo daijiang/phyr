@@ -696,9 +696,6 @@ cor_phylo <- function(formulas, species, phy,
   
   method <- match.arg(method)
   method <- cp_check_method(method)
-  # Converting to a C++ index
-  method <- which(c("nelder-mead-nlopt", "bobyqa", "subplex", "nelder-mead-r", "sann")
-                  == method) - 1
   
   call_ <- match.call()
   

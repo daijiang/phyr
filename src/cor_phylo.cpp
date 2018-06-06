@@ -126,10 +126,10 @@ inline double cor_phylo_LL_(const unsigned& n,
 //' 
 //' @return the negative log likelihood
 //' 
-//' @name cor_phylo_LL
+//' @name cor_phylo_LL_nlopt
 //' @noRd
 //' 
-double cor_phylo_LL(unsigned n, const double* x, double* grad, void* f_data) {
+double cor_phylo_LL_nlopt(unsigned n, const double* x, double* grad, void* f_data) {
   
   LL_info* ll_info = (LL_info*) f_data;
   
@@ -205,7 +205,7 @@ double cor_phylo_LL_R(const arma::vec& par,
 void fit_cor_phylo_nlopt(XPtr<LL_info> ll_info_xptr,
                          const double& rel_tol,
                          const int& max_iter,
-                         const uint_t& method) {
+                         const std::string& method) {
   
   LL_info& ll_info(*ll_info_xptr);
   void* llop(&ll_info);
@@ -221,24 +221,21 @@ void fit_cor_phylo_nlopt(XPtr<LL_info> ll_info_xptr,
   
   nlopt_algorithm alg;
   
-  switch(method) {
-  case 0: 
+  if (method == "nelder-mead-nlopt") {
     alg = NLOPT_LN_NELDERMEAD;
-    break;
-  case 1: 
+  } else if (method == "bobyqa") {
     alg = NLOPT_LN_BOBYQA;
-    break;
-  case 2: 
+  } else if (method == "subplex") {
     alg = NLOPT_LN_SBPLX;
-    break;
-  default:
-    stop("Unknown method integer passed to fit_cor_phylo_nlopt");
+  } else {
+    stop("Unknown method passed to fit_cor_phylo_nlopt; "
+           "options are 'nelder-mead-nlopt', 'bobyqa', or 'subplex'.");
   }
   
   nlopt_opt opt = nlopt_create(alg, n_pars);
   double min_LL;
   
-  nlopt_set_min_objective(opt, cor_phylo_LL, llop);
+  nlopt_set_min_objective(opt, cor_phylo_LL_nlopt, llop);
   
   nlopt_set_ftol_rel(opt, rel_tol);
   nlopt_set_maxeval(opt, max_iter);
@@ -276,7 +273,7 @@ void fit_cor_phylo_nlopt(XPtr<LL_info> ll_info_xptr,
 void fit_cor_phylo_R(XPtr<LL_info>& ll_info_xptr,
                      const double& rel_tol,
                      const int& max_iter,
-                     const uint_t& method,
+                     const std::string& method,
                      const std::vector<double>& sann) {
   
   Rcpp::Environment stats("package:stats");
@@ -284,7 +281,7 @@ void fit_cor_phylo_R(XPtr<LL_info>& ll_info_xptr,
   
   Rcpp::List opt;
   
-  if (method > 3) {
+  if (method == "sann") {
     opt = optim(_["par"] = ll_info_xptr->par0,
                 _["fn"] = Rcpp::InternalFunction(&cor_phylo_LL_R),
                 _["ll_info"] = ll_info_xptr,
@@ -611,7 +608,7 @@ List cp_get_output(const arma::mat& X,
                    XPtr<LL_info> ll_info_xptr,
                    const double& rel_tol,
                    const int& max_iter,
-                   const uint_t& method,
+                   const std::string& method,
                    const uint_t& boot,
                    const std::string& keep_boots,
                    const std::vector<double>& sann) {
@@ -702,8 +699,7 @@ List cp_get_output(const arma::mat& X,
 //' @inheritParams constrain_d cor_phylo
 //' @inheritParams verbose cor_phylo
 //' @inheritParams max_iter cor_phylo
-//' @param method the `method` input to `cor_phylo`, converted to an integer
-//'   that indexes which method it should be.
+//' @param method the `method` input to `cor_phylo`.
 //' 
 //' @return a list containing output information, to later be coerced to a `cor_phylo`
 //'   object by the `cor_phylo` function.
@@ -720,7 +716,7 @@ List cor_phylo_(const arma::mat& X,
                 const bool& verbose,
                 const double& rel_tol,
                 const int& max_iter,
-                const uint_fast32_t& method,
+                const std::string& method,
                 const uint_fast32_t& boot,
                 const std::string& keep_boots,
                 const std::vector<double>& sann) {
@@ -729,11 +725,15 @@ List cor_phylo_(const arma::mat& X,
   XPtr<LL_info> ll_info_xptr(new LL_info(X, U, M, Vphy_, REML, constrain_d, 
                                         verbose), true);
 
-  // Do the fitting. `method < 3` means to use nlopt. Otherwise, use R's `stats::optim`.
-  if (method < 3) {
-    fit_cor_phylo_nlopt(ll_info_xptr, rel_tol, max_iter, method);
-  } else {
+  /*
+   Do the fitting.
+   Methods "nelder-mead-r" and "sann" use R's `stats::optim`.
+   Otherwise, use nlopt.
+   */
+  if (method == "nelder-mead-r" || method == "sann") {
     fit_cor_phylo_R(ll_info_xptr, rel_tol, max_iter, method, sann);
+  } else {
+    fit_cor_phylo_nlopt(ll_info_xptr, rel_tol, max_iter, method);
   }
   
   // Retrieve output from `ll_info` object and convert to list
@@ -839,7 +839,7 @@ void boot_mats::boot_data(LL_info& ll_info, boot_results& br, const uint_t& i) {
 
 void boot_mats::one_boot(XPtr<LL_info>& ll_info_xptr, boot_results& br,
                          const uint_t& i, const double& rel_tol, const int& max_iter,
-                         const uint_t& method, const std::string& keep_boots,
+                         const std::string& method, const std::string& keep_boots,
                          const std::vector<double>& sann) {
   
   LL_info& ll_info(*ll_info_xptr);
@@ -850,16 +850,20 @@ void boot_mats::one_boot(XPtr<LL_info>& ll_info_xptr, boot_results& br,
   // For whether convergence failed...
   bool failed = false;
   
-  // Do the fitting. `method < 3` means to use nlopt. Otherwise, use R's `stats::optim`.
-  if (method < 3) {
+  /*
+   Do the fitting.
+   Methods "nelder-mead-r" and "sann" use R's `stats::optim`.
+   Otherwise, use nlopt.
+   */
+  if (method == "nelder-mead-r" || method == "sann") {
     // Do the fitting:
-    fit_cor_phylo_nlopt(new_ll_info_xptr, rel_tol, max_iter, method);
-    // Keep bootstrap info if necessary:
-    if (new_ll_info_xptr->convcode < 0) failed = true;
-  } else {
-    // Same thing for R version
     fit_cor_phylo_R(new_ll_info_xptr, rel_tol, max_iter, method, sann);
+    // Determine whether convergence failed:
     if (new_ll_info_xptr->convcode != 0) failed = true;
+  } else {
+    // Same thing for nlopt version
+    fit_cor_phylo_nlopt(new_ll_info_xptr, rel_tol, max_iter, method);
+    if (new_ll_info_xptr->convcode < 0) failed = true;
   }
   
   if (keep_boots == "all" || (keep_boots == "fail" && failed)) {
