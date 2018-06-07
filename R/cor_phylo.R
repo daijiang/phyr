@@ -492,7 +492,12 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
 #' For instance, if `data` is a data frame with column names `x` and `y`, but
 #' you have not defined any objects named `x` or `y` anywhere else, you can still
 #' use `cor_phylo(traits = list(x, y), ...)` without quotes (quotes work, too).
-#' See \code{\link[base]{eval}} for more info on this.
+#' 
+#' It's also important to note that you should use names for all of these arguments
+#' or none of them. That's because if a name isn't present in the `data` environment,
+#' you may get errors.
+#' Sometimes it works anyway, but I don't recommend it.
+#' See \code{\link[base]{eval}} for more info.
 #' 
 #' 
 #' @section Walkthrough:
@@ -676,6 +681,12 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
 #'           covariates = list(NULL, "cov2", NULL),
 #'           meas_errors = list("se1", "se2", NULL),
 #'           data = data_df)
+#' # Combine the methods above:
+#' cor_phylo(traits = list(par1, "par2", par3),
+#'           species = "species", phy = phy,
+#'           covariates = list(par2 = cov2),
+#'           meas_errors = list("se1", se2, NULL),
+#'           data = data_df)
 #' 
 #' # If you've already created matrices...
 #' X <- as.matrix(data_df[,c("par1", "par2", "par3")])
@@ -684,23 +695,14 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
 #'           NULL)
 #' M <- cbind(data_df$se1, data_df$se2, rep(0, 10))
 #' 
-#' # ... you can use those directly
+#' # ... you can also use those directly
 #' # (notice that I'm inputting an object for `species`
 #' # bc I ommitted `data`):
 #' cor_phylo(traits = X, species = data_df$species,
 #'           phy = phy, covariates = U,
 #'           meas_errors = M)
 #' 
-#' # As long as you provide the `data` argument, you can
-#' # combine the methods above:
-#' cor_phylo(traits = list(par1, "par2", par3),
-#'           species = "species",
-#'           phy = phy,
-#'           covariates = U,
-#'           meas_errors = list("se1", se2, NULL),
-#'           data = data_df)
-#' 
-#' # If mixing methods, be careful about naming conflicts!
+#' # I do not recommend mixing matrix and list input methods.
 #' 
 #' 
 #' 
@@ -897,8 +899,7 @@ cor_phylo <- function(traits,
   covariates <- substitute(covariates)
   meas_errors <- substitute(meas_errors)
   species <- substitute(species)
-  if (inherits(data, "matrix")) data <- as.data.frame(data)
-  
+
   sann <- c(maxit = 1000, temp = 1, tmax = 1)
   if (length(sann_options) > 1) {
     if (!inherits(sann_options, "list")) {

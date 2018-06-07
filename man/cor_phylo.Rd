@@ -208,7 +208,12 @@ that exist inside the \code{data} argument instead of using objects directly.
 For instance, if \code{data} is a data frame with column names \code{x} and \code{y}, but
 you have not defined any objects named \code{x} or \code{y} anywhere else, you can still
 use \code{cor_phylo(traits = list(x, y), ...)} without quotes (quotes work, too).
-See \code{\link[base]{eval}} for more info on this.
+
+It's also important to note that you should use names for all of these arguments
+or none of them. That's because if a name isn't present in the \code{data} environment,
+you may get errors.
+Sometimes it works anyway, but I don't recommend it.
+See \code{\link[base]{eval}} for more info.
 }
 
 \section{Walkthrough}{
@@ -271,6 +276,12 @@ cor_phylo(traits = list("par1", "par2", "par3"),
           covariates = list(NULL, "cov2", NULL),
           meas_errors = list("se1", "se2", NULL),
           data = data_df)
+# Combine the methods above:
+cor_phylo(traits = list(par1, "par2", par3),
+          species = "species", phy = phy,
+          covariates = list(par2 = cov2),
+          meas_errors = list("se1", se2, NULL),
+          data = data_df)
 
 # If you've already created matrices...
 X <- as.matrix(data_df[,c("par1", "par2", "par3")])
@@ -279,23 +290,14 @@ U <- list(NULL,
           NULL)
 M <- cbind(data_df$se1, data_df$se2, rep(0, 10))
 
-# ... you can use those directly
+# ... you can also use those directly
 # (notice that I'm inputting an object for `species`
 # bc I ommitted `data`):
 cor_phylo(traits = X, species = data_df$species,
           phy = phy, covariates = U,
           meas_errors = M)
 
-# As long as you provide the `data` argument, you can
-# combine the methods above:
-cor_phylo(traits = list(par1, "par2", par3),
-          species = "species",
-          phy = phy,
-          covariates = U,
-          meas_errors = list("se1", se2, NULL),
-          data = data_df)
-
-# If mixing methods, be careful about naming conflicts!
+# I do not recommend mixing matrix and list input methods.
 
 
 
