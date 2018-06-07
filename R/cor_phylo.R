@@ -484,9 +484,12 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
 #' 
 #' 
 #' @section Using names:
-#' When using names, there will always be a `data` argument, and 
-#' each name must must refer to an object in `data`.
-#' Names don't need quotes around them (quotes won't cause problems, though).
+#' The arguments `traits`, `species`, `covariates`, and `meas_errors` can use names
+#' that exist inside the `data` argument instead of using objects directly.
+#' For instance, if `data` is a data frame with column names `x` and `y`, but
+#' you have not defined any objects named `x` or `y` anywhere else, you can still
+#' use `cor_phylo(traits = list(x, y), ...)` without quotes (quotes work, too).
+#' See \code{\link[base]{eval}} for more info on this.
 #' 
 #' 
 #' @section Walkthrough:
@@ -591,7 +594,7 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
 #'   during optimization. Defaults to `FALSE`.
 #' @param boot Number of parametric bootstrap replicates. Defaults to `0`.
 #' @param keep_boots Character specifying when to output data (indices, convergence codes,
-#'   and simulated parametric data) from bootstrap replicates.
+#'   and simulated trait data) from bootstrap replicates.
 #'   This is useful for troubleshooting when one or more bootstrap replicates
 #'   fails to converge or outputs ridiculous results.
 #'   Setting this to `"all"` keeps all `boot` parameter sets,
@@ -640,165 +643,206 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
 #' ## Simple example using data without correlations or phylogenetic
 #' ## signal. This illustrates the structure of the input data.
 #' 
+#' set.seed(10)
 #' phy <- ape::rcoal(10, tip.label = 1:10)
-#' data_df <- data.frame(species = phy$tip.label,
-#'                       par1 = rnorm(10),
-#'                       par2 = rnorm(10),
-#'                       cov2 = rnorm(10, mean = 10, sd = 4),
-#'                       se1 = 0.2,
-#'                       se2 = 0.4)
+#' data_df <- data.frame(
+#'     species = phy$tip.label,
+#'     # traits:
+#'     par1 = rnorm(10),
+#'     par2 = rnorm(10),
+#'     par3 = rnorm(10),
+#'     # covariate for par2:
+#'     cov2 = rnorm(10, mean = 10, sd = 4),
+#'     # measurement error for par1 and par2, respectively:
+#'     se1 = 0.2,
+#'     se2 = 0.4
+#' )
 #' data_df$par2 <- data_df$par2 + 0.5 * data_df$cov2
 #' 
-#' cor_phylo(list(par1 ~ 1 | se1, par2 ~ cov2 | se2),
-#'           species = species, phy = phy, data = data_df)
+#' # `cor_phylo` allows for data to be input in multiple ways
+#' 
+#' # Using names and named lists:
+#' cor_phylo(traits = list(par1, par2, par3),
+#'           species = species, phy = phy,
+#'           covariates = list(par2 = cov2),
+#'           meas_errors = list(par1 = se1, par2 = se2),
+#'           data = data_df)
+#' # Instead using strings and non-named lists:
+#' cor_phylo(traits = list("par1", "par2", "par3"),
+#'           species = "species", phy = phy,
+#'           covariates = list(NULL, "cov2", NULL),
+#'           meas_errors = list("se1", "se2", NULL),
+#'           data = data_df)
+#' 
+#' # If you've already created matrices...
+#' X <- as.matrix(data_df[,c("par1", "par2", "par3")])
+#' U <- list(NULL,
+#'           as.matrix(data_df[, "cov2", drop = FALSE]),
+#'           NULL)
+#' M <- cbind(data_df$se1, data_df$se2, rep(0, 10))
+#' 
+#' # ... you can use those directly
+#' # (notice that I'm inputting an object for `species`
+#' # bc I ommitted `data`):
+#' cor_phylo(traits = X, species = data_df$species,
+#'           phy = phy, covariates = U,
+#'           meas_errors = M)
+#' 
+#' # As long as you provide the `data` argument, you can
+#' # combine the methods above:
+#' cor_phylo(traits = list(par1, "par2", par3),
+#'           species = "species",
+#'           phy = phy,
+#'           covariates = U,
+#'           meas_errors = list("se1", se2, NULL),
+#'           data = data_df)
+#' 
+#' # If mixing methods, be careful about naming conflicts!
+#' 
 #' 
 #' 
 #' \dontrun{
-#'     ## Simulation example for the correlation between two variables. The example
-#'     ## compares the estimates of the correlation coefficients from cor_phylo when
-#'     ## measurement error is incorporated into the analyses with three other cases:
-#'     ## (i) when measurement error is excluded, (ii) when phylogenetic signal is
-#'     ## ignored (assuming a "star" phylogeny), and (iii) neither measurement error
-#'     ## nor phylogenetic signal are included.
-#'     
-#'     # In the simulations, variable 2 is associated with a single independent variable.
-#'     
-#'     library(ape)
-#'     
-#'     set.seed(1)
-#'     # Set up parameter values for simulating data
-#'     n <- 50
-#'     phy <- rcoal(n, tip.label = 1:n)
-#'     
-#'     R <- matrix(c(1, 0.7, 0.7, 1), nrow = 2, ncol = 2)
-#'     d <- c(0.3, 0.95)
-#'     B2 <- 1
-#'     
-#'     Se <- c(0.2, 1)
-#'     M <- matrix(Se, nrow = n, ncol = 2, byrow = TRUE)
-#'     
-#'     # Set up needed matrices for the simulations
-#'     p <- length(d)
-#'     
-#'     star <- stree(n)
-#'     star$edge.length <- array(1, dim = c(n, 1))
-#'     star$tip.label <- phy$tip.label
-#'     
-#'     Vphy <- vcv(phy)
-#'     Vphy <- Vphy/max(Vphy)
-#'     Vphy <- Vphy/exp(determinant(Vphy)$modulus[1]/n)
-#'     
-#'     tau <- matrix(1, nrow = n, ncol = 1) %*% diag(Vphy) - Vphy
-#'     C <- matrix(0, nrow = p * n, ncol = p * n)
-#'     for (i in 1:p) for (j in 1:p) {
-#'         Cd <- (d[i]^tau * (d[j]^t(tau)) * (1 - (d[i] * d[j])^Vphy))/(1 - d[i] * d[j])
-#'         C[(n * (i - 1) + 1):(i * n), (n * (j - 1) + 1):(j * n)] <- R[i, j] * Cd
-#'     }
-#'     MM <- matrix(M^2, ncol = 1)
-#'     V <- C + diag(as.numeric(MM))
-#'     
-#'     # Perform a Cholesky decomposition of Vphy. This is used to generate phylogenetic
-#'     # signal: a vector of independent normal random variables, when multiplied by the
-#'     # transpose of the Cholesky deposition of Vphy will have covariance matrix
-#'     # equal to Vphy.
-#'     iD <- t(chol(V))
-#'     
-#'     # Create mostly empty data frame for input to cor_phylo
-#'     data_df <- data.frame(species = phy$tip.label,
-#'                           par1 = numeric(n),
-#'                           par2 = numeric(n),
-#'                           cov2 = numeric(n),
-#'                           se1 = Se[1],
-#'                           se2 = Se[2])
-#'     
-#'     # Perform Nrep simulations and collect the results
-#'     Nrep <- 100
-#'     cor.list <- matrix(0, nrow = Nrep, ncol = 1)
-#'     cor.noM.list <- matrix(0, nrow = Nrep, ncol = 1)
-#'     cor.noP.list <- matrix(0, nrow = Nrep, ncol = 1)
-#'     cor.noMP.list <- matrix(0, nrow = Nrep, ncol = 1)
-#'     d.list <- matrix(0, nrow = Nrep, ncol = 2)
-#'     d.noM.list <- matrix(0, nrow = Nrep, ncol = 2)
-#'     B.list <- matrix(0, nrow = Nrep, ncol = 3)
-#'     B.noM.list <- matrix(0, nrow = Nrep, ncol = 3)
-#'     B.noP.list <- matrix(0, nrow = Nrep, ncol = 3)
-#'     
-#'     set.seed(2)
-#'     for (rep in 1:Nrep) {
-#'         
-#'         XX <- iD %*% rnorm(2 * n)
-#'         
-#'         data_df$cov2 <- rnorm(n, mean = 2, sd = 10)
-#'         data_df$par1 <- XX[1:n]
-#'         data_df$par2 <- XX[(n+1):(2*n)] + B2[1] * data_df$cov2 - B2[1] * 
-#'                         mean(data_df$cov2)
-#'         
-#'         # Call cor_phylo with (i) phylogeny and measurement error,
-#'         # (ii) just phylogeny,
-#'         # and (iii) just measurement error
-#'         z <- cor_phylo(list(par1 ~ 1 | se1, par2 ~ cov2 | se2),
-#'                        phy = phy,
-#'                        species = species, data = data_df)
-#'         z.noM <- cor_phylo(list(par1 ~ 1, par2 ~ cov2),
-#'                            phy = phy,
-#'                            species = species, data = data_df)
-#'         z.noP <- cor_phylo(list(par1 ~ 1 | se1, par2 ~ cov2 | se2),
-#'                            phy = star,
-#'                            species = species, data = data_df)
-#'     
-#'         cor.list[rep] <- z$corrs[1, 2]
-#'         cor.noM.list[rep] <- z.noM$corrs[1, 2]
-#'         cor.noP.list[rep] <- z.noP$corrs[1, 2]
-#'         cor.noMP.list[rep] <- cor(cbind(
-#'             lm(data_df$par1 ~ 1)$residuals,
-#'             lm(data_df$par2 ~ data_df$cov2)$residuals))[1,2]
-#'         
-#'         d.list[rep, ] <- z$d
-#'         d.noM.list[rep, ] <- z.noM$d
-#'         
-#'         B.list[rep, ] <- z$B[,1]
-#'         B.noM.list[rep, ] <- z.noM$B[,1]
-#'         B.noP.list[rep, ] <- z.noP$B[,1]
-#'         
-#'         show(c(rep, z$convcode, z$cor.matrix[1, 2], z$d))
-#'     }
-#'     
-#'     correlation <- rbind(R[1, 2], mean(cor.list), mean(cor.noM.list),
-#'                          mean(cor.noP.list), mean(cor.noMP.list))
-#'     rownames(correlation) <- c("True", "With M and Phy", "Without M",
-#'                                "Without Phy", "Without Phy or M")
-#'     
-#'     signal.d <- rbind(d, colMeans(d.list), colMeans(d.noM.list))
-#'     rownames(signal.d) <- c("True", "With M and Phy", "Without M")
-#'     
-#'     est.B <- rbind(c(0, 0, B2), colMeans(B.list), 
-#'                    colMeans(B.noM.list[-39,]),  # 39th rep didn't converge
-#'                    colMeans(B.noP.list))
-#'     rownames(est.B) <- c("True", "With M and Phy", "Without M", "Without Phy")
-#'     colnames(est.B) <- rownames(z$B)
-#'     
-#'     # Example simulation output:
-#'
-#'     correlation
-#'     #                       [,1]
-#'     # True             0.7000000
-#'     # With M and Phy   0.6982181
-#'     # Without M        0.2981836
-#'     # Without Phy      0.3716215
-#'     # Without Phy or M 0.3291473
-#'
-#'     signal.d
-#'     #                     [,1]      [,2]
-#'     # True           0.3000000 0.9500000
-#'     # With M and Phy 0.3061635 0.9418578
-#'     # Without M      0.2405632 0.4013655
-#'
-#'     est.B
-#'     #                      par1_0    par2_0 par2_cov2
-#'     # True            0.000000000 0.0000000 1.0000000
-#'     # With M and Phy -0.008680443 0.1093704 0.9996207
-#'     # Without M      -0.008561169 0.1146912 0.9982136
-#'     # Without Phy     0.002933341 0.1096578 1.0028468
+#' 
+#' ## Simulation example for the correlation between two variables. The example
+#' ## compares the estimates of the correlation coefficients from cor_phylo when
+#' ## measurement error is incorporated into the analyses with three other cases:
+#' ## (i) when measurement error is excluded, (ii) when phylogenetic signal is
+#' ## ignored (assuming a "star" phylogeny), and (iii) neither measurement error
+#' ## nor phylogenetic signal are included.
+#' 
+#' # In the simulations, variable 2 is associated with a single independent variable.
+#' 
+#' library(ape)
+#' 
+#' set.seed(1)
+#' # Set up parameter values for simulating data
+#' n <- 50
+#' phy <- rcoal(n, tip.label = 1:n)
+#' 
+#' R <- matrix(c(1, 0.7, 0.7, 1), nrow = 2, ncol = 2)
+#' d <- c(0.3, 0.95)
+#' B2 <- 1
+#' 
+#' Se <- c(0.2, 1)
+#' M <- matrix(Se, nrow = n, ncol = 2, byrow = TRUE)
+#' 
+#' # Set up needed matrices for the simulations
+#' p <- length(d)
+#' 
+#' star <- stree(n)
+#' star$edge.length <- array(1, dim = c(n, 1))
+#' star$tip.label <- phy$tip.label
+#' 
+#' Vphy <- vcv(phy)
+#' Vphy <- Vphy/max(Vphy)
+#' Vphy <- Vphy/exp(determinant(Vphy)$modulus[1]/n)
+#' 
+#' tau <- matrix(1, nrow = n, ncol = 1) %*% diag(Vphy) - Vphy
+#' C <- matrix(0, nrow = p * n, ncol = p * n)
+#' for (i in 1:p) for (j in 1:p) {
+#'   Cd <- (d[i]^tau * (d[j]^t(tau)) * (1 - (d[i] * d[j])^Vphy))/(1 - d[i] * d[j])
+#'   C[(n * (i - 1) + 1):(i * n), (n * (j - 1) + 1):(j * n)] <- R[i, j] * Cd
+#' }
+#' MM <- matrix(M^2, ncol = 1)
+#' V <- C + diag(as.numeric(MM))
+#' 
+#' # Perform a Cholesky decomposition of Vphy. This is used to generate phylogenetic
+#' # signal: a vector of independent normal random variables, when multiplied by the
+#' # transpose of the Cholesky deposition of Vphy will have covariance matrix
+#' # equal to Vphy.
+#' iD <- t(chol(V))
+#' 
+#' # Perform Nrep simulations and collect the results
+#' Nrep <- 100
+#' cor.list <- matrix(0, nrow = Nrep, ncol = 1)
+#' cor.noM.list <- matrix(0, nrow = Nrep, ncol = 1)
+#' cor.noP.list <- matrix(0, nrow = Nrep, ncol = 1)
+#' cor.noMP.list <- matrix(0, nrow = Nrep, ncol = 1)
+#' d.list <- matrix(0, nrow = Nrep, ncol = 2)
+#' d.noM.list <- matrix(0, nrow = Nrep, ncol = 2)
+#' B.list <- matrix(0, nrow = Nrep, ncol = 3)
+#' B.noM.list <- matrix(0, nrow = Nrep, ncol = 3)
+#' B.noP.list <- matrix(0, nrow = Nrep, ncol = 3)
+#' 
+#' set.seed(2)
+#' for (rep in 1:Nrep) {
+#'   
+#'   XX <- iD %*% rnorm(2 * n)
+#'   X <- matrix(XX, n, p)
+#'   
+#'   U <- list(NULL, cbind(rnorm(n, mean = 2, sd = 10)))
+#'   
+#'   X[,2] <- X[,2] + B2[1] * U[[2]][,1] - B2[1] * mean(U[[2]][,1])
+#'   
+#'   # Call cor_phylo with (i) phylogeny and measurement error,
+#'   # (ii) just phylogeny,
+#'   # and (iii) just measurement error
+#'   z <- cor_phylo(traits = X,
+#'                  covariates = U,
+#'                  meas_errors = M,
+#'                  phy = phy,
+#'                  species = phy$tip.label)
+#'   z.noM <- cor_phylo(traits = X,
+#'                      covariates = U,
+#'                      phy = phy,
+#'                      species = phy$tip.label)
+#'   z.noP <- cor_phylo(traits = X,
+#'                      covariates = U,
+#'                      meas_errors = M,
+#'                      phy = star,
+#'                      species = phy$tip.label)
+#'   
+#'   cor.list[rep] <- z$corrs[1, 2]
+#'   cor.noM.list[rep] <- z.noM$corrs[1, 2]
+#'   cor.noP.list[rep] <- z.noP$corrs[1, 2]
+#'   cor.noMP.list[rep] <- cor(cbind(
+#'     lm(X[,1] ~ 1)$residuals,
+#'     lm(X[,2] ~ U[[2]])$residuals))[1,2]
+#'   
+#'   d.list[rep, ] <- z$d
+#'   d.noM.list[rep, ] <- z.noM$d
+#'   
+#'   B.list[rep, ] <- z$B[,1]
+#'   B.noM.list[rep, ] <- z.noM$B[,1]
+#'   B.noP.list[rep, ] <- z.noP$B[,1]
+#' }
+#' 
+#' correlation <- rbind(R[1, 2], mean(cor.list), mean(cor.noM.list),
+#'                      mean(cor.noP.list), mean(cor.noMP.list))
+#' rownames(correlation) <- c("True", "With M and Phy", "Without M",
+#'                            "Without Phy", "Without Phy or M")
+#' 
+#' signal.d <- rbind(d, colMeans(d.list), colMeans(d.noM.list))
+#' rownames(signal.d) <- c("True", "With M and Phy", "Without M")
+#' 
+#' est.B <- rbind(c(0, 0, B2), colMeans(B.list),
+#'                colMeans(B.noM.list[-39,]),  # 39th rep didn't converge
+#'                colMeans(B.noP.list))
+#' rownames(est.B) <- c("True", "With M and Phy", "Without M", "Without Phy")
+#' colnames(est.B) <- rownames(z$B)
+#' 
+#' # Example simulation output:
+#' 
+#' correlation
+#' #                       [,1]
+#' # True             0.7000000
+#' # With M and Phy   0.6981450
+#' # Without M        0.2975294
+#' # Without Phy      0.3715866
+#' # Without Phy or M 0.3291473
+#' 
+#' signal.d
+#' #                     [,1]      [,2]
+#' # True           0.3000000 0.9500000
+#' # With M and Phy 0.3061470 0.9418049
+#' # Without M      0.2406226 0.4013869
+#' 
+#' est.B
+#' #                     par_1_0   par_2_0 par_2_cov_1
+#' # True            0.000000000 0.0000000   1.0000000
+#' # With M and Phy -0.008688085 0.1093656   0.9996199
+#' # Without M      -0.008542294 0.1146948   0.9982382
+#' # Without Phy     0.002933341 0.1096578   1.0028482
 #'     
 #' }
 #' 
