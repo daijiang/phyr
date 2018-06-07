@@ -119,6 +119,14 @@ extract_traits <- function(traits, phy_order, data) {
 process_cov_me_list <- function(out, cov_me, trait_names, phy_order, is_me, data) {
   
   n <- length(phy_order)
+  p <- length(trait_names)
+  
+  # If it's an empty list, then return 1-column matrices of zeros
+  if (length(out) == 0) {
+    out <- rep(list(matrix(0, n, 1)), p)
+    names(out) <- trait_names
+    return(out)
+  }
   
   label <- ifelse(is_me, "measurement_errors", "covariates")
   
@@ -138,7 +146,7 @@ process_cov_me_list <- function(out, cov_me, trait_names, phy_order, is_me, data
            "they all need to be present in the `traits` argument.",
            call. = FALSE)
     }
-  } else if (length(out) != length(trait_names)) {
+  } else if (length(out) != p) {
     stop("\nIf not using names for the `", label, "` argument to `cor_phylo`, ",
          "you need to have an item for each trait. ",
          "(Also make sure that they're in the same order as the traits.)",
@@ -202,11 +210,8 @@ process_cov_me_list <- function(out, cov_me, trait_names, phy_order, is_me, data
 #' @inheritParams data cor_phylo
 #' 
 #' @noRd
-#' @export
 #' 
 extract_covariates <- function(covariates, phy_order, trait_names, data) {
-  
-  n <- length(phy_order)
 
   out <- eval(covariates, data)
   
@@ -215,7 +220,19 @@ extract_covariates <- function(covariates, phy_order, trait_names, data) {
          call. = FALSE)
   }
   
-  out <- process_cov_me_list(out, covariates, trait_names, n, FALSE, data)
+  out <- process_cov_me_list(out, covariates, trait_names, phy_order, FALSE, data)
+  
+  # Naming unnamed covariates
+  j <- 1
+  for (i in 1:length(out)) {
+    if (any(out[[i]] != 0)) {
+      if (is.null(colnames(out[[i]]))) {
+        names_ <- paste0("cov_", j:(j+ncol(out[[i]])-1))
+        colnames(out[[i]]) <- names_
+      }
+      j <- j + ncol(out[[i]])
+    }
+  }
   
   return(out)
 }
@@ -229,18 +246,20 @@ extract_covariates <- function(covariates, phy_order, trait_names, data) {
 #' @inheritParams data cor_phylo
 #' 
 #' @noRd
-#' @export
 #' 
 extract_measurement_errors <- function(measurement_errors, phy_order, trait_names, data) {
   
   n <- length(phy_order)
+  p <- length(trait_names)
 
   out <- eval(measurement_errors, data)
   
   if (inherits(out, "list")) {
-    out <- process_cov_me_list(out, measurement_errors, trait_names, n, TRUE, data)
+    out <- process_cov_me_list(out, measurement_errors, trait_names, phy_order,
+                               TRUE, data)
+    out <- do.call(cbind, out)
   } else if (inherits(out, "matrix")) {
-    if (ncol(out) != length(trait_names)) {
+    if (ncol(out) != p) {
       stop("\nIf `measurement_errors` argument to `cor_phylo` is a matrix, ",
            "then it must have the same number of columns as the trait matrix. ",
            "(If you want trait(s) to have no measurement error, make ",
@@ -370,21 +389,21 @@ cp_extract_matrices <- function(formula, data, phy, spp_vec) {
 
 #' Get parameter names from formulas.
 #'
-#' @inheritParams formulas cor_phylo
+#' @inheritParams X cor_phylo_
+#' @inheritParams U cor_phylo_
+#' @inheritParams M cor_phylo_
 #'
 #' @return a list of parameter names, first a character vector of names for the `U`
 #'   matrix, then a vector for the `M` matrix
 #' 
 #' @noRd
 #'
-cp_get_par_names <- function(formulas) {
+cp_get_par_names <- function(X, U, M) {
   
-  B <- sapply(formulas, function(x) paste(x)[2])
+  p <- ncol(X)
   
-  p <- length(formulas)
-  
-  U <- replicate(p, NULL)
-  M <- replicate(p, NULL)
+  U_ <- lapply(U, colnames)
+  M_ <- replicate(p, NULL)
   
   for (i in 1:p) {
     x <- formulas[[i]]
@@ -395,15 +414,15 @@ cp_get_par_names <- function(formulas) {
         stop("There is something odd about this formula...")
       }
       z <- strsplit(z, "\\|")[[1]]
-      M[[i]] <- gsub("\\s+", "", z[2])
+      M_[[i]] <- gsub("\\s+", "", z[2])
       z <- strsplit(z[1], "\\+")[[1]]
       z <- gsub("\\s+", "", z)
     }
-    if (z != "1") U[[i]] <- z
+    if (z != "1") U_[[i]] <- z
   }
-  names(U) <- names(M) <- B
+  names(U_) <- names(M_) <- colnames(X)
   
-  return(list(U = U, M = M))
+  return(list(U = U_, M = M_))
 }
 
 
@@ -411,17 +430,21 @@ cp_get_par_names <- function(formulas) {
 
 #' Get row names for output based on parameter names.
 #'
-#' @param par_names a list of parameter names
+#' @inheritParams trait_names process_cov_me_list
+#' @inheritParams U cor_phylo_
 #'
 #' @return a vector of row names
 #' 
 #' @noRd
 #'
-cp_get_row_names <- function(par_names) {
+cp_get_row_names <- function(trait_names, U) {
   
-  row_names <- lapply(names(par_names[[1]]),
+  cov_names <- lapply(U, colnames)
+  names(cov_names) <- trait_names
+  
+  row_names <- lapply(trait_names,
                       function(n) {
-                        uu <- par_names$U[[n]]
+                        uu <- cov_names[[n]]
                         paste(n, c("0", uu), sep = "_")
                       })
   row_names <- c(row_names, recursive = TRUE)
@@ -943,11 +966,12 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
 #' @keywords regression
 #' 
 #' 
-cor_phylo <- function(traits, 
+cor_phylo <- function(formulas,
+                      traits, 
                       species,
                       phy,
-                      covariates,
-                      measurement_errors,
+                      covariates = list(),
+                      measurement_errors = list(),
                       data = sys.frame(sys.parent()),
                       REML = TRUE, 
                       method = c("nelder-mead-nlopt", "bobyqa", "subplex",
@@ -980,41 +1004,44 @@ cor_phylo <- function(traits,
   Vphy <- ape::vcv(phy)
   
   
-  if (is.character(species)) species <- parse(text = species)
+  if (is.character(species)) species <- get(species, data)
   spp_vec <- cp_get_species(species, data, phy)
   
-  # matrices <- lapply(formulas, cp_extract_matrices, data = data, phy = phy,
-  #                    spp_vec = spp_vec)
-  # U <- lapply(matrices, function(x) x[["U"]])
-  # X <- do.call(cbind, lapply(matrices, function(x) x[["X"]]))
-  # M <- do.call(cbind, lapply(matrices, function(x) x[["M"]]))
-  phy_order <- match(phy$tip.label, spp_vec)
-  X <- extract_traits(traits, phy_order, data)
-  U <- extract_covariates(covariates, phy_order, colnames(X), data)
-  M <- extract_measurement_errors(measurement_errors, phy_order, colnames(X), data)
-  
-  # Parameter names as determined by the formulas
-  par_names <- cp_get_par_names(formulas)
-  
+  if (!is.null(formulas)) {
+    matrices <- lapply(formulas, cp_extract_matrices, data = data, phy = phy,
+                       spp_vec = spp_vec)
+    X <- do.call(cbind, lapply(matrices, function(x) x[["X"]]))
+    U <- lapply(matrices, function(x) x[["U"]])
+    M <- do.call(cbind, lapply(matrices, function(x) x[["M"]]))
+    trait_names <- sapply(formulas, function(x) paste(x)[2])
+  } else {
+    phy_order <- match(phy$tip.label, spp_vec)
+    X <- extract_traits(traits, phy_order, data)
+    trait_names <- colnames(X)
+    U <- extract_covariates(covariates, phy_order, trait_names, data)
+    M <- extract_measurement_errors(measurement_errors, phy_order, trait_names, data)
+  }
+
+
   # `cor_phylo_` returns a list with the following objects:
   # corrs, d, B, (previously B, B_se, B_zscore, and B_pvalue),
   #     B_cov, logLik, AIC, BIC
-  output <- cor_phylo_(X, U, M, Vphy, REML, constrain_d, verbose, 
+  output <- cor_phylo_(X, U, M, Vphy, REML, constrain_d, verbose,
                        rel_tol, max_iter, method, boot, keep_boots, sann)
   # Taking care of row and column names:
-  colnames(output$corrs) <- rownames(output$corrs) <- names(par_names[[1]])
-  rownames(output$d) <- names(par_names[[1]])
+  colnames(output$corrs) <- rownames(output$corrs) <- trait_names
+  rownames(output$d) <- trait_names
   colnames(output$d) <- "d"
-  rownames(output$B) <- cp_get_row_names(par_names)
+  rownames(output$B) <- cp_get_row_names(trait_names, U)
   colnames(output$B) <- c("Estimate", "SE", "Z-score", "P-value")
-  colnames(output$B_cov) <- rownames(output$B_cov) <- cp_get_row_names(par_names)
-  
-  # Ordering failed matrices back to original order (bc they were previously 
+  colnames(output$B_cov) <- rownames(output$B_cov) <- cp_get_row_names(trait_names, U)
+
+  # Ordering failed matrices back to original order (bc they were previously
   # reordered based on the phylogeny)
   if (length(output$bootstrap$failed_mats) > 0) {
     order_ <- match(spp_vec, phy$tip.label)
     for (i in 1:length(output$bootstrap$failed_mats)) {
-      output$bootstrap$failed_mats[[i]] <- 
+      output$bootstrap$failed_mats[[i]] <-
         output$bootstrap$failed_mats[[i]][order_, , drop = FALSE]
     }
   }
