@@ -6,11 +6,12 @@
 \alias{print.cor_phylo}
 \title{Correlations among multiple traits with phylogenetic signal}
 \usage{
-cor_phylo(formulas, species, phy, data = sys.frame(sys.parent()),
-  REML = TRUE, method = c("nelder-mead-nlopt", "bobyqa", "subplex",
-  "nelder-mead-r", "sann"), constrain_d = FALSE, rel_tol = 1e-06,
-  max_iter = 1000, maxit_SA = 1000, temp_SA = 1, tmax_SA = 1,
-  verbose = FALSE, boot = 0, keep_boots = c("fail", "none", "all"))
+cor_phylo(formulas, traits, species, phy, covariates = list(),
+  meas_errors = list(), data = sys.frame(sys.parent()), REML = TRUE,
+  method = c("nelder-mead-nlopt", "bobyqa", "subplex", "nelder-mead-r",
+  "sann"), constrain_d = FALSE, rel_tol = 1e-06, max_iter = 1000,
+  maxit_SA = 1000, temp_SA = 1, tmax_SA = 1, verbose = FALSE,
+  boot = 0, keep_boots = c("fail", "none", "all"))
 
 \method{boot_ci}{cor_phylo}(x, alpha = 0.05)
 
@@ -34,11 +35,50 @@ traits with both covariates and measurement error
 }
 }}
 
-\item{species}{The column name or object in \code{data} that indicates the species.
-You do not need to use quotes for this argument,
-but quotes will not adversely affect the outcome.}
+\item{traits}{A list of object names or a matrix that contains trait values.
+In the former case, the list must be of length \code{p}, one name for each trait,
+and each name must must refer to an object in \code{data}.
+See "Using names" in the Details for more info on using names.
+In the latter case, the matrix must have \code{n} rows and \code{p} columns;
+if the matrix columns aren't named, \code{cor_phylo} will name them \code{par_1 ... par_p}.}
+
+\item{species}{An object-name or a vector that indicates the species.
+In the former case, see "Using names" in the Details for more info on using names.
+In the latter case, the vector must be of the same type as the input
+phylogeny's tip labels.}
 
 \item{phy}{A \code{phylo} object giving the phylogenetic tree.}
+
+\item{covariates}{A list containing covariate(s) for each trait.
+The list can contain only names (see "Using names" in Details),
+matrices, or \code{NULL} and can be assembled in one of two ways:
+\enumerate{
+\item Named items. Each name in the list should correspond to a name
+in the traits matrix that is built from the \code{traits} argument.
+So if you use a list of names in the \code{traits} argument, these names should
+be used here.
+If you use a matrix in the \code{traits} argument, column names should be used here.
+You can simply omit names with no covariates instead of using \code{NULL} items.
+\item Ordered items. The list must be of length \code{p}, each item referring to the
+trait at that location in the matrix built from the \code{traits} argument.
+The trait order is same as in either the list or matrix input to the \code{traits}
+argument.
+To indicate that a trait doesn't have a covariate, the corresponding
+item in this list should be \code{NULL}.
+}
+If specifying more than one covariate, use \code{cbind()} rather than \code{c()};
+the latter concatenates them into a too-long vector (see Examples).
+If these aren't named, \code{cor_phylo} will name them \code{cov_1 ... cov_q}, where
+\code{q} is the total number of covariates.
+Defaults to \code{list()}, which indicates no covariates.}
+
+\item{meas_errors}{A list containing measurement error for each trait.
+This argument can be built in the same way as for the \code{covariates} argument
+(except that you can't have multiple measurement errors for a single trait).
+You can additionally pass an \code{n} x \code{p} matrix with each column associated
+with the trait in the same position; if using a matrix, you can make a trait
+not have measurement error by making its associated column contain only zeros.
+Defaults to \code{list()}, which indicates no measurement errors.}
 
 \item{data}{An optional data frame, list, or environment that contains the
 variables in the model. By default, variables are taken from the environment
@@ -108,7 +148,7 @@ Defaults to \code{"fail"}.}
 \item{x}{an object of class \code{cor_phylo}.}
 }
 \value{
-An object of class \code{cor_phylo}:
+\code{cor_phylo} returns an object of class \code{cor_phylo}:
 \item{\code{call}}{The matched call.}
 \item{\code{corrs}}{The \code{p} x \code{p} matrix of correlation coefficients.}
 \item{\code{d}}{Values of \code{d} from the OU process for each trait.}
@@ -139,13 +179,18 @@ convergence codes (\code{codes}), and
 matrices of the bootstrapped parameters in the order they appear in the input
 argument (\code{mats});
 these three fields will be empty if \code{keep_boots == "none"}.
-To view bootstrapped confidence intervals, use \code{\link{boot_ci}}.}
+To view bootstrapped confidence intervals, use \code{boot_ci}.}
 
-A list of confidence intervals for
-estimates of correlations (\code{corrs}),
-phylogenetic signals (\code{d}),
-coefficient estimates (\code{B0}), and
-coefficient covariances (\code{B_cov}).
+\code{boot_ci} returns a list of confidence intervals with the following fields:
+\describe{
+\item{\code{corrs}}{
+Estimates of correlations.
+This is a matrix the values above the diagonal being the
+upper limits and values below being the lower limits.}
+\item{\code{d}}{Phylogenetic signals.}
+\item{\code{B0}}{Coefficient estimates.}
+\item{\code{B_cov}}{Coefficient covariances.}
+}
 }
 \description{
 This function calculates Pearson correlation coefficients for multiple continuous
@@ -160,7 +205,22 @@ correlations among traits. It is also possible to include independent variables
 of phylogenetic signal for each trait, and regression coefficients for
 independent variables affecting each trait.
 }
-\details{
+\section{Methods (by generic)}{
+\itemize{
+\item \code{boot_ci}: returns bootstrapped confidence intervals from a \code{cor_phylo} object
+
+\item \code{print}: prints \code{cor_phylo} objects
+}}
+
+\section{Using names}{
+
+When using names, there will always be a \code{data} argument, and
+each name must must refer to an object in \code{data}.
+Names don't need quotes around them (quotes won't cause problems, though).
+}
+
+\section{Walkthrough}{
+
 For the case of two variables, the function estimates parameters for the model of
 the form, for example,
 
@@ -183,12 +243,6 @@ where \eqn{C[i,j](d1,d2)} are derived from \code{phy} under the assumption of jo
 OU evolutionary processes for each trait (see Zheng et al. 2009). This formulation
 extends in the obvious way to more than two traits.
 }
-\section{Methods (by generic)}{
-\itemize{
-\item \code{boot_ci}: returns bootstrapped confidence intervals from a \code{cor_phylo} object
-
-\item \code{print}: prints \code{cor_phylo} objects
-}}
 
 \examples{
 

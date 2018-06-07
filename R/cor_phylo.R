@@ -108,7 +108,7 @@ extract_traits <- function(traits, phy_order, data) {
 #' Process an input list for covariates or measurement error in `cor_phylo`.
 #' 
 #' @param out A list that's been been evaluated in the `data` environment.
-#' @param cov_me Either the `covariates` or `measurement_error` arguments to `cor_phylo`.
+#' @param cov_me Either the `covariates` or `meas_errors` arguments to `cor_phylo`.
 #' @param trait_names Names of the traits used from the `traits` argument to `cor_phylo`.
 #' @inheritParams phy_order extract_traits
 #' @param is_me Logical for whether it's measurement errors (vs covariates).
@@ -128,7 +128,7 @@ process_cov_me_list <- function(out, cov_me, trait_names, phy_order, is_me, data
     return(out)
   }
   
-  label <- ifelse(is_me, "measurement_errors", "covariates")
+  label <- ifelse(is_me, "meas_errors", "covariates")
   
   if (!inherits(out, "list")) {
     stop("\nYou're calling `process_cov_me_list` on a non-list.", call. = FALSE)
@@ -240,41 +240,41 @@ extract_covariates <- function(covariates, phy_order, trait_names, data) {
 #' Extract covariates or measurement errors from arguments input to `cor_phylo`.
 #' 
 #' 
-#' @inheritParams measurement_errors cor_phylo
+#' @inheritParams meas_errors cor_phylo
 #' @inheritParams phy_order extract_traits
 #' @inheritParams trait_names extract_covariates
 #' @inheritParams data cor_phylo
 #' 
 #' @noRd
 #' 
-extract_measurement_errors <- function(measurement_errors, phy_order, trait_names, data) {
+extract_meas_errors <- function(meas_errors, phy_order, trait_names, data) {
   
   n <- length(phy_order)
   p <- length(trait_names)
 
-  out <- eval(measurement_errors, data)
+  out <- eval(meas_errors, data)
   
   if (inherits(out, "list")) {
-    out <- process_cov_me_list(out, measurement_errors, trait_names, phy_order,
+    out <- process_cov_me_list(out, meas_errors, trait_names, phy_order,
                                TRUE, data)
     out <- do.call(cbind, out)
   } else if (inherits(out, "matrix")) {
     if (ncol(out) != p) {
-      stop("\nIf `measurement_errors` argument to `cor_phylo` is a matrix, ",
+      stop("\nIf `meas_errors` argument to `cor_phylo` is a matrix, ",
            "then it must have the same number of columns as the trait matrix. ",
            "(If you want trait(s) to have no measurement error, make ",
            "those column(s) in the measurement error matrix all zeros.)",
            call. = FALSE)
     }
     if (nrow(out) != n) {
-      stop("\nIf `measurement_errors` argument to `cor_phylo` is a matrix, ",
+      stop("\nIf `meas_errors` argument to `cor_phylo` is a matrix, ",
            "then it must have `n` rows.",
            call. = FALSE)
     }
     # Ordering the same as the phylogeny
     out <- out[phy_order, , drop = FALSE]
   } else {
-    stop("\nThe `measurement_errors` argument to `cor_phylo` must be a list ",
+    stop("\nThe `meas_errors` argument to `cor_phylo` must be a list ",
          "or matrix.",
          call. = FALSE)
   }
@@ -621,14 +621,13 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
 #' independent variables affecting each trait.
 #' 
 #' 
-#' @section Using names
-#' 
+#' @section Using names:
 #' When using names, there will always be a `data` argument, and 
 #' each name must must refer to an object in `data`.
 #' Names don't need quotes around them (quotes won't cause problems, though).
 #' 
 #' 
-#' @section Walkthrough
+#' @section Walkthrough:
 #' For the case of two variables, the function estimates parameters for the model of
 #' the form, for example,
 #' 
@@ -688,7 +687,7 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
 #'       So if you use a list of names in the `traits` argument, these names should
 #'       be used here.
 #'       If you use a matrix in the `traits` argument, column names should be used here.
-#'       Simply omit names with no covariates instead of using `NULL` items.
+#'       You can simply omit names with no covariates instead of using `NULL` items.
 #'     \item Ordered items. The list must be of length `p`, each item referring to the
 #'       trait at that location in the matrix built from the `traits` argument.
 #'       The trait order is same as in either the list or matrix input to the `traits`
@@ -701,12 +700,12 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
 #'   If these aren't named, `cor_phylo` will name them `cov_1 ... cov_q`, where
 #'   `q` is the total number of covariates.
 #'   Defaults to `list()`, which indicates no covariates.
-#' @param measurement_errors A list containing measurement error for each trait.
+#' @param meas_errors A list containing measurement error for each trait.
 #'   This argument can be built in the same way as for the `covariates` argument
 #'   (except that you can't have multiple measurement errors for a single trait).
 #'   You can additionally pass an `n` x `p` matrix with each column associated
 #'   with the trait in the same position; if using a matrix, you can make a trait
-#'   not have measurement error by making its associated column all zeros.
+#'   not have measurement error by making its associated column contain only zeros.
 #'   Defaults to `list()`, which indicates no measurement errors.
 #' @param data An optional data frame, list, or environment that contains the
 #'   variables in the model. By default, variables are taken from the environment
@@ -755,7 +754,7 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
 #'   Defaults to `"fail"`.
 #' 
 #'
-#' @return An object of class `cor_phylo`:
+#' @return `cor_phylo` returns an object of class `cor_phylo`:
 #'   \item{`call`}{The matched call.}
 #'   \item{`corrs`}{The `p` x `p` matrix of correlation coefficients.}
 #'   \item{`d`}{Values of `d` from the OU process for each trait.}
@@ -786,7 +785,7 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
 #'     matrices of the bootstrapped parameters in the order they appear in the input
 #'     argument (`mats`);
 #'     these three fields will be empty if `keep_boots == "none"`.
-#'     To view bootstrapped confidence intervals, use \code{\link{boot_ci}}.}
+#'     To view bootstrapped confidence intervals, use \code{boot_ci}.}
 #' 
 #' @export
 #'
@@ -971,7 +970,7 @@ cor_phylo <- function(formulas,
                       species,
                       phy,
                       covariates = list(),
-                      measurement_errors = list(),
+                      meas_errors = list(),
                       data = sys.frame(sys.parent()),
                       REML = TRUE, 
                       method = c("nelder-mead-nlopt", "bobyqa", "subplex",
@@ -987,7 +986,7 @@ cor_phylo <- function(formulas,
   
   traits <- substitute(traits)
   covariates <- substitute(covariates)
-  measurement_errors <- substitute(measurement_errors)
+  meas_errors <- substitute(meas_errors)
   species <- substitute(species)
   if (inherits(data, "matrix")) data <- as.data.frame(data)
   
@@ -1019,7 +1018,7 @@ cor_phylo <- function(formulas,
     X <- extract_traits(traits, phy_order, data)
     trait_names <- colnames(X)
     U <- extract_covariates(covariates, phy_order, trait_names, data)
-    M <- extract_measurement_errors(measurement_errors, phy_order, trait_names, data)
+    M <- extract_meas_errors(meas_errors, phy_order, trait_names, data)
   }
 
 
@@ -1075,11 +1074,16 @@ cor_phylo <- function(formulas,
 #' @param x `cor_phylo` object that was run with the `boot` argument > 0.
 #' @param alpha Alpha used for the confidence intervals. Defaults to `0.05`.
 #' 
-#' @return A list of confidence intervals for
-#'   estimates of correlations (`corrs`),
-#'   phylogenetic signals (`d`),
-#'   coefficient estimates (`B0`), and
-#'   coefficient covariances (`B_cov`).
+#' @return `boot_ci` returns a list of confidence intervals with the following fields:
+#'   \describe{
+#'     \item{`corrs`}{
+#'       Estimates of correlations.
+#'       This is a matrix the values above the diagonal being the
+#'       upper limits and values below being the lower limits.}
+#'     \item{`d`}{Phylogenetic signals.}
+#'     \item{`B0`}{Coefficient estimates.}
+#'     \item{`B_cov`}{Coefficient covariances.}
+#'   }
 #' 
 #' @export
 #' 
@@ -1122,8 +1126,6 @@ boot_ci.cor_phylo <- function(x, alpha = 0.05) {
   return(list(corrs = corrs, d = ds, B0 = B0s, B_cov = B_covs))
   
 }
-
-
 
 
 #' @describeIn cor_phylo prints `cor_phylo` objects
