@@ -6,12 +6,20 @@
 \alias{print.cor_phylo}
 \title{Correlations among multiple traits with phylogenetic signal}
 \usage{
-cor_phylo(formulas, traits, species, phy, covariates = list(),
-  meas_errors = list(), data = sys.frame(sys.parent()), REML = TRUE,
-  method = c("nelder-mead-nlopt", "bobyqa", "subplex", "nelder-mead-r",
-  "sann"), constrain_d = FALSE, rel_tol = 1e-06, max_iter = 1000,
-  maxit_SA = 1000, temp_SA = 1, tmax_SA = 1, verbose = FALSE,
-  boot = 0, keep_boots = c("fail", "none", "all"))
+cor_phylo(traits, species, phy,
+          covariates = list(),
+          meas_errors = list(),
+          data = sys.frame(sys.parent()),
+          REML = TRUE, 
+          method = c("nelder-mead-nlopt", "bobyqa",
+              "subplex", "nelder-mead-r", "sann"),
+          constrain_d = FALSE,
+          rel_tol = 1e-6,
+          max_iter = 1000,
+          sann_options = list(),
+          verbose = FALSE,
+          boot = 0,
+          keep_boots = c("fail", "none", "all"))
 
 \method{boot_ci}{cor_phylo}(x, alpha = 0.05)
 
@@ -93,17 +101,15 @@ in the optimization. Defaults to \code{1e-6}.}
 \item{max_iter}{A control parameter dictating the maximum number of iterations
 in the optimization. Defaults to \code{1000}.}
 
-\item{maxit_SA}{A control parameter dictating the maximum number of iterations in the
-optimization with SANN minimization; see \code{\link[stats]{optim}}.
-Only relevant if \code{method == "sann"}. Defaults to \code{1000}.}
-
-\item{temp_SA}{A control parameter dictating the starting temperature in the
-optimization with SANN minimization; see \code{\link[stats]{optim}}.
-Only relevant if \code{method == "sann"}. Defaults to \code{1}.}
-
-\item{tmax_SA}{A control parameter dictating the number of function evaluations
-at each temperature in the optimization with SANN minimization; see
-\code{\link[stats]{optim}}. Only relevant if \code{method == "sann"}. Defaults to \code{1}.}
+\item{sann_options}{A named list containing the control parameters for SANN
+minimization.
+This is only relevant if \code{method == "sann"}.
+This list can only contain the names \code{"maxit"}, \code{"temp"}, and/or \code{"tmax"},
+which will control the maximum number of iterations,
+starting temperature, and number of function evaluations at each temperature,
+respectively.
+Defaults to \code{list()}, which results in \code{maxit = 1000}, \code{temp = 1}, and \code{tmax = 1}.
+Note that these are different from the defaults for \code{\link[stats]{optim}}.}
 
 \item{verbose}{If \code{TRUE}, the model \code{logLik} and running estimates of the
 correlation coefficients and values of \code{d} are printed each iteration

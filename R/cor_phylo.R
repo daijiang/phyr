@@ -226,9 +226,12 @@ extract_covariates <- function(covariates, phy_order, trait_names, data) {
   j <- 1
   for (i in 1:length(out)) {
     if (any(out[[i]] != 0)) {
-      if (is.null(colnames(out[[i]]))) {
         names_ <- paste0("cov_", j:(j+ncol(out[[i]])-1))
+      if (is.null(colnames(out[[i]]))) {
         colnames(out[[i]]) <- names_
+      } else if (any(is.na(colnames(out[[i]])))) {
+        inds_ <- which(is.na(colnames(out[[i]])))
+        colnames(out[[i]])[inds_] <- names_[inds_]
       }
       j <- j + ncol(out[[i]])
     }
@@ -580,15 +583,15 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
 #'   in the optimization. Defaults to `1e-6`.
 #' @param max_iter A control parameter dictating the maximum number of iterations 
 #'   in the optimization. Defaults to \code{1000}.
-#' @param maxit_SA A control parameter dictating the maximum number of iterations in the
-#'   optimization with SANN minimization; see \code{\link[stats]{optim}}.
-#'   Only relevant if `method == "sann"`. Defaults to `1000`.
-#' @param temp_SA A control parameter dictating the starting temperature in the
-#'   optimization with SANN minimization; see \code{\link[stats]{optim}}.
-#'   Only relevant if `method == "sann"`. Defaults to `1`.
-#' @param tmax_SA A control parameter dictating the number of function evaluations
-#'   at each temperature in the optimization with SANN minimization; see
-#'   \code{\link[stats]{optim}}. Only relevant if `method == "sann"`. Defaults to `1`.
+#' @param sann_options A named list containing the control parameters for SANN
+#'   minimization.
+#'   This is only relevant if `method == "sann"`.
+#'   This list can only contain the names `"maxit"`, `"temp"`, and/or `"tmax"`,
+#'   which will control the maximum number of iterations,
+#'   starting temperature, and number of function evaluations at each temperature,
+#'   respectively.
+#'   Defaults to `list()`, which results in `maxit = 1000`, `temp = 1`, and `tmax = 1`.
+#'   Note that these are different from the defaults for \code{\link[stats]{optim}}.
 #' @param verbose If `TRUE`, the model `logLik` and running estimates of the
 #'   correlation coefficients and values of `d` are printed each iteration
 #'   during optimization. Defaults to `FALSE`.
@@ -855,6 +858,22 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
 #' @keywords regression
 #' 
 #' 
+#' 
+#' @usage cor_phylo(traits, species, phy,
+#'           covariates = list(),
+#'           meas_errors = list(),
+#'           data = sys.frame(sys.parent()),
+#'           REML = TRUE, 
+#'           method = c("nelder-mead-nlopt", "bobyqa",
+#'               "subplex", "nelder-mead-r", "sann"),
+#'           constrain_d = FALSE,
+#'           rel_tol = 1e-6,
+#'           max_iter = 1000,
+#'           sann_options = list(),
+#'           verbose = FALSE,
+#'           boot = 0,
+#'           keep_boots = c("fail", "none", "all"))
+#' 
 cor_phylo <- function(traits, 
                       species,
                       phy,
@@ -867,9 +886,10 @@ cor_phylo <- function(traits,
                       constrain_d = FALSE, 
                       rel_tol = 1e-6, 
                       max_iter = 1000, 
-                      maxit_SA = 1000, temp_SA = 1, tmax_SA = 1,
+                      sann_options = list(),
                       verbose = FALSE,
-                      boot = 0, keep_boots = c("fail", "none", "all")) {
+                      boot = 0,
+                      keep_boots = c("fail", "none", "all")) {
   
   stopifnot(rel_tol > 0)
   
@@ -879,7 +899,21 @@ cor_phylo <- function(traits,
   species <- substitute(species)
   if (inherits(data, "matrix")) data <- as.data.frame(data)
   
-  sann <- c(maxit_SA, temp_SA, tmax_SA)
+  sann <- c(maxit = 1000, temp = 1, tmax = 1)
+  if (length(sann_options) > 1) {
+    if (!inherits(sann_options, "list")) {
+      stop("\nThe `sann_options` argument to `cor_phylo` must be a list.",
+           call. = FALSE)
+    } else if (is.null(names(sann_options))) {
+      stop("\nThe `sann_options` argument to `cor_phylo` must be a named list.",
+           call. = FALSE)
+    } else if (any(!names(sann_options) %in% names(sann))) {
+      stop("\nThe `sann_options` argument to `cor_phylo` must be a list with only ",
+           "the following names: \"maxit\", \"temp\", and/or \"tmax\".",
+           call. = FALSE)
+    }
+    for (n in names(sann_options)) sann[n] <- sann_options[[n]]
+  }
 
   keep_boots <- match.arg(keep_boots)
   
