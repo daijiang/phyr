@@ -288,147 +288,9 @@ extract_meas_errors <- function(meas_errors, phy_order, trait_names, data) {
 
 
 
-#' Extract `X`, `U`, and `M` matrices from one formula.
-#' 
-#' This is to be run after `check_phy` and `cp_get_species` functions.
-#'
-#' @param formula a single formula from a call to `cor_phylo`.
-#'   See \code{\link{cor_phylo}} for more information on the forms these should take.
-#' @inheritParams data cor_phylo
-#' @inheritParams phy cor_phylo
-#' @param spp_vec a vector of species names
-#'
-#' @return a list containing the `X`, `U`, and `M` matrices.
-#' 
-#' @noRd
-#'
-cp_extract_matrices <- function(formula, data, phy, spp_vec) {
-  
-  n <- length(phy$tip.label)
-  
-  if (!inherits(formula, "formula") || length(formula) != 3L) {
-    stop("\nAll formulas in cor_phylo must be formula objects of one of the ",
-         'following forms: "trait ~ 1", "trait ~ covariate(s)", ',
-         'or "trait ~ covariate(s) | measurement error"',
-         call. = FALSE)
-  }
-  
-  # If there are any "|" in the terms, this indicates measurement error
-  # Have to do this first so the formula gets "| measurement error" part removed
-  M <- matrix(0, nrow = n, ncol = 1)
-  if (length(attr(terms(formula), 'term.labels')) == 1) {
-    if (grepl("\\|", attr(terms(formula), 'term.labels'))) {
-      term_se <- strsplit(attr(terms(formula), 'term.labels'), "\\|")[[1]]
-      # Looking for any punctuation other than "_" or "." in the measurement
-      # error part:
-      if (grepl("(?!\\.)(?!_)[[:punct:]]", term_se[2], perl = TRUE)) {
-        stop("\nThe following formula input to cor_phylo has >1 variable after ", 
-             "the \"|\":",
-             paste(paste(terms(formula))[c(2, 1, 3)], collapse = ' '),
-             "\nMore than one estimate of measurement error is not allowed. ",
-             "(This error occurs any time any punctuation other than \"_\" or ",
-             "\".\" is found after the \"|\")",
-             call. = FALSE)
-      } 
-      se <- gsub("\\s+", "", term_se[2])
-      # Extract M from data:
-      if (inherits(data, "data.frame")) {
-        M <- as.matrix(data[, se, drop = FALSE])
-      } else if (inherits(data, "list")) {
-        M <- cbind(data[[se]])
-        colnames(M) <- se
-      } else if (inherits(data, "environment")) {
-        M <- eval(parse(text = se), envir = data)
-        M <- cbind(as.numeric(M))
-        colnames(M) <- se
-      }
-      # Update formula:
-      formula <- as.formula(paste0(terms(formula)[[2]], "~", term_se[1]))
-      # Make sure the M object is of proper length:
-      if (length(M) != n) {
-        stop("\nIn the call to cor_phylo, the number of items in the ",
-             "measurement error vector/column does not match the length of ",
-             "the tree.",
-             "This error is occurring for the variable ", paste(formula)[2], ".",
-             call. = FALSE)
-      }
-    }
-  }
-  
-  X <- model.frame(formula, data)
-  X <- as.matrix(X[, 1, drop = FALSE])
-  if (nrow(X) != n) {
-    stop("\nIn the call to cor_phylo, the number of items in the ",
-         "trait vector/column does not match the length of ",
-         "the tree.",
-         "This error is occurring for the variable ", paste(formula)[2], ".",
-         call. = FALSE)
-  }
-  
-  U <- model.matrix(formula, data)[, -1, drop = FALSE]
-  if (ncol(U) == 0) U <- matrix(0, nrow = n, ncol = 1)
-  if (nrow(U) != n) {
-    stop("\nIn the call to cor_phylo, the number of rows in the ",
-         "covariate vector(s)/column(s) does not match the length of ",
-         "the tree.",
-         "This error is occurring for the variable ", paste(formula)[2], ".",
-         call. = FALSE)
-  }
-  
-  # Ordering the matrices to correspond to the phylogeny
-  order_ <- match(phy$tip.label, spp_vec)
-  X <- X[order_, , drop = FALSE]
-  U <- U[order_, , drop = FALSE]
-  M <- M[order_, , drop = FALSE]
-  
-  return(list(X = X, U = U, M = M))
-}
 
 
-
-
-#' Get parameter names from formulas.
-#'
-#' @inheritParams X cor_phylo_
-#' @inheritParams U cor_phylo_
-#' @inheritParams M cor_phylo_
-#'
-#' @return a list of parameter names, first a character vector of names for the `U`
-#'   matrix, then a vector for the `M` matrix
-#' 
-#' @noRd
-#'
-cp_get_par_names <- function(X, U, M) {
-  
-  p <- ncol(X)
-  
-  U_ <- lapply(U, colnames)
-  M_ <- replicate(p, NULL)
-  
-  for (i in 1:p) {
-    x <- formulas[[i]]
-    z <- attr(terms(x), 'term.labels')
-    if (length(z) == 0) next
-    if (any(grepl("\\|", z))) {
-      if (length(z) > 1) {
-        stop("There is something odd about this formula...")
-      }
-      z <- strsplit(z, "\\|")[[1]]
-      M_[[i]] <- gsub("\\s+", "", z[2])
-      z <- strsplit(z[1], "\\+")[[1]]
-      z <- gsub("\\s+", "", z)
-    }
-    if (z != "1") U_[[i]] <- z
-  }
-  names(U_) <- names(M_) <- colnames(X)
-  
-  return(list(U = U_, M = M_))
-}
-
-
-
-
-#' Get row names for output based on parameter names.
+#' Get row names for output based on trait names and list of covariate(s).
 #'
 #' @inheritParams trait_names process_cov_me_list
 #' @inheritParams U cor_phylo_
@@ -651,22 +513,6 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
 #' extends in the obvious way to more than two traits.
 #' 
 #'
-#' @param formulas a list of `p` formulas (class \code{\link{formula}}), 
-#'   one formula for each trait of interest. Formulas should take one of the following
-#'   forms: 
-#'   \describe{
-#'     \item{`trait ~ 1`}{traits without covariates or measurement error}
-#'     \item{`trait ~ covariate_1 + ... + covariate_N`}{
-#'       traits with `N` covariates
-#'     }
-#'     \item{`trait ~ 1 | measurement error`}{
-#'       traits with measurement error indicated by standard errors in
-#'       the `measurement error` column/vector
-#'     }
-#'     \item{`trait ~ covariate_1 + ... + covariate_N | measurement error`}{
-#'       traits with both covariates and measurement error
-#'     }
-#'   }
 #' @param traits A list of object names or a matrix that contains trait values.
 #'   In the former case, the list must be of length `p`, one name for each trait,
 #'   and each name must must refer to an object in `data`.
@@ -965,8 +811,7 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
 #' @keywords regression
 #' 
 #' 
-cor_phylo <- function(formulas,
-                      traits, 
+cor_phylo <- function(traits, 
                       species,
                       phy,
                       covariates = list(),
@@ -1002,24 +847,15 @@ cor_phylo <- function(formulas,
   phy <- check_phy(phy)
   Vphy <- ape::vcv(phy)
   
-  
-  if (is.character(species)) species <- get(species, data)
+  # If a character, convert to an expression before evaluating in cp_get_species():
+  if (is.character(species)) species <- parse(text = species)
   spp_vec <- cp_get_species(species, data, phy)
   
-  if (!is.null(formulas)) {
-    matrices <- lapply(formulas, cp_extract_matrices, data = data, phy = phy,
-                       spp_vec = spp_vec)
-    X <- do.call(cbind, lapply(matrices, function(x) x[["X"]]))
-    U <- lapply(matrices, function(x) x[["U"]])
-    M <- do.call(cbind, lapply(matrices, function(x) x[["M"]]))
-    trait_names <- sapply(formulas, function(x) paste(x)[2])
-  } else {
-    phy_order <- match(phy$tip.label, spp_vec)
-    X <- extract_traits(traits, phy_order, data)
-    trait_names <- colnames(X)
-    U <- extract_covariates(covariates, phy_order, trait_names, data)
-    M <- extract_meas_errors(meas_errors, phy_order, trait_names, data)
-  }
+  phy_order <- match(phy$tip.label, spp_vec)
+  X <- extract_traits(traits, phy_order, data)
+  trait_names <- colnames(X)
+  U <- extract_covariates(covariates, phy_order, trait_names, data)
+  M <- extract_meas_errors(meas_errors, phy_order, trait_names, data)
 
 
   # `cor_phylo_` returns a list with the following objects:
