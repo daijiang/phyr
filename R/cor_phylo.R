@@ -1098,12 +1098,14 @@ boot_ci.cor_phylo <- function(x, alpha = 0.05) {
   }
   f <- x$bootstrap$failed
   if (length(f) == 0) f <- ncol(x$bootstrap$d) + 1
-  corrs <- list(lower = apply(x$bootstrap$corrs[,,-f,drop=FALSE], 
-                              c(1, 2), quantile, probs = alpha / 2),
-                upper = apply(x$bootstrap$corrs[,,-f,drop=FALSE],
-                              c(1, 2), quantile, probs = 1 - alpha / 2))
-  rownames(corrs$lower) <- rownames(corrs$upper) <- rownames(x$corrs)
-  colnames(corrs$lower) <- colnames(corrs$upper) <- colnames(x$corrs)
+  corrs_list <- list(lower = apply(x$bootstrap$corrs[,,-f,drop=FALSE], 
+                                   c(1, 2), quantile, probs = alpha / 2),
+                     upper = apply(x$bootstrap$corrs[,,-f,drop=FALSE],
+                                   c(1, 2), quantile, probs = 1 - alpha / 2))
+  corrs <- corrs_list$lower
+  corrs[upper.tri(corrs)] <- corrs_list$upper[upper.tri(corrs_list$upper)]
+  rownames(corrs) <- rownames(x$corrs)
+  colnames(corrs) <- colnames(x$corrs)
   
   ds <- t(apply(x$bootstrap$d[,-f,drop=FALSE], 1, quantile,
                 probs = c(alpha / 2, 1 - alpha / 2)))
@@ -1165,12 +1167,11 @@ print.cor_phylo <- function(x, digits = max(3, getOption("digits") - 3), ...) {
   }
   if (length(x$bootstrap) > 0) {
     cis <- boot_ci(x)
-    cat("\n---------\nBootstrapped 95% CIs:\n\n")
+    cat("\n---------\nBootstrapped 95% CIs (", dim(x$bootstrap$corrs)[3],
+        " reps):\n\n", sep = "")
     cat("* Correlation matrix:\n")
-    cat("  <lower>\n")
-    print(cis$corrs$lower, digits = digits)
-    cat("  <upper>\n")
-    print(cis$corrs$upper, digits = digits)
+    cat("  (lower limits below diagonal, upper above)\n")
+    print(cis$corrs, digits = digits)
     
     cat("\n* Phylogenetic signal:\n")
     print(cis$d, digits = digits)
@@ -1178,9 +1179,16 @@ print.cor_phylo <- function(x, digits = max(3, getOption("digits") - 3), ...) {
     cat("\n* Coefficients:\n")
     print(cis$B0, digits = digits)
     
-    if (length(x$bootstrap$failed) > 0) {
-      cat("\n~~~~~~~~~~~\nWarning: convergence failed on ", length(x$bootstrap$failed),
-          "bootstrap replicates\n~~~~~~~~~~~\n")
+    if (length(x$bootstrap$codes) > 0) {
+      if (call_arg(x$call,"method") %in% c("nelder-mead-r", "sann")) {
+        failed <- sum(x$bootstrap$codes != 0)
+      } else {
+        failed <- sum(x$bootstrap$codes > 0)
+      }
+      if (failed > 0) {
+        cat("\n~~~~~~~~~~~\nWarning: convergence failed on ", 
+            failed, "bootstrap replicates\n~~~~~~~~~~~\n")
+      }
     }
   }
   cat("\n")
