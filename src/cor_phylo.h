@@ -365,6 +365,32 @@ inline void make_B_B_cov(arma::mat& B, arma::mat& B_cov, arma::vec& B0,
 
 
 
+/*
+ Returning useful error message if choleski decomposition fails:
+ */
+inline void safe_chol(arma::mat& L, std::string task) {
+  try {
+    L = arma::chol(L);
+  } catch(const std::runtime_error& re) {
+    std::string err_msg = static_cast<std::string>(re.what());
+    if (err_msg == "chol(): decomposition failed") {
+      std::string err_msg_out = "Choleski decomposition failed during " + task + ". ";
+      err_msg_out += "Changing the `constrain_d` argument to `TRUE`, and ";
+      err_msg_out += "using a different algorithm (`method` argument) can remedy this.";
+      throw(Rcpp::exception(err_msg_out.c_str(), false));
+    } else {
+      std::string err_msg_out = "Runtime error: \n" + err_msg;
+      throw(Rcpp::exception(err_msg_out.c_str(), false));
+    }
+  } catch(const std::exception& ex) {
+    std::string err_msg = static_cast<std::string>(ex.what());
+    stop("Error occurred: \n" + err_msg);
+  } catch(...) {
+    stop("Unknown failure occurred.");
+  }
+  return;
+}
+
 
 
 #endif

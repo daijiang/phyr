@@ -18,6 +18,7 @@ using namespace Rcpp;
 
 
 
+
 /*
  ***************************************************************************************
  ***************************************************************************************
@@ -463,7 +464,7 @@ LL_info::LL_info(const arma::mat& X,
     }
   }
   L = arma::cov(eps);
-  L = arma::chol(L);
+  safe_chol(L, "model fitting");
   L = tp(L);
   
   par0 = arma::vec((static_cast<double>(p) / 2) * (1 + p) + p);
@@ -511,7 +512,6 @@ LL_info::LL_info(const arma::mat& X,
     REML(other.REML), constrain_d(other.constrain_d), verbose(other.verbose),
     iters(0) {
 
-  // uint_t n = Vphy.n_rows;
   uint_t p = X.n_cols;
   
   arma::mat Xs = X;
@@ -538,7 +538,7 @@ LL_info::LL_info(const arma::mat& X,
     }
   }
   L = arma::cov(eps);
-  L = arma::chol(L);
+  safe_chol(L, "a bootstrap replicate");
   L = tp(L);
   
   par0 = arma::vec((static_cast<double>(p) / 2) * (1 + p) + p);
@@ -781,7 +781,9 @@ boot_mats::boot_mats(const arma::mat& X_, const std::vector<arma::mat>& U_,
   arma::mat R = L.t() * L;
   arma::mat C = make_C(n, p, ll_info.tau, d_, ll_info.Vphy, R);
   arma::mat V = make_V(C, ll_info.MM);
-  iD = arma::chol(V).t();
+  iD = V;
+  safe_chol(iD, "bootstrapping-matrices setup");
+  iD = iD.t();
   
   // For predicted X values (i.e., without error)
   X_pred = ll_info.UU;
