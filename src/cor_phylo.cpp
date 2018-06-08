@@ -4,7 +4,6 @@
 #include <numeric>
 #include <cmath>
 #include <vector>
-#include <nloptrAPI.h>
 
 #include "cor_phylo.h"
 
@@ -38,15 +37,15 @@ using namespace Rcpp;
 
 //' Inline C++ that does most of the work related to the log-likelihood function.
 //' 
-//' See below for the `nlopt` and `stats::optim` versions
+//' See below for the wrapper around this function that replaces the many
+//' arguments required here with one input `XPtr<LL_obj>` object.
 //' 
 //' 
 //' @name cor_phylo_LL_
 //' @noRd
 //' 
 //' 
-inline double cor_phylo_LL_(const unsigned& n,
-                            const arma::vec& par,
+inline double cor_phylo_LL_(const arma::vec& par,
                             const arma::mat& XX,
                             const arma::mat& UU,
                             const arma::mat& MM,
@@ -57,18 +56,18 @@ inline double cor_phylo_LL_(const unsigned& n,
                             const bool& verbose) {
   
   
-  uint_t n_ = Vphy.n_rows;
-  uint_t p = XX.n_rows / n_;
+  uint_t n = Vphy.n_rows;
+  uint_t p = XX.n_rows / n;
   
-  arma::mat L = make_L(par, n_, p);
+  arma::mat L = make_L(par, n, p);
   
   arma::mat R = L.t() * L;
   
-  arma::vec d = make_d(par, n_, p, constrain_d, true);
+  arma::vec d = make_d(par, n, p, constrain_d, true);
   if (d.n_elem == 0) return MAX_RETURN;
   
   // OU transform
-  arma::mat C = make_C(n_, p, tau, d, Vphy, R);
+  arma::mat C = make_C(n, p, tau, d, Vphy, R);
   
   arma::mat V = make_V(C, MM);
   double rcond_dbl = arma::rcond(V);
@@ -109,46 +108,9 @@ inline double cor_phylo_LL_(const unsigned& n,
 }
 
 
-//' `cor_phylo` log likelihood function for use with `nlopt`.
-//' 
-//' Note that this function is referred to the "objective function" in the `nlopt`
-//' documentation and the input arguments should not be changed.
-//' See
-//' [here](https://nlopt.readthedocs.io/en/latest/NLopt_Reference/#objective-function)
-//' for more information.
-//' 
-//' @param n the number of optimization parameters
-//' @param x an array of length `n` of the optimization parameters
-//' @param grad an array that is not used here, but the `nlopt` documentation describes
-//'   it as such: "an array of length `n` which should (upon return) be set to the 
-//'   gradient of the function with respect to the optimization parameters at `x`."
-//' @param f_data pointer to an object with additional information for the function.
-//'   In this function's case, it is an object of class `LL_info`.
-//' 
-//' @return the negative log likelihood
-//' 
-//' @name cor_phylo_LL_nlopt
-//' @noRd
-//' 
-double cor_phylo_LL_nlopt(unsigned n, const double* x, double* grad, void* f_data) {
-  
-  LL_info* ll_info = (LL_info*) f_data;
-  
-  arma::vec par(n);
-  for (uint_t i = 0; i < n; i++) par[i] = x[i];
-  
-  double LL = cor_phylo_LL_(n, par, ll_info->XX, ll_info->UU, ll_info->MM, 
-                            ll_info->Vphy, ll_info->tau, ll_info->REML, 
-                            ll_info->constrain_d, ll_info->verbose);
-  
-  ll_info->iters++;
-  
-  return LL;
-}
 
 
-
-//' `cor_phylo` log likelihood function for R's `stats::optim`.
+//' `cor_phylo` log likelihood function.
 //' 
 //' 
 //' @param par Initial values for the parameters to be optimized over.
@@ -158,15 +120,14 @@ double cor_phylo_LL_nlopt(unsigned n, const double* x, double* grad, void* f_dat
 //' 
 //' @noRd
 //' 
-//' @name cor_phylo_LL_R
+//' @name cor_phylo_LL
 //' 
 //[[Rcpp::export]]
-double cor_phylo_LL_R(const arma::vec& par,
-                      SEXP ll_info_xptr) {
+double cor_phylo_LL(const arma::vec& par,
+                    SEXP ll_info_xptr) {
   
   XPtr<LL_info> ll_info(ll_info_xptr);
-  const unsigned n = par.n_elem;
-  double LL = cor_phylo_LL_(n, par, ll_info->XX, ll_info->UU, ll_info->MM, 
+  double LL = cor_phylo_LL_(par, ll_info->XX, ll_info->UU, ll_info->MM, 
                             ll_info->Vphy, ll_info->tau, ll_info->REML, 
                             ll_info->constrain_d, ll_info->verbose);
   return LL;
@@ -208,48 +169,38 @@ void fit_cor_phylo_nlopt(XPtr<LL_info> ll_info_xptr,
                          const int& max_iter,
                          const std::string& method) {
   
-  LL_info& ll_info(*ll_info_xptr);
-  void* llop(&ll_info);
+  Rcpp::Environment nloptr_pkg = Rcpp::Environment::namespace_env("nloptr");
+  Rcpp::Function nloptr = nloptr_pkg["nloptr"];
   
-  unsigned n_pars = ll_info.par0.n_elem;
+  std::string nlopt_algor;
   
-  // Dynamic array from ll_info
-  // (from http://www.fredosaurus.com/notes-cpp/newdelete/50dynamalloc.html)
-  double* x = NULL;   // initialize to nothing.
-  x = new double[n_pars];  // Allocate n_pars doubles and save ptr in x.
-  for (unsigned i = 0; i < n_pars; i++) x[i] = ll_info.par0(i);
+  if (method == "nelder-mead-nlopt") nlopt_algor = "NLOPT_LN_NELDERMEAD";
+  if (method == "bobyqa") nlopt_algor = "NLOPT_LN_BOBYQA";
+  if (method == "subplex") nlopt_algor = "NLOPT_LN_SBPLX";
   
+  List options = List::create(_["algorithm"] = nlopt_algor,
+                              _["ftol_rel"] = rel_tol,
+                              _["ftol_abs"] = rel_tol,
+                              _["xtol_rel"] = 0.0001,
+                              _["maxeval"] = max_iter);
   
-  nlopt_algorithm alg;
+  List opt = nloptr(_["x0"] = ll_info_xptr->par0,
+                   _["eval_f"] = Rcpp::InternalFunction(&cor_phylo_LL),
+                   _["opts"] = options,
+                   _["ll_info"] = ll_info_xptr);
   
-  if (method == "nelder-mead-nlopt") {
-    alg = NLOPT_LN_NELDERMEAD;
-  } else if (method == "bobyqa") {
-    alg = NLOPT_LN_BOBYQA;
-  } else if (method == "subplex") {
-    alg = NLOPT_LN_SBPLX;
-  } else {
-    stop("Unknown method passed to fit_cor_phylo_nlopt; "
-           "options are 'nelder-mead-nlopt', 'bobyqa', or 'subplex'.");
+  ll_info_xptr->min_par = as<arma::vec>(opt["solution"]);
+  
+  ll_info_xptr->LL = as<double>(opt["objective"]);
+  ll_info_xptr->convcode = as<int>(opt["status"]);
+  ll_info_xptr->iters = as<arma::vec>(opt["iterations"])(0);
+  
+  if (ll_info_xptr->verbose) {
+    Rcout << ll_info_xptr->LL << ' ';
+    arma::vec& par(ll_info_xptr->min_par);
+    for (uint_t i = 0; i < par.n_elem; i++) Rcout << par(i) << ' ';
+    Rcout << std::endl;
   }
-  
-  nlopt_opt opt = nlopt_create(alg, n_pars);
-  double min_LL;
-  
-  nlopt_set_min_objective(opt, cor_phylo_LL_nlopt, llop);
-  
-  nlopt_set_ftol_rel(opt, rel_tol);
-  nlopt_set_maxeval(opt, max_iter);
-  
-  nlopt_result res = nlopt_optimize(opt, x, &min_LL);
-  ll_info.convcode = res;
-  
-  ll_info.LL = min_LL;
-  for (unsigned i = 0; i < n_pars; i++) ll_info.min_par(i) = x[i];
-  
-  
-  delete [] x;  // When done, free memory pointed to by x.
-  x = NULL;     // Clear x to prevent using invalid memory reference.
   
   return;
 }
@@ -261,7 +212,7 @@ void fit_cor_phylo_nlopt(XPtr<LL_info> ll_info_xptr,
 //' Make sure this doesn't get run in parallel!
 //'
 //'
-//' @inheritParams ll_info_xptr cor_phylo_LL_R
+//' @inheritParams ll_info_xptr cor_phylo_LL
 //' @inheritParams max_iter cor_phylo
 //' @inheritParams method cor_phylo
 //' 
@@ -284,7 +235,7 @@ void fit_cor_phylo_R(XPtr<LL_info>& ll_info_xptr,
   
   if (method == "sann") {
     opt = optim(_["par"] = ll_info_xptr->par0,
-                _["fn"] = Rcpp::InternalFunction(&cor_phylo_LL_R),
+                _["fn"] = Rcpp::InternalFunction(&cor_phylo_LL),
                 _["ll_info"] = ll_info_xptr,
                 _["method"] = "SANN",
                 _["control"] = List::create(_["maxit"] = sann[0],
@@ -295,7 +246,7 @@ void fit_cor_phylo_R(XPtr<LL_info>& ll_info_xptr,
   }
   
   opt = optim(_["par"] = ll_info_xptr->par0,
-              _["fn"] = Rcpp::InternalFunction(&cor_phylo_LL_R),
+              _["fn"] = Rcpp::InternalFunction(&cor_phylo_LL),
               _["ll_info"] = ll_info_xptr,
               _["method"] = "Nelder-Mead",
               _["control"] = List::create(_["maxit"] = max_iter,

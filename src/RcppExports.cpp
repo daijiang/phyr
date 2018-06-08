@@ -69,15 +69,15 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// cor_phylo_LL_R
-double cor_phylo_LL_R(const arma::vec& par, SEXP ll_info_xptr);
-RcppExport SEXP _phyr_cor_phylo_LL_R(SEXP parSEXP, SEXP ll_info_xptrSEXP) {
+// cor_phylo_LL
+double cor_phylo_LL(const arma::vec& par, SEXP ll_info_xptr);
+RcppExport SEXP _phyr_cor_phylo_LL(SEXP parSEXP, SEXP ll_info_xptrSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const arma::vec& >::type par(parSEXP);
     Rcpp::traits::input_parameter< SEXP >::type ll_info_xptr(ll_info_xptrSEXP);
-    rcpp_result_gen = Rcpp::wrap(cor_phylo_LL_R(par, ll_info_xptr));
+    rcpp_result_gen = Rcpp::wrap(cor_phylo_LL(par, ll_info_xptr));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -299,7 +299,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_phyr_pglmm_reml_cpp", (DL_FUNC) &_phyr_pglmm_reml_cpp, 5},
     {"_phyr_binpglmm_inter_while_cpp", (DL_FUNC) &_phyr_binpglmm_inter_while_cpp, 16},
     {"_phyr_binpglmm_inter_while_cpp2", (DL_FUNC) &_phyr_binpglmm_inter_while_cpp2, 12},
-    {"_phyr_cor_phylo_LL_R", (DL_FUNC) &_phyr_cor_phylo_LL_R, 2},
+    {"_phyr_cor_phylo_LL", (DL_FUNC) &_phyr_cor_phylo_LL, 2},
     {"_phyr_cor_phylo_", (DL_FUNC) &_phyr_cor_phylo_, 13},
     {"_phyr_set_seed", (DL_FUNC) &_phyr_set_seed, 1},
     {"_phyr_predict_cpp", (DL_FUNC) &_phyr_predict_cpp, 4},

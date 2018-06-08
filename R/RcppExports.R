@@ -15,35 +15,13 @@ binpglmm_inter_while_cpp2 <- function(est_B_m, B, mu, C, rcondflag, B_init, X, X
 
 #' Inline C++ that does most of the work related to the log-likelihood function.
 #' 
-#' See below for the `nlopt` and `stats::optim` versions
+#' See below for the wrapper around this function that replaces the many
+#' arguments required here with one input `XPtr<LL_obj>` object.
 #' 
 #' 
 #' @name cor_phylo_LL_
 #' @noRd
 #' 
-#' 
-NULL
-
-#' `cor_phylo` log likelihood function for use with `nlopt`.
-#' 
-#' Note that this function is referred to the "objective function" in the `nlopt`
-#' documentation and the input arguments should not be changed.
-#' See
-#' [here](https://nlopt.readthedocs.io/en/latest/NLopt_Reference/#objective-function)
-#' for more information.
-#' 
-#' @param n the number of optimization parameters
-#' @param x an array of length `n` of the optimization parameters
-#' @param grad an array that is not used here, but the `nlopt` documentation describes
-#'   it as such: "an array of length `n` which should (upon return) be set to the 
-#'   gradient of the function with respect to the optimization parameters at `x`."
-#' @param f_data pointer to an object with additional information for the function.
-#'   In this function's case, it is an object of class `LL_info`.
-#' 
-#' @return the negative log likelihood
-#' 
-#' @name cor_phylo_LL_nlopt
-#' @noRd
 #' 
 NULL
 
@@ -67,7 +45,7 @@ NULL
 #' Make sure this doesn't get run in parallel!
 #'
 #'
-#' @inheritParams ll_info_xptr cor_phylo_LL_R
+#' @inheritParams ll_info_xptr cor_phylo_LL
 #' @inheritParams max_iter cor_phylo
 #' @inheritParams method cor_phylo
 #' 
@@ -173,7 +151,7 @@ NULL
 #' 
 NULL
 
-#' `cor_phylo` log likelihood function for R's `stats::optim`.
+#' `cor_phylo` log likelihood function.
 #' 
 #' 
 #' @param par Initial values for the parameters to be optimized over.
@@ -183,10 +161,10 @@ NULL
 #' 
 #' @noRd
 #' 
-#' @name cor_phylo_LL_R
+#' @name cor_phylo_LL
 #' 
-cor_phylo_LL_R <- function(par, ll_info_xptr) {
-    .Call(`_phyr_cor_phylo_LL_R`, par, ll_info_xptr)
+cor_phylo_LL <- function(par, ll_info_xptr) {
+    .Call(`_phyr_cor_phylo_LL`, par, ll_info_xptr)
 }
 
 #' Inner function to create necessary matrices and do model fitting.
