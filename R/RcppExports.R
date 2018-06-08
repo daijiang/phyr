@@ -13,6 +13,183 @@ binpglmm_inter_while_cpp2 <- function(est_B_m, B, mu, C, rcondflag, B_init, X, X
     .Call(`_phyr_binpglmm_inter_while_cpp2`, est_B_m, B, mu, C, rcondflag, B_init, X, XX, est_B, y, n, b)
 }
 
+#' Inline C++ that does most of the work related to the log-likelihood function.
+#' 
+#' See below for the wrapper around this function that replaces the many
+#' arguments required here with one input `XPtr<LL_obj>` object.
+#' 
+#' 
+#' @name cor_phylo_LL_
+#' @noRd
+#' 
+#' 
+NULL
+
+#' Fit cor_phylo model using nlopt.
+#'
+#'
+#' @inheritParams ll_info cp_get_output
+#' @inheritParams max_iter cor_phylo
+#' @inheritParams method cor_phylo
+#' 
+#' @return Nothing. `ll_info` is modified in place to have info from the model fit
+#'   after this function is run.
+#'
+#' @name fit_cor_phylo_nlopt
+#' @noRd
+#' 
+NULL
+
+#' Fit `cor_phylo` model using R's `stats::optim`.
+#' 
+#' Make sure this doesn't get run in parallel!
+#'
+#'
+#' @inheritParams ll_info_xptr cor_phylo_LL
+#' @inheritParams max_iter cor_phylo
+#' @inheritParams method cor_phylo
+#' 
+#' @return Nothing. `ll_info_xptr` is modified in place to have info from the model fit
+#'   after this function is run.
+#'
+#' @name fit_cor_phylo_R
+#' @noRd
+#' 
+NULL
+
+#' Standardize matrices in place.
+#' 
+#' Makes each column of the `X` matrix have mean of zero and standard deviation of 1.
+#' If `U` isn't empty, this function makes each column in each matrix have
+#' mean of zero and standard deviation of 1, unless all values are the same, in which
+#' case it keeps the standard deviation at zero.
+#' Divides each column of `M` by the original standard deviation of that column in 
+#' `X`.
+#' 
+#' 
+#' @inheritParams X cor_phylo_
+#' @inheritParams U cor_phylo_
+#' @inheritParams M cor_phylo_
+#' 
+#' @return Nothing. Matrices are standardized in place.
+#' 
+#' @name standardize_matrices
+#' @noRd
+#' 
+NULL
+
+#' Make an `LL_info` object based on input matrices.
+#' 
+#' The output `LL_info` is used for model fitting.
+#' 
+#' @inheritParams X cor_phylo_
+#' @inheritParams U cor_phylo_
+#' @inheritParams M cor_phylo_
+#' @inheritParams Vphy_ cor_phylo_
+#' @inheritParams REML_ cor_phylo_
+#' @inheritParams constrain_d_ cor_phylo_
+#' @inheritParams verbose_ cor_phylo_
+#' 
+#' @return a LL_info that contains info necessary for model fitting
+#' 
+#' @name LL_info
+#' @noRd
+#' 
+NULL
+
+#' Make an `LL_info` object based on input matrices and another LL_info object.
+#' 
+#' The output `LL_info` is used for model fitting.
+#' 
+#' *Note:* This version is used for bootstrapping.
+#' It's different from the one above in that it doesn't re-normalize Vphy, UU, or tau.
+#' If you normalize Vphy and tau twice (which would happen if I used the previous
+#' version of this constructor), it can result in weird behavior.
+#' Notably, the bootstrap replicate will sometimes not converge, but when I output the
+#' same data and re-run cor_phylo on it, it'll converge.
+#' This is confusing, so I'm trying to avoid that.
+#' 
+#' 
+#' @inheritParams X cor_phylo_
+#' @inheritParams U cor_phylo_
+#' @inheritParams M cor_phylo_
+#' @param other Another LL_info object from which to derive much of the information.
+#' 
+#' @return a LL_info that contains info necessary for model fitting
+#' 
+#' @name LL_info
+#' @noRd
+#' 
+NULL
+
+#' Retrieve objects for output `cor_phylo` object.
+#' 
+#' @inheritParams X cor_phylo_
+#' @inheritParams U cor_phylo_
+#' @param ll_info an LL_info object that contains info necessary to fit the model.
+#'   After optimization, it contains info from the model fit.
+#' 
+#' @return a list containing output information, to later be coerced to a `cor_phylo`
+#'   object by the `cor_phylo` function.
+#' 
+#' @name cp_get_output
+#' @noRd
+#' 
+NULL
+
+#' Iterate from a boot_mats object in prep for a bootstrap replicate.
+#' 
+#' This ultimately updates the LL_info object with new XX and MM matrices,
+#' and updates the boot_results object with the mean and sd.
+#' 
+#' @param ll_info An LL_info object that will inform the next call to the
+#'     log-likelihood function.
+#' @param br A boot_results object that stores output from bootstrapping.
+#' 
+#' @name boot_mats_iterate
+#' @noRd
+#' 
+NULL
+
+#' `cor_phylo` log likelihood function.
+#' 
+#' 
+#' @param par Initial values for the parameters to be optimized over.
+#' @param ll_info_xptr `Rcpp::Xptr` object that points to a C++ `LL_info` object.
+#'     This object stores all the other information needed for the log likelihood
+#'     function.
+#' 
+#' @noRd
+#' 
+#' @name cor_phylo_LL
+#' 
+cor_phylo_LL <- function(par, ll_info_xptr) {
+    .Call(`_phyr_cor_phylo_LL`, par, ll_info_xptr)
+}
+
+#' Inner function to create necessary matrices and do model fitting.
+#' 
+#' @param X a n x p matrix with p columns containing the values for the n taxa.
+#' @param U a list of p matrices corresponding to the p columns of `X`, with each 
+#'   matrix containing independent variables for the corresponding column of `X`.
+#' @param M a n x p matrix with p columns containing standard errors of the trait 
+#'   values in `X`. 
+#' @param Vphy_ phylogenetic variance-covariance matrix from the input phylogeny.
+#' @inheritParams REML cor_phylo
+#' @inheritParams constrain_d cor_phylo
+#' @inheritParams verbose cor_phylo
+#' @inheritParams max_iter cor_phylo
+#' @param method the `method` input to `cor_phylo`.
+#' 
+#' @return a list containing output information, to later be coerced to a `cor_phylo`
+#'   object by the `cor_phylo` function.
+#' @noRd
+#' @name cor_phylo_
+#' 
+cor_phylo_ <- function(X, U, M, Vphy_, REML, constrain_d, verbose, rel_tol, max_iter, method, boot, keep_boots, sann) {
+    .Call(`_phyr_cor_phylo_`, X, U, M, Vphy_, REML, constrain_d, verbose, rel_tol, max_iter, method, boot, keep_boots, sann)
+}
+
 set_seed <- function(seed) {
     invisible(.Call(`_phyr_set_seed`, seed))
 }

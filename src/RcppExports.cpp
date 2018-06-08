@@ -69,6 +69,41 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cor_phylo_LL
+double cor_phylo_LL(const arma::vec& par, SEXP ll_info_xptr);
+RcppExport SEXP _phyr_cor_phylo_LL(SEXP parSEXP, SEXP ll_info_xptrSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::vec& >::type par(parSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type ll_info_xptr(ll_info_xptrSEXP);
+    rcpp_result_gen = Rcpp::wrap(cor_phylo_LL(par, ll_info_xptr));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cor_phylo_
+List cor_phylo_(const arma::mat& X, const std::vector<arma::mat>& U, const arma::mat& M, const arma::mat& Vphy_, const bool& REML, const bool& constrain_d, const bool& verbose, const double& rel_tol, const int& max_iter, const std::string& method, const uint_fast32_t& boot, const std::string& keep_boots, const std::vector<double>& sann);
+RcppExport SEXP _phyr_cor_phylo_(SEXP XSEXP, SEXP USEXP, SEXP MSEXP, SEXP Vphy_SEXP, SEXP REMLSEXP, SEXP constrain_dSEXP, SEXP verboseSEXP, SEXP rel_tolSEXP, SEXP max_iterSEXP, SEXP methodSEXP, SEXP bootSEXP, SEXP keep_bootsSEXP, SEXP sannSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type X(XSEXP);
+    Rcpp::traits::input_parameter< const std::vector<arma::mat>& >::type U(USEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type M(MSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type Vphy_(Vphy_SEXP);
+    Rcpp::traits::input_parameter< const bool& >::type REML(REMLSEXP);
+    Rcpp::traits::input_parameter< const bool& >::type constrain_d(constrain_dSEXP);
+    Rcpp::traits::input_parameter< const bool& >::type verbose(verboseSEXP);
+    Rcpp::traits::input_parameter< const double& >::type rel_tol(rel_tolSEXP);
+    Rcpp::traits::input_parameter< const int& >::type max_iter(max_iterSEXP);
+    Rcpp::traits::input_parameter< const std::string& >::type method(methodSEXP);
+    Rcpp::traits::input_parameter< const uint_fast32_t& >::type boot(bootSEXP);
+    Rcpp::traits::input_parameter< const std::string& >::type keep_boots(keep_bootsSEXP);
+    Rcpp::traits::input_parameter< const std::vector<double>& >::type sann(sannSEXP);
+    rcpp_result_gen = Rcpp::wrap(cor_phylo_(X, U, M, Vphy_, REML, constrain_d, verbose, rel_tol, max_iter, method, boot, keep_boots, sann));
+    return rcpp_result_gen;
+END_RCPP
+}
 // set_seed
 void set_seed(unsigned int seed);
 RcppExport SEXP _phyr_set_seed(SEXP seedSEXP) {
@@ -339,6 +374,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_phyr_pglmm_reml_cpp", (DL_FUNC) &_phyr_pglmm_reml_cpp, 5},
     {"_phyr_binpglmm_inter_while_cpp", (DL_FUNC) &_phyr_binpglmm_inter_while_cpp, 16},
     {"_phyr_binpglmm_inter_while_cpp2", (DL_FUNC) &_phyr_binpglmm_inter_while_cpp2, 12},
+    {"_phyr_cor_phylo_LL", (DL_FUNC) &_phyr_cor_phylo_LL, 2},
+    {"_phyr_cor_phylo_", (DL_FUNC) &_phyr_cor_phylo_, 13},
     {"_phyr_set_seed", (DL_FUNC) &_phyr_set_seed, 1},
     {"_phyr_predict_cpp", (DL_FUNC) &_phyr_predict_cpp, 4},
     {"_phyr_pcd2_loop", (DL_FUNC) &_phyr_pcd2_loop, 7},
