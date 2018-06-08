@@ -1054,7 +1054,7 @@ print.cor_phylo <- function(x, digits = max(3, getOption("digits") - 3), ...) {
       if (call_arg(x$call,"method") %in% c("nelder-mead-r", "sann")) {
         failed <- sum(x$bootstrap$codes != 0)
       } else {
-        failed <- sum(x$bootstrap$codes > 0)
+        failed <- sum(x$bootstrap$codes < 0)
       }
       if (failed > 0) {
         cat("\n~~~~~~~~~~~\nWarning: convergence failed on ", 
