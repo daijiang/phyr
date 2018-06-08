@@ -354,7 +354,7 @@ int sexp_type(SEXP x){
 
 
 /*** R
-library(Matrix)
+# library(Matrix)
 # St = as(matrix(NA, 0, 0), "dgTMatrix")
 # Zt = as(matrix(NA, 0, 0), "dgTMatrix")
 # sexp_type(nested)

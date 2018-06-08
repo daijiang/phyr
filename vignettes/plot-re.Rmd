@@ -1,0 +1,229 @@
+---
+title: "Plot random terms of communityPGLMM"
+author: "Daijiang Li"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Plot random terms of communityPGLMM}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "##",
+  fig.width = 15, fig.align = 'center', out.width = '100%'
+)
+```
+
+This vignette will show how to visualize the var-covariance matrix of random terms for `communityPGLMM` models. 
+
+# Main function
+
+The main function to use is `phyr::communityPGLMM.plot.re()` (alias: `phyr::communityPGLMM.show.re()`). Here are the arguments of this function:
+
+```{r args-pglmm}
+args(phyr::communityPGLMM.plot.re)
+```
+
+Some brief explanation of arguments:
+
+- `x`: a model with class communityPGLMM, if it is specified, then all other argument before x will be ignored.
+- `show.image` (`TRUE` or `FALSE`): whether to plot the var-cov matrix of random terms?
+- `show.sim.image` (`TRUE` or `FALSE`): whether to plot simulated site by species matrix for all random terms?
+- `add.tree.sp` (`TRUE` or `FALSE`): when `show.sim.image = TRUE`, whether to add a phylogeny of species at the top of each matrix plot?
+- `add.tree.site` (`TRUE` or `FALSE`): when `show.sim.image = TRUE`, whether to add a phylogeny of sites at the right of each matrix plot? This can be usefull for bipartite problems (e.g. pollinators (species) and plants (sites)).
+- `tree.size` (default is 3): the height of the phylogenies to plot, unit is number of lines.
+
+This function will return a hidden list, which includes all the var-cov matrices of random terms, simulated site by species matrices, individual plots, and all plots in one figure for both var-cov matrices and simulated ones. Therefore, we can extract specific plots and then update them or generate new figure with `gridExtra::grid.arrange()`. This is because all generated plots are based on `lattice` package and are all `grid` object. Therefore, we can also use `gridExtra::arrangeGrob()` to put multiple plots in one figure and then use `ggplot2::ggsave()` to save it as external file (e.g. PDF). Of course, `pdf()` and `dev.off()` will also work.
+
+# Simulate data
+
+Now, let's show how to use this function to help us understanding better the random terms.
+
+```{r}
+library(ape)
+library(phyr)
+suppressPackageStartupMessages(library(dplyr))
+
+set.seed(12345)
+nspp <- 7
+nsite <- 5
+# Simulate a phylogeny that has a lot of phylogenetic signal (power = 1.3)
+phy <- compute.brlen(rtree(n = nspp), method = "Grafen", power = 1.3)
+# Simulate species means
+sd.sp <- 1
+mean.sp <- rTraitCont(phy, model = "BM", sigma = sd.sp^2)
+Y.sp <- rep(mean.sp, times = nsite)
+# Phylogenetically correlated response of species to env
+sd.trait <- 1
+trait <- rTraitCont(phy, model = "BM", sigma = sd.trait)
+trait <- rep(trait, times = nsite)
+# Simulate site means
+sd.site <- 1
+mean.site <- rnorm(nsite, sd = sd.site)
+Y.site <- rep(mean.site, each = nspp)
+# Site-specific environmental variation
+sd.env <- 1
+env <- rnorm(nsite, sd = sd.env)
+# Generate covariance matrix for phylogenetic attraction
+sd.attract <- 1
+Vphy <- vcv(phy)
+Vphy <- Vphy / (det(Vphy) ^ (1 / nspp))
+V.attract <- kronecker(diag(nrow = nsite, ncol = nsite), Vphy)
+Y.attract <- array(t(mvtnorm::rmvnorm(n = 1, sigma = sd.attract ^ 2 * V.attract)))
+# Residual errors
+sd.e <- 1
+Y.e <- rnorm(nspp * nsite, sd = sd.e)
+# Construct the dataset
+d <- data.frame(sp = rep(phy$tip.label, times = nsite), 
+                site = rep(1:nsite, each = nspp),
+                env = rep(env, each = nspp))
+# Simulate abundance data
+d$Y <- Y.sp + Y.attract + trait * d$env + Y.e
+head(d)
+
+# fit a model
+mod_1 = communityPGLMM(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
+                       data = d, tree = phy)
+summary(mod_1)
+```
+
+# Var-cov matrices of random terms
+
+## Plot var-cov matrices of all random terms in one figure
+
+```{r fig.asp=0.6}
+# plot var-cov matrices of random terms
+mod1re = communityPGLMM.plot.re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
+                       data = d, tree = phy, show.image = TRUE, show.sim.image = FALSE)
+```
+
+In the above plot, we can see that some of the panels are black-white but some have colors. This is because, by default, if a mtrix has both positive and negative values, then the function will use red-blue color and will draw a key for that (use `colorkey = FALSE` to suppress it). If a matrix does not have negative values, then the function will use black/white color (use `useAbs = FALSE` to use color instead, and use `colorkey = FALSE` to suppress key if wanted). In both cases, value 0 will be white so that the structure of the var-cov matrix can be easier to see.
+
+```{r fig.asp=0.6}
+# all use color with useAbs = FALSE
+communityPGLMM.plot.re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
+                       data = d, tree = phy, show.image = TRUE, show.sim.image = FALSE, useAbs = FALSE)
+```
+
+For the above plot, notice that for `1|sp` and `1|site`, all values are either 1 or 0 even though we have a range in the key. We can supress the key with `colorkey = FALSE`.
+
+```{r fig.asp=0.6}
+# suppress key with colorkey = FALSE
+communityPGLMM.plot.re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
+                       data = d, tree = phy, show.image = TRUE, show.sim.image = FALSE, useAbs = FALSE, colorkey = FALSE)
+```
+
+We can also just use `colorkey = FALSE` and still use black/white color for matrices that do not have negative values (without setting `useAbs`).
+
+```{r fig.asp=0.6}
+# suppress colorkey, let the function decide whether use color or not
+communityPGLMM.plot.re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
+                       data = d, tree = phy, show.image = TRUE, show.sim.image = FALSE, colorkey = FALSE)
+```
+
+To make all plots black or white, use `useAbs = TRUE`.
+
+```{r fig.asp=0.6}
+# all black and white
+communityPGLMM.plot.re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
+                       data = d, tree = phy, show.image = TRUE, show.sim.image = FALSE, useAbs = TRUE)
+```
+
+## Individual plots for var-cov matrices
+
+Instead of plotting all var-cov matrices in one figure, we can also select the ones we are interested and then work from there.
+
+```{r}
+names(mod1re)
+```
+
+So, the data of var-cov matrices are saved as `mod1re$vcv`, which is a list. We can use this list to plot the random terms in other ways, using either the base R or ggplot2 package.
+
+```{r}
+names(mod1re$vcv)
+```
+
+The individual plots are saved as `mod1re$plt_re_list`, which is also a list.
+
+```{r fig.height=6, fig.width=6, out.width='50%'}
+names(mod1re$plt_re_list)
+mod1re$plt_re_list[[6]]
+```
+
+The individual plots were generated using `Matrix::image()`, which used `lattice::levelplot()` as the back bone function.
+
+```{r fig.height=6, fig.width=6, out.width='50%'}
+Matrix::image(mod1re$vcv[[6]], xlab = "", ylab = "", sub = "", main = "1|sp__@site")
+```
+
+We can also pick the ones that we are interested in and put them in one figure. For example, suppose that we are only interested in those with phylogenetic relationships. That is, `1|sp__`, `env|sp__`, and `1|sp__@site`.
+
+```{r fig.asp=0.4}
+gridExtra::grid.arrange(grobs = mod1re$plt_re_list[c(2, 5, 6)], nrow = 1)
+```
+
+To save this customed plot, we can wrap the above line of code within `pdf()` and `dev.off()`.
+
+
+# Simulated site by species matrix for random terms
+
+For each random term, we can simulate some values for all data points. We can reshape this long format into a site by species matrix. By plotting this site by species matrix, we can see what does "closely related species have similar abundance (within or across sites)" mean.
+
+## Plot simulated matrices of all random terms in one figure
+
+```{r fig.asp=0.6}
+# plot simulated matrices of random terms
+mod1sim = communityPGLMM.plot.re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
+                       data = d, tree = phy, show.image = FALSE, show.sim.image = TRUE)
+```
+
+For the `1|sp__` panel, we can see that closely related species have similar value across all sites. While the ``|sp__@site` panel shows that closely related species within each site have similar values.
+
+By default, we added a phylogeny for species at the top of each panel when we show the simulated site by species matrices. This can be suppressed with `add.tree.sp = FALSE`.
+
+```{r fig.asp=0.6}
+communityPGLMM.plot.re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
+                       data = d, tree = phy, show.image = FALSE, show.sim.image = TRUE, add.tree.sp = FALSE)
+```
+
+Again, we can remove the keys with `colorkey = FALSE`. We can also use `useAbs` to force using color for all panels.
+
+```{r fig.asp=0.6}
+communityPGLMM.plot.re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
+                       data = d, tree = phy, show.image = FALSE, show.sim.image = TRUE, add.tree.sp = TRUE,
+                       colorkey = FALSE, useAbs = FALSE)
+```
+
+## Individual plots for simulated site by species matrix
+
+```{r}
+names(mod1sim)
+```
+
+The individual simulated matrices are saved as `mod1sim$sim` and individual plots are saved as `mod1sim$plt_sim_list`. We can use the same approach to select our own plots as those of var-cov matrices.
+
+We can control the space between the phylogeny and the matrix plot with `key.top` argument in `lattice::levelplot()`, which has a default value of 1 (line).
+
+```{r fig.width = 12, fig.asp=0.6}
+
+gridExtra::grid.arrange(grobs = lapply(mod1sim$plt_sim_list[c(2, 6)], 
+                                       update, 
+                                       par.settings = list(layout.heights = 
+                                                             list(key.top = 0.3,
+                                                                  main = 5))), 
+                        nrow = 1)
+```
+
+## Fitted model as input
+
+If you don't have the model fitted, then the above way with specified formula, data, etc. can save you lots of time. Becuase it won't actually fit the model, instead, it only return and plot the variance-cov matrices of random terms. However, if you already have the model fitted, you can just use the model as the input.
+
+```{r fig.asp=0.6}
+communityPGLMM.plot.re(x = mod_1, show.image = FALSE, show.sim.image = TRUE, add.tree.sp = TRUE,
+                       colorkey = FALSE, useAbs = FALSE)
+communityPGLMM.show.re(x = mod_1, show.image = TRUE, show.sim.image = FALSE, useAbs = TRUE)
+```
+

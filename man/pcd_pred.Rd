@@ -9,16 +9,21 @@ pcd_pred(comm_1, comm_2 = NULL, tree, reps = 10^3, cpp = TRUE)
 \arguments{
 \item{comm_1}{a site by species dataframe or matrix, with sites as rows and species as columns.}
 
-\item{comm_2}{an optional second site by species data frame. It should have the same number of rows as comm_1.}
+\item{comm_2}{an optional second site by species data frame. It should have the same number of rows as comm_1.
+This can be useful if we want to calculate temporal beta diveristy, i.e. changes of the same site over time.
+Because data of the same site are not independent, setting comm_2 will use both communities as species pool
+to calculate expected PCD.}
 
 \item{tree}{the phylogeny for all species, with "phylo" as class; or a var-cov matrix.}
 
 \item{reps}{number of random draws, default is 1000 times.}
 
-\item{cpp}{whether to use loops written with c++, default is TRUE}
+\item{cpp}{whether to use loops written with c++, default is TRUE. If you came across with errors, try to
+set cpp = FALSE. This normally will run without errors, but slower.}
 }
 \value{
-a list with species richness of the pool, expected PSV, PSV of the pool, and unique number of species richness across sites.
+a list with species richness of the pool, expected PSV, PSV of the pool,
+and unique number of species richness across sites.
 }
 \description{
 This function will calculate expected PCD from one or two sets of communities (depends on the species pool)

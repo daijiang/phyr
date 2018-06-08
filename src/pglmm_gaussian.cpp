@@ -12,6 +12,26 @@ using namespace Rcpp;
 using namespace arma;
 
 // [[Rcpp::export]]
+arma::vec pglmm_gaussian_predict(const arma::mat& iV,
+                                 const arma::mat& H){
+  int n = iV.n_rows;
+  arma::mat V = inv(iV);
+  arma::vec h(n);
+  for (int i = 0; i < n; i++) {
+    // V[i, -i]; V[-i, -i]; H[-i]
+    IntegerVector i_idx = seq_len(n) - 1;
+    IntegerVector i_idx_rm = i_idx[i_idx != i];
+    arma::uvec i_keep(1); i_keep(0) = i;
+    arma::uvec i_idx_rm_2 = as<arma::uvec>(i_idx_rm);
+    arma::mat V1 = V.submat(i_keep, i_idx_rm_2);
+    arma::mat V2 = V.submat(i_idx_rm_2, i_idx_rm_2);
+    arma::mat H1 = H.rows(i_idx_rm_2);
+    h(i) = as_scalar(V1 * inv(V2) * H1);
+  }
+  return(h);
+}
+
+// [[Rcpp::export]]
 double pglmm_gaussian_LL_cpp(NumericVector par, 
                            const arma::mat& X, const arma::vec& Y, 
                            const arma::sp_mat& Zt, const arma::sp_mat& St, 
@@ -323,6 +343,7 @@ Rcpp::List pglmm_gaussian_internal_cpp(NumericVector par,
 }
 
 /*** R
+# pglmm_gaussian_predict(x$iV, x$H)
 # pglmm_gaussian_internal_cpp(par = s, X, Y, Zt = as(matrix(0, 0, 0), "dgTMatrix"), 
 #                             St = as(matrix(0, 0, 0), "dgTMatrix"), nested, REML, 
 #                             verbose, optimizer, maxit, 

@@ -6,10 +6,15 @@
 #'
 #' @param comm_1 a site by species dataframe or matrix, with sites as rows and species as columns.
 #' @param comm_2 an optional second site by species data frame. It should have the same number of rows as comm_1.
+#'   This can be useful if we want to calculate temporal beta diveristy, i.e. changes of the same site over time.
+#'   Because data of the same site are not independent, setting comm_2 will use both communities as species pool
+#'   to calculate expected PCD.
 #' @param tree the phylogeny for all species, with "phylo" as class; or a var-cov matrix.
 #' @param reps number of random draws, default is 1000 times.
-#' @param cpp whether to use loops written with c++, default is TRUE
-#' @return a list with species richness of the pool, expected PSV, PSV of the pool, and unique number of species richness across sites.
+#' @param cpp whether to use loops written with c++, default is TRUE. If you came across with errors, try to
+#'   set cpp = FALSE. This normally will run without errors, but slower.
+#' @return a list with species richness of the pool, expected PSV, PSV of the pool, 
+#'   and unique number of species richness across sites.
 #' @export
 #'
 pcd_pred = function(comm_1, comm_2 = NULL, tree, reps = 10^3, cpp = TRUE) {
@@ -31,7 +36,7 @@ pcd_pred = function(comm_1, comm_2 = NULL, tree, reps = 10^3, cpp = TRUE) {
       tree = compute.brlen(tree, 1)
     }
     tree = drop.tip(tree, tip = tree$tip.label[tree$tip.label %nin% sp_pool])
-    V = vcv.phylo(tree, corr = TRUE)
+    V = vcv2(tree, corr = TRUE)
     comm_1 = comm_1[, tree$tip.label[tree$tip.label %in% colnames(comm_1)]]
     if (!is.null(comm_2)) {
       comm_2 = comm_2[, tree$tip.label[tree$tip.label %in% colnames(comm_2)]]
@@ -99,12 +104,12 @@ pcd_pred = function(comm_1, comm_2 = NULL, tree, reps = 10^3, cpp = TRUE) {
 #' @param verbose do you want to see the progress?
 #' @param ... other arguments
 #' @return a list of a variety of pairwise dissimilarities.
+#' @references Ives, A. R., & Helmus, M. R. 2010. Phylogenetic metrics of community similarity. 
+#'   The American Naturalist, 176(5), E128-E142.
 #' @export
 #' @examples
-#' x1 = pcd_pred(comm_1 = comm_a, comm_2 = comm_b, tree = tree, reps = 100)
-#' pcd(comm = comm_a,
-#'       tree = tree,
-#'       expectation = x1)
+#' x1 = pcd_pred(comm_1 = comm_a, comm_2 = comm_b, tree = phylotree, reps = 100)
+#' pcd(comm = comm_a, tree = phylotree, expectation = x1)
 pcd = function(comm, tree, expectation = NULL, cpp = TRUE, verbose = TRUE, ...) {
   if (is.null(expectation)) {
     expectation = pcd_pred(comm_1 = comm, tree = tree, ...)
@@ -125,7 +130,7 @@ pcd = function(comm, tree, expectation = NULL, cpp = TRUE, verbose = TRUE, ...) 
     }
     dat = match_comm_tree(comm, tree)
     tree = dat$tree
-    V = ape::vcv.phylo(tree, corr = TRUE)
+    V = vcv2(tree, corr = TRUE)
     comm = dat$comm
   } else {
     V = tree

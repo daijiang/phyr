@@ -222,6 +222,10 @@ sexp_type <- function(x) {
     .Call(`_phyr_sexp_type`, x)
 }
 
+pglmm_gaussian_predict <- function(iV, H) {
+    .Call(`_phyr_pglmm_gaussian_predict`, iV, H)
+}
+
 pglmm_gaussian_LL_cpp <- function(par, X, Y, Zt, St, nested, REML, verbose) {
     .Call(`_phyr_pglmm_gaussian_LL_cpp`, par, X, Y, Zt, St, nested, REML, verbose)
 }
@@ -232,5 +236,25 @@ pglmm_gaussian_LL_calc_cpp <- function(par, X, Y, Zt, St, nested, REML) {
 
 pglmm_gaussian_internal_cpp <- function(par, X, Y, Zt, St, nested, REML, verbose, optimizer, maxit, reltol, q, n, p, Pi) {
     .Call(`_phyr_pglmm_gaussian_internal_cpp`, par, X, Y, Zt, St, nested, REML, verbose, optimizer, maxit, reltol, q, n, p, Pi)
+}
+
+which2 <- function(x) {
+    .Call(`_phyr_which2`, x)
+}
+
+vcv_loop <- function(xx, n, e1, e2, EL, pp, corr) {
+    .Call(`_phyr_vcv_loop`, xx, n, e1, e2, EL, pp, corr)
+}
+
+cov2cor_cpp <- function(vcv) {
+    invisible(.Call(`_phyr_cov2cor_cpp`, vcv))
+}
+
+pse_cpp <- function(comm, Cmatrix) {
+    .Call(`_phyr_pse_cpp`, comm, Cmatrix)
+}
+
+psv_cpp <- function(comm, Cmatrix, compute_var) {
+    .Call(`_phyr_psv_cpp`, comm, Cmatrix, compute_var)
 }
 

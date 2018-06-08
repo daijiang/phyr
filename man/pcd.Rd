@@ -26,8 +26,10 @@ a list of a variety of pairwise dissimilarities.
 Calculate pairwise site PCD, users can specify expected values from \code{pcd_pred()}.
 }
 \examples{
-x1 = pcd_pred(comm_1 = comm_a, comm_2 = comm_b, tree = tree, reps = 100)
-pcd(comm = comm_a,
-      tree = tree,
-      expectation = x1)
+x1 = pcd_pred(comm_1 = comm_a, comm_2 = comm_b, tree = phylotree, reps = 100)
+pcd(comm = comm_a, tree = phylotree, expectation = x1)
+}
+\references{
+Ives, A. R., & Helmus, M. R. 2010. Phylogenetic metrics of community similarity.
+The American Naturalist, 176(5), E128-E142.
 }
