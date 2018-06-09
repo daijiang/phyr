@@ -878,6 +878,10 @@ cor_phylo <- function(traits,
   method <- match.arg(method)
 
   call_ <- match.call()
+  # So it doesn't show the whole function if using do.call:
+  if (call_[1] != as.call(quote(cor_phylo()))) {
+    call_[1] <- as.call(quote(cor_phylo()))
+  }
   
   phy <- check_phy(phy)
   Vphy <- ape::vcv(phy)
@@ -961,40 +965,47 @@ cor_phylo <- function(traits,
 #' 
 boot_ci.cor_phylo <- function(mod, alpha = 0.05) {
   
-  if (length(x$bootstrap) == 0) {
+  if (length(mod$bootstrap) == 0) {
     stop("\nThis `cor_phylo` object was not bootstrapped. ",
          "Please re-run with the `boot` argument set to >0. ",
          "We recommend >= 2000, but expect this to take 20 minutes or ",
          "longer.", call. = FALSE)
   }
-  f <- x$bootstrap$failed
-  if (length(f) == 0) f <- ncol(x$bootstrap$d) + 1
-  corrs_list <- list(lower = apply(x$bootstrap$corrs[,,-f,drop=FALSE], 
+  # Indices for failed convergences:
+  if (call_arg(mod$call,"method") %in% c("nelder-mead-r", "sann")) {
+    f <- mod$bootstrap$inds[mod$bootstrap$codes != 0]
+  } else {
+    f <- mod$bootstrap$inds[mod$bootstrap$codes < 0]
+  }
+  if (length(f) == 0) f <- ncol(mod$bootstrap$d) + 1
+  corrs_list <- list(lower = apply(mod$bootstrap$corrs[,,-f,drop=FALSE], 
                                    c(1, 2), quantile, probs = alpha / 2),
-                     upper = apply(x$bootstrap$corrs[,,-f,drop=FALSE],
+                     upper = apply(mod$bootstrap$corrs[,,-f,drop=FALSE],
                                    c(1, 2), quantile, probs = 1 - alpha / 2))
   corrs <- corrs_list$lower
   corrs[upper.tri(corrs)] <- corrs_list$upper[upper.tri(corrs_list$upper)]
-  rownames(corrs) <- rownames(x$corrs)
-  colnames(corrs) <- colnames(x$corrs)
+  rownames(corrs) <- rownames(mod$corrs)
+  colnames(corrs) <- colnames(mod$corrs)
   
-  ds <- t(apply(x$bootstrap$d[,-f,drop=FALSE], 1, quantile,
+  ds <- t(apply(mod$bootstrap$d[,-f,drop=FALSE], 1, quantile,
                 probs = c(alpha / 2, 1 - alpha / 2)))
-  rownames(ds) <- rownames(x$d)
+  rownames(ds) <- rownames(mod$d)
   
-  B0s <- t(apply(x$bootstrap$B0[,-f,drop=FALSE], 1, quantile,
+  B0s <- t(apply(mod$bootstrap$B0[,-f,drop=FALSE], 1, quantile,
                  probs = c(alpha / 2, 1 - alpha / 2)))
-  rownames(B0s) <- rownames(x$B)
+  rownames(B0s) <- rownames(mod$B)
   
   colnames(B0s) <- colnames(ds) <- c("lower", "upper")
   
-  B_covs <- list(lower = apply(x$bootstrap$B_cov[,,-f,drop=FALSE], c(1, 2), quantile,
-                               probs = alpha / 2),
-                 upper = apply(x$bootstrap$B_cov[,,-f,drop=FALSE], c(1, 2), quantile,
-                               probs = 1 - alpha / 2))
+  B_covs_list <- list(lower = apply(mod$bootstrap$B_cov[,,-f,drop=FALSE], c(1, 2),
+                                    quantile, probs = alpha / 2),
+                 upper = apply(mod$bootstrap$B_cov[,,-f,drop=FALSE], c(1, 2),
+                               quantile, probs = 1 - alpha / 2))
   
-  rownames(B_covs$lower) <- rownames(B_covs$upper) <- rownames(x$B_cov)
-  colnames(B_covs$lower) <- colnames(B_covs$upper) <- colnames(x$B_cov)
+  B_covs <- B_covs_list$lower
+  B_covs[upper.tri(B_covs)] <- B_covs_list$upper[upper.tri(B_covs_list$upper)]
+  rownames(B_covs) <- rownames(mod$B_cov)
+  colnames(B_covs) <- colnames(mod$B_cov)
   
   return(list(corrs = corrs, d = ds, B0 = B0s, B_cov = B_covs))
   
