@@ -525,13 +525,16 @@ inline void main_output(arma::mat& corrs, arma::mat& B, arma::mat& B_cov, arma::
   // OU transform
   arma::mat C = make_C(n, p, ll_info.tau, d, ll_info.Vphy, R);
   
-  arma::mat V = make_V(C, ll_info.MM);
+  // Notice that this is different from in LL and for bootstrapping:
+  arma::mat V = C;
+  V += arma::as_scalar(ll_info.MM.diag());
   
   arma::mat iV = arma::inv(V);
   
   arma::mat denom = tp(ll_info.UU) * iV * ll_info.UU;
   
   arma::mat num = tp(ll_info.UU) * iV * ll_info.XX;
+  
   arma::vec B0 = arma::solve(denom, num);
   
   make_B_B_cov(B, B_cov, B0, iV, ll_info.UU, X, U);
