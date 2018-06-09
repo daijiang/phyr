@@ -124,14 +124,47 @@ inline double cor_phylo_LL_(const arma::vec& par,
 //' 
 //[[Rcpp::export]]
 double cor_phylo_LL(const arma::vec& par,
-                    SEXP ll_info_xptr) {
+                     const arma::mat& XX,
+                     const arma::mat& UU,
+                     const arma::mat& MM,
+                     const arma::mat& Vphy,
+                     const arma::mat& tau,
+                     const bool& REML,
+                     const bool& constrain_d,
+                     const bool& verbose) {
   
-  XPtr<LL_info> ll_info(ll_info_xptr);
-  double LL = cor_phylo_LL_(par, ll_info->XX, ll_info->UU, ll_info->MM, 
-                            ll_info->Vphy, ll_info->tau, ll_info->REML, 
-                            ll_info->constrain_d, ll_info->verbose);
+  double LL = cor_phylo_LL_(par, XX, UU, MM, Vphy, tau, REML, constrain_d, verbose);
   return LL;
 }
+
+// Another version that uses XPtr; keeping it here in case I want to change back
+// //[[Rcpp::export]]
+// double cor_phylo_LL(const arma::vec& par,
+//                     SEXP ll_info_xptr) {
+//   
+//   XPtr<LL_info> ll_info(ll_info_xptr);
+//   double LL = cor_phylo_LL_(par, ll_info->XX, ll_info->UU, ll_info->MM, 
+//                             ll_info->Vphy, ll_info->tau, ll_info->REML, 
+//                             ll_info->constrain_d, ll_info->verbose);
+//   return LL;
+// }
+// The function below could also be useful to keep if you go back to using XPtr:
+// // Combining standard_matrices with LL_info::LL_info to see what gets produced
+// //[[Rcpp::export]]
+// SEXP make_LL_info(const arma::mat& X,
+//                   const std::vector<arma::mat>& U,
+//                   const arma::mat& M,
+//                   const arma::mat& Vphy_,
+//                   const bool& REML_,
+//                   const bool& constrain_d_,
+//                   const bool& verbose_) {
+//   
+//   XPtr<LL_info> ll_info_xptr(new LL_info(X, U, M, Vphy_, REML_, constrain_d_,
+//                                          verbose_));
+//   
+//   return ll_info_xptr;
+// }
+// 
 
 
 
@@ -164,7 +197,7 @@ double cor_phylo_LL(const arma::vec& par,
 //' @name fit_cor_phylo_nlopt
 //' @noRd
 //' 
-void fit_cor_phylo_nlopt(XPtr<LL_info> ll_info_xptr,
+void fit_cor_phylo_nlopt(LL_info& ll_info,
                          const double& rel_tol,
                          const int& max_iter,
                          const std::string& method) {
@@ -184,20 +217,27 @@ void fit_cor_phylo_nlopt(XPtr<LL_info> ll_info_xptr,
                               _["xtol_rel"] = 0.0001,
                               _["maxeval"] = max_iter);
   
-  List opt = nloptr(_["x0"] = ll_info_xptr->par0,
+  List opt = nloptr(_["x0"] = ll_info.par0,
                    _["eval_f"] = Rcpp::InternalFunction(&cor_phylo_LL),
                    _["opts"] = options,
-                   _["ll_info"] = ll_info_xptr);
+                   _["XX"] = ll_info.XX,
+                   _["UU"] = ll_info.UU,
+                   _["MM"] = ll_info.MM,
+                   _["Vphy"] = ll_info.Vphy,
+                   _["tau"] = ll_info.tau,
+                   _["REML"] = ll_info.REML,
+                   _["constrain_d"] = ll_info.constrain_d,
+                   _["verbose"] = ll_info.verbose);
   
-  ll_info_xptr->min_par = as<arma::vec>(opt["solution"]);
+  ll_info.min_par = as<arma::vec>(opt["solution"]);
   
-  ll_info_xptr->LL = as<double>(opt["objective"]);
-  ll_info_xptr->convcode = as<int>(opt["status"]);
-  ll_info_xptr->iters = as<arma::vec>(opt["iterations"])(0);
+  ll_info.LL = as<double>(opt["objective"]);
+  ll_info.convcode = as<int>(opt["status"]);
+  ll_info.iters = as<arma::vec>(opt["iterations"])(0);
   
-  if (ll_info_xptr->verbose) {
-    Rcout << ll_info_xptr->LL << ' ';
-    arma::vec& par(ll_info_xptr->min_par);
+  if (ll_info.verbose) {
+    Rcout << ll_info.LL << ' ';
+    arma::vec& par(ll_info.min_par);
     for (uint_t i = 0; i < par.n_elem; i++) Rcout << par(i) << ' ';
     Rcout << std::endl;
   }
@@ -222,45 +262,59 @@ void fit_cor_phylo_nlopt(XPtr<LL_info> ll_info_xptr,
 //' @name fit_cor_phylo_R
 //' @noRd
 //' 
-void fit_cor_phylo_R(XPtr<LL_info>& ll_info_xptr,
+void fit_cor_phylo_R(LL_info& ll_info,
                      const double& rel_tol,
                      const int& max_iter,
                      const std::string& method,
                      const std::vector<double>& sann) {
-  
-  Rcpp::Environment stats("package:stats");
+
+  Rcpp::Environment stats = Rcpp::Environment::namespace_env("stats");
   Rcpp::Function optim = stats["optim"];
   
   Rcpp::List opt;
   
   if (method == "sann") {
-    opt = optim(_["par"] = ll_info_xptr->par0,
+    opt = optim(_["par"] = ll_info.par0,
                 _["fn"] = Rcpp::InternalFunction(&cor_phylo_LL),
-                _["ll_info"] = ll_info_xptr,
                 _["method"] = "SANN",
                 _["control"] = List::create(_["maxit"] = sann[0],
-                                     _["temp"] = sann[1],
-                                     _["tmax"] = sann[2],
-                                     _["reltol"] = rel_tol));
-    ll_info_xptr->par0 = as<arma::vec>(opt["par"]);
+                                            _["temp"] = sann[1],
+                                            _["tmax"] = sann[2],
+                                            _["reltol"] = rel_tol),
+                _["XX"] = ll_info.XX,
+                _["UU"] = ll_info.UU,
+                _["MM"] = ll_info.MM,
+                _["Vphy"] = ll_info.Vphy,
+                _["tau"] = ll_info.tau,
+                _["REML"] = ll_info.REML,
+                _["constrain_d"] = ll_info.constrain_d,
+                _["verbose"] = ll_info.verbose);
+    ll_info.par0 = as<arma::vec>(opt["par"]);
   }
   
-  opt = optim(_["par"] = ll_info_xptr->par0,
+  opt = optim(_["par"] = ll_info.par0,
               _["fn"] = Rcpp::InternalFunction(&cor_phylo_LL),
-              _["ll_info"] = ll_info_xptr,
               _["method"] = "Nelder-Mead",
               _["control"] = List::create(_["maxit"] = max_iter,
-                                   _["reltol"] = rel_tol));
+                                          _["reltol"] = rel_tol),
+              _["XX"] = ll_info.XX,
+              _["UU"] = ll_info.UU,
+              _["MM"] = ll_info.MM,
+              _["Vphy"] = ll_info.Vphy,
+              _["tau"] = ll_info.tau,
+              _["REML"] = ll_info.REML,
+              _["constrain_d"] = ll_info.constrain_d,
+              _["verbose"] = ll_info.verbose);
   
-  ll_info_xptr->min_par = as<arma::vec>(opt["par"]);
+  ll_info.min_par = as<arma::vec>(opt["par"]);
   
-  ll_info_xptr->LL = as<double>(opt["value"]);
-  ll_info_xptr->convcode = as<int>(opt["convergence"]);
-  ll_info_xptr->iters = as<arma::vec>(opt["counts"])(0);
+  ll_info.LL = as<double>(opt["value"]);
+  ll_info.convcode = as<int>(opt["convergence"]);
+  ll_info.iters = as<arma::vec>(opt["counts"])(0);
   
-  if (ll_info_xptr->verbose) {
-    Rcout << ll_info_xptr->LL << ' ';
-    arma::vec& par(ll_info_xptr->min_par);
+  if (ll_info.verbose) {
+    Rcout << ll_info.LL << ' ';
+    arma::vec& par(ll_info.min_par);
     for (uint_t i = 0; i < par.n_elem; i++) Rcout << par(i) << ' ';
     Rcout << std::endl;
   }
@@ -268,7 +322,6 @@ void fit_cor_phylo_R(XPtr<LL_info>& ll_info_xptr,
   return;
   
 }
-
 
 
 
@@ -330,6 +383,8 @@ void standardize_matrices(arma::mat& X,
   
   return;
 }
+
+
 
 
 
@@ -559,16 +614,14 @@ inline void main_output(arma::mat& corrs, arma::mat& B, arma::mat& B_cov, arma::
 List cp_get_output(const arma::mat& X,
                    const std::vector<arma::mat>& U,
                    const arma::mat& M,
-                   XPtr<LL_info> ll_info_xptr,
+                   LL_info& ll_info,
                    const double& rel_tol,
                    const int& max_iter,
                    const std::string& method,
                    const uint_t& boot,
                    const std::string& keep_boots,
                    const std::vector<double>& sann) {
-  
-  LL_info& ll_info(*ll_info_xptr);
-  
+
   
   uint_t n = X.n_rows;
   uint_t p = X.n_cols;
@@ -609,7 +662,7 @@ List cp_get_output(const arma::mat& X,
     boot_results br(p, B.n_rows, boot);
     for (uint_t b = 0; b < boot; b++) {
       Rcpp::checkUserInterrupt();
-      bm.one_boot(ll_info_xptr, br, b, rel_tol, max_iter, method, keep_boots, sann);
+      bm.one_boot(ll_info, br, b, rel_tol, max_iter, method, keep_boots, sann);
     }
     std::vector<NumericMatrix> boot_out_mats(br.out_inds.size());
     for (uint_t i = 0; i < br.out_inds.size(); i++) {
@@ -675,9 +728,9 @@ List cor_phylo_(const arma::mat& X,
                 const std::string& keep_boots,
                 const std::vector<double>& sann) {
   
+
   // LL_info is C++ class to use for organizing info for optimizing
-  XPtr<LL_info> ll_info_xptr(new LL_info(X, U, M, Vphy_, REML, constrain_d, 
-                                        verbose), true);
+  LL_info ll_info(X, U, M, Vphy_, REML, constrain_d, verbose);
 
   /*
    Do the fitting.
@@ -685,13 +738,13 @@ List cor_phylo_(const arma::mat& X,
    Otherwise, use nlopt.
    */
   if (method == "nelder-mead-r" || method == "sann") {
-    fit_cor_phylo_R(ll_info_xptr, rel_tol, max_iter, method, sann);
+    fit_cor_phylo_R(ll_info, rel_tol, max_iter, method, sann);
   } else {
-    fit_cor_phylo_nlopt(ll_info_xptr, rel_tol, max_iter, method);
+    fit_cor_phylo_nlopt(ll_info, rel_tol, max_iter, method);
   }
   
   // Retrieve output from `ll_info` object and convert to list
-  List output = cp_get_output(X, U, M, ll_info_xptr, rel_tol, max_iter, method,
+  List output = cp_get_output(X, U, M, ll_info, rel_tol, max_iter, method,
                               boot, keep_boots, sann);
   
   return output;
@@ -760,8 +813,8 @@ boot_mats::boot_mats(const arma::mat& X_, const std::vector<arma::mat>& U_,
 //' @name boot_mats_iterate
 //' @noRd
 //' 
-XPtr<LL_info> boot_mats::iterate(LL_info& ll_info) {
-  
+LL_info boot_mats::iterate(const LL_info& ll_info) {
+
   uint_t n = X.n_rows;
   uint_t p = X.n_cols;
   
@@ -775,9 +828,9 @@ XPtr<LL_info> boot_mats::iterate(LL_info& ll_info) {
     X_new.col(i) += (X_rnd.col(i) * sd_);
   }
 
-  XPtr<LL_info> ll_info_new_xptr(new LL_info(X_new, U, M, ll_info));
+  LL_info ll_info_new(X_new, U, M, ll_info);
 
-  return ll_info_new_xptr;
+  return ll_info_new;
 }
 
 
@@ -793,15 +846,13 @@ void boot_mats::boot_data(LL_info& ll_info, boot_results& br, const uint_t& i) {
   return;
 }
 
-void boot_mats::one_boot(XPtr<LL_info>& ll_info_xptr, boot_results& br,
+void boot_mats::one_boot(LL_info& ll_info, boot_results& br,
                          const uint_t& i, const double& rel_tol, const int& max_iter,
                          const std::string& method, const std::string& keep_boots,
                          const std::vector<double>& sann) {
   
-  LL_info& ll_info(*ll_info_xptr);
-  
   // Generate new data
-  XPtr<LL_info> new_ll_info_xptr = iterate(ll_info);
+  LL_info new_ll_info = iterate(ll_info);
   
   // For whether convergence failed...
   bool failed = false;
@@ -813,24 +864,24 @@ void boot_mats::one_boot(XPtr<LL_info>& ll_info_xptr, boot_results& br,
    */
   if (method == "nelder-mead-r" || method == "sann") {
     // Do the fitting:
-    fit_cor_phylo_R(new_ll_info_xptr, rel_tol, max_iter, method, sann);
+    fit_cor_phylo_R(new_ll_info, rel_tol, max_iter, method, sann);
     // Determine whether convergence failed:
-    if (new_ll_info_xptr->convcode != 0) failed = true;
+    if (new_ll_info.convcode != 0) failed = true;
   } else {
     // Same thing for nlopt version
-    fit_cor_phylo_nlopt(new_ll_info_xptr, rel_tol, max_iter, method);
-    if (new_ll_info_xptr->convcode < 0) failed = true;
+    fit_cor_phylo_nlopt(new_ll_info, rel_tol, max_iter, method);
+    if (new_ll_info.convcode < 0) failed = true;
   }
   
   if (keep_boots == "all" || (keep_boots == "fail" && failed)) {
-    boot_data(*new_ll_info_xptr, br, i);
+    boot_data(new_ll_info, br, i);
   }
 
   arma::mat corrs;
   arma::mat B;
   arma::mat B_cov;
   arma::vec d;
-  main_output(corrs, B, B_cov, d, *new_ll_info_xptr, X_new, U);
+  main_output(corrs, B, B_cov, d, new_ll_info, X_new, U);
 
   // Add values to boot_results
   br.insert_values(i, corrs, B.col(0), B_cov, d);

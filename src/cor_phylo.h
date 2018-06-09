@@ -135,9 +135,9 @@ public:
             const arma::mat& M_,
             const arma::mat& B_, const arma::vec& d_, const LL_info& ll_info);
   
-  XPtr<LL_info> iterate(LL_info& ll_info);
+  LL_info iterate(const LL_info& ll_info);
   
-  void one_boot(XPtr<LL_info>& ll_info_xptr, boot_results& br,
+  void one_boot(LL_info& ll_info, boot_results& br,
                 const uint_t& i, const double& rel_tol, const int& max_iter,
                 const std::string& method, const std::string& keep_boots,
                 const std::vector<double>& sann);

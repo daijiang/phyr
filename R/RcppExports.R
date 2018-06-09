@@ -163,8 +163,8 @@ NULL
 #' 
 #' @name cor_phylo_LL
 #' 
-cor_phylo_LL <- function(par, ll_info_xptr) {
-    .Call(`_phyr_cor_phylo_LL`, par, ll_info_xptr)
+cor_phylo_LL <- function(par, XX, UU, MM, Vphy, tau, REML, constrain_d, verbose) {
+    .Call(`_phyr_cor_phylo_LL`, par, XX, UU, MM, Vphy, tau, REML, constrain_d, verbose)
 }
 
 #' Inner function to create necessary matrices and do model fitting.
