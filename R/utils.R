@@ -283,5 +283,5 @@ call_arg <- function(.call, .arg) {
 #' @export
 #' @noRd
 #'
-boot_ci <- function(x, ...) UseMethod("boot_ci")
+boot_ci <- function(mod, ...) UseMethod("boot_ci")
 

@@ -21,7 +21,7 @@ cor_phylo(traits, species, phy,
           boot = 0,
           keep_boots = c("fail", "none", "all"))
 
-\method{boot_ci}{cor_phylo}(x, alpha = 0.05)
+\method{boot_ci}{cor_phylo}(mod, alpha = 0.05)
 
 \method{print}{cor_phylo}(x, digits = max(3, getOption("digits") - 3), ...)
 }
@@ -126,15 +126,15 @@ Setting this to \code{"all"} keeps all \code{boot} parameter sets,
 and \code{"none"} keeps no parameter sets.
 Defaults to \code{"fail"}.}
 
-\item{x}{\code{cor_phylo} object that was run with the \code{boot} argument > 0.}
+\item{mod}{\code{cor_phylo} object that was run with the \code{boot} argument > 0.}
 
 \item{alpha}{Alpha used for the confidence intervals. Defaults to \code{0.05}.}
+
+\item{x}{an object of class \code{cor_phylo}.}
 
 \item{digits}{the number of digits to be printed.}
 
 \item{...}{arguments passed to and from other methods.}
-
-\item{x}{an object of class \code{cor_phylo}.}
 }
 \value{
 \code{cor_phylo} returns an object of class \code{cor_phylo}:

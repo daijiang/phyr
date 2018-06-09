@@ -942,7 +942,7 @@ cor_phylo <- function(traits,
 #' @describeIn cor_phylo returns bootstrapped confidence intervals from a `cor_phylo` object
 #' 
 #' 
-#' @param x `cor_phylo` object that was run with the `boot` argument > 0.
+#' @param mod `cor_phylo` object that was run with the `boot` argument > 0.
 #' @param alpha Alpha used for the confidence intervals. Defaults to `0.05`.
 #' 
 #' @return `boot_ci` returns a list of confidence intervals with the following fields:
@@ -957,9 +957,9 @@ cor_phylo <- function(traits,
 #'   }
 #' 
 #' @export
+#' @importFrom stats quantile
 #' 
-#' 
-boot_ci.cor_phylo <- function(x, alpha = 0.05) {
+boot_ci.cor_phylo <- function(mod, alpha = 0.05) {
   
   if (length(x$bootstrap) == 0) {
     stop("\nThis `cor_phylo` object was not bootstrapped. ",
@@ -1026,14 +1026,14 @@ print.cor_phylo <- function(x, digits = max(3, getOption("digits") - 3), ...) {
   cat("\nCoefficients:\n")
   coef <- as.data.frame(x$B)
   printCoefmat(coef, P.values = TRUE, has.Pvalue = TRUE)
-  if (phyr:::call_arg(x$call, "method") == "neldermead-r") {
+  if (call_arg(x$call, "method") %in% c("nelder-mead-r", "sann")) {
     if (x$convcode != 0) {
       cat("\n~~~~~~~~~~~\nWarning: convergence in optim() not reached after",
           x$niter, "iterations\n~~~~~~~~~~~\n")
     }
   } else if (x$convcode < 0) {
     cat("\n~~~~~~~~~~~\nWarning: convergence in nlopt optimizer (method \"",
-        phyr:::call_arg(x$call, "method"),
+        call_arg(x$call, "method"),
         "\") not reached after ", x$niter," iterations\n~~~~~~~~~~~\n", sep = "")
   }
   if (length(x$bootstrap) > 0) {
