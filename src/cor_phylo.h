@@ -214,10 +214,11 @@ inline arma::vec tp(const arma::rowvec& V){
 
 // pnorm for standard normal (i.e., ~ N(0,1))
 inline arma::vec pnorm_cpp(const arma::vec& values, const bool& lower_tail) {
-  arma::vec out(values.n_elem);
-  for (uint_t i = 0; i < values.size(); i++) {
-    out(i) = 0.5 * std::erfc(-values(i) * M_SQRT1_2);
-  }
+  
+  arma::vec out = -1 * values * M_SQRT1_2;
+  out = arma::erfc(out);
+  out *= 0.5;
+  
   if (!lower_tail) out = 1 - out;
   return out;
 }
