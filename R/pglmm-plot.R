@@ -277,149 +277,23 @@ communityPGLMM.plot.re <- function(
   }
   
   if(show.image & show.sim.image){
-    return(invisible(list(vcv = vcv, sim = sim, tree = tree, 
+    return(invisible(list(vcv = lapply(vcv, as.matrix), sim = lapply(sim, as.matrix), tree = tree, 
                           plt_re_all_in_one = pl_re_all, plt_sim_all_in_one = pl_sim_all,
                           plt_re_list = pl, plt_sim_list = pl_sim)))
   }
   if(show.image){
-    return(invisible(list(vcv = vcv, sim = sim, tree = tree, 
+    return(invisible(list(vcv = lapply(vcv, as.matrix), sim = lapply(sim, as.matrix), tree = tree, 
                           plt_re_list = pl, plt_sim_list = pl_sim,
                           plt_re_all_in_one = pl_re_all)))
   }
   if(show.sim.image) {
-    return(invisible(list(vcv = vcv, sim = sim, tree = tree, 
+    return(invisible(list(vcv = lapply(vcv, as.matrix), sim = lapply(sim, as.matrix), tree = tree, 
                           plt_re_list = pl, plt_sim_list = pl_sim,
                           plt_sim_all_in_one = pl_sim_all)))
   }
-  return(invisible(list(vcv = vcv, sim = sim, tree = tree, 
+  return(invisible(list(vcv = lapply(vcv, as.matrix), sim = lapply(sim, as.matrix), tree = tree, 
                         plt_re_list = pl, plt_sim_list = pl_sim)))
 }
 
 #' @export
 #' @aliases communityPGLMM.plot.re
-
-                   
-                   
-# This is a plotting function similar to communityPGLMM.plot.re that uses "standard" functions in R.                  
-communityPGLMM.show.re <- function(formula, data, family = "gaussian", tree = NULL, tree_site = NULL, 
-    repulsion = FALSE, sp, site, show.image = NULL, show.sim.image = NULL, random.effects = NULL, REML = TRUE, 
-    s2.init = NULL, B.init = NULL, reltol = 10^-6, maxit = 500, 
-    tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE, cpp = TRUE, 
-    optimizer = c("bobyqa", "Nelder-Mead", "nelder-mead-nlopt", "subplex"), prep.s2.lme4 = FALSE)
-{
-
-	data$sp <- as.factor(data$sp)
-	data$site <- as.factor(data$site)
-	
-	if(is.null(random.effects)){
-		pd <- prep_dat_pglmm(formula=formula, data=data, tree=tree, repulsion=repulsion, tree_site=tree_site)	
-		random.effects <- pd$random.effects
-		sp <- pd$sp
-		site <- pd$site
-		formula <- pd$formula
-	}else{
-		names(random.effects) <- 1:length(random.effects)
-		sp <- data$sp
-		site <- data$site
-	}
-	
-	nv <- length(random.effects)
-	n <- dim(data)[1]
-	vcv <- list(NULL)
-	for(i in 1:nv){
-		dm <- get_design_matrix(formula=formula, sp=sp, site=site, random.effects=random.effects[i], data=data)
-		if(dm$q.nonNested == 1){
-			vcv[[i]] <- t(as.matrix(t(dm$Zt) %*% dm$Zt))
-		}
-		if(dm$q.Nested == 1){
-			vcv[[i]] <- t(as.matrix(dm$nested[[1]]))
-		}
-	}
-	names(vcv) <- names(random.effects)
-
-	sim <- list(NULL)
-	for(i in 1:nv){
-		# simulate data
-		nspp <- nlevels(data$sp)
-		nsite <- nlevels(data$site)
-		
-		Y <- array(rmvnorm(n=1, sigma=vcv[[i]]))
-		Y.mat <- matrix(Y, nrow = nsite, ncol = nspp, byrow = T)
-		
-		if(!is.null(tree)) {
-			colnames(Y.mat) <- levels(sp)
-			Y.mat <- Y.mat[,match(tree$tip.label,colnames(Y.mat))]
-		}else{
-			colnames(Y.mat) <- levels(sp)
-		}
-		if(!is.null(tree_site)) {
-			rownames(Y.mat) <- levels(site)
-			Y.mat <- Y.mat[match(tree_site$tip.label,rownames(Y.mat)),]
-		}else{
-			rownames(Y.mat) <- unique(data$site)
-		}
-		sim[[i]] <- Y.mat
-	}
-	names(sim) <- names(random.effects)
-	
-	# sort rows and columns of vcv to match tree and tree_site	
-	W <- matrix(1:(nspp*nsite), nrow=nsite, byrow=T)
-	colnames(W) <- unique(sp)
-	rownames(W) <- unique(site)
-	if(!is.null(tree)) {
-		colnames(W) <- levels(sp)
-		W <- W[,match(tree$tip.label,colnames(W))]
-	}
-	if(!is.null(tree_site)) {
-		rownames(W) <- levels(site)
-		W <- W[match(tree_site$tip.label,rownames(W)),]
-	}
-	index <- array(t(W))	
-	for(i in 1:nv){
-		vcv[[i]] <- vcv[[i]][index,index]
-		colnames(vcv[[i]]) <- rep(colnames(W), times=nsite)
-		rownames(vcv[[i]]) <- rep(rownames(W), each=nspp)
-	}
-	
-	if(is.null(show.image)){
-		if(n <= 200) {
-			show.image <- T
-		}else{
-			show.image <- F
-		}
-	}
-	if(is.null(show.sim.image)){
-		if(n >= 100) {
-			show.sim.image <- T
-		}else{
-			show.sim.image <- F
-		}
-	}
-	
-	ncol <- ceiling(length(vcv)^.5)
-	nrow <- (length(vcv) - 1) %/% ncol + 1
-	layout.mat <- c(nrow,ncol)
-	
-	if(show.image){
-		quartz()
-		par(mfrow=layout.mat, mai=.5*c(1,1,1,.5), cex.main=1.2)
-		for(i in 1:nv){
-			V <- vcv[[i]]
-			V <- V[dim(V)[1]:1,]
-			image(t(V), main=names(vcv)[i], xaxt="n", yaxt="n", ylab = "", xlab = "", col=gray(.01*(1:100)))
-		}
-	}
-	if(show.sim.image){
-		quartz()
-		par(mfrow=layout.mat, mai=.5*c(1,1,1,.5), cex.main=1.2)
-		for(i in 1:nv){
-			V <- sim[[i]]
-			V <- V[dim(V)[1]:1,]
-			image(t(V), main=names(sim)[i], xaxt="n", yaxt="n", ylab = "", xlab = "", col=gray(.01*(1:100)))
-			mtext(side=1, "sp", padj = .5, cex=1)
-			mtext(side=2, "site", padj = -.5, cex=1)
-		}
-	}
-	
-	invisible(list(vcv=vcv, sim=sim))
-}        
