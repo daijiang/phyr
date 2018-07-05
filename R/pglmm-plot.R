@@ -297,3 +297,4 @@ communityPGLMM.plot.re <- function(
 
 #' @export
 #' @aliases communityPGLMM.plot.re
+communityPGLMM.show.re <- communityPGLMM.plot.re
