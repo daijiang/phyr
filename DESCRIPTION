@@ -40,5 +40,6 @@ Suggests:
     tidyr,
     knitr,
     rmarkdown,
-    INLA
+    INLA,
+    covr
 VignetteBuilder: knitr

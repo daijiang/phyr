@@ -208,7 +208,7 @@ The individual simulated matrices are saved as `mod1sim$sim` and individual plot
 We can control the space between the phylogeny and the matrix plot with `key.top` argument in `lattice::levelplot()`, which has a default value of 1 (line).
 
 ```{r fig.width = 12, fig.asp=0.6}
-
+gridExtra::grid.arrange(grobs = mod1sim$plt_sim_list[c(2, 6)], nrow = 1)
 gridExtra::grid.arrange(grobs = lapply(mod1sim$plt_sim_list[c(2, 6)], 
                                        update, 
                                        par.settings = list(layout.heights = 
