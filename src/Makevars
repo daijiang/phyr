@@ -1,1 +1,1 @@
-PKG_LIBS = $(LAPACK_LIBS)
+
