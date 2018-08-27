@@ -6,8 +6,8 @@
 #' 
 #' @rdname prep_dat_pglmm
 #' @inheritParams pglmm
-#' @param prep.re.effects whether to prepare random effects for users.
-#' @return a list with formula, data, random.effects, etc.
+#' @param prep.re.effects Whether to prepare random effects for users.
+#' @return A list with formula, data, random.effects, etc.
 #' @export
 prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE, 
                           prep.re.effects = TRUE, family = "gaussian", 
@@ -291,9 +291,9 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
 #' \code{get_design_matrix} gets design matrix for both gaussian and binomial models
 #' 
 #' @rdname get_design_matrix_pglmm
-#' @param na.action what to do with NAs?
+#' @param na.action What to do with NAs?
 #' @inheritParams pglmm
-#' @return a list of design matrices.
+#' @return A list of design matrices.
 #' @export
 get_design_matrix = function(formula, data, na.action = NULL, 
                              sp, site, random.effects){
@@ -651,8 +651,8 @@ plmm.binary.V <- function(par, Zt, St, mu, nested) {
 #' species slopes using a likelihood ratio test
 #' 
 #' @rdname pglmm-utils
-#' @param x a fitted model with class communityPGLMM
-#' @param re.number which random term to test? Can be a vector with length >1
+#' @param x A fitted model with class communityPGLMM
+#' @param re.number Which random term to test? Can be a vector with length >1
 #' @inheritParams pglmm
 #' @export
 communityPGLMM.binary.LRT <- function(x, re.number = 0, cpp = TRUE) {
@@ -697,7 +697,7 @@ communityPGLMM.binary.LRT <- function(x, re.number = 0, cpp = TRUE) {
 
 #' \code{communityPGLMM.matrix.structure} produces the entire
 #' covariance matrix structure (V) when you specify random effects.
-#' @param ss which of the \code{random.effects} to produce
+#' @param ss Which of the \code{random.effects} to produce
 #' @rdname pglmm-utils
 #' @export
 communityPGLMM.matrix.structure <- function(formula, data = list(), family = "binomial", 
@@ -728,8 +728,8 @@ communityPGLMM.matrix.structure <- function(formula, data = list(), family = "bi
 
 #' @rdname pglmm-utils
 #' @method summary communityPGLMM
-#' @param object a fitted model with class communityPGLMM.
-#' @param digits minimal number of significant digits for printing, as in \code{\link{print.default}}
+#' @param object A fitted model with class communityPGLMM.
+#' @param digits Minimal number of significant digits for printing, as in \code{\link{print.default}}
 #' @export
 summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") - 3), ...) {
   x <- object # summary generic function first argument is object, not x.
@@ -839,7 +839,7 @@ summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") -
 
 #' @rdname pglmm-utils
 #' @method print communityPGLMM
-#' @param ... additional arguments, currently ignored.
+#' @param ... Additional arguments, currently ignored.
 #' @export
 print.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ...) {
   summary.communityPGLMM(x, digits = digits)
@@ -850,6 +850,8 @@ print.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ..
 #' "binomial"), these values are in the logit-1 transformed space.
 #' 
 #' @rdname communityPGLMM.predicted.values
+#' @param x a fitted model with class communityPGLMM.
+#' @param cpp whether to use c++ code. Default is TRUE.
 #' @param gaussian.pred when family is gaussian, which type of prediction to calculate?
 #'   Option nearest_node will predict values to the nearest node, which is same as lme4::predict or
 #'   fitted. Option tip_rm will remove the point then predict the value of this point with remaining ones.
@@ -910,11 +912,11 @@ communityPGLMM.predicted.values <- function(
 #' 
 #' Getting different types of residuals for communityPGLMM objects.
 #' 
-#' @param object a fitted model with class communityPGLMM.
-#' @param type type of residuals, currently only "response" for gaussian pglmm;
+#' @param object A fitted model with class communityPGLMM.
+#' @param type Type of residuals, currently only "response" for gaussian pglmm;
 #'   "deviance" (default) and "response" for binomial pglmm.
-#'   @param scaled scale residuals by residual standard deviation for gaussian pglmm.
-#' @param \dots additional arguments, ignored for method compatibility.
+#' @param scaled Scale residuals by residual standard deviation for gaussian pglmm.
+#' @param \dots Additional arguments, ignored for method compatibility.
 #' @rdname residuals.pglmm
 #' @method residuals communityPGLMM
 #' @export
@@ -953,9 +955,9 @@ residuals.communityPGLMM <- function(
 #' Fitted values for communityPGLMM
 #' 
 #' @method fitted communityPGLMM
-#' @param object a fitted model with class communityPGLMM.
-#' @param \dots additional arguments, ignored for method compatibility.
-#' @return fitted values. For binomial PGLMMs, this is equal to mu (i.e. between 0 and 1).
+#' @param object A fitted model with class communityPGLMM.
+#' @param \dots Additional arguments, ignored for method compatibility.
+#' @return Fitted values. For binomial PGLMMs, this is equal to mu (i.e. between 0 and 1).
 #' @export
 fitted.communityPGLMM <- function(object, ...){
   if(object$family == "binomial"){
@@ -970,6 +972,7 @@ fitted.communityPGLMM <- function(object, ...){
 
 #' Extract coefficience for fixed terms
 #' 
+#' @param x A fitted model with class communityPGLMM
 #' @return a dataframe of fixed-effects estimates.
 #' @export
 fixef <- function(x) {

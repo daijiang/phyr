@@ -5,14 +5,14 @@
 #' 
 #' @param comm Community data matrix, site as rows and species as columns, site names as row names.
 #' @param tree A phylo tree object with class "phylo" or a phylogenetic covariance matrix.
-#' @param compute.var logical, default is TRUE, computes the expected variances 
+#' @param compute.var Logical, default is TRUE, computes the expected variances 
 #'   for PSV and PSR for each community.
-#' @param scale.vcv logical, default is TRUE, scale the phylogenetic covariance 
+#' @param scale.vcv Logical, default is TRUE, scale the phylogenetic covariance 
 #'   matrix to bound the metric between 0 and 1 (i.e. correlations).
-#' @param prune.tree logical, default is FALSE, prune the phylogeny before converting
+#' @param prune.tree Logical, default is FALSE, prune the phylogeny before converting
 #'   to var-cov matrix? Pruning and then converting VS converting then subsetting may
 #'   have different var-cov matrix resulted.
-#' @param cpp logical, default is TRUE, whether to use cpp for internal calculations.
+#' @param cpp Logical, default is TRUE, whether to use cpp for internal calculations.
 #' @details \emph{Phylogenetic species variability (PSV)} quantifies how 
 #'   phylogenetic relatedness decreases the variance of a hypothetical 
 #'   unselected/neutral trait shared by all species in a community. 

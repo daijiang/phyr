@@ -4,16 +4,16 @@
 #'
 #' This function will calculate expected PCD from one or two sets of communities (depends on the species pool)
 #'
-#' @param comm_1 a site by species dataframe or matrix, with sites as rows and species as columns.
-#' @param comm_2 an optional second site by species data frame. It should have the same number of rows as comm_1.
+#' @param comm_1 A site by species dataframe or matrix, with sites as rows and species as columns.
+#' @param comm_2 An optional second site by species data frame. It should have the same number of rows as comm_1.
 #'   This can be useful if we want to calculate temporal beta diveristy, i.e. changes of the same site over time.
 #'   Because data of the same site are not independent, setting comm_2 will use both communities as species pool
 #'   to calculate expected PCD.
-#' @param tree the phylogeny for all species, with "phylo" as class; or a var-cov matrix.
-#' @param reps number of random draws, default is 1000 times.
-#' @param cpp whether to use loops written with c++, default is TRUE. If you came across with errors, try to
+#' @param tree The phylogeny for all species, with "phylo" as class; or a var-cov matrix.
+#' @param reps Number of random draws, default is 1000 times.
+#' @param cpp Whether to use loops written with c++, default is TRUE. If you came across with errors, try to
 #'   set cpp = FALSE. This normally will run without errors, but slower.
-#' @return a list with species richness of the pool, expected PSV, PSV of the pool, 
+#' @return A list with species richness of the pool, expected PSV, PSV of the pool, 
 #'   and unique number of species richness across sites.
 #' @export
 #'
@@ -97,13 +97,13 @@ pcd_pred = function(comm_1, comm_2 = NULL, tree, reps = 10^3, cpp = TRUE) {
 #'
 #' Calculate pairwise site PCD, users can specify expected values from \code{pcd_pred()}.
 #'
-#' @param comm site by species data frame or matrix, sites as rows.
-#' @param tree a phylogeny for species
+#' @param comm A site by species data frame or matrix, sites as rows.
+#' @param tree A phylogeny for species.
 #' @param expectation nsp_pool, psv_bar, psv_pool, and nsr calculated from \code{pcd_pred()}.
-#' @param cpp whether to use loops written with c++, default is TRUE
-#' @param verbose do you want to see the progress?
-#' @param ... other arguments
-#' @return a list of a variety of pairwise dissimilarities.
+#' @param cpp Whether to use loops written with c++, default is TRUE.
+#' @param verbose Do you want to see the progress?
+#' @param ... Other arguments.
+#' @return A list of a variety of pairwise dissimilarities.
 #' @references Ives, A. R., & Helmus, M. R. 2010. Phylogenetic metrics of community similarity. 
 #'   The American Naturalist, 176(5), E128-E142.
 #' @export

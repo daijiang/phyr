@@ -23,9 +23,9 @@ inv.logit <- make.link("logit")$linkinv
 #'
 #' This function will remove species that has no observations in any site.
 #'
-#' @param df a data frame in wide form, i.e. site by species data frame, with site names as row name.
+#' @param df A data frame in wide form, i.e. site by species data frame, with site names as row name.
 #' @export
-#' @return  a site by species data frame.
+#' @return  A site by species data frame.
 rm_sp_noobs = function(df) {
   if (any(colSums(df) == 0)) {
     df = df[, -which(colSums(df) == 0), drop = FALSE]
@@ -39,9 +39,9 @@ rm_sp_noobs = function(df) {
 #'
 #' @author Daijiang Li
 #'
-#' @param df a data frame in wide form, i.e. site by species data frame, with site names as row name.
+#' @param df A data frame in wide form, i.e. site by species data frame, with site names as row name.
 #' @export
-#' @return  a site by species data frame.
+#' @return  A site by species data frame.
 rm_site_noobs = function(df) {
   if (any(rowSums(df) == 0)) {
     df = df[-which(rowSums(df) == 0), , drop = FALSE]
@@ -53,9 +53,9 @@ rm_site_noobs = function(df) {
 #'
 #' This function will return elements of x not in y
 #'
-#' @param x vector
-#' @param y vector
-#' @return a vector
+#' @param x A vector.
+#' @param y A vector.
+#' @return A vector.
 #' @rdname nin
 #' @export
 #'
@@ -68,11 +68,11 @@ rm_site_noobs = function(df) {
 #' This function will remove species from community data that are not in the phylogeny.
 #' It will also remove tips from the phylogeny that are not in the community data.
 #'
-#' @param comm a site by species data frame, with site names as row names.
-#' @param tree a phylogeny with "phylo" as class.
-#' @param comm_2 another optional site by species data frame, if presented, both community data and the phylogeny
+#' @param comm A site by species data frame, with site names as row names.
+#' @param tree A phylogeny with "phylo" as class.
+#' @param comm_2 Another optional site by species data frame, if presented, both community data and the phylogeny
 #' will have the same set of species. This can be useful for PCD with custom species pool.
-#' @return a list of the community data and the phylogeny.
+#' @return A list of the community data and the phylogeny.
 #' @export
 #'
 match_comm_tree = function(comm, tree, comm_2 = NULL){
@@ -114,9 +114,9 @@ match_comm_tree = function(comm, tree, comm_2 = NULL){
 #'
 #' This function will convert a phylogeny to a Var-cov matrix.
 #' 
-#' @param phy a phylogeny with "phylo" as class.
-#' @param corr whether to return a correlation matrix instead of Var-cov matrix. Default is FALSE
-#' @return a phylogenetic var-cov matrix
+#' @param phy A phylogeny with "phylo" as class.
+#' @param corr Whether to return a correlation matrix instead of Var-cov matrix. Default is FALSE.
+#' @return A phylogenetic var-cov matrix.
 #' @export
 #'
 vcv2 = function(phy, corr = FALSE){
@@ -152,12 +152,12 @@ vcv2 = function(phy, corr = FALSE){
 #' It will also remove tips from the phylogeny that are not in the community data. And
 #' then convert the phylogeny to a Var-cov matrix.
 #'
-#' @param comm a site by species data frame, with site names as row names.
-#' @param tree a phylogeny with "phylo" as class; or a phylogenetic var-covar matrix.
-#' @param prune.tree whether to prune the tree first then use vcv.phylo function. Default
-#' is FALSE: use vcv.phylo first then subsetting the matrix
-#' @param scale.vcv whether to scale vcv to a correlation matrix
-#' @return a list of the community data and the phylogenetic var-cov matrix
+#' @param comm A site by species data frame, with site names as row names.
+#' @param tree A phylogeny with "phylo" as class; or a phylogenetic var-covar matrix.
+#' @param prune.tree Whether to prune the tree first then use vcv.phylo function. Default
+#' is FALSE: use vcv.phylo first then subsetting the matrix.
+#' @param scale.vcv Whether to scale vcv to a correlation matrix.
+#' @return A list of the community data and the phylogenetic var-cov matrix.
 #' @export
 #'
 align_comm_V = function(comm, tree, prune.tree = FALSE, scale.vcv = TRUE){
@@ -207,10 +207,9 @@ align_comm_V = function(comm, tree, prune.tree = FALSE, scale.vcv = TRUE){
 #' 
 #' It checks for it being `phylo` class, having branch lengths, and having tip labels.
 #'
-#' @param phy a phylogeny that should be a `phylo` object
+#' @param phy A phylogeny that should be a `phylo` object.
 #'
-#' @return a phylogenetic tree that's been reordered using
-#'   `ape::reorder.phylo(phy, "postorder")`
+#' @return A phylogenetic tree that's been reordered using `ape::reorder.phylo(phy, "postorder")`
 #'
 #' @noRd
 #' 
@@ -237,8 +236,8 @@ check_phy <- function(phy) {
 #' If not present in the call, this returns the default value for that function.
 #' 
 #'
-#' @param .call call to a function.
-#' @param .arg name of argument from the function.
+#' @param .call Call to a function.
+#' @param .arg Name of argument from the function.
 #' 
 #' @noRd
 #' 
@@ -274,14 +273,13 @@ call_arg <- function(.call, .arg) {
 }
 
 
-
-
 #' Generic method to output bootstrap confidence intervals from an object.
 #'
 #' Implemented only for `cor_phylo` objects thus far.
 #'
+#' @param mod A `cor_phylo` object.
+#' @param ... Additional arguments.
 #' @export
-#' @noRd
 #'
 boot_ci <- function(mod, ...) UseMethod("boot_ci")
 

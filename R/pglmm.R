@@ -84,7 +84,7 @@
 #' and variance 1. This will make the function more robust and improve
 #' the interpretation of the regression coefficients.
 #'  
-#' @param formula a two-sided linear formula object describing the
+#' @param formula A two-sided linear formula object describing the
 #'   mixed-effects of the model; it follows similar syntax with \code{\link[lme4:lmer]{lmer}}.
 #'   There are some differences though. 
 #'   
@@ -108,21 +108,21 @@
 #'   Second, note that correlated random terms will not be allowed at this moment. For example,
 #'   \code{(x|g)} will be equal with \code{(0 + x|g)} in the \code{lme4::lmer} syntax; 
 #'   also, \code{(x1 + x2|g)} won't work.
-#' @param data a \code{\link{data.frame}} containing the variables
+#' @param data A \code{\link{data.frame}} containing the variables
 #'   named in formula. The data frame should have long format with
 #'   a column for species (named as 'sp') and a column for sites (named as 'site'). 
 #'   \code{communityPGLMM} will reorder rows of the data frame so that species 
 #'   are nested within sites (i.e. arrange first by column site then by column sp).
-#' @param family either \code{gaussian} for a Linear Mixed Model, or
+#' @param family Either \code{gaussian} for a Linear Mixed Model, or
 #'   \code{binomial} for binary dependent data. If \code{bayes = TRUE}, \code{poisson} is also
 #'   supported.
-#' @param tree a phylogeny for column sp, with "phylo" class. Or a var-cov matrix for sp, 
+#' @param tree A phylogeny for column sp, with "phylo" class. Or a var-cov matrix for sp, 
 #'   make sure to have all species in the matrix; if the matrix is not standarized, 
 #'   i.e. det(tree) != 1, we will try to standarize it for you.
-#' @param tree_site a second phylogeny for "site". This is required only if the site column contains species instead of sites.
+#' @param tree_site A second phylogeny for "site". This is required only if the site column contains species instead of sites.
 #' This can be used for bipartitie questions. tree_site can also be a var-cov matrix, make sure to have all sites in the matrix; 
 #' if the matrix is not standarized, i.e. det(tree_site) != 1, we will try to standarize for you.
-#' @param repulsion when nested random term specified, do you want to test repulsion 
+#' @param repulsion When nested random term specified, do you want to test repulsion 
 #'   (i.e. overdispersion) or underdispersion? Default is FALSE, i.e. test underdispersion. 
 #'   This argument can be either a logical vector of length 1 or >1.
 #'   If its length is 1, then all cov matrices in nested terms will be either inverted (overdispersion) or not.
@@ -135,30 +135,30 @@
 #'   in the formula, then you should set the repulsion to be something like 
 #'   \code{c(TRUE, FALSE, TURE, TURE)} (length of 4). 
 #'   The T/F combinations depend on your questions.
-#' @param sp no longer used, keep here for compatibility
-#' @param site no longer used, keep here for compatibility
-#' @param random.effects pre-build list of random effects. If \code{NULL} (the default), 
+#' @param sp No longer used, keep here for compatibility
+#' @param site No longer used, keep here for compatibility
+#' @param random.effects Pre-build list of random effects. If \code{NULL} (the default), 
 #'   the function \code{\link{prep_dat_pglmm}} will prepare it for you. A list of pre-generated
 #'   random terms is also accepted (mainly to be compatible with code from previous versions).
 #'   If so, make sure that the orders of sp and site in the generated list are the same as the
 #'   data. This argument can be useful if users want to use other correlations (e.g. spatial)
 #'   in their models instead of phylogenetic relationships.
-#' @param REML whether REML or ML is used for model fitting. For the
+#' @param REML Whether REML or ML is used for model fitting. For the
 #'   generalized linear mixed model for binary data, these don't have
 #'   standard interpretations, and there is no log likelihood function
 #'   that can be used in likelihood ratio tests. If \code{bayes = TRUE},
 #'   \code{REML = TRUE} will place a sum to one constraint on the random
 #'   effects, which should produce more comparable results to a REML analysis
 #'   in a maximum likelihood context.
-#' @param bayes whether to fit a Bayesian version of the PGLMM using \code{r-inla}.
-#' @param s2.init an array of initial estimates of s2 for each random
+#' @param bayes Whether to fit a Bayesian version of the PGLMM using \code{r-inla}.
+#' @param s2.init An array of initial estimates of s2 for each random
 #'   effect that scales the variance. If s2.init is not provided for
 #'   \code{family="gaussian"}, these are estimated using in a clunky way
 #'   using \code{\link{lm}} assuming no phylogenetic signal. A better
 #'   approach is to run \code{link[lme4:lmer]{lmer}} and use the output
 #'   random effects for \code{s2.init}. If \code{s2.init} is not
 #'   provided for \code{family = "binomial"}, these are set to 0.25.
-#' @param B.init initial estimates of \eqn{B}{B}, a matrix containing
+#' @param B.init Initial estimates of \eqn{B}{B}, a matrix containing
 #'   regression coefficients in the model for the fixed effects. This
 #'   matrix must have \code{dim(B.init) = c(p + 1, 1)}, where \code{p} is the
 #'   number of predictor (independent) variables; the first element of
@@ -171,17 +171,17 @@
 #'   \code{B.init}. When \code{bayes = TRUE}, initial values are estimated
 #'   using the maximum likelihood fit unless \code{ML.init = FALSE}, in
 #'   which case the default \code{INLA} initial values will be used.
-#' @param reltol a control parameter dictating the relative tolerance
+#' @param reltol A control parameter dictating the relative tolerance
 #'   for convergence in the optimization; see \code{\link{optim}}.
-#' @param maxit a control parameter dictating the maximum number of
+#' @param maxit A control parameter dictating the maximum number of
 #'   iterations in the optimization; see \code{\link{optim}}.
-#' @param tol.pql a control parameter dictating the tolerance for
+#' @param tol.pql A control parameter dictating the tolerance for
 #'   convergence in the PQL estimates of the mean components of the
 #'   binomial GLMM.
-#' @param maxit.pql a control parameter dictating the maximum number
+#' @param maxit.pql A control parameter dictating the maximum number
 #'   of iterations in the PQL estimates of the mean components of the
 #'   binomial GLMM.
-#' @param verbose if \code{TRUE}, the model deviance and running
+#' @param verbose If \code{TRUE}, the model deviance and running
 #'   estimates of \code{s2} and \code{B} are plotted each iteration
 #'   during optimization.
 #' @param ML.init Only relevant if \code{bayes = TRUE}. Should maximum
@@ -200,10 +200,10 @@
 #'   complexity penalizing prior (as described in 
 #'   \href{https://arxiv.org/abs/1403.4630v3}{Simpson et al. (2017)}).
 #'   "pc.prior" is only implemented for \code{family = "gaussian"} currently.
-#' @param cpp whether to use c++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE}.
+#' @param cpp Whether to use c++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE}.
 #' @param optimizer nelder-mead-nlopt (default) or bobyqa or Nelder-Mead or subplex. 
 #' Nelder-Mead is from the stats package and the other ones are from the nloptr package.
-#' @param prep.s2.lme4 whether to prepare initial s2 values based on lme4 theta. Default is FALSE.
+#' @param prep.s2.lme4 Whether to prepare initial s2 values based on lme4 theta. Default is FALSE.
 #'   If no phylogenetic or nested random terms, should set it to TRUE since it likely will be faster.
 #'   However, in this case, you probably can just use lme4::lmer.
 #' @return An object (list) of class \code{communityPGLMM} with the following elements:
