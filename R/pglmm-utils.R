@@ -845,6 +845,9 @@ print.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ..
   summary.communityPGLMM(x, digits = digits)
 }
 
+
+#' Predicted values of PGLMM
+#' 
 #' \code{communityPGLMM.predicted.values} calculates the predicted
 #' values of Y; for the generalized linear mixed model (family =
 #' "binomial"), these values are in the logit-1 transformed space.

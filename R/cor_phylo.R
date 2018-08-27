@@ -941,7 +941,6 @@ cor_phylo <- function(traits,
 #' 
 #' @param mod `cor_phylo` object that was run with the `boot` argument > 0.
 #' @param alpha Alpha used for the confidence intervals. Defaults to `0.05`.
-#' @param ... Additional arguments.
 #' @return `boot_ci` returns a list of confidence intervals with the following fields:
 #'   \describe{
 #'     \item{`corrs`}{
