@@ -7,12 +7,12 @@
 vcv2(phy, corr = FALSE)
 }
 \arguments{
-\item{phy}{a phylogeny with "phylo" as class.}
+\item{phy}{A phylogeny with "phylo" as class.}
 
-\item{corr}{whether to return a correlation matrix instead of Var-cov matrix. Default is FALSE}
+\item{corr}{Whether to return a correlation matrix instead of Var-cov matrix. Default is FALSE.}
 }
 \value{
-a phylogenetic var-cov matrix
+A phylogenetic var-cov matrix.
 }
 \description{
 This function will convert a phylogeny to a Var-cov matrix.

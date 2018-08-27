@@ -4,11 +4,11 @@
 \name{phylotree}
 \alias{phylotree}
 \title{Example phylogeny}
-\format{Newick format}
+\format{Newick format.}
 \usage{
 phylotree
 }
 \description{
-A phylogeny with more species than the community data
+A phylogeny with more species than the community data.
 }
 \keyword{datasets}

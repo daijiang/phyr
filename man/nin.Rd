@@ -7,12 +7,12 @@
 x \%nin\% y
 }
 \arguments{
-\item{x}{vector}
+\item{x}{A vector.}
 
-\item{y}{vector}
+\item{y}{A vector.}
 }
 \value{
-a vector
+A vector.
 }
 \description{
 This function will return elements of x not in y

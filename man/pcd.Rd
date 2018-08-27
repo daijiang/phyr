@@ -7,20 +7,20 @@
 pcd(comm, tree, expectation = NULL, cpp = TRUE, verbose = TRUE, ...)
 }
 \arguments{
-\item{comm}{site by species data frame or matrix, sites as rows.}
+\item{comm}{A site by species data frame or matrix, sites as rows.}
 
-\item{tree}{a phylogeny for species}
+\item{tree}{A phylogeny for species.}
 
 \item{expectation}{nsp_pool, psv_bar, psv_pool, and nsr calculated from \code{pcd_pred()}.}
 
-\item{cpp}{whether to use loops written with c++, default is TRUE}
+\item{cpp}{Whether to use loops written with c++, default is TRUE.}
 
-\item{verbose}{do you want to see the progress?}
+\item{verbose}{Do you want to see the progress?}
 
-\item{...}{other arguments}
+\item{...}{Other arguments.}
 }
 \value{
-a list of a variety of pairwise dissimilarities.
+A list of a variety of pairwise dissimilarities.
 }
 \description{
 Calculate pairwise site PCD, users can specify expected values from \code{pcd_pred()}.

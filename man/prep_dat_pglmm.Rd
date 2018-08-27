@@ -9,7 +9,7 @@ prep_dat_pglmm(formula, data, tree, repulsion = FALSE,
   tree_site = NULL, bayes = FALSE)
 }
 \arguments{
-\item{formula}{a two-sided linear formula object describing the
+\item{formula}{A two-sided linear formula object describing the
 mixed-effects of the model; it follows similar syntax with \code{\link[lme4:lmer]{lmer}}.
 There are some differences though.
 
@@ -36,17 +36,17 @@ Second, note that correlated random terms will not be allowed at this moment. Fo
 \code{(x|g)} will be equal with \code{(0 + x|g)} in the \code{lme4::lmer} syntax;
 also, \code{(x1 + x2|g)} won't work.}
 
-\item{data}{a \code{\link{data.frame}} containing the variables
+\item{data}{A \code{\link{data.frame}} containing the variables
 named in formula. The data frame should have long format with
 a column for species (named as 'sp') and a column for sites (named as 'site').
 \code{communityPGLMM} will reorder rows of the data frame so that species
 are nested within sites (i.e. arrange first by column site then by column sp).}
 
-\item{tree}{a phylogeny for column sp, with "phylo" class. Or a var-cov matrix for sp,
+\item{tree}{A phylogeny for column sp, with "phylo" class. Or a var-cov matrix for sp,
 make sure to have all species in the matrix; if the matrix is not standarized,
 i.e. det(tree) != 1, we will try to standarize it for you.}
 
-\item{repulsion}{when nested random term specified, do you want to test repulsion
+\item{repulsion}{When nested random term specified, do you want to test repulsion
 (i.e. overdispersion) or underdispersion? Default is FALSE, i.e. test underdispersion.
 This argument can be either a logical vector of length 1 or >1.
 If its length is 1, then all cov matrices in nested terms will be either inverted (overdispersion) or not.
@@ -60,24 +60,24 @@ in the formula, then you should set the repulsion to be something like
 \code{c(TRUE, FALSE, TURE, TURE)} (length of 4).
 The T/F combinations depend on your questions.}
 
-\item{prep.re.effects}{whether to prepare random effects for users.}
+\item{prep.re.effects}{Whether to prepare random effects for users.}
 
-\item{family}{either \code{gaussian} for a Linear Mixed Model, or
+\item{family}{Either \code{gaussian} for a Linear Mixed Model, or
 \code{binomial} for binary dependent data. If \code{bayes = TRUE}, \code{poisson} is also
 supported.}
 
-\item{prep.s2.lme4}{whether to prepare initial s2 values based on lme4 theta. Default is FALSE.
+\item{prep.s2.lme4}{Whether to prepare initial s2 values based on lme4 theta. Default is FALSE.
 If no phylogenetic or nested random terms, should set it to TRUE since it likely will be faster.
 However, in this case, you probably can just use lme4::lmer.}
 
-\item{tree_site}{a second phylogeny for "site". This is required only if the site column contains species instead of sites.
+\item{tree_site}{A second phylogeny for "site". This is required only if the site column contains species instead of sites.
 This can be used for bipartitie questions. tree_site can also be a var-cov matrix, make sure to have all sites in the matrix;
 if the matrix is not standarized, i.e. det(tree_site) != 1, we will try to standarize for you.}
 
-\item{bayes}{whether to fit a Bayesian version of the PGLMM using \code{r-inla}.}
+\item{bayes}{Whether to fit a Bayesian version of the PGLMM using \code{r-inla}.}
 }
 \value{
-a list with formula, data, random.effects, etc.
+A list with formula, data, random.effects, etc.
 }
 \description{
 \code{prep_dat_pglmm} prepares data for later model fitting

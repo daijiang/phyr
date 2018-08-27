@@ -29,17 +29,17 @@ psd(comm, tree, compute.var = TRUE, scale.vcv = TRUE, prune.tree = FALSE,
 
 \item{tree}{A phylo tree object with class "phylo" or a phylogenetic covariance matrix.}
 
-\item{compute.var}{logical, default is TRUE, computes the expected variances
+\item{compute.var}{Logical, default is TRUE, computes the expected variances
 for PSV and PSR for each community.}
 
-\item{scale.vcv}{logical, default is TRUE, scale the phylogenetic covariance
+\item{scale.vcv}{Logical, default is TRUE, scale the phylogenetic covariance
 matrix to bound the metric between 0 and 1 (i.e. correlations).}
 
-\item{prune.tree}{logical, default is FALSE, prune the phylogeny before converting
+\item{prune.tree}{Logical, default is FALSE, prune the phylogeny before converting
 to var-cov matrix? Pruning and then converting VS converting then subsetting may
 have different var-cov matrix resulted.}
 
-\item{cpp}{logical, default is TRUE, whether to use cpp for internal calculations.}
+\item{cpp}{Logical, default is TRUE, whether to use cpp for internal calculations.}
 }
 \value{
 Returns a dataframe of the respective phylogenetic species diversity metric values

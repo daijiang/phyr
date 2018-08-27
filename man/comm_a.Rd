@@ -4,12 +4,12 @@
 \name{comm_a}
 \alias{comm_a}
 \title{Example community data}
-\format{a data frame with 15 sites and 15 species}
+\format{A data frame with 15 sites and 15 species.}
 \usage{
 comm_a
 }
 \description{
 A data frame with site names as row names, species names as column names,
-cells are the abundance of each species at each site
+cells are the abundance of each species at each site.
 }
 \keyword{datasets}

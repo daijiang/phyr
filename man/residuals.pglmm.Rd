@@ -8,13 +8,14 @@
   "binomial") "deviance" else "response", scaled = FALSE, ...)
 }
 \arguments{
-\item{object}{a fitted model with class communityPGLMM.}
+\item{object}{A fitted model with class communityPGLMM.}
 
-\item{type}{type of residuals, currently only "response" for gaussian pglmm;
-"deviance" (default) and "response" for binomial pglmm.
-@param scaled scale residuals by residual standard deviation for gaussian pglmm.}
+\item{type}{Type of residuals, currently only "response" for gaussian pglmm;
+"deviance" (default) and "response" for binomial pglmm.}
 
-\item{\dots}{additional arguments, ignored for method compatibility.}
+\item{scaled}{Scale residuals by residual standard deviation for gaussian pglmm.}
+
+\item{\dots}{Additional arguments, ignored for method compatibility.}
 }
 \description{
 Getting different types of residuals for communityPGLMM objects.

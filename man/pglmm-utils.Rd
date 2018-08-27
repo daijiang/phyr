@@ -20,13 +20,13 @@ communityPGLMM.matrix.structure(formula, data = list(), family = "binomial",
   ...)
 }
 \arguments{
-\item{x}{a fitted model with class communityPGLMM}
+\item{x}{A fitted model with class communityPGLMM}
 
-\item{re.number}{which random term to test? Can be a vector with length >1}
+\item{re.number}{Which random term to test? Can be a vector with length >1}
 
-\item{cpp}{whether to use c++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE}.}
+\item{cpp}{Whether to use c++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE}.}
 
-\item{formula}{a two-sided linear formula object describing the
+\item{formula}{A two-sided linear formula object describing the
 mixed-effects of the model; it follows similar syntax with \code{\link[lme4:lmer]{lmer}}.
 There are some differences though.
 
@@ -53,21 +53,21 @@ Second, note that correlated random terms will not be allowed at this moment. Fo
 \code{(x|g)} will be equal with \code{(0 + x|g)} in the \code{lme4::lmer} syntax;
 also, \code{(x1 + x2|g)} won't work.}
 
-\item{data}{a \code{\link{data.frame}} containing the variables
+\item{data}{A \code{\link{data.frame}} containing the variables
 named in formula. The data frame should have long format with
 a column for species (named as 'sp') and a column for sites (named as 'site').
 \code{communityPGLMM} will reorder rows of the data frame so that species
 are nested within sites (i.e. arrange first by column site then by column sp).}
 
-\item{family}{either \code{gaussian} for a Linear Mixed Model, or
+\item{family}{Either \code{gaussian} for a Linear Mixed Model, or
 \code{binomial} for binary dependent data. If \code{bayes = TRUE}, \code{poisson} is also
 supported.}
 
-\item{tree}{a phylogeny for column sp, with "phylo" class. Or a var-cov matrix for sp,
+\item{tree}{A phylogeny for column sp, with "phylo" class. Or a var-cov matrix for sp,
 make sure to have all species in the matrix; if the matrix is not standarized,
 i.e. det(tree) != 1, we will try to standarize it for you.}
 
-\item{repulsion}{when nested random term specified, do you want to test repulsion
+\item{repulsion}{When nested random term specified, do you want to test repulsion
 (i.e. overdispersion) or underdispersion? Default is FALSE, i.e. test underdispersion.
 This argument can be either a logical vector of length 1 or >1.
 If its length is 1, then all cov matrices in nested terms will be either inverted (overdispersion) or not.
@@ -81,13 +81,13 @@ in the formula, then you should set the repulsion to be something like
 \code{c(TRUE, FALSE, TURE, TURE)} (length of 4).
 The T/F combinations depend on your questions.}
 
-\item{ss}{which of the \code{random.effects} to produce}
+\item{ss}{Which of the \code{random.effects} to produce}
 
-\item{object}{a fitted model with class communityPGLMM.}
+\item{object}{A fitted model with class communityPGLMM.}
 
-\item{digits}{minimal number of significant digits for printing, as in \code{\link{print.default}}}
+\item{digits}{Minimal number of significant digits for printing, as in \code{\link{print.default}}}
 
-\item{...}{additional arguments, currently ignored.}
+\item{...}{Additional arguments, currently ignored.}
 }
 \description{
 \code{communityPGLMM.binary.LRT} tests statistical significance of the phylogenetic random effect on
