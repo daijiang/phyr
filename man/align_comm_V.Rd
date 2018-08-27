@@ -7,17 +7,17 @@
 align_comm_V(comm, tree, prune.tree = FALSE, scale.vcv = TRUE)
 }
 \arguments{
-\item{comm}{a site by species data frame, with site names as row names.}
+\item{comm}{A site by species data frame, with site names as row names.}
 
-\item{tree}{a phylogeny with "phylo" as class; or a phylogenetic var-covar matrix.}
+\item{tree}{A phylogeny with "phylo" as class; or a phylogenetic var-covar matrix.}
 
-\item{prune.tree}{whether to prune the tree first then use vcv.phylo function. Default
-is FALSE: use vcv.phylo first then subsetting the matrix}
+\item{prune.tree}{Whether to prune the tree first then use vcv.phylo function. Default
+is FALSE: use vcv.phylo first then subsetting the matrix.}
 
-\item{scale.vcv}{whether to scale vcv to a correlation matrix}
+\item{scale.vcv}{Whether to scale vcv to a correlation matrix.}
 }
 \value{
-a list of the community data and the phylogenetic var-cov matrix
+A list of the community data and the phylogenetic var-cov matrix.
 }
 \description{
 This function will remove species from community data that are not in the phylogeny.

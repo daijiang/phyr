@@ -6,11 +6,11 @@
 #' @method plot communityPGLMM
 #' @importFrom graphics image
 #' @inheritParams communityPGLMM.binary.LRT
-#' @param show.sp.names whether to print species names as y-axis labels
-#' @param show.site.names whether to print site names as x-axis labels
-#' @param predicted whether to plot predicted values side by side with observed ones
+#' @param show.sp.names Whether to print species names as y-axis labels.
+#' @param show.site.names Whether to print site names as x-axis labels.
+#' @param predicted Whether to plot predicted values side by side with observed ones.
 #' @inheritParams communityPGLMM.plot.re
-#' @note the underlying plot grid object is returned but invisible. It can be saved for later uses.
+#' @note The underlying plot grid object is returned but invisible. It can be saved for later uses.
 #' @export
 plot.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), 
                                 show.sp.names = FALSE, show.site.names = FALSE,
@@ -62,25 +62,25 @@ plot.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3),
 #' 
 #' @rdname pglmm-plot-re
 #' @inheritParams pglmm
-#' @param x a fitted model with class communityPGLMM
-#' @param show.image whether to show the images of random effects
-#' @param show.sim.image whether to show the images of simulated site by sp matrix. 
+#' @param x A fitted model with class communityPGLMM.
+#' @param show.image Whether to show the images of random effects.
+#' @param show.sim.image Whether to show the images of simulated site by sp matrix. 
 #'   This can be useful to see how the phylogenetic information were included.
-#' @param add.tree.sp whether to add a phylogeny of species at the top of the 
-#'   simulated site by sp matrix plot, default is TRUE
-#' @param add.tree.site whether to add a phylogeny of sites at the right of the 
-#'   simulated site by sp matrix plot, default is FALSE
-#' @param tree.panel.space the number of lines between the phylogeney and 
-#'   the matrix plot, if add.tree is TRUE
-#' @param title.space the number of lines between the title and the matrix plot, if add.tree is TRUE
-#' @param tree.size the height of the phylogeney to be plotted (number of lines), if add.tree is TRUE
-#' @param ... additional arguments for \code{Matrix::image()} or \code{lattice::levelplot()}. 
+#' @param add.tree.sp Whether to add a phylogeny of species at the top of the 
+#'   simulated site by sp matrix plot, default is TRUE.
+#' @param add.tree.site Whether to add a phylogeny of sites at the right of the 
+#'   simulated site by sp matrix plot, default is FALSE.
+#' @param tree.panel.space The number of lines between the phylogeney and 
+#'   the matrix plot, if add.tree is TRUE.
+#' @param title.space The number of lines between the title and the matrix plot, if add.tree is TRUE.
+#' @param tree.size The height of the phylogeney to be plotted (number of lines), if add.tree is TRUE.
+#' @param ... Additional arguments for \code{Matrix::image()} or \code{lattice::levelplot()}. 
 #'   Common ones are:
 #'   - \code{useAbs} whether to use absolute values of the matrix; if no negative values, 
 #'     this will be set to TRUE if not specified. When \code{useAbs = TRUE} the color scheme
 #'      will be black-white, otherwise, it will be red/blue. 
 #'   - \code{colorkey} whether to draw the scale legend at the right side of each plot?
-#' @return a hidden list, including the covariance matrices and simulated site by species matrices.
+#' @return A hidden list, including the covariance matrices and simulated site by species matrices.
 #'  Individual plots are saved as \code{plt_re_list} and \code{plt_sim_list}. If \code{show.image} or 
 #'  \code{show.sim.image} is TRUE, the corresponding final plot (\code{plt_re_all_in_one} or 
 #'  \code{plt_sim_all_in_one}) can be saved as external file using \code{ggplot2::ggsave} as 

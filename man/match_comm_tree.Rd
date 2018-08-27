@@ -7,15 +7,15 @@
 match_comm_tree(comm, tree, comm_2 = NULL)
 }
 \arguments{
-\item{comm}{a site by species data frame, with site names as row names.}
+\item{comm}{A site by species data frame, with site names as row names.}
 
-\item{tree}{a phylogeny with "phylo" as class.}
+\item{tree}{A phylogeny with "phylo" as class.}
 
-\item{comm_2}{another optional site by species data frame, if presented, both community data and the phylogeny
+\item{comm_2}{Another optional site by species data frame, if presented, both community data and the phylogeny
 will have the same set of species. This can be useful for PCD with custom species pool.}
 }
 \value{
-a list of the community data and the phylogeny.
+A list of the community data and the phylogeny.
 }
 \description{
 This function will remove species from community data that are not in the phylogeny.

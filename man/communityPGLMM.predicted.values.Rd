@@ -2,14 +2,16 @@
 % Please edit documentation in R/pglmm-utils.R
 \name{communityPGLMM.predicted.values}
 \alias{communityPGLMM.predicted.values}
-\title{\code{communityPGLMM.predicted.values} calculates the predicted
-values of Y; for the generalized linear mixed model (family =
-"binomial"), these values are in the logit-1 transformed space.}
+\title{Predicted values of PGLMM}
 \usage{
 communityPGLMM.predicted.values(x, cpp = TRUE,
   gaussian.pred = c("nearest_node", "tip_rm"))
 }
 \arguments{
+\item{x}{a fitted model with class communityPGLMM.}
+
+\item{cpp}{whether to use c++ code. Default is TRUE.}
+
 \item{gaussian.pred}{when family is gaussian, which type of prediction to calculate?
 Option nearest_node will predict values to the nearest node, which is same as lme4::predict or
 fitted. Option tip_rm will remove the point then predict the value of this point with remaining ones.}

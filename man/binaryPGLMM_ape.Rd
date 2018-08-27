@@ -17,47 +17,47 @@ binaryPGLMM.sim(formula, data = list(), phy, s2 = NULL, B = NULL,
 \method{print}{binaryPGLMM}(x, digits = max(3, getOption("digits") - 3), ...)
 }
 \arguments{
-\item{formula}{a two-sided linear formula object describing the
+\item{formula}{A two-sided linear formula object describing the
 fixed-effects of the model; for example, Y ~ X.}
 
-\item{data}{a data frame containing the variables named in formula.}
+\item{data}{A data frame containing the variables named in formula.}
 
-\item{phy}{a phylogenetic tree as an object of class "phylo".}
+\item{phy}{A phylogenetic tree as an object of class "phylo".}
 
-\item{s2.init}{an initial estimate of s2, the scaling component of the
+\item{s2.init}{An initial estimate of s2, the scaling component of the
 variance in the PGLMM. A value of s2 = 0 implies no phylogenetic signal.
 Note that the variance-covariance matrix given by the phylogeny phy is
 scaled to have determinant = 1.}
 
-\item{B.init}{initial estimates of B, the matrix containing regression
+\item{B.init}{Initial estimates of B, the matrix containing regression
 coefficients in the model. This matrix must have dim(B.init)=c(p+1,1), where
 p is the number of predictor (independent) variables; the first element of B
 corresponds to the intercept, and the remaining elements correspond in order
 to the predictor (independent) variables in the model.}
 
-\item{tol.pql}{a control parameter dictating the tolerance for convergence
+\item{tol.pql}{A control parameter dictating the tolerance for convergence
 for the PQL optimization.}
 
-\item{maxit.pql}{a control parameter dictating the maximum number of
+\item{maxit.pql}{A control parameter dictating the maximum number of
 iterations for the PQL optimization.}
 
-\item{maxit.reml}{a control parameter dictating the maximum number of
+\item{maxit.reml}{A control parameter dictating the maximum number of
 iterations for the REML optimization.}
 
-\item{cpp}{whether to use cpp version of likelihood function? Default is TRUE.}
+\item{cpp}{Whether to use cpp version of likelihood function? Default is TRUE.}
 
-\item{s2}{in binaryPGLMM.sim, value of s2. See s2.init.}
+\item{s2}{In binaryPGLMM.sim, value of s2. See s2.init.}
 
-\item{B}{in binaryPGLMM.sim, value of B, the matrix containing regression
+\item{B}{In binaryPGLMM.sim, value of B, the matrix containing regression
 coefficients in the model. See B.init.}
 
-\item{nrep}{in binaryPGLMM.sim, number of compete data sets produced.}
+\item{nrep}{In binaryPGLMM.sim, number of compete data sets produced.}
 
-\item{x}{an object of class "binaryPGLMM".}
+\item{x}{An object of class "binaryPGLMM".}
 
-\item{digits}{the number of digits to print.}
+\item{digits}{The number of digits to print.}
 
-\item{\dots}{further arguments passed to \code{print}.}
+\item{\dots}{Further arguments passed to \code{print}.}
 }
 \value{
 An object of class "binaryPGLMM".

@@ -7,12 +7,12 @@
 \method{fitted}{communityPGLMM}(object, ...)
 }
 \arguments{
-\item{object}{a fitted model with class communityPGLMM.}
+\item{object}{A fitted model with class communityPGLMM.}
 
-\item{\dots}{additional arguments, ignored for method compatibility.}
+\item{\dots}{Additional arguments, ignored for method compatibility.}
 }
 \value{
-fitted values. For binomial PGLMMs, this is equal to mu (i.e. between 0 and 1).
+Fitted values. For binomial PGLMMs, this is equal to mu (i.e. between 0 and 1).
 }
 \description{
 Fitted values for communityPGLMM

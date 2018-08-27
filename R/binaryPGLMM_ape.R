@@ -56,33 +56,33 @@
 #' tool for this. See Examples below.
 #' 
 #' @aliases binaryPGLMM binaryPGLMM.sim print.binaryPGLMM
-#' @param formula a two-sided linear formula object describing the
+#' @param formula A two-sided linear formula object describing the
 #' fixed-effects of the model; for example, Y ~ X.
-#' @param data a data frame containing the variables named in formula.
-#' @param phy a phylogenetic tree as an object of class "phylo".
-#' @param s2.init an initial estimate of s2, the scaling component of the
+#' @param data A data frame containing the variables named in formula.
+#' @param phy A phylogenetic tree as an object of class "phylo".
+#' @param s2.init An initial estimate of s2, the scaling component of the
 #' variance in the PGLMM. A value of s2 = 0 implies no phylogenetic signal.
 #' Note that the variance-covariance matrix given by the phylogeny phy is
 #' scaled to have determinant = 1.
-#' @param B.init initial estimates of B, the matrix containing regression
+#' @param B.init Initial estimates of B, the matrix containing regression
 #' coefficients in the model. This matrix must have dim(B.init)=c(p+1,1), where
 #' p is the number of predictor (independent) variables; the first element of B
 #' corresponds to the intercept, and the remaining elements correspond in order
 #' to the predictor (independent) variables in the model.
-#' @param tol.pql a control parameter dictating the tolerance for convergence
+#' @param tol.pql A control parameter dictating the tolerance for convergence
 #' for the PQL optimization.
-#' @param maxit.pql a control parameter dictating the maximum number of
+#' @param maxit.pql A control parameter dictating the maximum number of
 #' iterations for the PQL optimization.
-#' @param maxit.reml a control parameter dictating the maximum number of
+#' @param maxit.reml A control parameter dictating the maximum number of
 #' iterations for the REML optimization.
-#' @param x an object of class "binaryPGLMM".
-#' @param s2 in binaryPGLMM.sim, value of s2. See s2.init.
-#' @param B in binaryPGLMM.sim, value of B, the matrix containing regression
+#' @param x An object of class "binaryPGLMM".
+#' @param s2 In binaryPGLMM.sim, value of s2. See s2.init.
+#' @param B In binaryPGLMM.sim, value of B, the matrix containing regression
 #' coefficients in the model. See B.init.
-#' @param nrep in binaryPGLMM.sim, number of compete data sets produced.
-#' @param digits the number of digits to print.
-#' @param cpp whether to use cpp version of likelihood function? Default is TRUE.
-#' @param \dots further arguments passed to \code{print}.
+#' @param nrep In binaryPGLMM.sim, number of compete data sets produced.
+#' @param digits The number of digits to print.
+#' @param cpp Whether to use cpp version of likelihood function? Default is TRUE.
+#' @param \dots Further arguments passed to \code{print}.
 #' @return An object of class "binaryPGLMM".
 #' 
 #' \item{formula}{formula specifying the regression model.} \item{B}{estimates

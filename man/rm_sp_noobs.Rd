@@ -7,10 +7,10 @@
 rm_sp_noobs(df)
 }
 \arguments{
-\item{df}{a data frame in wide form, i.e. site by species data frame, with site names as row name.}
+\item{df}{A data frame in wide form, i.e. site by species data frame, with site names as row name.}
 }
 \value{
-a site by species data frame.
+A site by species data frame.
 }
 \description{
 Remove species that not observed in any site.

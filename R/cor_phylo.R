@@ -14,7 +14,7 @@
 #' @inheritParams data cor_phylo
 #' @inheritParams phy cor_phylo
 #'
-#' @return a vector of species names
+#' @return A vector of species names.
 #'
 #' @noRd
 #' 
@@ -286,19 +286,12 @@ extract_meas_errors <- function(meas_errors, phy_order, trait_names, data) {
 }
 
 
-
-
-
-
-
-
-
 #' Get row names for output based on trait names and list of covariate(s).
 #'
 #' @inheritParams trait_names process_cov_me_list
 #' @inheritParams U cor_phylo_
 #'
-#' @return a vector of row names
+#' @return A vector of row names.
 #' 
 #' @noRd
 #'
@@ -334,14 +327,14 @@ cp_get_row_names <- function(trait_names, U) {
 #' 
 #' Inner function used for testing. Can also incorporate covariates.
 #' 
-#' @param n number of species.
+#' @param n Number of species.
 #' @param Rs `p`-length vector of the correlations between traits.
 #' @param d `p`-length vector of trait phylogenetic signals.
 #' @param M `n` x `p` matrix of trait measurement errors by species. Set this column
 #'   to zero for no measurement error.
-#' @param U_means a list of means for the covariates. Make a parameter's item in 
+#' @param U_means A list of means for the covariates. Make a parameter's item in 
 #'   this list `NULL` to make it not have a covariate.
-#' @param U_sds a list of standard deviations for the covariates.
+#' @param U_sds A list of standard deviations for the covariates.
 #'   Make a parameter's item in this list `NULL` to make it not have a covariate.
 #' @param B `p`-length list of covariate coefficients for each trait. Leave empty
 #'   as for `U_means` and `U_sds`.
@@ -948,7 +941,6 @@ cor_phylo <- function(traits,
 #' 
 #' @param mod `cor_phylo` object that was run with the `boot` argument > 0.
 #' @param alpha Alpha used for the confidence intervals. Defaults to `0.05`.
-#' 
 #' @return `boot_ci` returns a list of confidence intervals with the following fields:
 #'   \describe{
 #'     \item{`corrs`}{
@@ -963,7 +955,7 @@ cor_phylo <- function(traits,
 #' @export
 #' @importFrom stats quantile
 #' 
-boot_ci.cor_phylo <- function(mod, alpha = 0.05) {
+boot_ci.cor_phylo <- function(mod, alpha = 0.05, ...) {
   
   if (length(mod$bootstrap) == 0) {
     stop("\nThis `cor_phylo` object was not bootstrapped. ",

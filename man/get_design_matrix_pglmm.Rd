@@ -7,7 +7,7 @@
 get_design_matrix(formula, data, na.action = NULL, sp, site, random.effects)
 }
 \arguments{
-\item{formula}{a two-sided linear formula object describing the
+\item{formula}{A two-sided linear formula object describing the
 mixed-effects of the model; it follows similar syntax with \code{\link[lme4:lmer]{lmer}}.
 There are some differences though.
 
@@ -34,19 +34,19 @@ Second, note that correlated random terms will not be allowed at this moment. Fo
 \code{(x|g)} will be equal with \code{(0 + x|g)} in the \code{lme4::lmer} syntax;
 also, \code{(x1 + x2|g)} won't work.}
 
-\item{data}{a \code{\link{data.frame}} containing the variables
+\item{data}{A \code{\link{data.frame}} containing the variables
 named in formula. The data frame should have long format with
 a column for species (named as 'sp') and a column for sites (named as 'site').
 \code{communityPGLMM} will reorder rows of the data frame so that species
 are nested within sites (i.e. arrange first by column site then by column sp).}
 
-\item{na.action}{what to do with NAs?}
+\item{na.action}{What to do with NAs?}
 
-\item{sp}{no longer used, keep here for compatibility}
+\item{sp}{No longer used, keep here for compatibility}
 
-\item{site}{no longer used, keep here for compatibility}
+\item{site}{No longer used, keep here for compatibility}
 
-\item{random.effects}{pre-build list of random effects. If \code{NULL} (the default),
+\item{random.effects}{Pre-build list of random effects. If \code{NULL} (the default),
 the function \code{\link{prep_dat_pglmm}} will prepare it for you. A list of pre-generated
 random terms is also accepted (mainly to be compatible with code from previous versions).
 If so, make sure that the orders of sp and site in the generated list are the same as the
@@ -54,7 +54,7 @@ data. This argument can be useful if users want to use other correlations (e.g. 
 in their models instead of phylogenetic relationships.}
 }
 \value{
-a list of design matrices.
+A list of design matrices.
 }
 \description{
 \code{get_design_matrix} gets design matrix for both gaussian and binomial models

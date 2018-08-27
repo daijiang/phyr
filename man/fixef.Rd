@@ -6,6 +6,9 @@
 \usage{
 fixef(x)
 }
+\arguments{
+\item{x}{A fitted model with class communityPGLMM}
+}
 \value{
 a dataframe of fixed-effects estimates.
 }

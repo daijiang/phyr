@@ -8,21 +8,21 @@
   show.sp.names = FALSE, show.site.names = FALSE, predicted = FALSE, ...)
 }
 \arguments{
-\item{x}{a fitted model with class communityPGLMM}
+\item{x}{A fitted model with class communityPGLMM}
 
-\item{digits}{minimal number of significant digits for printing, as in \code{\link{print.default}}}
+\item{digits}{Minimal number of significant digits for printing, as in \code{\link{print.default}}}
 
-\item{show.sp.names}{whether to print species names as y-axis labels}
+\item{show.sp.names}{Whether to print species names as y-axis labels.}
 
-\item{show.site.names}{whether to print site names as x-axis labels}
+\item{show.site.names}{Whether to print site names as x-axis labels.}
 
-\item{predicted}{whether to plot predicted values side by side with observed ones}
+\item{predicted}{Whether to plot predicted values side by side with observed ones.}
 
-\item{...}{additional arguments, currently ignored.}
+\item{...}{Additional arguments, currently ignored.}
 }
 \description{
 Plot the original dataset and predicted values (optional)
 }
 \note{
-the underlying plot grid object is returned but invisible. It can be saved for later uses.
+The underlying plot grid object is returned but invisible. It can be saved for later uses.
 }
