@@ -1,8 +1,5 @@
 context("test cor_phylo output")
 
-library(phyr)
-
-
 # ----------------------------
 
 # Simulating data
