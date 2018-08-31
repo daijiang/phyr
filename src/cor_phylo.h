@@ -7,6 +7,7 @@
 #include <numeric>
 #include <cmath>
 #include <vector>
+#include <math.h>
 
 
 typedef uint_fast32_t uint_t;
@@ -216,7 +217,7 @@ inline arma::vec tp(const arma::rowvec& V){
 inline arma::vec pnorm_cpp(const arma::vec& values, const bool& lower_tail) {
   
   arma::vec out = -1 * values * M_SQRT1_2;
-  out = arma::erfc(out);
+  for (uint_t ii = 0; ii < out.n_elem; ii++) out(ii) = erfc(out(ii));
   out *= 0.5;
   
   if (!lower_tail) out = 1 - out;
