@@ -23,7 +23,10 @@ To install this package:
 ``` r
 devtools::install_github("daijiang/phyr")
 # or
+# macOS
 install.packages("https://raw.githubusercontent.com/daijiang/phyr/master/phyr_0.1.5.tgz", repos = NULL)
+# Windows
+install.packages("https://raw.githubusercontent.com/daijiang/phyr/master/phyr_0.1.5.zip", repos = NULL)
 ```
 
 To do
