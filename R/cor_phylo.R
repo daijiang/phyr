@@ -1029,7 +1029,7 @@ print.cor_phylo <- function(x, digits = max(3, getOption("digits") - 3), ...) {
   cat("\nCoefficients:\n")
   coef <- as.data.frame(x$B)
   printCoefmat(coef, P.values = TRUE, has.Pvalue = TRUE)
-  if (call_arg(x$call, "method") %in% c("nelder-mead-r", "sann")) {
+  if (any(eval(call_arg(x$call, "method")) %in% c("nelder-mead-r", "sann"))) {
     if (x$convcode != 0) {
       cat("\n~~~~~~~~~~~\nWarning: convergence in optim() not reached after",
           x$niter, "iterations\n~~~~~~~~~~~\n")
