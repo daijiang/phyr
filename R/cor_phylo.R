@@ -964,7 +964,7 @@ boot_ci.cor_phylo <- function(mod, alpha = 0.05, ...) {
          "longer.", call. = FALSE)
   }
   # Indices for failed convergences:
-  if (call_arg(mod$call,"method") %in% c("nelder-mead-r", "sann")) {
+  if (eval(call_arg(mod$call,"method"))[1] %in% c("nelder-mead-r", "sann")) {
     f <- mod$bootstrap$inds[mod$bootstrap$codes != 0]
   } else {
     f <- mod$bootstrap$inds[mod$bootstrap$codes < 0]
@@ -1029,14 +1029,14 @@ print.cor_phylo <- function(x, digits = max(3, getOption("digits") - 3), ...) {
   cat("\nCoefficients:\n")
   coef <- as.data.frame(x$B)
   printCoefmat(coef, P.values = TRUE, has.Pvalue = TRUE)
-  if (any(eval(call_arg(x$call, "method")) %in% c("nelder-mead-r", "sann"))) {
+  if (eval(call_arg(x$call, "method"))[1] %in% c("nelder-mead-r", "sann")) {
     if (x$convcode != 0) {
       cat("\n~~~~~~~~~~~\nWarning: convergence in optim() not reached after",
           x$niter, "iterations\n~~~~~~~~~~~\n")
     }
   } else if (x$convcode < 0) {
     cat("\n~~~~~~~~~~~\nWarning: convergence in nlopt optimizer (method \"",
-        call_arg(x$call, "method"),
+        eval(call_arg(x$call, "method"))[1],
         "\") not reached after ", x$niter," iterations\n~~~~~~~~~~~\n", sep = "")
   }
   if (length(x$bootstrap) > 0) {
@@ -1054,7 +1054,7 @@ print.cor_phylo <- function(x, digits = max(3, getOption("digits") - 3), ...) {
     print(cis$B0, digits = digits)
     
     if (length(x$bootstrap$codes) > 0) {
-      if (call_arg(x$call,"method") %in% c("nelder-mead-r", "sann")) {
+      if (eval(call_arg(x$call,"method"))[1] %in% c("nelder-mead-r", "sann")) {
         failed <- sum(x$bootstrap$codes != 0)
       } else {
         failed <- sum(x$bootstrap$codes < 0)

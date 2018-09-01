@@ -234,6 +234,9 @@ check_phy <- function(phy) {
 #' Retrieve an argument value based on a function call.
 #' 
 #' If not present in the call, this returns the default value for that function.
+#' Note that this returns an object of class `call`, not a vector.
+#' Note also that if you used `match.arg` inside the function, you should do
+#' `eval(call_arg(...))[1]` to get the actual value of the argument used.
 #' 
 #'
 #' @param .call Call to a function.
