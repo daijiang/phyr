@@ -580,9 +580,7 @@ inline void main_output(arma::mat& corrs, arma::mat& B, arma::mat& B_cov, arma::
   // OU transform
   arma::mat C = make_C(n, p, ll_info.tau, d, ll_info.Vphy, R);
   
-  // Notice that this is different from in LL and for bootstrapping:
-  arma::mat V = C;
-  V += arma::as_scalar(ll_info.MM.diag());
+  arma::mat V = make_V(C, ll_info.MM);
   
   arma::mat iV = arma::inv(V);
   
