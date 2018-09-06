@@ -114,7 +114,7 @@ inline double cor_phylo_LL_(const arma::vec& par,
 //' 
 //' 
 //' @param par Initial values for the parameters to be optimized over.
-//' @param ll_info_xptr `Rcpp::Xptr` object that points to a C++ `LL_info` object.
+//' @param ll_info_xptr `Rcpp::Xptr` object that points to a C++ `LogLikInfo` object.
 //'     This object stores all the other information needed for the log likelihood
 //'     function.
 //' 
@@ -142,14 +142,14 @@ double cor_phylo_LL(const arma::vec& par,
 // double cor_phylo_LL(const arma::vec& par,
 //                     SEXP ll_info_xptr) {
 //   
-//   XPtr<LL_info> ll_info(ll_info_xptr);
+//   XPtr<LogLikInfo> ll_info(ll_info_xptr);
 //   double LL = cor_phylo_LL_(par, ll_info->XX, ll_info->UU, ll_info->MM, 
 //                             ll_info->Vphy, ll_info->tau, ll_info->REML, 
 //                             ll_info->constrain_d, ll_info->verbose);
 //   return LL;
 // }
 // The function below could also be useful to keep if you go back to using XPtr:
-// // Combining standard_matrices with LL_info::LL_info to see what gets produced
+// // Combining standard_matrices with LogLikInfo::LogLikInfo to see what gets produced
 // //[[Rcpp::export]]
 // SEXP make_LL_info(const arma::mat& X,
 //                   const std::vector<arma::mat>& U,
@@ -159,7 +159,7 @@ double cor_phylo_LL(const arma::vec& par,
 //                   const bool& constrain_d_,
 //                   const bool& verbose_) {
 //   
-//   XPtr<LL_info> ll_info_xptr(new LL_info(X, U, M, Vphy_, REML_, constrain_d_,
+//   XPtr<LogLikInfo> ll_info_xptr(new LogLikInfo(X, U, M, Vphy_, REML_, constrain_d_,
 //                                          verbose_));
 //   
 //   return ll_info_xptr;
@@ -197,7 +197,7 @@ double cor_phylo_LL(const arma::vec& par,
 //' @name fit_cor_phylo_nlopt
 //' @noRd
 //' 
-void fit_cor_phylo_nlopt(LL_info& ll_info,
+void fit_cor_phylo_nlopt(LogLikInfo& ll_info,
                          const double& rel_tol,
                          const int& max_iter,
                          const std::string& method) {
@@ -262,7 +262,7 @@ void fit_cor_phylo_nlopt(LL_info& ll_info,
 //' @name fit_cor_phylo_R
 //' @noRd
 //' 
-void fit_cor_phylo_R(LL_info& ll_info,
+void fit_cor_phylo_R(LogLikInfo& ll_info,
                      const double& rel_tol,
                      const int& max_iter,
                      const std::string& method,
@@ -389,9 +389,9 @@ void standardize_matrices(arma::mat& X,
 
 
 
-//' Make an `LL_info` object based on input matrices.
+//' Make an `LogLikInfo` object based on input matrices.
 //' 
-//' The output `LL_info` is used for model fitting.
+//' The output `LogLikInfo` is used for model fitting.
 //' 
 //' @inheritParams X cor_phylo_
 //' @inheritParams U cor_phylo_
@@ -401,12 +401,12 @@ void standardize_matrices(arma::mat& X,
 //' @inheritParams constrain_d_ cor_phylo_
 //' @inheritParams verbose_ cor_phylo_
 //' 
-//' @return a LL_info that contains info necessary for model fitting
+//' @return a LogLikInfo that contains info necessary for model fitting
 //' 
-//' @name LL_info
+//' @name LogLikInfo
 //' @noRd
 //' 
-LL_info::LL_info(const arma::mat& X,
+LogLikInfo::LogLikInfo(const arma::mat& X,
                  const std::vector<arma::mat>& U,
                  const arma::mat& M,
                  const arma::mat& Vphy_,
@@ -487,9 +487,9 @@ LL_info::LL_info(const arma::mat& X,
 
 
 
-//' Make an `LL_info` object based on input matrices and another LL_info object.
+//' Make an `LogLikInfo` object based on input matrices and another LogLikInfo object.
 //' 
-//' The output `LL_info` is used for model fitting.
+//' The output `LogLikInfo` is used for model fitting.
 //' 
 //' *Note:* This version is used for bootstrapping.
 //' It's different from the one above in that it doesn't re-normalize Vphy, UU, or tau.
@@ -503,17 +503,17 @@ LL_info::LL_info(const arma::mat& X,
 //' @inheritParams X cor_phylo_
 //' @inheritParams U cor_phylo_
 //' @inheritParams M cor_phylo_
-//' @param other Another LL_info object from which to derive much of the information.
+//' @param other Another LogLikInfo object from which to derive much of the information.
 //' 
-//' @return a LL_info that contains info necessary for model fitting
+//' @return a LogLikInfo that contains info necessary for model fitting
 //' 
-//' @name LL_info
+//' @name LogLikInfo
 //' @noRd
 //' 
-LL_info::LL_info(const arma::mat& X,
+LogLikInfo::LogLikInfo(const arma::mat& X,
                  const std::vector<arma::mat>& U,
                  const arma::mat& M,
-                 const LL_info& other) 
+                 const LogLikInfo& other) 
   : UU(other.UU), Vphy(other.Vphy), tau(other.tau),
     REML(other.REML), constrain_d(other.constrain_d), verbose(other.verbose),
     iters(0) {
@@ -563,7 +563,7 @@ LL_info::LL_info(const arma::mat& X,
 
 
 inline void main_output(arma::mat& corrs, arma::mat& B, arma::mat& B_cov, arma::vec& d,
-                        const LL_info& ll_info,
+                        const LogLikInfo& ll_info,
                         const arma::mat& X, const std::vector<arma::mat>& U) {
   
   uint_t n = X.n_rows;
@@ -600,7 +600,7 @@ inline void main_output(arma::mat& corrs, arma::mat& B, arma::mat& B_cov, arma::
 //' 
 //' @inheritParams X cor_phylo_
 //' @inheritParams U cor_phylo_
-//' @param ll_info an LL_info object that contains info necessary to fit the model.
+//' @param ll_info an LogLikInfo object that contains info necessary to fit the model.
 //'   After optimization, it contains info from the model fit.
 //' 
 //' @return a list containing output information, to later be coerced to a `cor_phylo`
@@ -612,7 +612,7 @@ inline void main_output(arma::mat& corrs, arma::mat& B, arma::mat& B_cov, arma::
 List cp_get_output(const arma::mat& X,
                    const std::vector<arma::mat>& U,
                    const arma::mat& M,
-                   LL_info& ll_info,
+                   LogLikInfo& ll_info,
                    const double& rel_tol,
                    const int& max_iter,
                    const std::string& method,
@@ -655,9 +655,9 @@ List cp_get_output(const arma::mat& X,
   
   List boot_list = List::create();
   if (boot > 0) {
-    // `boot_mats` stores matrices that we'll need for bootstrapping
-    boot_mats bm(X, U, M, B, d, ll_info);
-    boot_results br(p, B.n_rows, boot);
+    // `BootMats` stores matrices that we'll need for bootstrapping
+    BootMats bm(X, U, M, B, d, ll_info);
+    BootResults br(p, B.n_rows, boot);
     for (uint_t b = 0; b < boot; b++) {
       Rcpp::checkUserInterrupt();
       bm.one_boot(ll_info, br, b, rel_tol, max_iter, method, keep_boots, sann);
@@ -727,8 +727,8 @@ List cor_phylo_(const arma::mat& X,
                 const std::vector<double>& sann) {
   
 
-  // LL_info is C++ class to use for organizing info for optimizing
-  LL_info ll_info(X, U, M, Vphy_, REML, constrain_d, verbose);
+  // LogLikInfo is C++ class to use for organizing info for optimizing
+  LogLikInfo ll_info(X, U, M, Vphy_, REML, constrain_d, verbose);
 
   /*
    Do the fitting.
@@ -774,9 +774,9 @@ List cor_phylo_(const arma::mat& X,
 
 
 
-boot_mats::boot_mats(const arma::mat& X_, const std::vector<arma::mat>& U_,
+BootMats::BootMats(const arma::mat& X_, const std::vector<arma::mat>& U_,
                      const arma::mat& M_,
-                     const arma::mat& B_, const arma::vec& d_, const LL_info& ll_info)
+                     const arma::mat& B_, const arma::vec& d_, const LogLikInfo& ll_info)
   : X(X_), U(U_), M(M_), X_new(), iD(), X_pred() {
   
   uint_t n = ll_info.Vphy.n_rows;
@@ -799,19 +799,19 @@ boot_mats::boot_mats(const arma::mat& X_, const std::vector<arma::mat>& U_,
   return;
 }
 
-//' Iterate from a boot_mats object in prep for a bootstrap replicate.
+//' Iterate from a BootMats object in prep for a bootstrap replicate.
 //' 
-//' This ultimately updates the LL_info object with new XX and MM matrices,
-//' and updates the boot_results object with the mean and sd.
+//' This ultimately updates the LogLikInfo object with new XX and MM matrices,
+//' and updates the BootResults object with the mean and sd.
 //' 
-//' @param ll_info An LL_info object that will inform the next call to the
+//' @param ll_info An LogLikInfo object that will inform the next call to the
 //'     log-likelihood function.
-//' @param br A boot_results object that stores output from bootstrapping.
+//' @param br A BootResults object that stores output from bootstrapping.
 //' 
 //' @name boot_mats_iterate
 //' @noRd
 //' 
-LL_info boot_mats::iterate(const LL_info& ll_info) {
+LogLikInfo BootMats::iterate(const LogLikInfo& ll_info) {
 
   uint_t n = X.n_rows;
   uint_t p = X.n_cols;
@@ -826,7 +826,7 @@ LL_info boot_mats::iterate(const LL_info& ll_info) {
     X_new.col(i) += (X_rnd.col(i) * sd_);
   }
 
-  LL_info ll_info_new(X_new, U, M, ll_info);
+  LogLikInfo ll_info_new(X_new, U, M, ll_info);
 
   return ll_info_new;
 }
@@ -834,7 +834,7 @@ LL_info boot_mats::iterate(const LL_info& ll_info) {
 
 
 // Method to return bootstrapped data
-void boot_mats::boot_data(LL_info& ll_info, boot_results& br, const uint_t& i) {
+void BootMats::boot_data(LogLikInfo& ll_info, BootResults& br, const uint_t& i) {
   
   br.out_inds.push_back(i+1);
   br.out_codes.push_back(ll_info.convcode);
@@ -844,13 +844,13 @@ void boot_mats::boot_data(LL_info& ll_info, boot_results& br, const uint_t& i) {
   return;
 }
 
-void boot_mats::one_boot(LL_info& ll_info, boot_results& br,
+void BootMats::one_boot(LogLikInfo& ll_info, BootResults& br,
                          const uint_t& i, const double& rel_tol, const int& max_iter,
                          const std::string& method, const std::string& keep_boots,
                          const std::vector<double>& sann) {
   
   // Generate new data
-  LL_info new_ll_info = iterate(ll_info);
+  LogLikInfo new_ll_info = iterate(ll_info);
   
   // For whether convergence failed...
   bool failed = false;
@@ -881,7 +881,7 @@ void boot_mats::one_boot(LL_info& ll_info, boot_results& br,
   arma::vec d;
   main_output(corrs, B, B_cov, d, new_ll_info, X_new, U);
 
-  // Add values to boot_results
+  // Add values to BootResults
   br.insert_values(i, corrs, B.col(0), B_cov, d);
   
   return;

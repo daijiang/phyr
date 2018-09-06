@@ -33,7 +33,7 @@ using namespace Rcpp;
 
 
 // Info to calculate the log-likelihood
-class LL_info {
+class LogLikInfo {
 public:
   arma::vec par0;  // par to start with
   arma::mat XX;
@@ -49,8 +49,8 @@ public:
   double LL;
   int convcode;
   
-  LL_info() {}
-  LL_info(const arma::mat& X,
+  LogLikInfo() {}
+  LogLikInfo(const arma::mat& X,
           const std::vector<arma::mat>& U,
           const arma::mat& M,
           const arma::mat& Vphy_,
@@ -58,12 +58,12 @@ public:
           const bool& constrain_d_,
           const bool& verbose_);
   // Used in bootstrapping
-  LL_info(const arma::mat& X,
+  LogLikInfo(const arma::mat& X,
           const std::vector<arma::mat>& U,
           const arma::mat& M,
-          const LL_info& other);
+          const LogLikInfo& other);
   // Copy constructor
-  LL_info(const LL_info& ll_info2) {
+  LogLikInfo(const LogLikInfo& ll_info2) {
     par0 = ll_info2.par0;
     XX = ll_info2.XX;
     UU = ll_info2.UU;
@@ -85,7 +85,7 @@ public:
 
 // Results from bootstrapping
 
-class boot_results {
+class BootResults {
 public:
   arma::cube corrs;
   arma::mat B0;
@@ -95,14 +95,14 @@ public:
   std::vector<uint_t> out_inds;
   std::vector<int> out_codes;
 
-  boot_results(const uint_t& p, const uint_t& B_rows, const uint_t& n_reps) 
+  BootResults(const uint_t& p, const uint_t& B_rows, const uint_t& n_reps) 
     : corrs(p, p, n_reps, arma::fill::zeros), 
       B0(B_rows, n_reps, arma::fill::zeros), 
       B_cov(B_rows, B_rows, n_reps, arma::fill::zeros),
       d(p, n_reps, arma::fill::zeros), 
       out_mats(), out_inds(), out_codes() {};
 
-  // Insert values into a boot_results object
+  // Insert values into a BootResults object
   void insert_values(const uint_t& i,
                      const arma::mat& corrs_i,
                      const arma::vec& B0_i,
@@ -124,21 +124,21 @@ public:
  Matrices to be kept for bootstrapping
  One per core if doing multi-threaded
  */
-class boot_mats {
+class BootMats {
 public:
   // original input matrices
-  const arma::mat X;  
+  const arma::mat X;
   const std::vector<arma::mat> U;
   const arma::mat M;
   arma::mat X_new;
   
-  boot_mats(const arma::mat& X_, const std::vector<arma::mat>& U_,
+  BootMats(const arma::mat& X_, const std::vector<arma::mat>& U_,
             const arma::mat& M_,
-            const arma::mat& B_, const arma::vec& d_, const LL_info& ll_info);
+            const arma::mat& B_, const arma::vec& d_, const LogLikInfo& ll_info);
   
-  LL_info iterate(const LL_info& ll_info);
+  LogLikInfo iterate(const LogLikInfo& ll_info);
   
-  void one_boot(LL_info& ll_info, boot_results& br,
+  void one_boot(LogLikInfo& ll_info, BootResults& br,
                 const uint_t& i, const double& rel_tol, const int& max_iter,
                 const std::string& method, const std::string& keep_boots,
                 const std::vector<double>& sann);
@@ -149,7 +149,7 @@ private:
   arma::mat X_pred;
 
   // Method for returning bootstrapped data
-  void boot_data(LL_info& ll_info, boot_results& br, const uint_t& i);
+  void boot_data(LogLikInfo& ll_info, BootResults& br, const uint_t& i);
 
 };
 
