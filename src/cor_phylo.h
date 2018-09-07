@@ -43,7 +43,9 @@ public:
   arma::mat tau;
   bool REML;
   bool constrain_d;
+  double lower_d;
   bool verbose;
+  double rcond_threshold;
   uint_t iters;
   arma::vec min_par; // par for minimum LL
   double LL;
@@ -56,7 +58,9 @@ public:
           const arma::mat& Vphy_,
           const bool& REML_,
           const bool& constrain_d_,
-          const bool& verbose_);
+          const double& lower_d_,
+          const bool& verbose_,
+          const double& rcond_threshold_);
   // Used in bootstrapping
   LogLikInfo(const arma::mat& X,
           const std::vector<arma::mat>& U,
@@ -72,7 +76,9 @@ public:
     tau = ll_info2.tau;
     REML = ll_info2.REML;
     constrain_d = ll_info2.constrain_d;
+    lower_d = ll_info2.lower_d;
     verbose = ll_info2.verbose;
+    rcond_threshold = ll_info2.rcond_threshold;
     iters = ll_info2.iters;
     min_par = ll_info2.min_par;
     LL = ll_info2.LL;
@@ -256,30 +262,42 @@ inline arma::mat make_L(const arma::vec& par, const uint_t& n, const uint_t& p) 
 }
 
 inline arma::vec make_d(const arma::vec& par, const uint_t& n, const uint_t& p,
-                        const bool& constrain_d, bool do_checks) {
+                        const bool& constrain_d, const double& lower_d, 
+                        bool do_checks) {
   arma::vec d;
   if (constrain_d) {
     arma::vec logit_d = par(arma::span((p + p * (p - 1) / 2), par.n_elem - 1));
     if (do_checks) {
+      // In function `cor_phylo_LL_`, `d.n_elem == 0` indicates to return a huge value
       if (arma::max(arma::abs(logit_d)) > 10) return d;
     }
     d = 1/(1 + arma::exp(-logit_d));
+    // If you ever want to allow this to be changed:
+    double upper_d = 1.0;
+    d *= (upper_d - lower_d);
+    d += lower_d;
   } else {
     d = par(arma::span((p + p * (p - 1) / 2), par.n_elem - 1));
+    d += lower_d;
     if (do_checks) {
-      if (max(d) > 10) d.reset();
+      if (arma::max(d) > 10) d.reset();
     }
   }
   return d;
 }
 inline arma::vec make_d(const arma::vec& par, const uint_t& n, const uint_t& p,
-                        const bool& constrain_d) {
+                        const bool& constrain_d, const double& lower_d) {
   arma::vec d;
   if (constrain_d) {
     arma::vec logit_d = par(arma::span((p + p * (p - 1) / 2), par.n_elem - 1));
     d = 1/(1 + arma::exp(-logit_d));
+    // If you ever want to allow this to be changed:
+    double upper_d = 1.0;
+    d *= (upper_d - lower_d);
+    d += lower_d;
   } else {
     d = par(arma::span((p + p * (p - 1) / 2), par.n_elem - 1));
+    d += lower_d;
   }
   return d;
 }

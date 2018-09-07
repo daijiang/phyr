@@ -70,8 +70,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // cor_phylo_LL
-double cor_phylo_LL(const arma::vec& par, const arma::mat& XX, const arma::mat& UU, const arma::mat& MM, const arma::mat& Vphy, const arma::mat& tau, const bool& REML, const bool& constrain_d, const bool& verbose);
-RcppExport SEXP _phyr_cor_phylo_LL(SEXP parSEXP, SEXP XXSEXP, SEXP UUSEXP, SEXP MMSEXP, SEXP VphySEXP, SEXP tauSEXP, SEXP REMLSEXP, SEXP constrain_dSEXP, SEXP verboseSEXP) {
+double cor_phylo_LL(const arma::vec& par, const arma::mat& XX, const arma::mat& UU, const arma::mat& MM, const arma::mat& Vphy, const arma::mat& tau, const bool& REML, const bool& constrain_d, const double& lower_d, const bool& verbose, const double& rcond_threshold);
+RcppExport SEXP _phyr_cor_phylo_LL(SEXP parSEXP, SEXP XXSEXP, SEXP UUSEXP, SEXP MMSEXP, SEXP VphySEXP, SEXP tauSEXP, SEXP REMLSEXP, SEXP constrain_dSEXP, SEXP lower_dSEXP, SEXP verboseSEXP, SEXP rcond_thresholdSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -83,14 +83,16 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type tau(tauSEXP);
     Rcpp::traits::input_parameter< const bool& >::type REML(REMLSEXP);
     Rcpp::traits::input_parameter< const bool& >::type constrain_d(constrain_dSEXP);
+    Rcpp::traits::input_parameter< const double& >::type lower_d(lower_dSEXP);
     Rcpp::traits::input_parameter< const bool& >::type verbose(verboseSEXP);
-    rcpp_result_gen = Rcpp::wrap(cor_phylo_LL(par, XX, UU, MM, Vphy, tau, REML, constrain_d, verbose));
+    Rcpp::traits::input_parameter< const double& >::type rcond_threshold(rcond_thresholdSEXP);
+    rcpp_result_gen = Rcpp::wrap(cor_phylo_LL(par, XX, UU, MM, Vphy, tau, REML, constrain_d, lower_d, verbose, rcond_threshold));
     return rcpp_result_gen;
 END_RCPP
 }
 // cor_phylo_
-List cor_phylo_(const arma::mat& X, const std::vector<arma::mat>& U, const arma::mat& M, const arma::mat& Vphy_, const bool& REML, const bool& constrain_d, const bool& verbose, const double& rel_tol, const int& max_iter, const std::string& method, const uint_fast32_t& boot, const std::string& keep_boots, const std::vector<double>& sann);
-RcppExport SEXP _phyr_cor_phylo_(SEXP XSEXP, SEXP USEXP, SEXP MSEXP, SEXP Vphy_SEXP, SEXP REMLSEXP, SEXP constrain_dSEXP, SEXP verboseSEXP, SEXP rel_tolSEXP, SEXP max_iterSEXP, SEXP methodSEXP, SEXP bootSEXP, SEXP keep_bootsSEXP, SEXP sannSEXP) {
+List cor_phylo_(const arma::mat& X, const std::vector<arma::mat>& U, const arma::mat& M, const arma::mat& Vphy_, const bool& REML, const bool& constrain_d, const double& lower_d, const bool& verbose, const double& rcond_threshold, const double& rel_tol, const int& max_iter, const std::string& method, const uint_fast32_t& boot, const std::string& keep_boots, const std::vector<double>& sann);
+RcppExport SEXP _phyr_cor_phylo_(SEXP XSEXP, SEXP USEXP, SEXP MSEXP, SEXP Vphy_SEXP, SEXP REMLSEXP, SEXP constrain_dSEXP, SEXP lower_dSEXP, SEXP verboseSEXP, SEXP rcond_thresholdSEXP, SEXP rel_tolSEXP, SEXP max_iterSEXP, SEXP methodSEXP, SEXP bootSEXP, SEXP keep_bootsSEXP, SEXP sannSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -100,14 +102,16 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type Vphy_(Vphy_SEXP);
     Rcpp::traits::input_parameter< const bool& >::type REML(REMLSEXP);
     Rcpp::traits::input_parameter< const bool& >::type constrain_d(constrain_dSEXP);
+    Rcpp::traits::input_parameter< const double& >::type lower_d(lower_dSEXP);
     Rcpp::traits::input_parameter< const bool& >::type verbose(verboseSEXP);
+    Rcpp::traits::input_parameter< const double& >::type rcond_threshold(rcond_thresholdSEXP);
     Rcpp::traits::input_parameter< const double& >::type rel_tol(rel_tolSEXP);
     Rcpp::traits::input_parameter< const int& >::type max_iter(max_iterSEXP);
     Rcpp::traits::input_parameter< const std::string& >::type method(methodSEXP);
     Rcpp::traits::input_parameter< const uint_fast32_t& >::type boot(bootSEXP);
     Rcpp::traits::input_parameter< const std::string& >::type keep_boots(keep_bootsSEXP);
     Rcpp::traits::input_parameter< const std::vector<double>& >::type sann(sannSEXP);
-    rcpp_result_gen = Rcpp::wrap(cor_phylo_(X, U, M, Vphy_, REML, constrain_d, verbose, rel_tol, max_iter, method, boot, keep_boots, sann));
+    rcpp_result_gen = Rcpp::wrap(cor_phylo_(X, U, M, Vphy_, REML, constrain_d, lower_d, verbose, rcond_threshold, rel_tol, max_iter, method, boot, keep_boots, sann));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -381,8 +385,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_phyr_pglmm_reml_cpp", (DL_FUNC) &_phyr_pglmm_reml_cpp, 5},
     {"_phyr_binpglmm_inter_while_cpp", (DL_FUNC) &_phyr_binpglmm_inter_while_cpp, 16},
     {"_phyr_binpglmm_inter_while_cpp2", (DL_FUNC) &_phyr_binpglmm_inter_while_cpp2, 12},
-    {"_phyr_cor_phylo_LL", (DL_FUNC) &_phyr_cor_phylo_LL, 9},
-    {"_phyr_cor_phylo_", (DL_FUNC) &_phyr_cor_phylo_, 13},
+    {"_phyr_cor_phylo_LL", (DL_FUNC) &_phyr_cor_phylo_LL, 11},
+    {"_phyr_cor_phylo_", (DL_FUNC) &_phyr_cor_phylo_, 15},
     {"_phyr_set_seed", (DL_FUNC) &_phyr_set_seed, 1},
     {"_phyr_predict_cpp", (DL_FUNC) &_phyr_predict_cpp, 4},
     {"_phyr_pcd2_loop", (DL_FUNC) &_phyr_pcd2_loop, 7},

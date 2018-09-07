@@ -163,8 +163,8 @@ NULL
 #' 
 #' @name cor_phylo_LL
 #' 
-cor_phylo_LL <- function(par, XX, UU, MM, Vphy, tau, REML, constrain_d, verbose) {
-    .Call(`_phyr_cor_phylo_LL`, par, XX, UU, MM, Vphy, tau, REML, constrain_d, verbose)
+cor_phylo_LL <- function(par, XX, UU, MM, Vphy, tau, REML, constrain_d, lower_d, verbose, rcond_threshold) {
+    .Call(`_phyr_cor_phylo_LL`, par, XX, UU, MM, Vphy, tau, REML, constrain_d, lower_d, verbose, rcond_threshold)
 }
 
 #' Inner function to create necessary matrices and do model fitting.
@@ -186,8 +186,8 @@ cor_phylo_LL <- function(par, XX, UU, MM, Vphy, tau, REML, constrain_d, verbose)
 #' @noRd
 #' @name cor_phylo_
 #' 
-cor_phylo_ <- function(X, U, M, Vphy_, REML, constrain_d, verbose, rel_tol, max_iter, method, boot, keep_boots, sann) {
-    .Call(`_phyr_cor_phylo_`, X, U, M, Vphy_, REML, constrain_d, verbose, rel_tol, max_iter, method, boot, keep_boots, sann)
+cor_phylo_ <- function(X, U, M, Vphy_, REML, constrain_d, lower_d, verbose, rcond_threshold, rel_tol, max_iter, method, boot, keep_boots, sann) {
+    .Call(`_phyr_cor_phylo_`, X, U, M, Vphy_, REML, constrain_d, lower_d, verbose, rcond_threshold, rel_tol, max_iter, method, boot, keep_boots, sann)
 }
 
 set_seed <- function(seed) {

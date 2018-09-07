@@ -874,11 +874,13 @@ cor_phylo <- function(traits,
                       REML = TRUE, 
                       method = c("nelder-mead-nlopt", "bobyqa", "subplex",
                                  "nelder-mead-r", "sann"),
-                      constrain_d = FALSE, 
+                      constrain_d = FALSE,
+                      lower_d = 1e-7,
                       rel_tol = 1e-6, 
                       max_iter = 1000, 
                       sann_options = list(),
                       verbose = FALSE,
+                      rcond_threshold = 1e-10,
                       boot = 0,
                       keep_boots = c("fail", "none", "all")) {
   
@@ -932,8 +934,9 @@ cor_phylo <- function(traits,
   # `cor_phylo_` returns a list with the following objects:
   # corrs, d, B, (previously B, B_se, B_zscore, and B_pvalue),
   #     B_cov, logLik, AIC, BIC
-  output <- cor_phylo_(X, U, M, Vphy, REML, constrain_d, verbose,
-                       rel_tol, max_iter, method, boot, keep_boots, sann)
+  output <- cor_phylo_(X, U, M, Vphy, REML, constrain_d, lower_d, verbose,
+                       rcond_threshold, rel_tol, max_iter, method, boot,
+                       keep_boots, sann)
   # Taking care of row and column names:
   colnames(output$corrs) <- rownames(output$corrs) <- trait_names
   rownames(output$d) <- trait_names

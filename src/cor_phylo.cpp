@@ -10,7 +10,6 @@
 using namespace Rcpp;
 
 
-#define COND_MIN 0.0000000001
 #define MAX_RETURN 10000000000
 
 
@@ -53,7 +52,9 @@ inline double cor_phylo_LL_(const arma::vec& par,
                             const arma::mat& tau,
                             const bool& REML,
                             const bool& constrain_d,
-                            const bool& verbose) {
+                            const double& lower_d,
+                            const bool& verbose,
+                            const double& rcond_threshold) {
   
   
   uint_t n = Vphy.n_rows;
@@ -63,7 +64,7 @@ inline double cor_phylo_LL_(const arma::vec& par,
   
   arma::mat R = L.t() * L;
   
-  arma::vec d = make_d(par, n, p, constrain_d, true);
+  arma::vec d = make_d(par, n, p, constrain_d, lower_d, true);
   if (d.n_elem == 0) return MAX_RETURN;
   
   // OU transform
@@ -71,12 +72,12 @@ inline double cor_phylo_LL_(const arma::vec& par,
   
   arma::mat V = make_V(C, MM);
   double rcond_dbl = arma::rcond(V);
-  if (!arma::is_finite(rcond_dbl) || rcond_dbl < COND_MIN) return MAX_RETURN;
+  if (!arma::is_finite(rcond_dbl) || rcond_dbl < rcond_threshold) return MAX_RETURN;
   
   arma::mat iV = arma::inv(V);
   arma::mat denom = tp(UU) * iV * UU;
   rcond_dbl = arma::rcond(denom);
-  if (!arma::is_finite(rcond_dbl) || rcond_dbl < COND_MIN) return MAX_RETURN;
+  if (!arma::is_finite(rcond_dbl) || rcond_dbl < rcond_threshold) return MAX_RETURN;
   
   arma::mat num = tp(UU) * iV * XX;
   arma::vec B0 = arma::solve(denom, num);
@@ -131,9 +132,12 @@ double cor_phylo_LL(const arma::vec& par,
                      const arma::mat& tau,
                      const bool& REML,
                      const bool& constrain_d,
-                     const bool& verbose) {
+                     const double& lower_d,
+                     const bool& verbose,
+                     const double& rcond_threshold) {
   
-  double LL = cor_phylo_LL_(par, XX, UU, MM, Vphy, tau, REML, constrain_d, verbose);
+  double LL = cor_phylo_LL_(par, XX, UU, MM, Vphy, tau, REML,
+                            constrain_d, lower_d, verbose, rcond_threshold);
   return LL;
 }
 
@@ -227,7 +231,9 @@ void fit_cor_phylo_nlopt(LogLikInfo& ll_info,
                    _["tau"] = ll_info.tau,
                    _["REML"] = ll_info.REML,
                    _["constrain_d"] = ll_info.constrain_d,
-                   _["verbose"] = ll_info.verbose);
+                   _["lower_d"] = ll_info.lower_d,
+                   _["verbose"] = ll_info.verbose,
+                   _["rcond_threshold"] = ll_info.rcond_threshold);
   
   ll_info.min_par = as<arma::vec>(opt["solution"]);
   
@@ -288,7 +294,9 @@ void fit_cor_phylo_R(LogLikInfo& ll_info,
                 _["tau"] = ll_info.tau,
                 _["REML"] = ll_info.REML,
                 _["constrain_d"] = ll_info.constrain_d,
-                _["verbose"] = ll_info.verbose);
+                _["lower_d"] = ll_info.lower_d,
+                _["verbose"] = ll_info.verbose,
+                _["rcond_threshold"] = ll_info.rcond_threshold);
     ll_info.par0 = as<arma::vec>(opt["par"]);
   }
   
@@ -304,7 +312,9 @@ void fit_cor_phylo_R(LogLikInfo& ll_info,
               _["tau"] = ll_info.tau,
               _["REML"] = ll_info.REML,
               _["constrain_d"] = ll_info.constrain_d,
-              _["verbose"] = ll_info.verbose);
+              _["lower_d"] = ll_info.lower_d,
+              _["verbose"] = ll_info.verbose,
+              _["rcond_threshold"] = ll_info.rcond_threshold);
   
   ll_info.min_par = as<arma::vec>(opt["par"]);
   
@@ -412,8 +422,11 @@ LogLikInfo::LogLikInfo(const arma::mat& X,
                  const arma::mat& Vphy_,
                  const bool& REML_,
                  const bool& constrain_d_,
-                 const bool& verbose_) 
-  : REML(REML_), constrain_d(constrain_d_), verbose(verbose_), iters(0) {
+                 const double& lower_d_,
+                 const bool& verbose_,
+                 const double& rcond_threshold_) 
+  : REML(REML_), constrain_d(constrain_d_), lower_d(lower_d_), verbose(verbose_), 
+    rcond_threshold(rcond_threshold_), iters(0) {
   
   uint_t n = Vphy_.n_rows;
   uint_t p = X.n_cols;
@@ -515,8 +528,8 @@ LogLikInfo::LogLikInfo(const arma::mat& X,
                  const arma::mat& M,
                  const LogLikInfo& other) 
   : UU(other.UU), Vphy(other.Vphy), tau(other.tau),
-    REML(other.REML), constrain_d(other.constrain_d), verbose(other.verbose),
-    iters(0) {
+    REML(other.REML), constrain_d(other.constrain_d), lower_d(other.lower_d),
+    verbose(other.verbose), rcond_threshold(other.rcond_threshold), iters(0) {
 
   uint_t p = X.n_cols;
   
@@ -575,7 +588,7 @@ inline void main_output(arma::mat& corrs, arma::mat& B, arma::mat& B_cov, arma::
   
   corrs = make_corrs(R);
   
-  d = make_d(ll_info.min_par, n, p, ll_info.constrain_d);
+  d = make_d(ll_info.min_par, n, p, ll_info.constrain_d, ll_info.lower_d);
   
   // OU transform
   arma::mat C = make_C(n, p, ll_info.tau, d, ll_info.Vphy, R);
@@ -718,7 +731,9 @@ List cor_phylo_(const arma::mat& X,
                 const arma::mat& Vphy_,
                 const bool& REML,
                 const bool& constrain_d,
+                const double& lower_d,
                 const bool& verbose,
+                const double& rcond_threshold,
                 const double& rel_tol,
                 const int& max_iter,
                 const std::string& method,
@@ -728,7 +743,7 @@ List cor_phylo_(const arma::mat& X,
   
 
   // LogLikInfo is C++ class to use for organizing info for optimizing
-  LogLikInfo ll_info(X, U, M, Vphy_, REML, constrain_d, verbose);
+  LogLikInfo ll_info(X, U, M, Vphy_, REML, constrain_d, lower_d, verbose, rcond_threshold);
 
   /*
    Do the fitting.
@@ -825,6 +840,7 @@ LogLikInfo BootMats::iterate(const LogLikInfo& ll_info) {
     double sd_ = arma::stddev(X.col(i));
     X_new.col(i) += (X_rnd.col(i) * sd_);
   }
+  // X_new = X_pred + X_rnd;
 
   LogLikInfo ll_info_new(X_new, U, M, ll_info);
 
