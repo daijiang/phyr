@@ -226,7 +226,7 @@ extract_covariates <- function(covariates, phy_order, trait_names, data) {
   j <- 1
   for (i in 1:length(out)) {
     if (any(out[[i]] != 0)) {
-        names_ <- paste0("cov_", j:(j+ncol(out[[i]])-1))
+      names_ <- paste0("cov_", j:(j+ncol(out[[i]])-1))
       if (is.null(colnames(out[[i]]))) {
         colnames(out[[i]]) <- names_
       } else if (any(is.na(colnames(out[[i]])))) {
@@ -328,10 +328,12 @@ cp_get_row_names <- function(trait_names, U) {
 #' Inner function used for testing. Can also incorporate covariates.
 #' 
 #' @param n Number of species.
-#' @param Rs `p`-length vector of the correlations between traits.
+#' @param Rs vector of the correlations between traits.
 #' @param d `p`-length vector of trait phylogenetic signals.
 #' @param M `n` x `p` matrix of trait measurement errors by species. Set this column
 #'   to zero for no measurement error.
+#' @param X_means A list of means for the traits. Defaults to 0 for all.
+#' @param X_sds A list of standard deviations for the traits. Defaults to 1 for all.
 #' @param U_means A list of means for the covariates. Make a parameter's item in 
 #'   this list `NULL` to make it not have a covariate.
 #' @param U_sds A list of standard deviations for the covariates.
@@ -342,13 +344,25 @@ cp_get_row_names <- function(trait_names, U) {
 #' 
 #' @noRd
 #' 
-sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
+sim_cor_phylo_traits <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, B) {
   
   p <- length(d)
   
+  if (missing(X_means)) X_means <- rep(0, p)
+  if (missing(X_sds)) X_sds <- rep(1, p)
+  
+  stopifnot(length(Rs) == sum(1:(p-1)))
+  stopifnot(length(d) == p)
+  stopifnot(nrow(M) == n & ncol(M) == p)
+  stopifnot(length(X_means) == p)
+  stopifnot(length(X_sds) == p)
+  stopifnot(length(U_means) == p)
+  stopifnot(length(U_sds) == p)
+  stopifnot(length(B) == p)
+  
   R <- matrix(1, p, p)
-  R[lower.tri(R)] <- Rs
   R[upper.tri(R)] <- Rs
+  R <- R + t(R)
   
   phy <- ape::rcoal(n, tip.label = 1:n)
   
@@ -370,35 +384,60 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
   U <- rep(list(NULL), p)
   for (i in 1:p) {
     if (!is.null(U_means[[i]])) {
+      if (length(U_means[[i]]) != length(U_sds[[i]])) {
+        stop("\nAll U_means items should have same length as corresponding item in ",
+             "U_sds")
+      }
+      U[[i]] <- matrix(0, n, length(U_means[[i]]))
       for (j in 1:length(U_means[[i]])) {
-        U[[i]] <- cbind(U[[i]],
-                        rnorm(n, mean = U_means[[i]][j], sd = U_sds[[i]][j]))
+        Uij <- rnorm(n)
+        Uij <- (Uij - mean(Uij)) / sd(Uij)
+        Uij <- Uij * U_sds[[i]][j]
+        Uij <- Uij + U_means[[i]][j]
+        U[[i]][,j] <- Uij
       }
     }
   }
   
   XX <- iD %*% rnorm(p * n)
+  X_rnd <- matrix(XX, n, p)
+  X <- matrix(0, n, p)
   
-  data_df <- data.frame(species = phy$tip.label)
-  ii = 1
   for (i in 1:p) {
-    dd <- XX[ii:(ii+n-1)]
-    data_df[,paste0("par", i)] <- dd
     if (!is.null(U[[i]])) {
       if (ncol(U[[i]]) != length(B[[i]])) {
         stop("\nAll B items should have same length as number of columns in ",
              "corresponding matrix of U")
       }
+      # Adding effect(s) of U[[i]]:
       for (j in 1:ncol(U[[i]])) {
-        data_df[, paste0("par", i)] <- data_df[, paste0("par", i)] + 
-          B[[i]][j] * U[[i]][,j] - B[[i]][j] * mean(U[[i]][,j])
+        b1 <- B[[i]][j]
+        x <- U[[i]][,j]
+        X[,i] <- X[,i] + b1 * x - b1 * mean(x)
+      }
+    }
+    # Adding noise:
+    X[,i] <- X[,i] + X_rnd[,i]
+    # Setting mean to zero:
+    X[,i] <- X[,i] - mean(X[,i])
+    # Setting SD to specified value:
+    X[,i] <- X[,i] * X_sds[i] / sd(X[,i])
+    # Setting mean to specified value:
+    X[,i] <- X[,i] + X_means[i]
+  }
+  
+  # Combining to one data frame:
+  data_df <- data.frame(species = phy$tip.label)
+  for (i in 1:p) {
+    data_df[,paste0("par", i)] <- X[,i]
+    if (!is.null(U[[i]])) {
+      for (j in 1:ncol(U[[i]])) {
         data_df[, paste0("cov", i, letters[j])] <- U[[i]][,j]
       }
     }
-    if (sum(M[,i]) != 0) {
+    if (any(M[,i] != 0)) {
       data_df[, paste0("se", i)] <- M[,i]
     }
-    ii <- ii+n
   }
   
   return(list(phy = phy, data = data_df, iD = iD, B = B))
