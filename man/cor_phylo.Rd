@@ -152,11 +152,18 @@ overall likelihood (\code{REML = FALSE}).}
 overall likelihood (\code{REML = FALSE}).}
 \item{\code{niter}}{Number of iterations the optimizer used.}
 \item{\code{convcode}}{Conversion code for the optimizer.
-This number is \code{0} on success and positive on failure if using
-\code{\link[stats]{optim}}.
-This number is positive on success and negative on failure if using \code{nlopt}
-(see also
-\url{https://nlopt.readthedocs.io/en/latest/NLopt_Reference/#return-values}).}
+This number is \code{0} on success and positive on failure.
+\describe{
+\item{1}{iteration limit reached}
+\item{2}{generic failure code (nlopt optimizers only).}
+\item{3}{invalid arguments (nlopt optimizers only).}
+\item{4}{out of memory (nlopt optimizers only).}
+\item{5}{roundoff errors limited progress (nlopt optimizers only).}
+\item{6}{user-forced termination (nlopt optimizers only).}
+\item{10}{degeneracy of the Nelder-Mead simplex (\code{stats::optim} only).}
+}
+For more information on the nlopt return codes, see
+\url{https://nlopt.readthedocs.io/en/latest/NLopt_Reference/#return-values}.}
 \item{\code{bootstrap}}{A list of bootstrap output, which is simply \code{list()} if
 \code{boot = 0}. If \code{boot > 0}, then the list contains fields for
 estimates of correlations (\code{corrs}), phylogenetic signals (\code{d}),
@@ -164,7 +171,7 @@ coefficients (\code{B0}), and coefficient covariances (\code{B_cov}).
 It also contains the following information about the bootstrap replicates:
 a vector of indices relating each set of information to the bootstrapped
 estimates (\code{inds}),
-convergence codes (\code{codes}), and
+convergence codes (\code{convcodes}), and
 matrices of the bootstrapped parameters in the order they appear in the input
 argument (\code{mats});
 these three fields will be empty if \code{keep_boots == "none"}.

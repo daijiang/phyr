@@ -238,7 +238,18 @@ void fit_cor_phylo_nlopt(LogLikInfo& ll_info,
   ll_info.min_par = as<arma::vec>(opt["solution"]);
   
   ll_info.LL = as<double>(opt["objective"]);
-  ll_info.convcode = as<int>(opt["status"]);
+  int convcode_ = as<int>(opt["status"]);
+  
+  if (convcode_ > 0) {
+    if (convcode_ < 5) {
+      ll_info.convcode = 0;
+    } else {
+      ll_info.convcode = 1;
+    }
+  } else {
+    ll_info.convcode = -1 * convcode_ + 1;
+  }
+
   ll_info.iters = as<arma::vec>(opt["iterations"])(0);
   
   if (ll_info.verbose) {
@@ -682,7 +693,7 @@ List cp_get_output(const arma::mat& X,
     boot_list = List::create(_["corrs"] = br.corrs, _["d"] = br.d,
                              _["B0"] = br.B0, _["B_cov"] = br.B_cov,
                              _["inds"] = br.out_inds,
-                             _["codes"] = br.out_codes,
+                             _["convcodes"] = br.out_codes,
                              _["mats"] = boot_out_mats);
   }
   
@@ -868,9 +879,6 @@ void BootMats::one_boot(LogLikInfo& ll_info, BootResults& br,
   // Generate new data
   LogLikInfo new_ll_info = iterate(ll_info);
   
-  // For whether convergence failed...
-  bool failed = false;
-  
   /*
    Do the fitting.
    Methods "nelder-mead-r" and "sann" use R's `stats::optim`.
@@ -879,13 +887,12 @@ void BootMats::one_boot(LogLikInfo& ll_info, BootResults& br,
   if (method == "nelder-mead-r" || method == "sann") {
     // Do the fitting:
     fit_cor_phylo_R(new_ll_info, rel_tol, max_iter, method, sann);
-    // Determine whether convergence failed:
-    if (new_ll_info.convcode != 0) failed = true;
   } else {
     // Same thing for nlopt version
     fit_cor_phylo_nlopt(new_ll_info, rel_tol, max_iter, method);
-    if (new_ll_info.convcode < 0) failed = true;
   }
+  // Determine whether convergence failed:
+  bool failed = new_ll_info.convcode != 0;
   
   if (keep_boots == "all" || (keep_boots == "fail" && failed)) {
     boot_data(new_ll_info, br, i);

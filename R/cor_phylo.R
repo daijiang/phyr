@@ -52,9 +52,8 @@ cp_get_species <- function(species, data, phy) {
 
 #' Extract traits matrix from arguments input to `cor_phylo`.
 #' 
-#' @inheritParams traits cor_phylo
+#' @inheritParams cor_phylo
 #' @param phy_order The order of species as indicated by the phylogeny.
-#' @inheritParams data cor_phylo
 #' 
 #' @noRd
 #' 
@@ -615,11 +614,18 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, B)
 #'     overall likelihood (\code{REML = FALSE}).}
 #'   \item{`niter`}{Number of iterations the optimizer used.}
 #'   \item{`convcode`}{Conversion code for the optimizer.
-#'     This number is \code{0} on success and positive on failure if using
-#'     \code{\link[stats]{optim}}.
-#'     This number is positive on success and negative on failure if using `nlopt`
-#'     (see also
-#'     \url{https://nlopt.readthedocs.io/en/latest/NLopt_Reference/#return-values}).}
+#'     This number is \code{0} on success and positive on failure.
+#'     \describe{
+#'       \item{1}{iteration limit reached}
+#'       \item{2}{generic failure code (nlopt optimizers only).}
+#'       \item{3}{invalid arguments (nlopt optimizers only).}
+#'       \item{4}{out of memory (nlopt optimizers only).}
+#'       \item{5}{roundoff errors limited progress (nlopt optimizers only).}
+#'       \item{6}{user-forced termination (nlopt optimizers only).}
+#'       \item{10}{degeneracy of the Nelder-Mead simplex (\code{stats::optim} only).}
+#'     }
+#'     For more information on the nlopt return codes, see
+#'     \url{https://nlopt.readthedocs.io/en/latest/NLopt_Reference/#return-values}.}
 #'   \item{`bootstrap`}{A list of bootstrap output, which is simply `list()` if
 #'     `boot = 0`. If `boot > 0`, then the list contains fields for 
 #'     estimates of correlations (`corrs`), phylogenetic signals (`d`),
@@ -627,11 +633,11 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, B)
 #'     It also contains the following information about the bootstrap replicates: 
 #'     a vector of indices relating each set of information to the bootstrapped
 #'     estimates (`inds`),
-#'     convergence codes (`codes`), and
+#'     convergence codes (`convcodes`), and
 #'     matrices of the bootstrapped parameters in the order they appear in the input
 #'     argument (`mats`);
 #'     these three fields will be empty if `keep_boots == "none"`.
-#'     To view bootstrapped confidence intervals, use \code{boot_ci}.}
+#'     To view bootstrapped confidence intervals, use `boot_ci`.}
 #' 
 #' @export
 #'
@@ -1006,11 +1012,7 @@ boot_ci.cor_phylo <- function(mod, alpha = 0.05, ...) {
          "longer.", call. = FALSE)
   }
   # Indices for failed convergences:
-  if (eval(call_arg(mod$call,"method"))[1] %in% c("nelder-mead-r", "sann")) {
-    f <- mod$bootstrap$inds[mod$bootstrap$codes != 0]
-  } else {
-    f <- mod$bootstrap$inds[mod$bootstrap$codes < 0]
-  }
+  f <- mod$bootstrap$inds[mod$bootstrap$convcodes != 0]
   if (length(f) == 0) f <- ncol(mod$bootstrap$d) + 1
   corrs_list <- list(lower = apply(mod$bootstrap$corrs[,,-f,drop=FALSE], 
                                    c(1, 2), quantile, probs = alpha / 2),
@@ -1046,6 +1048,8 @@ boot_ci.cor_phylo <- function(mod, alpha = 0.05, ...) {
 }
 
 
+
+
 #' @describeIn cor_phylo prints `cor_phylo` objects
 #'
 #' @param x an object of class \code{cor_phylo}.
@@ -1071,15 +1075,15 @@ print.cor_phylo <- function(x, digits = max(3, getOption("digits") - 3), ...) {
   cat("\nCoefficients:\n")
   coef <- as.data.frame(x$B)
   printCoefmat(coef, P.values = TRUE, has.Pvalue = TRUE)
-  if (eval(call_arg(x$call, "method"))[1] %in% c("nelder-mead-r", "sann")) {
-    if (x$convcode != 0) {
+  if (x$convcode != 0) {
+    if (eval(call_arg(x$call, "method"))[1] %in% c("nelder-mead-r", "sann")) {
       cat("\n~~~~~~~~~~~\nWarning: convergence in optim() not reached after",
           x$niter, "iterations\n~~~~~~~~~~~\n")
+    } else {
+      cat("\n~~~~~~~~~~~\nWarning: convergence in nlopt optimizer (method \"",
+          eval(call_arg(x$call, "method"))[1],
+          "\") not reached after ", x$niter," iterations\n~~~~~~~~~~~\n", sep = "")
     }
-  } else if (x$convcode < 0) {
-    cat("\n~~~~~~~~~~~\nWarning: convergence in nlopt optimizer (method \"",
-        eval(call_arg(x$call, "method"))[1],
-        "\") not reached after ", x$niter," iterations\n~~~~~~~~~~~\n", sep = "")
   }
   if (length(x$bootstrap) > 0) {
     cis <- boot_ci(x)
@@ -1095,12 +1099,8 @@ print.cor_phylo <- function(x, digits = max(3, getOption("digits") - 3), ...) {
     cat("\n* Coefficients:\n")
     print(cis$B0, digits = digits)
     
-    if (length(x$bootstrap$codes) > 0) {
-      if (eval(call_arg(x$call,"method"))[1] %in% c("nelder-mead-r", "sann")) {
-        failed <- sum(x$bootstrap$codes != 0)
-      } else {
-        failed <- sum(x$bootstrap$codes < 0)
-      }
+    if (length(x$bootstrap$convcodes) > 0) {
+      failed <- sum(x$bootstrap$convcodes != 0)
       if (failed > 0) {
         cat("\n~~~~~~~~~~~\nWarning: convergence failed on ", 
             failed, "bootstrap replicates\n~~~~~~~~~~~\n")
