@@ -14,16 +14,19 @@ cor_phylo(traits, species, phy,
           method = c("nelder-mead-nlopt", "bobyqa",
               "subplex", "nelder-mead-r", "sann"),
           constrain_d = FALSE,
+          lower_d = 1e-7,
           rel_tol = 1e-6,
           max_iter = 1000,
           sann_options = list(),
           verbose = FALSE,
+          rcond_threshold = 1e-10,
           boot = 0,
           keep_boots = c("fail", "none", "all"))
 
-\method{boot_ci}{cor_phylo}(mod, alpha = 0.05, ...)
+\method{boot_ci}{cor_phylo}(mod, refits = NULL, alpha = 0.05, ...)
 
-\method{print}{cor_phylo}(x, digits = max(3, getOption("digits") - 3), ...)
+\method{print}{cor_phylo}(x, digits = max(3, getOption("digits") - 3),
+  ...)
 }
 \arguments{
 \item{traits}{A list of object names or a matrix that contains trait values.
@@ -95,6 +98,9 @@ branch lengths of \code{phy} can be transformed so that the "starter" tree
 has strong phylogenetic signal.
 Defaults to \code{FALSE}.}
 
+\item{lower_d}{Lower bound on the phylogenetic signal parameter.
+Defaults to \code{1e-7}.}
+
 \item{rel_tol}{A control parameter dictating the relative tolerance for convergence
 in the optimization. Defaults to \code{1e-6}.}
 
@@ -115,6 +121,13 @@ Note that these are different from the defaults for \code{\link[stats]{optim}}.}
 correlation coefficients and values of \code{d} are printed each iteration
 during optimization. Defaults to \code{FALSE}.}
 
+\item{rcond_threshold}{Threshold for the reciprocal condition number of two
+matrices inside the log likelihood function.
+Increasing this threshold makes the optimization process more strongly
+"bounce away" from badly conditioned matrices and can help with convergence
+and with estimates that are nonsensical.
+Defaults to \code{1e-10}.}
+
 \item{boot}{Number of parametric bootstrap replicates. Defaults to \code{0}.}
 
 \item{keep_boots}{Character specifying when to output data (indices, convergence codes,
@@ -127,6 +140,16 @@ and \code{"none"} keeps no parameter sets.
 Defaults to \code{"fail"}.}
 
 \item{mod}{\code{cor_phylo} object that was run with the \code{boot} argument > 0.}
+
+\item{refits}{One or more \code{cp_refits} objects containing refits of \code{cor_phylo}
+bootstrap replicates. These are used when the original fit did not converge.
+Multiple \code{cp_refits} objects should be input as a list.
+For a given bootstrap replicate, the original fit's estimates will be used
+when the fit converged.
+If multiple \code{cp_refits} objects are input and more than one converged for a given
+replicate, the estimates from the first \code{cp_refits} object containg a converged
+fit for that replicate will be used.
+Defaults to \code{NULL}.}
 
 \item{alpha}{Alpha used for the confidence intervals. Defaults to \code{0.05}.}
 
@@ -152,11 +175,21 @@ overall likelihood (\code{REML = FALSE}).}
 overall likelihood (\code{REML = FALSE}).}
 \item{\code{niter}}{Number of iterations the optimizer used.}
 \item{\code{convcode}}{Conversion code for the optimizer.
-This number is \code{0} on success and positive on failure if using
-\code{\link[stats]{optim}}.
-This number is positive on success and negative on failure if using \code{nlopt}
-(see also
-\url{https://nlopt.readthedocs.io/en/latest/NLopt_Reference/#return-values}).}
+This number is \code{0} on success and positive on failure.
+\describe{
+\item{1}{iteration limit reached}
+\item{2}{generic failure code (nlopt optimizers only).}
+\item{3}{invalid arguments (nlopt optimizers only).}
+\item{4}{out of memory (nlopt optimizers only).}
+\item{5}{roundoff errors limited progress (nlopt optimizers only).}
+\item{6}{user-forced termination (nlopt optimizers only).}
+\item{10}{degeneracy of the Nelder-Mead simplex (\code{stats::optim} only).}
+}
+For more information on the nlopt return codes, see
+\url{https://nlopt.readthedocs.io/en/latest/NLopt_Reference/#return-values}.}
+\item{\code{rcond_vals}}{Reciprocal condition numbers for two matrices inside
+the log likelihood function. These are provided to potentially help guide
+the changing of the \code{rcond_threshold} parameter.}
 \item{\code{bootstrap}}{A list of bootstrap output, which is simply \code{list()} if
 \code{boot = 0}. If \code{boot > 0}, then the list contains fields for
 estimates of correlations (\code{corrs}), phylogenetic signals (\code{d}),
@@ -164,7 +197,7 @@ coefficients (\code{B0}), and coefficient covariances (\code{B_cov}).
 It also contains the following information about the bootstrap replicates:
 a vector of indices relating each set of information to the bootstrapped
 estimates (\code{inds}),
-convergence codes (\code{codes}), and
+convergence codes (\code{convcodes}), and
 matrices of the bootstrapped parameters in the order they appear in the input
 argument (\code{mats});
 these three fields will be empty if \code{keep_boots == "none"}.

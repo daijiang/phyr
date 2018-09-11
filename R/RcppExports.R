@@ -25,6 +25,23 @@ binpglmm_inter_while_cpp2 <- function(est_B_m, B, mu, C, rcondflag, B_init, X, X
 #' 
 NULL
 
+#' Return reciprocal condition numbers for matrices in the log likelihood function.
+#' 
+#' This function is largely a repeat of the first part of the likelihood function.
+#' It is used in the output to guide users wanting to change the `rcond_threshold`
+#' argument.
+#' 
+#' 
+#' @param par Initial values for the parameters to be optimized over.
+#' @param ll_info A C++ `LogLikInfo` object storing all the information needed
+#'     for the log likelihood function.
+#' 
+#' @noRd
+#' 
+#' @name return_rcond_vals
+#' 
+NULL
+
 #' Fit cor_phylo model using nlopt.
 #'
 #'
@@ -78,9 +95,9 @@ NULL
 #' 
 NULL
 
-#' Make an `LL_info` object based on input matrices.
+#' Make an `LogLikInfo` object based on input matrices.
 #' 
-#' The output `LL_info` is used for model fitting.
+#' The output `LogLikInfo` is used for model fitting.
 #' 
 #' @inheritParams X cor_phylo_
 #' @inheritParams U cor_phylo_
@@ -90,16 +107,16 @@ NULL
 #' @inheritParams constrain_d_ cor_phylo_
 #' @inheritParams verbose_ cor_phylo_
 #' 
-#' @return a LL_info that contains info necessary for model fitting
+#' @return a LogLikInfo that contains info necessary for model fitting
 #' 
-#' @name LL_info
+#' @name LogLikInfo
 #' @noRd
 #' 
 NULL
 
-#' Make an `LL_info` object based on input matrices and another LL_info object.
+#' Make an `LogLikInfo` object based on input matrices and another LogLikInfo object.
 #' 
-#' The output `LL_info` is used for model fitting.
+#' The output `LogLikInfo` is used for model fitting.
 #' 
 #' *Note:* This version is used for bootstrapping.
 #' It's different from the one above in that it doesn't re-normalize Vphy, UU, or tau.
@@ -113,11 +130,11 @@ NULL
 #' @inheritParams X cor_phylo_
 #' @inheritParams U cor_phylo_
 #' @inheritParams M cor_phylo_
-#' @param other Another LL_info object from which to derive much of the information.
+#' @param other Another LogLikInfo object from which to derive much of the information.
 #' 
-#' @return a LL_info that contains info necessary for model fitting
+#' @return a LogLikInfo that contains info necessary for model fitting
 #' 
-#' @name LL_info
+#' @name LogLikInfo
 #' @noRd
 #' 
 NULL
@@ -126,7 +143,7 @@ NULL
 #' 
 #' @inheritParams X cor_phylo_
 #' @inheritParams U cor_phylo_
-#' @param ll_info an LL_info object that contains info necessary to fit the model.
+#' @param ll_info an LogLikInfo object that contains info necessary to fit the model.
 #'   After optimization, it contains info from the model fit.
 #' 
 #' @return a list containing output information, to later be coerced to a `cor_phylo`
@@ -137,14 +154,14 @@ NULL
 #' 
 NULL
 
-#' Iterate from a boot_mats object in prep for a bootstrap replicate.
+#' Iterate from a BootMats object in prep for a bootstrap replicate.
 #' 
-#' This ultimately updates the LL_info object with new XX and MM matrices,
-#' and updates the boot_results object with the mean and sd.
+#' This ultimately updates the LogLikInfo object with new XX and MM matrices,
+#' and updates the BootResults object with the mean and sd.
 #' 
-#' @param ll_info An LL_info object that will inform the next call to the
+#' @param ll_info An LogLikInfo object that will inform the next call to the
 #'     log-likelihood function.
-#' @param br A boot_results object that stores output from bootstrapping.
+#' @param br A BootResults object that stores output from bootstrapping.
 #' 
 #' @name boot_mats_iterate
 #' @noRd
@@ -155,7 +172,7 @@ NULL
 #' 
 #' 
 #' @param par Initial values for the parameters to be optimized over.
-#' @param ll_info_xptr `Rcpp::Xptr` object that points to a C++ `LL_info` object.
+#' @param ll_info_xptr `Rcpp::Xptr` object that points to a C++ `LogLikInfo` object.
 #'     This object stores all the other information needed for the log likelihood
 #'     function.
 #' 
@@ -163,8 +180,8 @@ NULL
 #' 
 #' @name cor_phylo_LL
 #' 
-cor_phylo_LL <- function(par, XX, UU, MM, Vphy, tau, REML, constrain_d, verbose) {
-    .Call(`_phyr_cor_phylo_LL`, par, XX, UU, MM, Vphy, tau, REML, constrain_d, verbose)
+cor_phylo_LL <- function(par, XX, UU, MM, Vphy, tau, REML, constrain_d, lower_d, verbose, rcond_threshold) {
+    .Call(`_phyr_cor_phylo_LL`, par, XX, UU, MM, Vphy, tau, REML, constrain_d, lower_d, verbose, rcond_threshold)
 }
 
 #' Inner function to create necessary matrices and do model fitting.
@@ -186,8 +203,8 @@ cor_phylo_LL <- function(par, XX, UU, MM, Vphy, tau, REML, constrain_d, verbose)
 #' @noRd
 #' @name cor_phylo_
 #' 
-cor_phylo_ <- function(X, U, M, Vphy_, REML, constrain_d, verbose, rel_tol, max_iter, method, boot, keep_boots, sann) {
-    .Call(`_phyr_cor_phylo_`, X, U, M, Vphy_, REML, constrain_d, verbose, rel_tol, max_iter, method, boot, keep_boots, sann)
+cor_phylo_ <- function(X, U, M, Vphy_, REML, constrain_d, lower_d, verbose, rcond_threshold, rel_tol, max_iter, method, boot, keep_boots, sann) {
+    .Call(`_phyr_cor_phylo_`, X, U, M, Vphy_, REML, constrain_d, lower_d, verbose, rcond_threshold, rel_tol, max_iter, method, boot, keep_boots, sann)
 }
 
 set_seed <- function(seed) {

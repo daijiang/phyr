@@ -52,9 +52,8 @@ cp_get_species <- function(species, data, phy) {
 
 #' Extract traits matrix from arguments input to `cor_phylo`.
 #' 
-#' @inheritParams traits cor_phylo
+#' @inheritParams cor_phylo
 #' @param phy_order The order of species as indicated by the phylogeny.
-#' @inheritParams data cor_phylo
 #' 
 #' @noRd
 #' 
@@ -226,7 +225,7 @@ extract_covariates <- function(covariates, phy_order, trait_names, data) {
   j <- 1
   for (i in 1:length(out)) {
     if (any(out[[i]] != 0)) {
-        names_ <- paste0("cov_", j:(j+ncol(out[[i]])-1))
+      names_ <- paste0("cov_", j:(j+ncol(out[[i]])-1))
       if (is.null(colnames(out[[i]]))) {
         colnames(out[[i]]) <- names_
       } else if (any(is.na(colnames(out[[i]])))) {
@@ -328,10 +327,12 @@ cp_get_row_names <- function(trait_names, U) {
 #' Inner function used for testing. Can also incorporate covariates.
 #' 
 #' @param n Number of species.
-#' @param Rs `p`-length vector of the correlations between traits.
+#' @param Rs vector of the correlations between traits.
 #' @param d `p`-length vector of trait phylogenetic signals.
 #' @param M `n` x `p` matrix of trait measurement errors by species. Set this column
 #'   to zero for no measurement error.
+#' @param X_means A list of means for the traits. Defaults to 0 for all.
+#' @param X_sds A list of standard deviations for the traits. Defaults to 1 for all.
 #' @param U_means A list of means for the covariates. Make a parameter's item in 
 #'   this list `NULL` to make it not have a covariate.
 #' @param U_sds A list of standard deviations for the covariates.
@@ -342,13 +343,25 @@ cp_get_row_names <- function(trait_names, U) {
 #' 
 #' @noRd
 #' 
-sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
+sim_cor_phylo_traits <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, B) {
   
   p <- length(d)
   
+  if (missing(X_means)) X_means <- rep(0, p)
+  if (missing(X_sds)) X_sds <- rep(1, p)
+  
+  stopifnot(length(Rs) == sum(1:(p-1)))
+  stopifnot(length(d) == p)
+  stopifnot(nrow(M) == n & ncol(M) == p)
+  stopifnot(length(X_means) == p)
+  stopifnot(length(X_sds) == p)
+  stopifnot(length(U_means) == p)
+  stopifnot(length(U_sds) == p)
+  stopifnot(length(B) == p)
+  
   R <- matrix(1, p, p)
-  R[lower.tri(R)] <- Rs
   R[upper.tri(R)] <- Rs
+  R <- R + t(R)
   
   phy <- ape::rcoal(n, tip.label = 1:n)
   
@@ -370,35 +383,60 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
   U <- rep(list(NULL), p)
   for (i in 1:p) {
     if (!is.null(U_means[[i]])) {
+      if (length(U_means[[i]]) != length(U_sds[[i]])) {
+        stop("\nAll U_means items should have same length as corresponding item in ",
+             "U_sds")
+      }
+      U[[i]] <- matrix(0, n, length(U_means[[i]]))
       for (j in 1:length(U_means[[i]])) {
-        U[[i]] <- cbind(U[[i]],
-                        rnorm(n, mean = U_means[[i]][j], sd = U_sds[[i]][j]))
+        Uij <- rnorm(n)
+        Uij <- (Uij - mean(Uij)) / sd(Uij)
+        Uij <- Uij * U_sds[[i]][j]
+        Uij <- Uij + U_means[[i]][j]
+        U[[i]][,j] <- Uij
       }
     }
   }
   
   XX <- iD %*% rnorm(p * n)
+  X_rnd <- matrix(XX, n, p)
+  X <- matrix(0, n, p)
   
-  data_df <- data.frame(species = phy$tip.label)
-  ii = 1
   for (i in 1:p) {
-    dd <- XX[ii:(ii+n-1)]
-    data_df[,paste0("par", i)] <- dd
     if (!is.null(U[[i]])) {
       if (ncol(U[[i]]) != length(B[[i]])) {
         stop("\nAll B items should have same length as number of columns in ",
              "corresponding matrix of U")
       }
+      # Adding effect(s) of U[[i]]:
       for (j in 1:ncol(U[[i]])) {
-        data_df[, paste0("par", i)] <- data_df[, paste0("par", i)] + 
-          B[[i]][j] * U[[i]][,j] - B[[i]][j] * mean(U[[i]][,j])
+        b1 <- B[[i]][j]
+        x <- U[[i]][,j]
+        X[,i] <- X[,i] + b1 * x - b1 * mean(x)
+      }
+    }
+    # Adding noise:
+    X[,i] <- X[,i] + X_rnd[,i]
+    # Setting mean to zero:
+    X[,i] <- X[,i] - mean(X[,i])
+    # Setting SD to specified value:
+    X[,i] <- X[,i] * X_sds[i] / sd(X[,i])
+    # Setting mean to specified value:
+    X[,i] <- X[,i] + X_means[i]
+  }
+  
+  # Combining to one data frame:
+  data_df <- data.frame(species = phy$tip.label)
+  for (i in 1:p) {
+    data_df[,paste0("par", i)] <- X[,i]
+    if (!is.null(U[[i]])) {
+      for (j in 1:ncol(U[[i]])) {
         data_df[, paste0("cov", i, letters[j])] <- U[[i]][,j]
       }
     }
-    if (sum(M[,i]) != 0) {
+    if (any(M[,i] != 0)) {
       data_df[, paste0("se", i)] <- M[,i]
     }
-    ii <- ii+n
   }
   
   return(list(phy = phy, data = data_df, iD = iD, B = B))
@@ -534,6 +572,8 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
 #'   branch lengths of `phy` can be transformed so that the "starter" tree
 #'   has strong phylogenetic signal.
 #'   Defaults to `FALSE`.
+#' @param lower_d Lower bound on the phylogenetic signal parameter.
+#'   Defaults to `1e-7`.
 #' @param rel_tol A control parameter dictating the relative tolerance for convergence 
 #'   in the optimization. Defaults to `1e-6`.
 #' @param max_iter A control parameter dictating the maximum number of iterations 
@@ -550,6 +590,12 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
 #' @param verbose If `TRUE`, the model `logLik` and running estimates of the
 #'   correlation coefficients and values of `d` are printed each iteration
 #'   during optimization. Defaults to `FALSE`.
+#' @param rcond_threshold Threshold for the reciprocal condition number of two
+#'   matrices inside the log likelihood function. 
+#'   Increasing this threshold makes the optimization process more strongly
+#'   "bounce away" from badly conditioned matrices and can help with convergence
+#'   and with estimates that are nonsensical.
+#'   Defaults to `1e-10`.
 #' @param boot Number of parametric bootstrap replicates. Defaults to `0`.
 #' @param keep_boots Character specifying when to output data (indices, convergence codes,
 #'   and simulated trait data) from bootstrap replicates.
@@ -576,11 +622,21 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
 #'     overall likelihood (\code{REML = FALSE}).}
 #'   \item{`niter`}{Number of iterations the optimizer used.}
 #'   \item{`convcode`}{Conversion code for the optimizer.
-#'     This number is \code{0} on success and positive on failure if using
-#'     \code{\link[stats]{optim}}.
-#'     This number is positive on success and negative on failure if using `nlopt`
-#'     (see also
-#'     \url{https://nlopt.readthedocs.io/en/latest/NLopt_Reference/#return-values}).}
+#'     This number is \code{0} on success and positive on failure.
+#'     \describe{
+#'       \item{1}{iteration limit reached}
+#'       \item{2}{generic failure code (nlopt optimizers only).}
+#'       \item{3}{invalid arguments (nlopt optimizers only).}
+#'       \item{4}{out of memory (nlopt optimizers only).}
+#'       \item{5}{roundoff errors limited progress (nlopt optimizers only).}
+#'       \item{6}{user-forced termination (nlopt optimizers only).}
+#'       \item{10}{degeneracy of the Nelder-Mead simplex (\code{stats::optim} only).}
+#'     }
+#'     For more information on the nlopt return codes, see
+#'     \url{https://nlopt.readthedocs.io/en/latest/NLopt_Reference/#return-values}.}
+#'   \item{`rcond_vals`}{Reciprocal condition numbers for two matrices inside
+#'     the log likelihood function. These are provided to potentially help guide
+#'     the changing of the `rcond_threshold` parameter.}
 #'   \item{`bootstrap`}{A list of bootstrap output, which is simply `list()` if
 #'     `boot = 0`. If `boot > 0`, then the list contains fields for 
 #'     estimates of correlations (`corrs`), phylogenetic signals (`d`),
@@ -588,11 +644,11 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
 #'     It also contains the following information about the bootstrap replicates: 
 #'     a vector of indices relating each set of information to the bootstrapped
 #'     estimates (`inds`),
-#'     convergence codes (`codes`), and
+#'     convergence codes (`convcodes`), and
 #'     matrices of the bootstrapped parameters in the order they appear in the input
 #'     argument (`mats`);
 #'     these three fields will be empty if `keep_boots == "none"`.
-#'     To view bootstrapped confidence intervals, use \code{boot_ci}.}
+#'     To view bootstrapped confidence intervals, use `boot_ci`.}
 #' 
 #' @export
 #'
@@ -819,10 +875,12 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, U_means, U_sds, B) {
 #'           method = c("nelder-mead-nlopt", "bobyqa",
 #'               "subplex", "nelder-mead-r", "sann"),
 #'           constrain_d = FALSE,
+#'           lower_d = 1e-7,
 #'           rel_tol = 1e-6,
 #'           max_iter = 1000,
 #'           sann_options = list(),
 #'           verbose = FALSE,
+#'           rcond_threshold = 1e-10,
 #'           boot = 0,
 #'           keep_boots = c("fail", "none", "all"))
 #' 
@@ -835,11 +893,13 @@ cor_phylo <- function(traits,
                       REML = TRUE, 
                       method = c("nelder-mead-nlopt", "bobyqa", "subplex",
                                  "nelder-mead-r", "sann"),
-                      constrain_d = FALSE, 
+                      constrain_d = FALSE,
+                      lower_d = 1e-7,
                       rel_tol = 1e-6, 
                       max_iter = 1000, 
                       sann_options = list(),
                       verbose = FALSE,
+                      rcond_threshold = 1e-10,
                       boot = 0,
                       keep_boots = c("fail", "none", "all")) {
   
@@ -893,8 +953,9 @@ cor_phylo <- function(traits,
   # `cor_phylo_` returns a list with the following objects:
   # corrs, d, B, (previously B, B_se, B_zscore, and B_pvalue),
   #     B_cov, logLik, AIC, BIC
-  output <- cor_phylo_(X, U, M, Vphy, REML, constrain_d, verbose,
-                       rel_tol, max_iter, method, boot, keep_boots, sann)
+  output <- cor_phylo_(X, U, M, Vphy, REML, constrain_d, lower_d, verbose,
+                       rcond_threshold, rel_tol, max_iter, method, boot,
+                       keep_boots, sann)
   # Taking care of row and column names:
   colnames(output$corrs) <- rownames(output$corrs) <- trait_names
   rownames(output$d) <- trait_names
@@ -924,14 +985,207 @@ cor_phylo <- function(traits,
 
 
 
-# ================================================================================
-# ================================================================================
+#' Refit bootstrap replicates that failed to converge in a call to `cor_phylo`.
+#'
+#' This function is to be called on a `cor_phylo` object if when one or more bootstrap
+#' replicates fail to converge.
+#' It allows the user to change parameters for the optimizer to get it to converge.
+#' One or more of the resulting `cp_refits` object(s) can be supplied to
+#' `boot_ci` along with the original `cor_phylo` object to calculate confidence 
+#' intervals from only bootstrap replicates that converged.
+#' 
+#'
+#' @param cp_obj The original `cor_phylo` object that was bootstrapped.
+#' @param inds Vector of indices indicating the bootstraps you want to refit.
+#'     This is useful if you want to try refitting only a portion of bootstrap
+#'     replicates.
+#'     By passing `NULL`, it refits all bootstrap replicates present in 
+#'     `cp_obj$bootstrap$mats`.
+#'     Any bootstrap replicates not present in `inds` will have `NA` in the output
+#'     object.
+#'     Defaults to `NULL`.
+#' @param ... Arguments that should be changed from the original call to `cor_phylo`.
+#'     The `boot` argument is always set to `0` for refits because you don't want
+#'     to bootstrap your bootstraps.
+#'
+#' @return A `cp_refits` object, which is a list of `cor_phylo` objects
+#'     corresponding to each matrix in `<original cor_phylo object>$bootstrap$mats`.
+#'
+#' @export
+#'
+refit_boots <- function(cp_obj, inds = NULL, ...) {
+  
+  if (!inherits(cp_obj, "cor_phylo")) {
+    stop("\nFunction refit_boots only applies to `cor_phylo` objects.",
+         call. = FALSE)
+  }
+  if (length(cp_obj$bootstrap) == 0) {
+    stop("\nFunction refit_boots only applies to `cor_phylo` objects that ",
+         "have been bootstrapped (i.e., called with boot > 0).",
+         call. = FALSE)
+  }
+  if (is.null(inds)) {
+    inds <- 1:length(cp_obj$bootstrap$inds)
+  } else {
+    if (any(inds < 1) | any(inds > length(cp_obj$bootstrap$inds))) {
+      stop("\nThe `inds` argument must only contain integers > 0 and <= ",
+           "length(cp_obj$bootstrap$inds)",
+           call. = FALSE)
+    }
+  }
+  
+  new_call <- cp_obj$call
+  new_call$boot <- NULL
+  new_call$keep_boots <- NULL
+  
+  data <- eval(new_call$data)
+  phy <- check_phy(eval(new_call$phy))
+  
+  spp_vec <- cp_get_species(new_call$species, data, phy)
+  
+  phy_order <- match(phy$tip.label, spp_vec)
+  X <- extract_traits(new_call$traits, phy_order, data)
+  trait_names <- colnames(X)
+  U <- call_arg(new_call, "covariates")
+  U <- extract_covariates(U, phy_order, trait_names, data)
+  M <- call_arg(new_call, "meas_errors")
+  M <- extract_meas_errors(M, phy_order, trait_names, data)
+  
+  species <- phy$tip.label
+  
+  new_call$traits <- quote(X)
+  new_call$species <- quote(species)
+  new_call$phy <- quote(phy)
+  new_call$covariates <- quote(U)
+  new_call$meas_errors <- quote(M)
+  new_call$data <- NULL
+  
+  new_args <- list(...)
+  for (x in names(new_args)) {
+    new_call[[x]] <- new_args[[x]]
+  }
+  
+  new_cps <- as.list(rep(NA, length(cp_obj$bootstrap$inds)))
+  
+  for (i in inds) {
+    
+    X <- cp_obj$bootstrap$mats[[i]]
+    colnames(X) <- trait_names
+    X <- X[phy_order,]
+    
+    new_cps[[i]] <- eval(new_call)
+    
+    new_cps[[i]]$call$traits <- cp_obj$call$traits
+    new_cps[[i]]$call$species <- cp_obj$call$species
+    new_cps[[i]]$call$phy <- cp_obj$call$phy
+    new_cps[[i]]$call$covariates <- cp_obj$call$covariates
+    new_cps[[i]]$call$meas_errors <- cp_obj$call$meas_errors
+    new_cps[[i]]$call$data <- cp_obj$call$data
+  }
+  
+  class(new_cps) <- "cp_refits"
+  
+  return(new_cps)
+}
 
-# Printing and extracting bootstrap info
 
-# ================================================================================
-# ================================================================================
 
+#' Print a `cp_refits` object.
+#'
+#' @param x an object of class \code{cp_refits}.
+#' @param digits the number of digits to be printed.
+#' @param ... arguments passed to and from other methods.
+#'
+#' @export
+#' @noRd
+#'
+print.cp_refits <- function(x, digits = max(3, getOption("digits") - 3), ...) {
+  if (length(x) == 0) {
+    cat("< Empty refits to cor_phylo bootstraps >\n")
+    invisible(NULL)
+  }
+  cat("< Refits to cor_phylo bootstraps >\n")
+  cat(sprintf("* Total bootstraps: %i\n", length(x)))
+  non_na <- which(sapply(x, inherits, what = "cor_phylo"))
+  cat(sprintf("* Attempted refits: %i\n", length(non_na)))
+  converged <- sapply(x, 
+                      function(f) {
+                        if (inherits(f, "cor_phylo")) return(f$convcode == 0)
+                        return(FALSE)
+                      })
+  cat(sprintf("* Converged refits: %i\n", sum(converged)))
+  cat("\nNew call:\n")
+  cat(paste(trimws(deparse(x[[non_na[1]]]$call)), collapse = " "), "\n\n")
+}
+
+
+
+
+
+
+
+
+
+
+
+
+#' Combine original bootstrapping with refits when convergence fails in the former.
+#' 
+#' @param env Environment with `mod` and `refits` from 
+#' 
+#' @noRd
+#' 
+combine_boots <- function(env) {
+  
+  if (is.null(env$mod)) stop("\nmod not found", call. = FALSE)
+  
+  # Data to be estimated:
+  env$corrs <- env$mod$bootstrap$corrs
+  env$d <- env$mod$bootstrap$d
+  env$B0 <- env$mod$bootstrap$B0
+  env$B_cov <- env$mod$bootstrap$B_cov
+  
+  
+  fails <- env$mod$bootstrap$inds[env$mod$bootstrap$convcodes != 0]
+  
+  # ----------------
+  # Dealing with failed convergences:
+  # ----------------
+  
+  if (length(fails) > 0 & !is.null(env$refits)) {
+    # If just one input, make it a list so it can be treated the same:
+    if (inherits(env$refits, "cp_refits")) env$refits <- list(env$refits)
+    # Add estimates from env$refits when they didn't converge in original:
+    fails_to_keep <- !logical(length(fails))
+    for (i in 1:length(fails)) {
+      bi <- which(env$mod$bootstrap$inds == fails[i])
+      ei <- env$mod$bootstrap$inds[bi]
+      for (j in 1:length(env$refits)) {
+        if (inherits(env$refits[[j]][[bi]], "cor_phylo")) {
+          if (env$refits[[j]][[bi]]$convcode == 0) {
+            env$corrs[,,ei] <- env$refits[[j]][[bi]]$corrs
+            env$d[,ei] <- env$refits[[j]][[bi]]$d
+            env$B0[,ei] <- env$refits[[j]][[bi]]$B[,1]
+            env$B_cov[,,ei] <- env$refits[[j]][[bi]]$B_cov
+            fails_to_keep[i] <- FALSE
+            break
+          }
+        }
+      }
+    }
+    # Remove from `fails` if it converged in env$refits:
+    fails <- fails[fails_to_keep]
+  }
+  # If some still failed, remove those from the estimate objects:
+  if (length(fails) > 0) {
+    env$corrs <- env$corrs[,,-fails,drop=FALSE]
+    env$d <- env$d[,-fails,drop=FALSE]
+    env$B0 <- env$B0[,-fails,drop=FALSE]
+    env$B_cov <- env$B_cov[,,-fails,drop=FALSE]
+  }
+  
+  invisible(NULL)
+}
 
 
 
@@ -940,6 +1194,15 @@ cor_phylo <- function(traits,
 #' 
 #' 
 #' @param mod `cor_phylo` object that was run with the `boot` argument > 0.
+#' @param refits One or more `cp_refits` objects containing refits of `cor_phylo`
+#'     bootstrap replicates. These are used when the original fit did not converge.
+#'     Multiple `cp_refits` objects should be input as a list.
+#'     For a given bootstrap replicate, the original fit's estimates will be used
+#'     when the fit converged.
+#'     If multiple `cp_refits` objects are input and more than one converged for a given
+#'     replicate, the estimates from the first `cp_refits` object containg a converged
+#'     fit for that replicate will be used.
+#'     Defaults to `NULL`.
 #' @param alpha Alpha used for the confidence intervals. Defaults to `0.05`.
 #' @return `boot_ci` returns a list of confidence intervals with the following fields:
 #'   \describe{
@@ -955,7 +1218,7 @@ cor_phylo <- function(traits,
 #' @export
 #' @importFrom stats quantile
 #' 
-boot_ci.cor_phylo <- function(mod, alpha = 0.05, ...) {
+boot_ci.cor_phylo <- function(mod, refits = NULL, alpha = 0.05, ...) {
   
   if (length(mod$bootstrap) == 0) {
     stop("\nThis `cor_phylo` object was not bootstrapped. ",
@@ -963,45 +1226,60 @@ boot_ci.cor_phylo <- function(mod, alpha = 0.05, ...) {
          "We recommend >= 2000, but expect this to take 20 minutes or ",
          "longer.", call. = FALSE)
   }
-  # Indices for failed convergences:
-  if (eval(call_arg(mod$call,"method"))[1] %in% c("nelder-mead-r", "sann")) {
-    f <- mod$bootstrap$inds[mod$bootstrap$codes != 0]
-  } else {
-    f <- mod$bootstrap$inds[mod$bootstrap$codes < 0]
+  if (!is.null(refits)) {
+    # Check validity of refits argument:
+    if (!inherits(refits, "list") & !inherits(refits, "cp_refits")) {
+      stop("\nIn boot_ci for a cor_phylo object, the refits argument must be a list, ",
+           "a cp_refits object, or NULL.",
+           call. = FALSE)
+    }
+    if (inherits(refits, "list")) {
+      if (any(!sapply(refits, inherits, what = "cp_refits"))) {
+        stop("\nIn boot_ci for a cor_phylo object, if the refits argument is a list, ",
+             "all items in that list must be cp_refits objects.",
+             call. = FALSE)
+      }
+    }
   }
-  if (length(f) == 0) f <- ncol(mod$bootstrap$d) + 1
-  corrs_list <- list(lower = apply(mod$bootstrap$corrs[,,-f,drop=FALSE], 
-                                   c(1, 2), quantile, probs = alpha / 2),
-                     upper = apply(mod$bootstrap$corrs[,,-f,drop=FALSE],
-                                   c(1, 2), quantile, probs = 1 - alpha / 2))
+  
+  # Defining these variables here to avoid notes in devtools::check()
+  corrs <- NULL
+  d <- NULL
+  B0 <- NULL
+  B_cov <- NULL
+  
+  # Create objects:
+  combine_boots(environment())
+  
+  # Now calculate CIs:
+  corrs_list <- list(lower = apply(corrs, c(1, 2), quantile, probs = alpha / 2),
+                     upper = apply(corrs, c(1, 2), quantile, probs = 1 - alpha / 2))
   corrs <- corrs_list$lower
   corrs[upper.tri(corrs)] <- corrs_list$upper[upper.tri(corrs_list$upper)]
-  rownames(corrs) <- rownames(mod$corrs)
-  colnames(corrs) <- colnames(mod$corrs)
   
-  ds <- t(apply(mod$bootstrap$d[,-f,drop=FALSE], 1, quantile,
-                probs = c(alpha / 2, 1 - alpha / 2)))
-  rownames(ds) <- rownames(mod$d)
+  ds <- t(apply(d, 1, quantile, probs = c(alpha / 2, 1 - alpha / 2)))
   
-  B0s <- t(apply(mod$bootstrap$B0[,-f,drop=FALSE], 1, quantile,
-                 probs = c(alpha / 2, 1 - alpha / 2)))
-  rownames(B0s) <- rownames(mod$B)
+  B0s <- t(apply(B0, 1, quantile, probs = c(alpha / 2, 1 - alpha / 2)))
   
-  colnames(B0s) <- colnames(ds) <- c("lower", "upper")
-  
-  B_covs_list <- list(lower = apply(mod$bootstrap$B_cov[,,-f,drop=FALSE], c(1, 2),
-                                    quantile, probs = alpha / 2),
-                 upper = apply(mod$bootstrap$B_cov[,,-f,drop=FALSE], c(1, 2),
-                               quantile, probs = 1 - alpha / 2))
+  B_covs_list <- list(lower = apply(B_cov, c(1, 2), quantile, probs = alpha / 2),
+                      upper = apply(B_cov, c(1, 2), quantile, probs = 1 - alpha / 2))
   
   B_covs <- B_covs_list$lower
   B_covs[upper.tri(B_covs)] <- B_covs_list$upper[upper.tri(B_covs_list$upper)]
+  
+  rownames(corrs) <- rownames(mod$corrs)
+  colnames(corrs) <- colnames(mod$corrs)
+  rownames(ds) <- rownames(mod$d)
+  rownames(B0s) <- rownames(mod$B)
+  colnames(B0s) <- colnames(ds) <- c("lower", "upper")
   rownames(B_covs) <- rownames(mod$B_cov)
   colnames(B_covs) <- colnames(mod$B_cov)
   
   return(list(corrs = corrs, d = ds, B0 = B0s, B_cov = B_covs))
   
 }
+
+
 
 
 #' @describeIn cor_phylo prints `cor_phylo` objects
@@ -1029,15 +1307,15 @@ print.cor_phylo <- function(x, digits = max(3, getOption("digits") - 3), ...) {
   cat("\nCoefficients:\n")
   coef <- as.data.frame(x$B)
   printCoefmat(coef, P.values = TRUE, has.Pvalue = TRUE)
-  if (eval(call_arg(x$call, "method"))[1] %in% c("nelder-mead-r", "sann")) {
-    if (x$convcode != 0) {
+  if (x$convcode != 0) {
+    if (eval(call_arg(x$call, "method"))[1] %in% c("nelder-mead-r", "sann")) {
       cat("\n~~~~~~~~~~~\nWarning: convergence in optim() not reached after",
           x$niter, "iterations\n~~~~~~~~~~~\n")
+    } else {
+      cat("\n~~~~~~~~~~~\nWarning: convergence in nlopt optimizer (method \"",
+          eval(call_arg(x$call, "method"))[1],
+          "\") not reached after ", x$niter," iterations\n~~~~~~~~~~~\n", sep = "")
     }
-  } else if (x$convcode < 0) {
-    cat("\n~~~~~~~~~~~\nWarning: convergence in nlopt optimizer (method \"",
-        eval(call_arg(x$call, "method"))[1],
-        "\") not reached after ", x$niter," iterations\n~~~~~~~~~~~\n", sep = "")
   }
   if (length(x$bootstrap) > 0) {
     cis <- boot_ci(x)
@@ -1053,12 +1331,8 @@ print.cor_phylo <- function(x, digits = max(3, getOption("digits") - 3), ...) {
     cat("\n* Coefficients:\n")
     print(cis$B0, digits = digits)
     
-    if (length(x$bootstrap$codes) > 0) {
-      if (eval(call_arg(x$call,"method"))[1] %in% c("nelder-mead-r", "sann")) {
-        failed <- sum(x$bootstrap$codes != 0)
-      } else {
-        failed <- sum(x$bootstrap$codes < 0)
-      }
+    if (length(x$bootstrap$convcodes) > 0) {
+      failed <- sum(x$bootstrap$convcodes != 0)
       if (failed > 0) {
         cat("\n~~~~~~~~~~~\nWarning: convergence failed on ", 
             failed, "bootstrap replicates\n~~~~~~~~~~~\n")

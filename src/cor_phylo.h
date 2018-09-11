@@ -33,7 +33,7 @@ using namespace Rcpp;
 
 
 // Info to calculate the log-likelihood
-class LL_info {
+class LogLikInfo {
 public:
   arma::vec par0;  // par to start with
   arma::mat XX;
@@ -43,27 +43,31 @@ public:
   arma::mat tau;
   bool REML;
   bool constrain_d;
+  double lower_d;
   bool verbose;
+  double rcond_threshold;
   uint_t iters;
   arma::vec min_par; // par for minimum LL
   double LL;
   int convcode;
   
-  LL_info() {}
-  LL_info(const arma::mat& X,
+  LogLikInfo() {}
+  LogLikInfo(const arma::mat& X,
           const std::vector<arma::mat>& U,
           const arma::mat& M,
           const arma::mat& Vphy_,
           const bool& REML_,
           const bool& constrain_d_,
-          const bool& verbose_);
+          const double& lower_d_,
+          const bool& verbose_,
+          const double& rcond_threshold_);
   // Used in bootstrapping
-  LL_info(const arma::mat& X,
+  LogLikInfo(const arma::mat& X,
           const std::vector<arma::mat>& U,
           const arma::mat& M,
-          const LL_info& other);
+          const LogLikInfo& other);
   // Copy constructor
-  LL_info(const LL_info& ll_info2) {
+  LogLikInfo(const LogLikInfo& ll_info2) {
     par0 = ll_info2.par0;
     XX = ll_info2.XX;
     UU = ll_info2.UU;
@@ -72,7 +76,9 @@ public:
     tau = ll_info2.tau;
     REML = ll_info2.REML;
     constrain_d = ll_info2.constrain_d;
+    lower_d = ll_info2.lower_d;
     verbose = ll_info2.verbose;
+    rcond_threshold = ll_info2.rcond_threshold;
     iters = ll_info2.iters;
     min_par = ll_info2.min_par;
     LL = ll_info2.LL;
@@ -85,7 +91,7 @@ public:
 
 // Results from bootstrapping
 
-class boot_results {
+class BootResults {
 public:
   arma::cube corrs;
   arma::mat B0;
@@ -95,14 +101,14 @@ public:
   std::vector<uint_t> out_inds;
   std::vector<int> out_codes;
 
-  boot_results(const uint_t& p, const uint_t& B_rows, const uint_t& n_reps) 
+  BootResults(const uint_t& p, const uint_t& B_rows, const uint_t& n_reps) 
     : corrs(p, p, n_reps, arma::fill::zeros), 
       B0(B_rows, n_reps, arma::fill::zeros), 
       B_cov(B_rows, B_rows, n_reps, arma::fill::zeros),
       d(p, n_reps, arma::fill::zeros), 
       out_mats(), out_inds(), out_codes() {};
 
-  // Insert values into a boot_results object
+  // Insert values into a BootResults object
   void insert_values(const uint_t& i,
                      const arma::mat& corrs_i,
                      const arma::vec& B0_i,
@@ -124,21 +130,21 @@ public:
  Matrices to be kept for bootstrapping
  One per core if doing multi-threaded
  */
-class boot_mats {
+class BootMats {
 public:
   // original input matrices
-  const arma::mat X;  
+  const arma::mat X;
   const std::vector<arma::mat> U;
   const arma::mat M;
   arma::mat X_new;
   
-  boot_mats(const arma::mat& X_, const std::vector<arma::mat>& U_,
+  BootMats(const arma::mat& X_, const std::vector<arma::mat>& U_,
             const arma::mat& M_,
-            const arma::mat& B_, const arma::vec& d_, const LL_info& ll_info);
+            const arma::mat& B_, const arma::vec& d_, const LogLikInfo& ll_info);
   
-  LL_info iterate(const LL_info& ll_info);
+  LogLikInfo iterate(const LogLikInfo& ll_info);
   
-  void one_boot(LL_info& ll_info, boot_results& br,
+  void one_boot(const LogLikInfo& ll_info, BootResults& br,
                 const uint_t& i, const double& rel_tol, const int& max_iter,
                 const std::string& method, const std::string& keep_boots,
                 const std::vector<double>& sann);
@@ -149,7 +155,7 @@ private:
   arma::mat X_pred;
 
   // Method for returning bootstrapped data
-  void boot_data(LL_info& ll_info, boot_results& br, const uint_t& i);
+  void boot_data(LogLikInfo& ll_info, BootResults& br, const uint_t& i);
 
 };
 
@@ -256,30 +262,42 @@ inline arma::mat make_L(const arma::vec& par, const uint_t& n, const uint_t& p) 
 }
 
 inline arma::vec make_d(const arma::vec& par, const uint_t& n, const uint_t& p,
-                        const bool& constrain_d, bool do_checks) {
+                        const bool& constrain_d, const double& lower_d, 
+                        bool do_checks) {
   arma::vec d;
   if (constrain_d) {
     arma::vec logit_d = par(arma::span((p + p * (p - 1) / 2), par.n_elem - 1));
     if (do_checks) {
+      // In function `cor_phylo_LL_`, `d.n_elem == 0` indicates to return a huge value
       if (arma::max(arma::abs(logit_d)) > 10) return d;
     }
     d = 1/(1 + arma::exp(-logit_d));
+    // If you ever want to allow this to be changed:
+    double upper_d = 1.0;
+    d *= (upper_d - lower_d);
+    d += lower_d;
   } else {
     d = par(arma::span((p + p * (p - 1) / 2), par.n_elem - 1));
+    d += lower_d;
     if (do_checks) {
-      if (max(d) > 10) d.reset();
+      if (arma::max(d) > 10) d.reset();
     }
   }
   return d;
 }
 inline arma::vec make_d(const arma::vec& par, const uint_t& n, const uint_t& p,
-                        const bool& constrain_d) {
+                        const bool& constrain_d, const double& lower_d) {
   arma::vec d;
   if (constrain_d) {
     arma::vec logit_d = par(arma::span((p + p * (p - 1) / 2), par.n_elem - 1));
     d = 1/(1 + arma::exp(-logit_d));
+    // If you ever want to allow this to be changed:
+    double upper_d = 1.0;
+    d *= (upper_d - lower_d);
+    d += lower_d;
   } else {
     d = par(arma::span((p + p * (p - 1) / 2), par.n_elem - 1));
+    d += lower_d;
   }
   return d;
 }

@@ -14,11 +14,13 @@ Rs <- c(0.8)
 d <- c(0.3, 0.6)
 M <- matrix(c(0.2, 0.6), 
             nrow = n, ncol = p, byrow = TRUE)
+X_means <- c(1, 2)
+X_sds <- c(1, 0.5)
 U_means <- list(NULL, 2)
 U_sds <- list(NULL, 10)
 B <- list(NULL, 0.1)
 # Simulate them using this internal function
-data_list <- phyr:::sim_cor_phylo_traits(n, Rs, d, M, U_means, U_sds, B)
+data_list <- phyr:::sim_cor_phylo_traits(n, Rs, d, M, X_means, X_sds, U_means, U_sds, B)
 
 # Converting to matrices for the call to ape::corphylo
 SeM <- as.matrix(data_list$data[, grepl("^se", colnames(data_list$data))])
@@ -43,7 +45,8 @@ phyr_cp <- cor_phylo(traits = list(par1, par2),
                      covariates = list(NULL, cov2a),
                      meas_errors = list(se1, se2),
                      data = data_list$data, phy = data_list$phy,
-                     species = species, method = "nelder-mead-r")
+                     species = species, method = "nelder-mead-r",
+                     lower_d = 0)
 ape_cp <- ape::corphylo(X = X, SeM = SeM, U = U, phy = data_list$phy, 
                         method = "Nelder-Mead")
 
@@ -57,13 +60,14 @@ ape_cp <- ape::corphylo(X = X, SeM = SeM, U = U, phy = data_list$phy,
 test_that("cor_phylo produces a proper cor_phylo object", {
   expect_is(phyr_cp, "cor_phylo")
   expect_equivalent(names(phyr_cp), c("corrs", "d", "B", "B_cov", "logLik", "AIC",
-                                      "BIC", "niter", "convcode", "bootstrap", "call"),
+                                      "BIC", "niter", "convcode", "rcond_vals",
+                                      "bootstrap", "call"),
                     label = "Names not correct.")
   phyr_cp_names <- sapply(names(phyr_cp), function(x) class(phyr_cp[[x]]))
   expected_classes <- c(corrs = "matrix", d = "matrix", B = "matrix", B_cov = "matrix", 
                         logLik = "numeric", AIC = "numeric", BIC = "numeric", 
-                        niter = "numeric", convcode = "integer", bootstrap = "list",
-                        call = "call")
+                        niter = "numeric", convcode = "integer", rcond_vals = "numeric",
+                        bootstrap = "list", call = "call")
   expect_class_equal <- function(par_name) {
     eval(bquote(expect_equal(class(phyr_cp[[.(par_name)]]), 
                              expected_classes[[.(par_name)]])))
@@ -87,7 +91,6 @@ test_that("cor_phylo produces the same results as ape::corphylo", {
   expect_par_equal("BIC")
   expect_par_equal("convcode")
 })
-
 
 
 # ----------------------------
