@@ -572,6 +572,8 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, B)
 #'   branch lengths of `phy` can be transformed so that the "starter" tree
 #'   has strong phylogenetic signal.
 #'   Defaults to `FALSE`.
+#' @param lower_d Lower bound on the phylogenetic signal parameter.
+#'   Defaults to `1e-7`.
 #' @param rel_tol A control parameter dictating the relative tolerance for convergence 
 #'   in the optimization. Defaults to `1e-6`.
 #' @param max_iter A control parameter dictating the maximum number of iterations 
@@ -588,6 +590,12 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, B)
 #' @param verbose If `TRUE`, the model `logLik` and running estimates of the
 #'   correlation coefficients and values of `d` are printed each iteration
 #'   during optimization. Defaults to `FALSE`.
+#' @param rcond_threshold Threshold for the reciprocal condition number of two
+#'   matrices inside the log likelihood function. 
+#'   Increasing this threshold makes the optimization process more strongly
+#'   "bounce away" from badly conditioned matrices and can help with convergence
+#'   and with estimates that are nonsensical.
+#'   Defaults to `1e-10`.
 #' @param boot Number of parametric bootstrap replicates. Defaults to `0`.
 #' @param keep_boots Character specifying when to output data (indices, convergence codes,
 #'   and simulated trait data) from bootstrap replicates.
@@ -972,14 +980,204 @@ cor_phylo <- function(traits,
 
 
 
-# ================================================================================
-# ================================================================================
+#' Refit bootstrap replicates that failed to converge in a call to `cor_phylo`.
+#'
+#' This function is to be called on a `cor_phylo` object if when one or more bootstrap
+#' replicates fail to converge.
+#' It allows the user to change parameters for the optimizer to get it to converge.
+#' One or more of the resulting `cp_refits` object(s) can be supplied to
+#' `boot_ci` along with the original `cor_phylo` object to calculate confidence 
+#' intervals from only bootstrap replicates that converged.
+#' 
+#'
+#' @param cp_obj The original `cor_phylo` object that was bootstrapped.
+#' @param inds Vector of indices indicating the bootstraps you want to refit.
+#'     This is useful if you want to try refitting only a portion of bootstrap
+#'     replicates.
+#'     By passing `NULL`, it refits all bootstrap replicates present in 
+#'     `cp_obj$bootstrap$mats`.
+#'     Any bootstrap replicates not present in `inds` will have `NA` in the output
+#'     object.
+#'     Defaults to `NULL`.
+#' @param ... Arguments that should be changed from the original call to `cor_phylo`.
+#'     The `boot` argument is always set to `0` for refits because you don't want
+#'     to bootstrap your bootstraps.
+#'
+#' @return A `cp_refits` object, which is a list of `cor_phylo` objects
+#'     corresponding to each matrix in `<original cor_phylo object>$bootstrap$mats`.
+#'
+#' @export
+#'
+refit_boots <- function(cp_obj, inds = NULL, ...) {
+  
+  if (!inherits(cp_obj, "cor_phylo")) {
+    stop("\nFunction refit_boots only applies to `cor_phylo` objects.",
+         call. = FALSE)
+  }
+  if (length(cp_obj$bootstrap) == 0) {
+    stop("\nFunction refit_boots only applies to `cor_phylo` objects that ",
+         "have been bootstrapped (i.e., called with boot > 0).",
+         call. = FALSE)
+  }
+  if (is.null(inds)) {
+    inds <- 1:length(cp_obj$bootstrap$inds)
+  } else {
+    if (any(inds < 1) | any(inds > length(cp_obj$bootstrap$inds))) {
+      stop("\nThe `inds` argument must only contain integers > 0 and <= ",
+           "length(cp_obj$bootstrap$inds)",
+           call. = FALSE)
+    }
+  }
+  
+  new_call <- cp_obj$call
+  new_call$boot <- NULL
+  new_call$keep_boots <- NULL
+  
+  data <- eval(new_call$data)
+  phy <- check_phy(eval(new_call$phy))
+  
+  spp_vec <- cp_get_species(new_call$species, data, phy)
+  
+  phy_order <- match(phy$tip.label, spp_vec)
+  X <- extract_traits(new_call$traits, phy_order, data)
+  trait_names <- colnames(X)
+  U <- call_arg(new_call, "covariates")
+  U <- extract_covariates(U, phy_order, trait_names, data)
+  M <- call_arg(new_call, "meas_errors")
+  M <- extract_meas_errors(M, phy_order, trait_names, data)
+  
+  species <- phy$tip.label
+  
+  new_call$traits <- quote(X)
+  new_call$species <- quote(species)
+  new_call$phy <- quote(phy)
+  new_call$covariates <- quote(U)
+  new_call$meas_errors <- quote(M)
+  new_call$data <- NULL
+  
+  new_args <- list(...)
+  for (x in names(new_args)) {
+    new_call[[x]] <- new_args[[x]]
+  }
+  
+  new_cps <- as.list(rep(NA, length(cp_obj$bootstrap$inds)))
+  
+  for (i in inds) {
+    
+    X <- cp_obj$bootstrap$mats[[i]]
+    colnames(X) <- trait_names
+    X <- X[phy_order,]
+    
+    new_cps[[i]] <- eval(new_call)
+    
+    new_cps[[i]]$call$traits <- cp_obj$call$traits
+    new_cps[[i]]$call$species <- cp_obj$call$species
+    new_cps[[i]]$call$phy <- cp_obj$call$phy
+    new_cps[[i]]$call$covariates <- cp_obj$call$covariates
+    new_cps[[i]]$call$meas_errors <- cp_obj$call$meas_errors
+    new_cps[[i]]$call$data <- cp_obj$call$data
+  }
+  
+  class(new_cps) <- "cp_refits"
+  
+  return(new_cps)
+}
 
-# Printing and extracting bootstrap info
+#' @describeIn refit_boots prints `cp_refits` objects
+#'
+#' @param x an object of class \code{cp_refits}.
+#' @param digits the number of digits to be printed.
+#' @param ... arguments passed to and from other methods.
+#'
+#' @export
+#'
+print.cp_refits <- function(x, digits = max(3, getOption("digits") - 3), ...) {
+  if (length(x) == 0) {
+    cat("< Empty refits to cor_phylo bootstraps >\n")
+    invisible(NULL)
+  }
+  cat("< Refits to cor_phylo bootstraps >\n")
+  cat(sprintf("* Total bootstraps: %i\n", length(x)))
+  non_na <- which(sapply(x, inherits, what = "cor_phylo"))
+  cat(sprintf("* Attempted refits: %i\n", length(non_na)))
+  converged <- sapply(x, 
+                      function(f) {
+                        if (inherits(f, "cor_phylo")) return(f$convcode == 0)
+                        return(FALSE)
+                      })
+  cat(sprintf("* Converged refits: %i\n", sum(converged)))
+  cat("\nNew call:\n")
+  cat(paste(trimws(deparse(x[[non_na[1]]]$call)), collapse = " "), "\n\n")
+}
 
-# ================================================================================
-# ================================================================================
 
+
+
+
+
+
+
+
+
+
+
+#' Combine original bootstrapping with refits when convergence fails in the former.
+#' 
+#' @param env Environment with `mod` and `refits` from 
+#' 
+#' @noRd
+#' 
+combine_boots <- function(env) {
+  
+  if (is.null(env$mod)) stop("\nmod not found", call. = FALSE)
+  
+  # Data to be estimated:
+  env$corrs <- env$mod$bootstrap$corrs
+  env$d <- env$mod$bootstrap$d
+  env$B0 <- env$mod$bootstrap$B0
+  env$B_cov <- env$mod$bootstrap$B_cov
+  
+  
+  fails <- env$mod$bootstrap$inds[env$mod$bootstrap$convcodes != 0]
+  
+  # ----------------
+  # Dealing with failed convergences:
+  # ----------------
+  
+  if (length(fails) > 0 & !is.null(env$refits)) {
+    # If just one input, make it a list so it can be treated the same:
+    if (inherits(env$refits, "cp_refits")) env$refits <- list(env$refits)
+    # Add estimates from env$refits when they didn't converge in original:
+    fails_to_keep <- !logical(length(fails))
+    for (i in 1:length(fails)) {
+      bi <- which(env$mod$bootstrap$inds == fails[i])
+      ei <- env$mod$bootstrap$inds[bi]
+      for (j in 1:length(env$refits)) {
+        if (inherits(env$refits[[j]][[bi]], "cor_phylo")) {
+          if (env$refits[[j]][[bi]]$convcode == 0) {
+            env$corrs[,,ei] <- env$refits[[j]][[bi]]$corrs
+            env$d[,ei] <- env$refits[[j]][[bi]]$d
+            env$B0[,ei] <- env$refits[[j]][[bi]]$B[,1]
+            env$B_cov[,,ei] <- env$refits[[j]][[bi]]$B_cov
+            fails_to_keep[i] <- FALSE
+            break
+          }
+        }
+      }
+    }
+    # Remove from `fails` if it converged in env$refits:
+    fails <- fails[fails_to_keep]
+  }
+  # If some still failed, remove those from the estimate objects:
+  if (length(fails) > 0) {
+    env$corrs <- env$corrs[,,-fails,drop=FALSE]
+    env$d <- env$d[,-fails,drop=FALSE]
+    env$B0 <- env$B0[,-fails,drop=FALSE]
+    env$B_cov <- env$B_cov[,,-fails,drop=FALSE]
+  }
+  
+  invisible(NULL)
+}
 
 
 
@@ -988,6 +1186,15 @@ cor_phylo <- function(traits,
 #' 
 #' 
 #' @param mod `cor_phylo` object that was run with the `boot` argument > 0.
+#' @param refits One or more `cp_refits` objects containing refits of `cor_phylo`
+#'     bootstrap replicates. These are used when the original fit did not converge.
+#'     Multiple `cp_refits` objects should be input as a list.
+#'     For a given bootstrap replicate, the original fit's estimates will be used
+#'     when the fit converged.
+#'     If multiple `cp_refits` objects are input and more than one converged for a given
+#'     replicate, the estimates from the first `cp_refits` object containg a converged
+#'     fit for that replicate will be used.
+#'     Defaults to `NULL`.
 #' @param alpha Alpha used for the confidence intervals. Defaults to `0.05`.
 #' @return `boot_ci` returns a list of confidence intervals with the following fields:
 #'   \describe{
@@ -1003,7 +1210,7 @@ cor_phylo <- function(traits,
 #' @export
 #' @importFrom stats quantile
 #' 
-boot_ci.cor_phylo <- function(mod, alpha = 0.05, ...) {
+boot_ci.cor_phylo <- function(mod, refits = NULL, alpha = 0.05, ...) {
   
   if (length(mod$bootstrap) == 0) {
     stop("\nThis `cor_phylo` object was not bootstrapped. ",
@@ -1011,35 +1218,46 @@ boot_ci.cor_phylo <- function(mod, alpha = 0.05, ...) {
          "We recommend >= 2000, but expect this to take 20 minutes or ",
          "longer.", call. = FALSE)
   }
-  # Indices for failed convergences:
-  f <- mod$bootstrap$inds[mod$bootstrap$convcodes != 0]
-  if (length(f) == 0) f <- ncol(mod$bootstrap$d) + 1
-  corrs_list <- list(lower = apply(mod$bootstrap$corrs[,,-f,drop=FALSE], 
-                                   c(1, 2), quantile, probs = alpha / 2),
-                     upper = apply(mod$bootstrap$corrs[,,-f,drop=FALSE],
-                                   c(1, 2), quantile, probs = 1 - alpha / 2))
+  if (!is.null(refits)) {
+    # Check validity of refits argument:
+    if (!inherits(refits, "list") & !inherits(refits, "cp_refits")) {
+      stop("\nIn boot_ci for a cor_phylo object, the refits argument must be a list, ",
+           "a cp_refits object, or NULL.",
+           call. = FALSE)
+    }
+    if (inherits(refits, "list")) {
+      if (any(!sapply(refits, inherits, what = "cp_refits"))) {
+        stop("\nIn boot_ci for a cor_phylo object, if the refits argument is a list, ",
+             "all items in that list must be cp_refits objects.",
+             call. = FALSE)
+      }
+    }
+  }
+  
+  # Create objects:
+  combine_boots(environment())
+  
+  # Now calculate CIs:
+  corrs_list <- list(lower = apply(corrs, c(1, 2), quantile, probs = alpha / 2),
+                     upper = apply(corrs, c(1, 2), quantile, probs = 1 - alpha / 2))
   corrs <- corrs_list$lower
   corrs[upper.tri(corrs)] <- corrs_list$upper[upper.tri(corrs_list$upper)]
-  rownames(corrs) <- rownames(mod$corrs)
-  colnames(corrs) <- colnames(mod$corrs)
   
-  ds <- t(apply(mod$bootstrap$d[,-f,drop=FALSE], 1, quantile,
-                probs = c(alpha / 2, 1 - alpha / 2)))
-  rownames(ds) <- rownames(mod$d)
+  ds <- t(apply(d, 1, quantile, probs = c(alpha / 2, 1 - alpha / 2)))
   
-  B0s <- t(apply(mod$bootstrap$B0[,-f,drop=FALSE], 1, quantile,
-                 probs = c(alpha / 2, 1 - alpha / 2)))
-  rownames(B0s) <- rownames(mod$B)
+  B0s <- t(apply(B0, 1, quantile, probs = c(alpha / 2, 1 - alpha / 2)))
   
-  colnames(B0s) <- colnames(ds) <- c("lower", "upper")
-  
-  B_covs_list <- list(lower = apply(mod$bootstrap$B_cov[,,-f,drop=FALSE], c(1, 2),
-                                    quantile, probs = alpha / 2),
-                 upper = apply(mod$bootstrap$B_cov[,,-f,drop=FALSE], c(1, 2),
-                               quantile, probs = 1 - alpha / 2))
+  B_covs_list <- list(lower = apply(B_cov, c(1, 2), quantile, probs = alpha / 2),
+                      upper = apply(B_cov, c(1, 2), quantile, probs = 1 - alpha / 2))
   
   B_covs <- B_covs_list$lower
   B_covs[upper.tri(B_covs)] <- B_covs_list$upper[upper.tri(B_covs_list$upper)]
+  
+  rownames(corrs) <- rownames(mod$corrs)
+  colnames(corrs) <- colnames(mod$corrs)
+  rownames(ds) <- rownames(mod$d)
+  rownames(B0s) <- rownames(mod$B)
+  colnames(B0s) <- colnames(ds) <- c("lower", "upper")
   rownames(B_covs) <- rownames(mod$B_cov)
   colnames(B_covs) <- colnames(mod$B_cov)
   

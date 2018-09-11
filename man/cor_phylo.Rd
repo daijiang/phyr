@@ -21,9 +21,10 @@ cor_phylo(traits, species, phy,
           boot = 0,
           keep_boots = c("fail", "none", "all"))
 
-\method{boot_ci}{cor_phylo}(mod, alpha = 0.05, ...)
+\method{boot_ci}{cor_phylo}(mod, refits = NULL, alpha = 0.05, ...)
 
-\method{print}{cor_phylo}(x, digits = max(3, getOption("digits") - 3), ...)
+\method{print}{cor_phylo}(x, digits = max(3, getOption("digits") - 3),
+  ...)
 }
 \arguments{
 \item{traits}{A list of object names or a matrix that contains trait values.
@@ -95,6 +96,9 @@ branch lengths of \code{phy} can be transformed so that the "starter" tree
 has strong phylogenetic signal.
 Defaults to \code{FALSE}.}
 
+\item{lower_d}{Lower bound on the phylogenetic signal parameter.
+Defaults to \code{1e-7}.}
+
 \item{rel_tol}{A control parameter dictating the relative tolerance for convergence
 in the optimization. Defaults to \code{1e-6}.}
 
@@ -115,6 +119,13 @@ Note that these are different from the defaults for \code{\link[stats]{optim}}.}
 correlation coefficients and values of \code{d} are printed each iteration
 during optimization. Defaults to \code{FALSE}.}
 
+\item{rcond_threshold}{Threshold for the reciprocal condition number of two
+matrices inside the log likelihood function.
+Increasing this threshold makes the optimization process more strongly
+"bounce away" from badly conditioned matrices and can help with convergence
+and with estimates that are nonsensical.
+Defaults to \code{1e-10}.}
+
 \item{boot}{Number of parametric bootstrap replicates. Defaults to \code{0}.}
 
 \item{keep_boots}{Character specifying when to output data (indices, convergence codes,
@@ -127,6 +138,16 @@ and \code{"none"} keeps no parameter sets.
 Defaults to \code{"fail"}.}
 
 \item{mod}{\code{cor_phylo} object that was run with the \code{boot} argument > 0.}
+
+\item{refits}{One or more \code{cp_refits} objects containing refits of \code{cor_phylo}
+bootstrap replicates. These are used when the original fit did not converge.
+Multiple \code{cp_refits} objects should be input as a list.
+For a given bootstrap replicate, the original fit's estimates will be used
+when the fit converged.
+If multiple \code{cp_refits} objects are input and more than one converged for a given
+replicate, the estimates from the first \code{cp_refits} object containg a converged
+fit for that replicate will be used.
+Defaults to \code{NULL}.}
 
 \item{alpha}{Alpha used for the confidence intervals. Defaults to \code{0.05}.}
 
