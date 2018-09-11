@@ -14,10 +14,12 @@ cor_phylo(traits, species, phy,
           method = c("nelder-mead-nlopt", "bobyqa",
               "subplex", "nelder-mead-r", "sann"),
           constrain_d = FALSE,
+          lower_d = 1e-7,
           rel_tol = 1e-6,
           max_iter = 1000,
           sann_options = list(),
           verbose = FALSE,
+          rcond_threshold = 1e-10,
           boot = 0,
           keep_boots = c("fail", "none", "all"))
 

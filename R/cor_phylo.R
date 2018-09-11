@@ -875,10 +875,12 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, B)
 #'           method = c("nelder-mead-nlopt", "bobyqa",
 #'               "subplex", "nelder-mead-r", "sann"),
 #'           constrain_d = FALSE,
+#'           lower_d = 1e-7,
 #'           rel_tol = 1e-6,
 #'           max_iter = 1000,
 #'           sann_options = list(),
 #'           verbose = FALSE,
+#'           rcond_threshold = 1e-10,
 #'           boot = 0,
 #'           keep_boots = c("fail", "none", "all"))
 #' 
@@ -1086,13 +1088,16 @@ refit_boots <- function(cp_obj, inds = NULL, ...) {
   return(new_cps)
 }
 
-#' @describeIn refit_boots prints `cp_refits` objects
+
+
+#' Print a `cp_refits` object.
 #'
 #' @param x an object of class \code{cp_refits}.
 #' @param digits the number of digits to be printed.
 #' @param ... arguments passed to and from other methods.
 #'
 #' @export
+#' @noRd
 #'
 print.cp_refits <- function(x, digits = max(3, getOption("digits") - 3), ...) {
   if (length(x) == 0) {
@@ -1236,6 +1241,12 @@ boot_ci.cor_phylo <- function(mod, refits = NULL, alpha = 0.05, ...) {
       }
     }
   }
+  
+  # Defining these variables here to avoid notes in devtools::check()
+  corrs <- NULL
+  d <- NULL
+  B0 <- NULL
+  B_cov <- NULL
   
   # Create objects:
   combine_boots(environment())
