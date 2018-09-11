@@ -144,7 +144,7 @@ public:
   
   LogLikInfo iterate(const LogLikInfo& ll_info);
   
-  void one_boot(LogLikInfo& ll_info, BootResults& br,
+  void one_boot(const LogLikInfo& ll_info, BootResults& br,
                 const uint_t& i, const double& rel_tol, const int& max_iter,
                 const std::string& method, const std::string& keep_boots,
                 const std::vector<double>& sann);

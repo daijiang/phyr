@@ -634,6 +634,9 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, B)
 #'     }
 #'     For more information on the nlopt return codes, see
 #'     \url{https://nlopt.readthedocs.io/en/latest/NLopt_Reference/#return-values}.}
+#'   \item{`rcond_vals`}{Reciprocal condition numbers for two matrices inside
+#'     the log likelihood function. These are provided to potentially help guide
+#'     the changing of the `rcond_threshold` parameter.}
 #'   \item{`bootstrap`}{A list of bootstrap output, which is simply `list()` if
 #'     `boot = 0`. If `boot > 0`, then the list contains fields for 
 #'     estimates of correlations (`corrs`), phylogenetic signals (`d`),

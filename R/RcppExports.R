@@ -25,6 +25,23 @@ binpglmm_inter_while_cpp2 <- function(est_B_m, B, mu, C, rcondflag, B_init, X, X
 #' 
 NULL
 
+#' Return reciprocal condition numbers for matrices in the log likelihood function.
+#' 
+#' This function is largely a repeat of the first part of the likelihood function.
+#' It is used in the output to guide users wanting to change the `rcond_threshold`
+#' argument.
+#' 
+#' 
+#' @param par Initial values for the parameters to be optimized over.
+#' @param ll_info A C++ `LogLikInfo` object storing all the information needed
+#'     for the log likelihood function.
+#' 
+#' @noRd
+#' 
+#' @name return_rcond_vals
+#' 
+NULL
+
 #' Fit cor_phylo model using nlopt.
 #'
 #'

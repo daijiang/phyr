@@ -141,6 +141,65 @@ double cor_phylo_LL(const arma::vec& par,
   return LL;
 }
 
+
+
+
+
+//' Return reciprocal condition numbers for matrices in the log likelihood function.
+//' 
+//' This function is largely a repeat of the first part of the likelihood function.
+//' It is used in the output to guide users wanting to change the `rcond_threshold`
+//' argument.
+//' 
+//' 
+//' @param par Initial values for the parameters to be optimized over.
+//' @param ll_info A C++ `LogLikInfo` object storing all the information needed
+//'     for the log likelihood function.
+//' 
+//' @noRd
+//' 
+//' @name return_rcond_vals
+//' 
+std::vector<double> return_rcond_vals(const LogLikInfo& ll_info) {
+  
+  const arma::vec& par(ll_info.min_par);
+  const arma::mat& XX(ll_info.XX);
+  const arma::mat& UU(ll_info.UU);
+  const arma::mat& MM(ll_info.MM);
+  const arma::mat& Vphy(ll_info.Vphy);
+  const arma::mat& tau(ll_info.tau);
+  const bool& REML(ll_info.REML);
+  const bool& constrain_d(ll_info.constrain_d);
+  const double& lower_d(ll_info.lower_d);
+  const bool& verbose(ll_info.verbose);
+  const double& rcond_threshold(ll_info.rcond_threshold);
+  
+  std::vector<double> rconds_out(2);
+  
+  uint_t n = Vphy.n_rows;
+  uint_t p = XX.n_rows / n;
+  
+  arma::mat L = make_L(par, n, p);
+  
+  arma::mat R = L.t() * L;
+  
+  arma::vec d = make_d(par, n, p, constrain_d, lower_d);
+
+  // OU transform
+  arma::mat C = make_C(n, p, tau, d, Vphy, R);
+  
+  arma::mat V = make_V(C, MM);
+  double rcond_dbl = arma::rcond(V);
+  rconds_out[0] = rcond_dbl;
+  
+  arma::mat iV = arma::inv(V);
+  arma::mat denom = tp(UU) * iV * UU;
+  rcond_dbl = arma::rcond(denom);
+  rconds_out[1] = rcond_dbl;
+  
+  return rconds_out;
+}
+
 // Another version that uses XPtr; keeping it here in case I want to change back
 // //[[Rcpp::export]]
 // double cor_phylo_LL(const arma::vec& par,
@@ -676,6 +735,7 @@ List cp_get_output(const arma::mat& X,
   AIC = -2 * logLik + 2 * k;
   BIC = -2 * logLik + k * std::log(n / arma::datum::pi);
   
+  std::vector<double> rcond_vals = return_rcond_vals(ll_info);
   
   List boot_list = List::create();
   if (boot > 0) {
@@ -708,6 +768,7 @@ List cp_get_output(const arma::mat& X,
     _["BIC"] = BIC,
     _["niter"] = ll_info.iters,
     _["convcode"] = ll_info.convcode,
+    _["rcond_vals"] = rcond_vals,
     _["bootstrap"] = boot_list
   );
   
@@ -871,10 +932,10 @@ void BootMats::boot_data(LogLikInfo& ll_info, BootResults& br, const uint_t& i) 
   return;
 }
 
-void BootMats::one_boot(LogLikInfo& ll_info, BootResults& br,
-                         const uint_t& i, const double& rel_tol, const int& max_iter,
-                         const std::string& method, const std::string& keep_boots,
-                         const std::vector<double>& sann) {
+void BootMats::one_boot(const LogLikInfo& ll_info, BootResults& br,
+                        const uint_t& i, const double& rel_tol, const int& max_iter,
+                        const std::string& method, const std::string& keep_boots,
+                        const std::vector<double>& sann) {
   
   // Generate new data
   LogLikInfo new_ll_info = iterate(ll_info);

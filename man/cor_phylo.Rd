@@ -185,6 +185,9 @@ This number is \code{0} on success and positive on failure.
 }
 For more information on the nlopt return codes, see
 \url{https://nlopt.readthedocs.io/en/latest/NLopt_Reference/#return-values}.}
+\item{\code{rcond_vals}}{Reciprocal condition numbers for two matrices inside
+the log likelihood function. These are provided to potentially help guide
+the changing of the \code{rcond_threshold} parameter.}
 \item{\code{bootstrap}}{A list of bootstrap output, which is simply \code{list()} if
 \code{boot = 0}. If \code{boot > 0}, then the list contains fields for
 estimates of correlations (\code{corrs}), phylogenetic signals (\code{d}),
