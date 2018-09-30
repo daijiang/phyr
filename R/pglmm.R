@@ -114,8 +114,7 @@
 #'   \code{communityPGLMM} will reorder rows of the data frame so that species 
 #'   are nested within sites (i.e. arrange first by column site then by column sp).
 #' @param family Either \code{gaussian} for a Linear Mixed Model, or
-#'   \code{binomial} for binary dependent data. If \code{bayes = TRUE}, \code{poisson} is also
-#'   supported.
+#'   \code{binomial} for binomial dependent data, or \code{poisson} for count data.
 #' @param tree A phylogeny for column sp, with "phylo" class. Or a var-cov matrix for sp, 
 #'   make sure to have all species in the matrix; if the matrix is not standarized, 
 #'   i.e. det(tree) != 1, we will try to standarize it for you.
@@ -431,7 +430,7 @@
 #'   
 #'   # test statistical significance of the phylogenetic random effect
 #'   # on species slopes using a likelihood ratio test
-#'   communityPGLMM.binary.LRT(z.binary, re.number = 4)$Pr
+#'   communityPGLMM.profile.LRT(z.binary, re.number = 4)$Pr
 #'   
 #'   # extract the predicted values of Y
 #'   communityPGLMM.predicted.values(z.binary)
@@ -467,9 +466,10 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NUL
                            maxit = 500, tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE, ML.init = TRUE, 
                            marginal.summ = "mean", calc.DIC = FALSE, default.prior = "inla.default", cpp = TRUE,
                            optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"), prep.s2.lme4 = FALSE) {
+
   optimizer = match.arg(optimizer)
-  if ((family %nin% c("gaussian", "binomial")) & (bayes == FALSE)){
-    stop("\nSorry, but only binomial (binary) and gaussian options are available for
+  if ((family %nin% c("gaussian", "binomial", "poisson")) & (bayes == FALSE)){
+    stop("\nSorry, but only binomial, poisson and gaussian options are available for
          communityPGLMM at this time")
   }
   if(bayes) {
@@ -483,7 +483,7 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NUL
            are available for Bayesian communityPGLMM at this time")
     }
     }
-  
+
   fm_original = formula
   prep_re = if(is.null(random.effects)) TRUE else FALSE
   if(prep_re) {
@@ -551,9 +551,9 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NUL
                                    verbose = verbose, cpp = cpp, optimizer = optimizer)
     }
     
-    if (family == "binomial") {
+    if (family %in% c("binomial", "poisson")) {
       if (is.null(s2.init)) s2.init <- 0.25
-      z <- communityPGLMM.binary(formula = formula, data = data, 
+      z <- communityPGLMM.glmm(formula = formula, data = data, family = family,
                                  sp = sp, site = site, 
                                  random.effects = random.effects, REML = REML, 
                                  s2.init = s2.init, B.init = B.init, reltol = reltol, 
@@ -569,8 +569,8 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NUL
   # add names for ss
   if(!is.null(names(random.effects))){
     re.names = names(random.effects)[c(
-      which(sapply(random.effects, length) %nin% c(1, 4)),
-      which(sapply(random.effects, length) %in% c(1, 4))
+      which(sapply(random.effects, length) %nin% c(1, 4)), # non-nested terms
+      which(sapply(random.effects, length) %in% c(1, 4)) # nested terms
     )]
     if (family == "gaussian") re.names <- c(re.names, "residual")
     names(z$ss) = re.names
@@ -677,14 +677,15 @@ communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian",
   results
 }
 
-communityPGLMM.binary <- function(formula, data = list(), family = "binomial", 
+communityPGLMM.glmm <- function(formula, data = list(), family = "binomial", 
                                   sp = NULL, site = NULL, random.effects = list(), 
                                   REML = TRUE, s2.init = 0.05, B.init = NULL, 
                                   reltol = 10^-5, maxit = 40, tol.pql = 10^-6, 
                                   maxit.pql = 200, verbose = FALSE, cpp = TRUE,
                                   optimizer = "bobyqa") {
+
   dm = get_design_matrix(formula, data, na.action = NULL, sp, site, random.effects)
-  X = dm$X; Y = dm$Y; St = dm$St; Zt = dm$Zt; nested = dm$nested
+  X = dm$X; Y = dm$Y; size = dm$size; St = dm$St; Zt = dm$Zt; nested = dm$nested
   p <- ncol(X)
   n <- nrow(X)
   q <- length(random.effects)
@@ -694,7 +695,7 @@ communityPGLMM.binary <- function(formula, data = list(), family = "binomial",
     warning("B.init not correct length, so computed B.init using glm()")
   }
   if ((is.null(B.init) | (!is.null(B.init) & length(B.init) != p))) {
-    B.init <- t(matrix(glm(formula = formula, data = data, family = binomial, na.action = na.omit)$coefficients, ncol = p))
+    B.init <- t(matrix(glm(formula = formula, data = data, family = family, na.action = na.omit)$coefficients, ncol = p))
   } else {
     B.init <- matrix(B.init, ncol = 1)
   }
@@ -721,8 +722,9 @@ communityPGLMM.binary <- function(formula, data = list(), family = "binomial",
   } else {
     B <- B.init
     b <- matrix(0, nrow = n)
-    beta <- rbind(B, b)
-    mu <- exp(X %*% B)/(1 + exp(X %*% B))
+    beta <- rbind(B, b)  
+    if(family == "binomial") mu <- exp(X %*% B)/(1 + exp(X %*% B))
+    if(family == "poisson") mu <- exp(X %*% B)
     XX <- cbind(X, diag(1, nrow = n, ncol = n))
     
     est.ss <- ss
@@ -749,23 +751,26 @@ communityPGLMM.binary <- function(formula, data = list(), family = "binomial",
         iteration.m <- iteration.m + 1
         oldest.B.m <- est.B.m
         
-        iV <- plmm.binary.iV.logdetV(par = ss, Zt = Zt, St = St, mu = mu, nested = nested, logdet = FALSE)$iV
-        Z <- X %*% B + b + (Y - mu)/(mu * (1 - mu))
+        iV <- pglmm.iV.logdetV(par = ss, Zt = Zt, St = St, mu = mu, nested = nested, logdet = FALSE, family = family, size = size)$iV
+        if(family == "binomial") Z <- X %*% B + b + (Y/size - mu)/(mu * (1 - mu))
+        if(family == "poisson") Z <- X %*% B + b + (Y - mu)/mu
         
         denom <- t(X) %*% iV %*% X
         num <- t(X) %*% iV %*% Z
         B <- solve(denom, num)
         B <- as.matrix(B)
         
-        V = plmm.binary.V(par = ss, Zt = Zt, St = St, mu = mu, nested = nested)
+        V = pglmm.V(par = ss, Zt = Zt, St = St, mu = mu, nested = nested, family = family, size = size)
         
-        iW <- diag(as.vector((mu * (1 - mu))^-1))
+        if(family == "binomial") iW <- diag(as.vector(1/(size * mu * (1 - mu))))
+        if(family == "poisson") iW <- diag(as.vector(1/mu))
         C <- V - iW
-        
+
         b <- C %*% iV %*% (Z - X %*% B)
         beta <- rbind(B, matrix(b))
-        mu <- exp(XX %*% beta)/(1 + exp(XX %*% beta))
-        
+        if(family == "binomial") mu <- exp(XX %*% beta)/(1 + exp(XX %*% beta))
+        if(family == "poisson") mu <- exp(XX %*% beta)
+ 
         est.B.m <- B
         if (verbose == TRUE) show(c(iteration, B))
         # cat("mean part:", iteration.m, t(B), "\n")
@@ -776,17 +781,18 @@ communityPGLMM.binary <- function(formula, data = list(), family = "binomial",
         }
       }
       # variance component
-      Z <- X %*% B + b + (Y - mu)/(mu * (1 - mu))
+      if(family == "binomial") Z <- X %*% B + b + (Y/size - mu)/(mu * (1 - mu))
+      if(family == "poisson") Z <- X %*% B + b + (Y - mu)/mu
       H <- Z - X %*% B
       
       if(optimizer == "Nelder-Mead"){
         if (q > 1) {
-          opt <- optim(fn = plmm.binary.LL, par = ss, H = H, X = X, Zt = Zt, St = St,
-                       mu = mu, nested = nested, REML = REML, verbose = verbose, 
+          opt <- optim(fn = pglmm.LL, par = ss, H = H, X = X, Zt = Zt, St = St,
+                       mu = mu, nested = nested, family = family, size = size, REML = REML, verbose = verbose, 
                        method = "Nelder-Mead", control = list(maxit = maxit, reltol = reltol))
         } else {
-          opt <- optim(fn = plmm.binary.LL, par = ss, H = H, X = X, Zt = Zt, St = St,
-                       mu = mu, nested = nested, REML = REML, verbose = verbose, 
+          opt <- optim(fn = pglmm.LL, par = ss, H = H, X = X, Zt = Zt, St = St,
+                       mu = mu, nested = nested, family = family, size = size, REML = REML, verbose = verbose, 
                        method = "L-BFGS-B", control = list(maxit = maxit))
         }
       } else {
@@ -795,13 +801,12 @@ communityPGLMM.binary <- function(formula, data = list(), family = "binomial",
         if (optimizer == "subplex") nlopt_algor = "NLOPT_LN_SBPLX"
         opts <- list("algorithm" = nlopt_algor, "ftol_rel" = reltol, "ftol_abs" = reltol,
                      "xtol_rel" = 0.0001, "maxeval" = maxit)
-        S0 <- nloptr::nloptr(x0 = ss, eval_f = plmm.binary.LL, opts = opts,
+        S0 <- nloptr::nloptr(x0 = ss, eval_f = pglmm.LL, opts = opts,
                              H = H, X = X, Zt = Zt, St = St, mu = mu, 
-                             nested = nested, REML = REML, verbose = verbose)
+                             nested = nested, family = family, size = size, REML = REML, verbose = verbose)
         opt = list(par = S0$solution, value = S0$objective, counts = S0$iterations,
                    convergence = S0$status, message = S0$message)
       }
-      
       ss <- abs(opt$par)
       LL <- opt$value
       convcode = opt$convergence
@@ -837,7 +842,7 @@ communityPGLMM.binary <- function(formula, data = list(), family = "binomial",
   results <- list(formula = formula, data = data, family = family, random.effects = random.effects, 
                   B = B, B.se = B.se, B.cov = B.cov, B.zscore = B.zscore, B.pvalue = B.pvalue, 
                   ss = ss, s2n = s2n, s2r = s2r, s2resid = NULL, logLik = NULL, AIC = NULL, 
-                  BIC = NULL, REML = REML, bayes = FALSE, s2.init = s2.init, B.init = B.init, Y = Y, X = X, 
+                  BIC = NULL, REML = REML, bayes = FALSE, s2.init = s2.init, B.init = B.init, Y = Y, size = size, X = X, 
                   H = as.matrix(H), iV = iV, mu = mu, nested = nested, sp = sp, site = site, Zt = Zt, St = St, 
                   convcode = convcode, niter = niter)
   class(results) <- "communityPGLMM"

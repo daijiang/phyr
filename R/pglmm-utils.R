@@ -12,13 +12,16 @@
 prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE, 
                           prep.re.effects = TRUE, family = "gaussian", 
                           prep.s2.lme4 = FALSE, tree_site = NULL, bayes = FALSE){
+
   # make sure the data has sp and site columns
   if(!all(c("sp", "site") %in% names(data))) {
     stop("The data frame should have a column named as 'sp' and a column named as 'site'.")
   }
   
-  # arrange data
+  # arrange data by site; then sp within site
   data = dplyr::arrange(as.data.frame(data), site, sp)
+  # data = data[order(data$sp),]
+  # data = data[order(data$site),]
   data$sp = as.factor(data$sp); sp = data$sp
   data$site = as.factor(data$site); site = data$site
   spl = levels(sp); sitel = levels(site)
@@ -99,13 +102,13 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
     
     if(nrow(data) != nspp * nsite){
       # NAs that have been removed
-      message("the dataframe may have been removed for NAs as its number of row is not nspp * nsite \n
+      message("The dataframe may have been removed for NAs as its number of row is not nspp * nsite \n
               we will recreate the full data frame for you.")
       # recreate a full data frame to get which rows have been removed
       data_all = dplyr::arrange(expand.grid(site = sitel, sp = spl), site, sp)
       data_all = dplyr::left_join(data_all, data, by = c("site", "sp"))
       nna.ind = which(!is.na(data_all[, as.character(formula)[2]]))
-      if(nrow(data) != length(nna.ind)) stop("something wrong with NAs")
+      if(nrow(data) != length(nna.ind)) stop("Something is wrong with NAs")
     }
     
     # number of potential repulsions (both __ and @)
@@ -118,7 +121,7 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
       }))
     }
     if(length(repulsion) == 1) repulsion = rep(repulsion, n_repulsion)
-    if(length(repulsion) != n_repulsion) stop("the number of repulsion terms specified is not right, please double check")
+    if(length(repulsion) != n_repulsion) stop("The number of repulsion terms specified is not correct: please double check")
     nested_repul_i = 1
     
     random.effects = lapply(fm, function(x){
@@ -131,7 +134,7 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
             # also want phylogenetic version, 
             # it makes sense if the phylogenetic version is in, the non-phy part should be there too
             coln = gsub("__$", "", x2[3])
-            if(coln %nin% c("sp", "site")) stop("group variable with phylogenetic var-covar matrix must be named as either sp or site")
+            if(coln %nin% c("sp", "site")) stop("Group variable with phylogenetic var-covar matrix must be named either sp or site")
             d = data[, coln] # extract the column
             xout_nonphy = list(1, d, covar = diag(nlevels(d)))
             names(xout_nonphy)[2] = coln
@@ -214,12 +217,12 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
           }
         }
       } else { # slope
-        if(grepl("@", x2[3])) stop("sorry, random terms for slopes cannot be nested")
+        if(grepl("@", x2[3])) stop("Sorry, random terms for slopes cannot be nested")
         if(grepl("__$", x2[3])){
           # also want phylogenetic version, 
           # it makes sense if the phylogenetic version is in, the non-phy part should be there too
           coln = gsub("__$", "", x2[3])
-          if(coln %nin% c("sp", "site")) stop("group variable with phylogenetic var-covar matrix must be named as either sp or site")
+          if(coln %nin% c("sp", "site")) stop("Group variable with phylogenetic var-covar matrix must be named either sp or site")
           d = data[, coln] # extract the column
           xout_nonphy = list(data[, x2[2]], d, covar = diag(nlevels(d)))
           names(xout_nonphy)[2] = coln
@@ -246,6 +249,12 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
       x3
     }), recursive = T)
     
+#     # Add observation-level variances for families binomial (size>1) and poisson
+# 	  if(family == 'poisson' | (family == 'binomial' & any(size>1))){
+# 	  	 random.effects[[length(random.effects) + 1]] <- list(diag(nspp*nsite))
+# 	  	 names(random.effects)[length(random.effects)] <- "1|obs"
+# 	  }
+     
     if(prep.s2.lme4){
       # lme4 to get initial theta
       s2_init = numeric(length(random.effects))
@@ -288,7 +297,7 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
               Vphy = Vphy, Vphy_site = Vphy_site))
 }
 
-#' \code{get_design_matrix} gets design matrix for both gaussian and binomial models
+#' \code{get_design_matrix} gets design matrix for gaussian, binomial, and poisson models
 #' 
 #' @rdname get_design_matrix_pglmm
 #' @param na.action What to do with NAs?
@@ -297,18 +306,27 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
 #' @export
 get_design_matrix = function(formula, data, na.action = NULL, 
                              sp, site, random.effects){
+
   nspp <- nlevels(sp)
   nsite <- nlevels(site)
   
   mf <- model.frame(formula = formula, data = data, na.action = NULL)
   X <- model.matrix(attr(mf, "terms"), data = mf)
   Y <- model.response(mf)
+  if(is.array(Y) && ncol(Y) == 2){ # success, fails for binomial data
+  	size <- rowSums(Y)
+  	Y <- Y[,1]
+  }else{ # other kind of binomial
+  	size <- rep(1, length(Y))
+  }
   
   # if any X are NA, set corresponding Y to NA and reset X to zero (NA?)
   if(any(is.na(X))){
     for (j in 1:dim(X)[2]) {
-      Y[is.na(X[, j])] <- NA
-      X[is.na(X[, j]), ] <- NA
+      naj <- is.na(X[, j])
+      Y[naj] <- NA
+      size[naj] <- NA
+      X[naj, ] <- NA
     }
   }
   
@@ -400,6 +418,7 @@ get_design_matrix = function(formula, data, na.action = NULL,
   if (any(is.na(Y))) {
     pickY <- !is.na(Y)
     Y <- Y[pickY]
+    size <- size[pickY]
     X <- X[pickY, , drop = FALSE]
     if (q.nonNested > 0) {
       Zt <- Zt[, pickY]
@@ -410,7 +429,7 @@ get_design_matrix = function(formula, data, na.action = NULL,
   }
   
   return(list(St = St, Zt = Zt, X = X, Y = Y, nested = nested, 
-              q.nonNested = q.nonNested, q.Nested = q.Nested))
+              q.nonNested = q.nonNested, q.Nested = q.Nested, size = size))
 }
 
 # Log likelihood function for gaussian model
@@ -519,11 +538,10 @@ pglmm_gaussian_LL_calc = function(par, X, Y, Zt, St, nested = NULL,
   return(results)
 }
 
-# Log likelihood function for binomial model
-plmm.binary.LL <- function(par, H, X, Zt, St, mu, nested, REML = TRUE, verbose = FALSE) {
-  par <- abs(par)
-  
-  iVdet <- plmm.binary.iV.logdetV(par = par, Zt = Zt, St = St, mu = mu, nested = nested, logdet = TRUE)
+# Log likelihood function for binomial and poisson models
+pglmm.LL <- function(par, H, X, Zt, St, mu, nested, REML = TRUE, verbose = FALSE, family = family, size) {
+  par <- abs(par) 
+  iVdet <- pglmm.iV.logdetV(par = par, Zt = Zt, St = St, mu = mu, nested = nested, logdet = TRUE, family = family, size = size)
   
   iV <- iVdet$iV
   logdetV <- iVdet$logdetV
@@ -539,8 +557,8 @@ plmm.binary.LL <- function(par, H, X, Zt, St, mu, nested, REML = TRUE, verbose =
   return(as.numeric(LL))
 }
 
-# utilis function for binomial model
-plmm.binary.iV.logdetV <- function(par, Zt, St, mu, nested, logdet = TRUE) {
+# utilis function for binomial and poisson models
+pglmm.iV.logdetV <- function(par, Zt, St, mu, nested, logdet = TRUE, family, size) {
   if (!is.null(St)) {
     q.nonNested <- dim(St)[1]
     sr <- Re(par[1:q.nonNested])
@@ -552,7 +570,6 @@ plmm.binary.iV.logdetV <- function(par, Zt, St, mu, nested, logdet = TRUE) {
     q.nonNested <- 0
     sr <- NULL
   }
-  
   q.Nested <- length(nested)
   
   if (q.Nested == 0) {
@@ -562,7 +579,8 @@ plmm.binary.iV.logdetV <- function(par, Zt, St, mu, nested, logdet = TRUE) {
   }
   
   if (q.Nested == 0) {
-    iA <- as(diag(as.vector((mu * (1 - mu)))), "dgCMatrix")
+   if(family == 'binomial') iA <- as(diag(as.vector(size * mu * (1 - mu))), "dgCMatrix")
+   if(family == 'poisson') iA <- as(diag(as.vector(mu)), "dgCMatrix")
     Ishort <- as(diag(nrow(Ut)), "dsCMatrix")
     Ut.iA.U <- Ut %*% iA %*% U
     # Woodbury identity
@@ -574,7 +592,8 @@ plmm.binary.iV.logdetV <- function(par, Zt, St, mu, nested, logdet = TRUE) {
         logdetV <- 2 * sum(log(diag(chol(Ishort + Ut.iA.U)))) - determinant(iA)$modulus[1]
     }
   } else {
-    A <- as(diag(as.vector((mu * (1 - mu))^-1)), "dgCMatrix")
+    if(family == 'binomial') A <- as(diag(as.vector(1/(size * mu * (1 - mu)))), "dgCMatrix")
+    if(family == 'poisson') A <- as(diag(as.vector(1/mu)), "dgCMatrix")
     for (j in 1:q.Nested) {
       A <- A + sn[j]^2 * nested[[j]]
     }
@@ -601,8 +620,8 @@ plmm.binary.iV.logdetV <- function(par, Zt, St, mu, nested, logdet = TRUE) {
   }
 }
 
-# utilis function for binomial model
-plmm.binary.V <- function(par, Zt, St, mu, nested) {
+# utilis function for binomial and poisson models
+pglmm.V <- function(par, Zt, St, mu, nested, family, size) {
   
   if (!is.null(St)) {
     q.nonNested <- dim(St)[1]
@@ -627,7 +646,8 @@ plmm.binary.V <- function(par, Zt, St, mu, nested) {
   if(missing(mu)){
     iW <- 0 * diag(ncol(Zt))
   } else {
-    iW <- diag(as.vector((mu * (1 - mu))^(-1)))
+   if(family == 'binomial') iW <- diag(as.vector(1/(size * mu * (1 - mu))))
+   if(family == 'poisson') iW <- diag(as.vector(1/mu))
   }
   
   if (q.Nested == 0) {
@@ -645,9 +665,9 @@ plmm.binary.V <- function(par, Zt, St, mu, nested) {
   }
   return(V)
 }
-# End plmm.binary.V
+# End pglmm.V
 
-#' \code{communityPGLMM.binary.LRT} tests statistical significance of the phylogenetic random effect on 
+#' \code{communityPGLMM.profile.LRT} tests statistical significance of the phylogenetic random effect on 
 #' species slopes using a likelihood ratio test
 #' 
 #' @rdname pglmm-utils
@@ -655,7 +675,7 @@ plmm.binary.V <- function(par, Zt, St, mu, nested) {
 #' @param re.number Which random term to test? Can be a vector with length >1
 #' @inheritParams pglmm
 #' @export
-communityPGLMM.binary.LRT <- function(x, re.number = 0, cpp = TRUE) {
+communityPGLMM.profile.LRT <- function(x, re.number = 0, cpp = TRUE) {
   n <- dim(x$X)[1]
   p <- dim(x$X)[2]
   par <- x$ss
@@ -666,8 +686,9 @@ communityPGLMM.binary.LRT <- function(x, re.number = 0, cpp = TRUE) {
     LL <- plmm_binary_LL_cpp(par = x$ss, H = x$H, X = x$X, Zt = x$Zt, St = x$St, 
                              mu = x$mu, nested = x$nested, REML = x$REML, verbose = FALSE)
   } else {
-    LL <- plmm.binary.LL(par = x$ss, H = x$H, X = x$X, Zt = x$Zt, St = x$St, 
-                         mu = x$mu, nested = x$nested, REML = x$REML, verbose = FALSE)
+    LL <- pglmm.LL(par = x$ss, H = x$H, X = x$X, Zt = x$Zt, St = x$St, 
+                   mu = x$mu, nested = x$nested, REML = x$REML, verbose = FALSE, 
+                   family = x$family, size = x$size)
   }
   
   if (x$REML) {
@@ -680,8 +701,9 @@ communityPGLMM.binary.LRT <- function(x, re.number = 0, cpp = TRUE) {
     LL0 <- plmm_binary_LL_cpp(par = par, H = x$H, X = x$X, Zt = x$Zt, St = x$St, 
                               mu = x$mu, nested = x$nested, REML = x$REML, verbose = FALSE)
   } else {
-    LL0 <- plmm.binary.LL(par = par, H = x$H, X = x$X, Zt = x$Zt, St = x$St, 
-                          mu = x$mu, nested = x$nested, REML = x$REML, verbose = FALSE)
+    LL0 <- pglmm.LL(par = par, H = x$H, X = x$X, Zt = x$Zt, St = x$St, 
+                    mu = x$mu, nested = x$nested, REML = x$REML, verbose = FALSE, 
+                    family = x$family, size = x$size)
   }
   
   if (x$REML) {
@@ -697,7 +719,7 @@ communityPGLMM.binary.LRT <- function(x, re.number = 0, cpp = TRUE) {
 
 #' \code{communityPGLMM.matrix.structure} produces the entire
 #' covariance matrix structure (V) when you specify random effects.
-#' @param ss Which of the \code{random.effects} to produce
+#' @param ss Which of the \code{random.effects} to produce.
 #' @rdname pglmm-utils
 #' @export
 communityPGLMM.matrix.structure <- function(formula, data = list(), family = "binomial", 
@@ -710,7 +732,7 @@ communityPGLMM.matrix.structure <- function(formula, data = list(), family = "bi
   random.effects = dat_prepared$random.effects
   
   dm = get_design_matrix(formula, data, na.action = NULL, sp, site, random.effects)
-  X = dm$X; Y = dm$Y; St = dm$St; Zt = dm$Zt; nested = dm$nested
+  X = dm$X; Y = dm$Y; St = dm$St; Zt = dm$Zt; nested = dm$nested; size = dm$size
   p <- ncol(X)
   n <- nrow(X)
   
@@ -719,8 +741,8 @@ communityPGLMM.matrix.structure <- function(formula, data = list(), family = "bi
                        Zt = Zt, mu = matrix(0, nrow(X), 1), St = St, 
                        nested = nested, missing_mu = TRUE)
   } else {
-    V <- plmm.binary.V(par = array(ss, c(1, length(random.effects))), 
-                       Zt = Zt, St = St, nested = nested)
+    V <- pglmm.V(par = array(ss, c(1, length(random.effects))), 
+                       Zt = Zt, St = St, nested = nested, family, size)
   }
   
   return(V)
@@ -760,9 +782,16 @@ summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") -
     }
     if (x$family == "binomial") {
       if (x$REML == TRUE) {
-        cat("Generalized linear mixed model for binary data fit by restricted maximum likelihood")
+        cat("Generalized linear mixed model for binomial data fit by restricted maximum likelihood")
       } else {
-        cat("Generalized linear mixed model for binary data fit by maximum likelihood")
+        cat("Generalized linear mixed model for binomial data fit by maximum likelihood")
+      }
+    }
+    if (x$family == "poisson") {
+      if (x$REML == TRUE) {
+        cat("Generalized linear mixed model for poisson data fit by restricted maximum likelihood")
+      } else {
+        cat("Generalized linear mixed model for poisson data fit by maximum likelihood")
       }
     }
   }
@@ -849,8 +878,8 @@ print.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ..
 #' Predicted values of PGLMM
 #' 
 #' \code{communityPGLMM.predicted.values} calculates the predicted
-#' values of Y; for the generalized linear mixed model (family =
-#' "binomial"), these values are in the logit-1 transformed space.
+#' values of Y; for the generalized linear mixed model (family %in% 
+#' c("binomial","poisson"), these values are in the transformed space.
 #' 
 #' @rdname communityPGLMM.predicted.values
 #' @param x a fitted model with class communityPGLMM.
@@ -899,13 +928,15 @@ communityPGLMM.predicted.values <- function(
     
     if (x$family == "binomial") {
       # x$H is calculated by the following lines of code
-      # Z <- X %*% B + b + (Y - mu)/(mu * (1 - mu))
+      # Z <- X %*% B + b + (Y - mu) * size/(mu * (1 - mu))
       # H <- Z - X %*% B
       # this gives the solutions to the over-determined set of equations for the fixed 
       # effects X %*% B and random effects b
-      # h <- x$H + x$X %*% x$B - (x$Y - x$mu)/(x$mu * (1 - x$mu)) 
+      # h <- x$H + x$X %*% x$B - (x$Y - x$mu) * size/(x$mu * (1 - x$mu)) 
       predicted.values <- logit(x$mu)
     }
+    
+    if(x$family == "poisson") predicted.values <- log(x$mu)
   }
   
   data.frame(Y_hat = predicted.values, sp = x$sp, site = x$site)
@@ -917,7 +948,7 @@ communityPGLMM.predicted.values <- function(
 #' 
 #' @param object A fitted model with class communityPGLMM.
 #' @param type Type of residuals, currently only "response" for gaussian pglmm;
-#'   "deviance" (default) and "response" for binomial pglmm.
+#'   "deviance" (default) and "response" for binomial and poisson pglmm.
 #' @param scaled Scale residuals by residual standard deviation for gaussian pglmm.
 #' @param \dots Additional arguments, ignored for method compatibility.
 #' @rdname residuals.pglmm
@@ -925,7 +956,7 @@ communityPGLMM.predicted.values <- function(
 #' @export
 residuals.communityPGLMM <- function(
   object, 
-  type = if(object$family == "binomial") "deviance" else "response",
+  type = if(object$family %in% c("binomial","poisson")) "deviance" else "response",
   scaled = FALSE, ...){
   if(object$family == "gaussian"){
     y <- object$Y
@@ -937,20 +968,22 @@ residuals.communityPGLMM <- function(
     if(scaled) res/sqrt(object$s2resid)
   }
   
-  if(object$family == "binomial"){
+  if(object$family %in% c("binomial","poisson")){
     y <- as.numeric(object$Y)
     mu <- unname(object$mu[, 1])
+    if(object$family == "binomial") dres <- sqrt(binomial()$dev.resids(y, mu, 1))
+    if(object$family == "poisson") dres <- sqrt(poisson()$dev.resids(y, mu, 1))
     res <- switch(type,
            deviance = {
-             dres <- sqrt(binomial()$dev.resids(y, mu, 1))
+             dres
              ifelse(y > mu, dres, - dres)
            },
            response = y - mu
     )
   }
   
-  if(object$family %nin% c("gaussian", "binomial"))
-    stop("no residual methods for family other than gaussian and binomial yet", call. = FALSE)
+  if(object$family %nin% c("gaussian", "binomial", "poisson"))
+    stop("no residual methods for family other than gaussian, binomial and poisson, yet", call. = FALSE)
   
   unname(res)
 }
@@ -960,10 +993,10 @@ residuals.communityPGLMM <- function(
 #' @method fitted communityPGLMM
 #' @param object A fitted model with class communityPGLMM.
 #' @param \dots Additional arguments, ignored for method compatibility.
-#' @return Fitted values. For binomial PGLMMs, this is equal to mu (i.e. between 0 and 1).
+#' @return Fitted values. For binomial and poisson PGLMMs, this is equal to mu.
 #' @export
 fitted.communityPGLMM <- function(object, ...){
-  if(object$family == "binomial"){
+  if(object$family %in% c("binomial","poisson")){
     ft = object$mu[, 1]
   } else {
     ft = communityPGLMM.predicted.values(object)$Y_hat
