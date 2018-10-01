@@ -844,9 +844,15 @@ communityPGLMM.glmm <- function(formula, data = list(), family = "binomial",
   B.zscore <- B/B.se
   B.pvalue <- 2 * pnorm(abs(B/B.se), lower.tail = FALSE)
   
+  if (REML == TRUE) {
+      logLik <- as.numeric(-0.5 * (n - p) * log(2 * pi) + 0.5 * determinant(t(X) %*% X)$modulus[1] - LL)
+  } else {
+      logLik <- as.numeric(-0.5 * n * log(2 * pi) - LL)
+  }
+
   results <- list(formula = formula, data = data, family = family, random.effects = random.effects, 
                   B = B, B.se = B.se, B.cov = B.cov, B.zscore = B.zscore, B.pvalue = B.pvalue, 
-                  ss = ss, s2n = s2n, s2r = s2r, s2resid = NULL, logLik = NULL, AIC = NULL, 
+                  ss = ss, s2n = s2n, s2r = s2r, s2resid = NULL, logLik = logLik, AIC = NULL, 
                   BIC = NULL, REML = REML, bayes = FALSE, s2.init = s2.init, B.init = B.init, Y = Y, size = size, X = X, 
                   H = as.matrix(H), iV = iV, mu = mu, nested = nested, sp = sp, site = site, Zt = Zt, St = St, 
                   convcode = convcode, niter = niter)
