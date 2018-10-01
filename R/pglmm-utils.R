@@ -683,8 +683,9 @@ communityPGLMM.profile.LRT <- function(x, re.number = 0, cpp = TRUE) {
   df <- length(re.number)
   
   if(cpp){
-    LL <- plmm_binary_LL_cpp(par = x$ss, H = x$H, X = x$X, Zt = x$Zt, St = x$St, 
-                             mu = x$mu, nested = x$nested, REML = x$REML, verbose = FALSE)
+    LL <- pglmm_LL_cpp(par = x$ss, H = x$H, X = x$X, Zt = x$Zt, St = x$St, 
+                       mu = x$mu, nested = x$nested, REML = x$REML, verbose = FALSE,
+                       family = x$family, totalSize = x$size)
   } else {
     LL <- pglmm.LL(par = x$ss, H = x$H, X = x$X, Zt = x$Zt, St = x$St, 
                    mu = x$mu, nested = x$nested, REML = x$REML, verbose = FALSE, 
@@ -698,8 +699,9 @@ communityPGLMM.profile.LRT <- function(x, re.number = 0, cpp = TRUE) {
   }
   
   if(cpp){
-    LL0 <- plmm_binary_LL_cpp(par = par, H = x$H, X = x$X, Zt = x$Zt, St = x$St, 
-                              mu = x$mu, nested = x$nested, REML = x$REML, verbose = FALSE)
+    LL0 <- pglmm_LL_cpp(par = par, H = x$H, X = x$X, Zt = x$Zt, St = x$St, 
+                        mu = x$mu, nested = x$nested, REML = x$REML, verbose = FALSE,
+                        family = x$family, totalSize = x$size)
   } else {
     LL0 <- pglmm.LL(par = par, H = x$H, X = x$X, Zt = x$Zt, St = x$St, 
                     mu = x$mu, nested = x$nested, REML = x$REML, verbose = FALSE, 
@@ -733,13 +735,14 @@ communityPGLMM.matrix.structure <- function(formula, data = list(), family = "bi
   
   dm = get_design_matrix(formula, data, na.action = NULL, sp, site, random.effects)
   X = dm$X; Y = dm$Y; St = dm$St; Zt = dm$Zt; nested = dm$nested; size = dm$size
-  p <- ncol(X)
-  n <- nrow(X)
+  # p <- ncol(X)
+  # n <- nrow(X)
   
   if(cpp){
-    V <- plmm_binary_V(par = array(ss, c(1, length(random.effects))), 
-                       Zt = Zt, mu = matrix(0, nrow(X), 1), St = St, 
-                       nested = nested, missing_mu = TRUE)
+    V <- pglmm_V(par = array(ss, c(1, length(random.effects))), 
+                 Zt = Zt, mu = matrix(0, nrow(X), 1), St = St, 
+                 nested = nested, missing_mu = TRUE,
+                 family = family, totalSize = size)
   } else {
     V <- pglmm.V(par = array(ss, c(1, length(random.effects))), 
                        Zt = Zt, St = St, nested = nested, family, size)

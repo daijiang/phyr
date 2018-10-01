@@ -4,14 +4,15 @@
 \alias{residuals.communityPGLMM}
 \title{Residuals of communityPGLMM objects}
 \usage{
-\method{residuals}{communityPGLMM}(object, type = if (object$family ==
-  "binomial") "deviance" else "response", scaled = FALSE, ...)
+\method{residuals}{communityPGLMM}(object, type = if (object$family
+  \%in\% c("binomial", "poisson")) "deviance" else "response",
+  scaled = FALSE, ...)
 }
 \arguments{
 \item{object}{A fitted model with class communityPGLMM.}
 
 \item{type}{Type of residuals, currently only "response" for gaussian pglmm;
-"deviance" (default) and "response" for binomial pglmm.}
+"deviance" (default) and "response" for binomial and poisson pglmm.}
 
 \item{scaled}{Scale residuals by residual standard deviation for gaussian pglmm.}
 

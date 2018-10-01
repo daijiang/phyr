@@ -4,8 +4,9 @@
 \alias{plot.communityPGLMM}
 \title{Plot the original dataset and predicted values (optional)}
 \usage{
-\method{plot}{communityPGLMM}(x, digits = max(3, getOption("digits") - 3),
-  show.sp.names = FALSE, show.site.names = FALSE, predicted = FALSE, ...)
+\method{plot}{communityPGLMM}(x, digits = max(3, getOption("digits") -
+  3), show.sp.names = FALSE, show.site.names = FALSE,
+  predicted = FALSE, ...)
 }
 \arguments{
 \item{x}{A fitted model with class communityPGLMM}

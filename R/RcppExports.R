@@ -219,20 +219,20 @@ pcd2_loop <- function(SSii, nsr, SCii, comm, V, nsp_pool, verbose) {
     .Call(`_phyr_pcd2_loop`, SSii, nsr, SCii, comm, V, nsp_pool, verbose)
 }
 
-plmm_binary_iV_logdetV_cpp <- function(par, mu, Zt, St, nested, logdet) {
-    .Call(`_phyr_plmm_binary_iV_logdetV_cpp`, par, mu, Zt, St, nested, logdet)
+pglmm_iV_logdetV_cpp <- function(par, mu, Zt, St, nested, logdet, family, totalSize) {
+    .Call(`_phyr_pglmm_iV_logdetV_cpp`, par, mu, Zt, St, nested, logdet, family, totalSize)
 }
 
-plmm_binary_V <- function(par, Zt, St, mu, nested, missing_mu) {
-    .Call(`_phyr_plmm_binary_V`, par, Zt, St, mu, nested, missing_mu)
+pglmm_V <- function(par, Zt, St, mu, nested, missing_mu, family, totalSize) {
+    .Call(`_phyr_pglmm_V`, par, Zt, St, mu, nested, missing_mu, family, totalSize)
 }
 
-plmm_binary_LL_cpp <- function(par, H, X, Zt, St, mu, nested, REML, verbose) {
-    .Call(`_phyr_plmm_binary_LL_cpp`, par, H, X, Zt, St, mu, nested, REML, verbose)
+pglmm_LL_cpp <- function(par, H, X, Zt, St, mu, nested, REML, verbose, family, totalSize) {
+    .Call(`_phyr_pglmm_LL_cpp`, par, H, X, Zt, St, mu, nested, REML, verbose, family, totalSize)
 }
 
-pglmm_binary_internal_cpp <- function(X, Y, Zt, St, nested, REML, verbose, n, p, q, maxit, reltol, tol_pql, maxit_pql, optimizer, B_init, ss) {
-    .Call(`_phyr_pglmm_binary_internal_cpp`, X, Y, Zt, St, nested, REML, verbose, n, p, q, maxit, reltol, tol_pql, maxit_pql, optimizer, B_init, ss)
+pglmm_internal_cpp <- function(X, Y, Zt, St, nested, REML, verbose, n, p, q, maxit, reltol, tol_pql, maxit_pql, optimizer, B_init, ss, family, totalSize) {
+    .Call(`_phyr_pglmm_internal_cpp`, X, Y, Zt, St, nested, REML, verbose, n, p, q, maxit, reltol, tol_pql, maxit_pql, optimizer, B_init, ss, family, totalSize)
 }
 
 sexp_type <- function(x) {

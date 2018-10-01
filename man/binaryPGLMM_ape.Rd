@@ -4,17 +4,17 @@
 \alias{binaryPGLMM}
 \alias{binaryPGLMM.sim}
 \alias{print.binaryPGLMM}
-\alias{binaryPGLMM.sim}
-\alias{print.binaryPGLMM}
 \title{Phylogenetic Generalized Linear Mixed Model for Binary Data}
 \usage{
-binaryPGLMM(formula, data = list(), phy, s2.init = 0.1, B.init = NULL,
-  tol.pql = 10^-6, maxit.pql = 200, maxit.reml = 100, cpp = TRUE)
+binaryPGLMM(formula, data = list(), phy, s2.init = 0.1,
+  B.init = NULL, tol.pql = 10^-6, maxit.pql = 200,
+  maxit.reml = 100, cpp = TRUE)
 
 binaryPGLMM.sim(formula, data = list(), phy, s2 = NULL, B = NULL,
   nrep = 1)
 
-\method{print}{binaryPGLMM}(x, digits = max(3, getOption("digits") - 3), ...)
+\method{print}{binaryPGLMM}(x, digits = max(3, getOption("digits") - 3),
+  ...)
 }
 \arguments{
 \item{formula}{A two-sided linear formula object describing the

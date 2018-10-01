@@ -115,6 +115,10 @@
 #'   are nested within sites (i.e. arrange first by column site then by column sp).
 #' @param family Either \code{gaussian} for a Linear Mixed Model, or
 #'   \code{binomial} for binomial dependent data, or \code{poisson} for count data.
+#'   It should be specified as a character string (i.e. quoted). At this moment,
+#'   for binomial data, we fixed the link function to logit; for poisson data,
+#'   we fixed the link function to log. Binomial data can be either presence/absence,
+#'   or a two column array of 'success' and 'fail'.
 #' @param tree A phylogeny for column sp, with "phylo" class. Or a var-cov matrix for sp, 
 #'   make sure to have all species in the matrix; if the matrix is not standarized, 
 #'   i.e. det(tree) != 1, we will try to standarize it for you.
@@ -503,7 +507,7 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NUL
   if(prep.s2.lme4) s2.init = dat_prepared$s2_init
   
   # initial values for bayesian analysis: binomial and gaussian
-  if(bayes & ML.init & (family %in% c("binomial", "gaussian"))) {
+  if(bayes & ML.init & (family %in% c("binomial", "gaussian", "poisson"))) {
     if (family == "gaussian") {
       ML.init.z <- communityPGLMM.gaussian(formula = formula, data = data, 
                                            sp = sp, site = site, 
@@ -515,10 +519,10 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NUL
       B.init <- ML.init.z$B[ , 1, drop = TRUE]
     }
     
-    if (family == "binomial") {
+    if (family %in% c("binomial", "poisson")) {
       if (is.null(s2.init)) s2.init <- 0.25
-      ML.init.z <- communityPGLMM.binary(formula = formula, data = data, 
-                                         sp = sp, site = site, 
+      ML.init.z <- communityPGLMM.glmm(formula = formula, data = data, 
+                                         sp = sp, site = site, family = family,
                                          random.effects = random.effects, REML = REML, 
                                          s2.init = s2.init, B.init = B.init, reltol = reltol, 
                                          maxit = maxit, tol.pql = tol.pql, maxit.pql = maxit.pql, 
@@ -528,7 +532,7 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NUL
     }
   } 
   
-  if(bayes & ML.init & (family %nin% c("binomial", "gaussian"))) {
+  if(bayes & ML.init & (family %nin% c("binomial", "gaussian", "poisson"))) {
     warning('ML.init option is only available for binomial and gaussian families. You will have to 
             specify initial values manually if you think the default are problematic.')
   }
@@ -710,7 +714,7 @@ communityPGLMM.glmm <- function(formula, data = list(), family = "binomial",
                                       reltol = reltol, tol_pql = tol.pql, 
                                       maxit_pql = maxit.pql, optimizer = optimizer, 
                                       B_init = B.init, ss = ss,
-                                      family = family, size = size)
+                                      family = family, totalSize = size)
     B = internal_res$B
     row.names(B) = colnames(X)
     ss = internal_res$ss[,1]

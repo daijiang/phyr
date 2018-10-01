@@ -2,9 +2,10 @@
 % Please edit documentation in R/pglmm-utils.R
 \name{get_design_matrix}
 \alias{get_design_matrix}
-\title{\code{get_design_matrix} gets design matrix for both gaussian and binomial models}
+\title{\code{get_design_matrix} gets design matrix for gaussian, binomial, and poisson models}
 \usage{
-get_design_matrix(formula, data, na.action = NULL, sp, site, random.effects)
+get_design_matrix(formula, data, na.action = NULL, sp, site,
+  random.effects)
 }
 \arguments{
 \item{formula}{A two-sided linear formula object describing the
@@ -57,5 +58,5 @@ in their models instead of phylogenetic relationships.}
 A list of design matrices.
 }
 \description{
-\code{get_design_matrix} gets design matrix for both gaussian and binomial models
+\code{get_design_matrix} gets design matrix for gaussian, binomial, and poisson models
 }

@@ -5,12 +5,13 @@
 \alias{communityPGLMM}
 \title{Phylogenetic Generalised Linear Mixed Model for Community Data}
 \usage{
-communityPGLMM(formula, data = NULL, family = "gaussian", tree = NULL,
-  tree_site = NULL, repulsion = FALSE, sp, site, random.effects = NULL,
-  REML = TRUE, bayes = FALSE, s2.init = NULL, B.init = NULL,
-  reltol = 10^-6, maxit = 500, tol.pql = 10^-6, maxit.pql = 200,
-  verbose = FALSE, ML.init = TRUE, marginal.summ = "mean",
-  calc.DIC = FALSE, default.prior = "inla.default", cpp = TRUE,
+communityPGLMM(formula, data = NULL, family = "gaussian",
+  tree = NULL, tree_site = NULL, repulsion = FALSE, sp, site,
+  random.effects = NULL, REML = TRUE, bayes = FALSE,
+  s2.init = NULL, B.init = NULL, reltol = 10^-6, maxit = 500,
+  tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE,
+  ML.init = TRUE, marginal.summ = "mean", calc.DIC = FALSE,
+  default.prior = "inla.default", cpp = TRUE,
   optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"),
   prep.s2.lme4 = FALSE)
 }
@@ -49,8 +50,11 @@ a column for species (named as 'sp') and a column for sites (named as 'site').
 are nested within sites (i.e. arrange first by column site then by column sp).}
 
 \item{family}{Either \code{gaussian} for a Linear Mixed Model, or
-\code{binomial} for binary dependent data. If \code{bayes = TRUE}, \code{poisson} is also
-supported.}
+\code{binomial} for binomial dependent data, or \code{poisson} for count data.
+It should be specified as a character string (i.e. quoted). At this moment,
+for binomial data, we fixed the link function to logit; for poisson data,
+we fixed the link function to log. Binomial data can be either presence/absence,
+or a two column array of 'success' and 'fail'.}
 
 \item{tree}{A phylogeny for column sp, with "phylo" class. Or a var-cov matrix for sp,
 make sure to have all species in the matrix; if the matrix is not standarized,
@@ -458,7 +462,7 @@ communityPGLMM(Y ~ X + (1|site), data = dat, family = "binomial",
   
   # test statistical significance of the phylogenetic random effect
   # on species slopes using a likelihood ratio test
-  communityPGLMM.binary.LRT(z.binary, re.number = 4)$Pr
+  communityPGLMM.profile.LRT(z.binary, re.number = 4)$Pr
   
   # extract the predicted values of Y
   communityPGLMM.predicted.values(z.binary)

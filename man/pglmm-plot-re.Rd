@@ -5,11 +5,12 @@
 \alias{communityPGLMM.show.re}
 \title{Visualize random terms of communityPGLMMs}
 \usage{
-communityPGLMM.plot.re(formula = NULL, data = NULL, family = "gaussian",
-  tree = NULL, tree_site = NULL, repulsion = FALSE, x = NULL,
-  show.image = NULL, show.sim.image = NULL, random.effects = NULL,
-  add.tree.sp = TRUE, add.tree.site = FALSE, tree.panel.space = 0.5,
-  title.space = 5, tree.size = 3, ...)
+communityPGLMM.plot.re(formula = NULL, data = NULL,
+  family = "gaussian", tree = NULL, tree_site = NULL,
+  repulsion = FALSE, x = NULL, show.image = NULL,
+  show.sim.image = NULL, random.effects = NULL, add.tree.sp = TRUE,
+  add.tree.site = FALSE, tree.panel.space = 0.5, title.space = 5,
+  tree.size = 3, ...)
 }
 \arguments{
 \item{formula}{A two-sided linear formula object describing the
@@ -46,8 +47,11 @@ a column for species (named as 'sp') and a column for sites (named as 'site').
 are nested within sites (i.e. arrange first by column site then by column sp).}
 
 \item{family}{Either \code{gaussian} for a Linear Mixed Model, or
-\code{binomial} for binary dependent data. If \code{bayes = TRUE}, \code{poisson} is also
-supported.}
+\code{binomial} for binomial dependent data, or \code{poisson} for count data.
+It should be specified as a character string (i.e. quoted). At this moment,
+for binomial data, we fixed the link function to logit; for poisson data,
+we fixed the link function to log. Binomial data can be either presence/absence,
+or a two column array of 'success' and 'fail'.}
 
 \item{tree}{A phylogeny for column sp, with "phylo" class. Or a var-cov matrix for sp,
 make sure to have all species in the matrix; if the matrix is not standarized,
