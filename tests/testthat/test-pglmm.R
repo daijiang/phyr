@@ -35,9 +35,9 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   
   # binomial plmm
   test_binomial_cpp = phyr::communityPGLMM(cbind(freq, freq2) ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), 
-                                          dat, tree = phylotree, family = 'binomial', REML = F, cpp = T)
+                                          dat, tree = phylotree, family = 'binomial', REML = F, cpp = T, add.obs.re = F)
   test_binomial_r = phyr::communityPGLMM(cbind(freq, freq2) ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), 
-                                        dat, tree = phylotree, family = 'binomial', REML = F, cpp = F)
+                                        dat, tree = phylotree, family = 'binomial', REML = F, cpp = F, add.obs.re = F)
   test_fit_equal(test_binomial_cpp, test_binomial_r)
   
   # another form: provide prob

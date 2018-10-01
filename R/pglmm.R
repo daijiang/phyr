@@ -729,6 +729,7 @@ communityPGLMM.glmm <- function(formula, data = list(), family = "binomial",
     H = internal_res$H
     convcode = internal_res$convcode
     niter = internal_res$niter[, 1]
+    LL = internal_res$LL
   } else {
     B <- B.init
     b <- matrix(0, nrow = n)
