@@ -424,7 +424,7 @@ get_design_matrix = function(formula, data, na.action = NULL,
       Zt <- Zt[, pickY]
     }
     if (q.Nested > 0) {
-      for (i in 1:q.Nested) nested[[i]] <- nested[[i]][pickY, pickY] # original: ii
+      for (i in 1:q.Nested) nested[[i]] <- nested[[i]][pickY, pickY]
     }
   }
   

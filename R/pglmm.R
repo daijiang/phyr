@@ -466,7 +466,7 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NUL
                            maxit = 500, tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE, ML.init = TRUE, 
                            marginal.summ = "mean", calc.DIC = FALSE, default.prior = "inla.default", cpp = TRUE,
                            optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"), prep.s2.lme4 = FALSE) {
-
+  
   optimizer = match.arg(optimizer)
   if ((family %nin% c("gaussian", "binomial", "poisson")) & (bayes == FALSE)){
     stop("\nSorry, but only binomial, poisson and gaussian options are available for
@@ -482,8 +482,8 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NUL
       stop("\nSorry, but only binomial (binary), poisson (count), and gaussian options 
            are available for Bayesian communityPGLMM at this time")
     }
-    }
-
+  }
+  
   fm_original = formula
   prep_re = if(is.null(random.effects)) TRUE else FALSE
   if(prep_re) {
@@ -554,11 +554,11 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NUL
     if (family %in% c("binomial", "poisson")) {
       if (is.null(s2.init)) s2.init <- 0.25
       z <- communityPGLMM.glmm(formula = formula, data = data, family = family,
-                                 sp = sp, site = site, 
-                                 random.effects = random.effects, REML = REML, 
-                                 s2.init = s2.init, B.init = B.init, reltol = reltol, 
-                                 maxit = maxit, tol.pql = tol.pql, maxit.pql = maxit.pql, 
-                                 verbose = verbose, cpp = cpp, optimizer = optimizer)
+                               sp = sp, site = site, 
+                               random.effects = random.effects, REML = REML, 
+                               s2.init = s2.init, B.init = B.init, reltol = reltol, 
+                               maxit = maxit, tol.pql = tol.pql, maxit.pql = maxit.pql, 
+                               verbose = verbose, cpp = cpp, optimizer = optimizer)
     }
   }
   
@@ -577,7 +577,7 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NUL
   }
   
   return(z)
-  }
+}
 
 communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian", 
                                     sp = NULL, site = NULL, random.effects = list(), 
@@ -678,12 +678,12 @@ communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian",
 }
 
 communityPGLMM.glmm <- function(formula, data = list(), family = "binomial", 
-                                  sp = NULL, site = NULL, random.effects = list(), 
-                                  REML = TRUE, s2.init = 0.05, B.init = NULL, 
-                                  reltol = 10^-5, maxit = 40, tol.pql = 10^-6, 
-                                  maxit.pql = 200, verbose = FALSE, cpp = TRUE,
-                                  optimizer = "bobyqa") {
-
+                                sp = NULL, site = NULL, random.effects = list(), 
+                                REML = TRUE, s2.init = 0.05, B.init = NULL, 
+                                reltol = 10^-5, maxit = 40, tol.pql = 10^-6, 
+                                maxit.pql = 200, verbose = FALSE, cpp = TRUE,
+                                optimizer = "bobyqa") {
+  
   dm = get_design_matrix(formula, data, na.action = NULL, sp, site, random.effects)
   X = dm$X; Y = dm$Y; size = dm$size; St = dm$St; Zt = dm$Zt; nested = dm$nested
   p <- ncol(X)
@@ -704,12 +704,13 @@ communityPGLMM.glmm <- function(formula, data = list(), family = "binomial",
   if(cpp){
     if(is.null(St)) St = as(matrix(0, 0, 0), "dgTMatrix")
     if(is.null(Zt)) Zt = as(matrix(0, 0, 0), "dgTMatrix")
-    internal_res = pglmm_binary_internal_cpp(X = X, Y = Y, Zt = Zt, St = St, 
-                                             nested = nested, REML = REML, verbose = verbose, 
-                                             n = n, p = p, q = q, maxit = maxit, 
-                                             reltol = reltol, tol_pql = tol.pql, 
-                                             maxit_pql = maxit.pql, optimizer = optimizer, 
-                                             B_init = B.init, ss = ss)
+    internal_res = pglmm_internal_cpp(X = X, Y = Y, Zt = Zt, St = St, 
+                                      nested = nested, REML = REML, verbose = verbose, 
+                                      n = n, p = p, q = q, maxit = maxit, 
+                                      reltol = reltol, tol_pql = tol.pql, 
+                                      maxit_pql = maxit.pql, optimizer = optimizer, 
+                                      B_init = B.init, ss = ss,
+                                      family = family, size = size)
     B = internal_res$B
     row.names(B) = colnames(X)
     ss = internal_res$ss[,1]
@@ -765,12 +766,12 @@ communityPGLMM.glmm <- function(formula, data = list(), family = "binomial",
         if(family == "binomial") iW <- diag(as.vector(1/(size * mu * (1 - mu))))
         if(family == "poisson") iW <- diag(as.vector(1/mu))
         C <- V - iW
-
+        
         b <- C %*% iV %*% (Z - X %*% B)
         beta <- rbind(B, matrix(b))
         if(family == "binomial") mu <- exp(XX %*% beta)/(1 + exp(XX %*% beta))
         if(family == "poisson") mu <- exp(XX %*% beta)
- 
+        
         est.B.m <- B
         if (verbose == TRUE) show(c(iteration, B))
         # cat("mean part:", iteration.m, t(B), "\n")
