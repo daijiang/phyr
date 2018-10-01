@@ -32,6 +32,8 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   test_poisson_r2 = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site) + (1|sp@site), 
                                            dat, tree = phylotree, family = 'poisson', REML = F, cpp = F)
   test_fit_equal(test_poisson_cpp2, test_poisson_r2)
+  test_fit_equal(test_poisson_cpp, test_poisson_cpp2)
+  
   
   # binomial plmm
   test_binomial_cpp = phyr::communityPGLMM(cbind(freq, freq2) ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), 

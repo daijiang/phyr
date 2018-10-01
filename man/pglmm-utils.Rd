@@ -64,7 +64,8 @@ are nested within sites (i.e. arrange first by column site then by column sp).}
 It should be specified as a character string (i.e. quoted). At this moment,
 for binomial data, we fixed the link function to logit; for poisson data,
 we fixed the link function to log. Binomial data can be either presence/absence,
-or a two column array of 'success' and 'fail'.}
+or a two column array of 'success' and 'fail'. For both poisson and binomial data,
+we add an observation-level random term by default via \code{add.obs.re = TRUE}.}
 
 \item{tree}{A phylogeny for column sp, with "phylo" class. Or a var-cov matrix for sp,
 make sure to have all species in the matrix; if the matrix is not standarized,
