@@ -236,6 +236,7 @@ List pglmm_internal_cpp(const arma::mat& X, const arma::vec& Y,
   
   unsigned int iteration = 0, iteration_m;
   double tol_pql2 = pow(tol_pql, 2);
+  double LL;
   
   NumericVector ss0 = wrap(ss); // to work with other functions
   vec Z, H, niter;
@@ -343,7 +344,7 @@ List pglmm_internal_cpp(const arma::mat& X, const arma::vec& Y,
       
     arma::vec par_opt0 = abs(as<arma::vec>(opt["par"]));
     ss0 = wrap(par_opt0);
-    double LL = as_scalar(as<double>(opt["value"]));
+    LL = as_scalar(as<double>(opt["value"]));
     convcode = as<int>(opt["convergence"]);
     niter = as<arma::vec>(opt["counts"]);
     
@@ -359,7 +360,8 @@ List pglmm_internal_cpp(const arma::mat& X, const arma::vec& Y,
     _["B"] = B, _["ss"] = ss0, 
     _["iV"] = iV, _["mu"] = mu, _["H"] = H,
       _["convcode"] = convcode,
-      _["niter"] = niter
+      _["niter"] = niter,
+      _["LL"] = LL
   );
   
   return out;

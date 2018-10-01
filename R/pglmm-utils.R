@@ -11,7 +11,8 @@
 #' @export
 prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE, 
                           prep.re.effects = TRUE, family = "gaussian", 
-                          prep.s2.lme4 = FALSE, tree_site = NULL, bayes = FALSE){
+                          prep.s2.lme4 = FALSE, tree_site = NULL, 
+                          bayes = FALSE, add.obs.re = TRUE){
 
   # make sure the data has sp and site columns
   if(!all(c("sp", "site") %in% names(data))) {
@@ -28,6 +29,7 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
   nspp = nlevels(sp); nsite = nlevels(site)
   
   fm = unique(lme4::findbars(formula))
+  formula.nobars <- lme4::nobars(formula)
   
   if(prep.re.effects){
     # @ for nested; __ at the end for phylogenetic cov
@@ -123,6 +125,7 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
     if(length(repulsion) == 1) repulsion = rep(repulsion, n_repulsion)
     if(length(repulsion) != n_repulsion) stop("The number of repulsion terms specified is not correct: please double check")
     nested_repul_i = 1
+    no_obs_re = TRUE # flag for message later
     
     random.effects = lapply(fm, function(x){
       x2 = as.character(x)
@@ -156,7 +159,17 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
           sp_or_site = strsplit(x2[3], split = "@")[[1]]
           
           if(!grepl("__", x2[3])){ # no phylogenetic term
-            message("Nested term without specify phylogeny, use identity matrix instead")
+            if(family == 'poisson' | 
+               (family == 'binomial' & 
+                is.array(model.response(model.frame(formula.nobars, data = data, na.action = NULL))))){
+              if(add.obs.re) {
+                message("It seems that you specified an observation-level random term already; 
+                       we will set 'add.obs.re' to FALSE.")
+                add.obs.re <<- FALSE
+                no_obs_re <<- FALSE
+              }
+            }
+            # message("Nested term without specify phylogeny, use identity matrix instead")
             xout = list(1, sp = data[, sp_or_site[1]], 
                         covar = diag(length(unique(data[, sp_or_site[1]]))), 
                         site = data[, sp_or_site[2]])
@@ -249,11 +262,18 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
       x3
     }), recursive = T)
     
-#     # Add observation-level variances for families binomial (size>1) and poisson
-# 	  if(family == 'poisson' | (family == 'binomial' & any(size>1))){
-# 	  	 random.effects[[length(random.effects) + 1]] <- list(diag(nspp*nsite))
-# 	  	 names(random.effects)[length(random.effects)] <- "1|obs"
-# 	  }
+    # Add observation-level variances for families binomial (size>1) and poisson
+    if(family == 'poisson' | 
+       (family == 'binomial' & 
+        is.array(model.response(model.frame(formula.nobars, data = data, na.action = NULL))))){
+      if(add.obs.re){
+        message("We add an observation-level random term '1|obs' for poisson and binomial data.")
+        random.effects[[length(random.effects) + 1]] <- list(diag(nspp * nsite))
+        names(random.effects)[length(random.effects)] <- "1|obs"
+      } else {
+        if(no_obs_re) message("For poisson and binomial data, it would be a good idea to add an observation-level random term (add.obs.re = TRUE).")
+      }
+    }
      
     if(prep.s2.lme4){
       # lme4 to get initial theta
@@ -289,9 +309,7 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
     s2_init = NULL
   }
   
-  formula = lme4::nobars(formula)
-  
-  return(list(formula = formula, data = data, sp = sp, site = site, 
+  return(list(formula = formula.nobars, data = data, sp = sp, site = site, 
               random.effects = random.effects, s2_init = s2_init,
               tree = tree, tree_site = tree_site, 
               Vphy = Vphy, Vphy_site = Vphy_site))

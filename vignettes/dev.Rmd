@@ -29,10 +29,7 @@ dat$pa = as.numeric(dat$freq > 0)
 tree = phyr::phylotree
 data = dat
 tree_site = ape::rtree(n = nlevels(data$site), tip.label = levels(data$site))
-data = d
-tree=mist_tree
-tree_site=host_tree
-formula = count ~ 1 + (1|sp__) + (1|site__) + (1|sp__@site) + (1|sp@site__)
+formula = freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site) + (1|sp@site)
 repulsion = F
 REML = F
 s2.init = NULL

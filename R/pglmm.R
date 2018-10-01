@@ -209,6 +209,9 @@
 #' @param prep.s2.lme4 Whether to prepare initial s2 values based on lme4 theta. Default is FALSE.
 #'   If no phylogenetic or nested random terms, should set it to TRUE since it likely will be faster.
 #'   However, in this case, you probably can just use lme4::lmer.
+#' @param add.obs.re Wether add observation-level random term for poisson and binomial
+#'   distributions? Normally it would be a good idea to add this to account for overdispersions.
+#'   Thus, we set it to TRUE by default.
 #' @return An object (list) of class \code{communityPGLMM} with the following elements:
 #' \item{formula}{the formula for fixed effects}
 #' \item{formula_original}{the formula for both fixed effects and random effects}
@@ -469,7 +472,8 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NUL
                            random.effects = NULL, REML = TRUE, bayes = FALSE, s2.init = NULL, B.init = NULL, reltol = 10^-6, 
                            maxit = 500, tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE, ML.init = TRUE, 
                            marginal.summ = "mean", calc.DIC = FALSE, default.prior = "inla.default", cpp = TRUE,
-                           optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"), prep.s2.lme4 = FALSE) {
+                           optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"), prep.s2.lme4 = FALSE,
+                           add.obs.re = TRUE) {
   
   optimizer = match.arg(optimizer)
   if ((family %nin% c("gaussian", "binomial", "poisson")) & (bayes == FALSE)){
@@ -491,7 +495,8 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NUL
   fm_original = formula
   prep_re = if(is.null(random.effects)) TRUE else FALSE
   if(prep_re) {
-    dat_prepared = prep_dat_pglmm(formula, data, tree, repulsion, prep_re, family, prep.s2.lme4, tree_site, bayes)
+    dat_prepared = prep_dat_pglmm(formula, data, tree, repulsion, prep_re, family, 
+                                  prep.s2.lme4, tree_site, bayes, add.obs.re)
     formula = dat_prepared$formula
     data = dat_prepared$data
     sp = dat_prepared$sp 

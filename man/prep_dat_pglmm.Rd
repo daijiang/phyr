@@ -6,7 +6,7 @@
 \usage{
 prep_dat_pglmm(formula, data, tree, repulsion = FALSE,
   prep.re.effects = TRUE, family = "gaussian", prep.s2.lme4 = FALSE,
-  tree_site = NULL, bayes = FALSE)
+  tree_site = NULL, bayes = FALSE, add.obs.re = TRUE)
 }
 \arguments{
 \item{formula}{A two-sided linear formula object describing the
@@ -78,6 +78,10 @@ This can be used for bipartitie questions. tree_site can also be a var-cov matri
 if the matrix is not standarized, i.e. det(tree_site) != 1, we will try to standarize for you.}
 
 \item{bayes}{Whether to fit a Bayesian version of the PGLMM using \code{r-inla}.}
+
+\item{add.obs.re}{Wether add observation-level random term for poisson and binomial
+distributions? Normally it would be a good idea to add this to account for overdispersions.
+Thus, we set it to TRUE by default.}
 }
 \value{
 A list with formula, data, random.effects, etc.

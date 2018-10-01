@@ -13,7 +13,7 @@ communityPGLMM(formula, data = NULL, family = "gaussian",
   ML.init = TRUE, marginal.summ = "mean", calc.DIC = FALSE,
   default.prior = "inla.default", cpp = TRUE,
   optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"),
-  prep.s2.lme4 = FALSE)
+  prep.s2.lme4 = FALSE, add.obs.re = TRUE)
 }
 \arguments{
 \item{formula}{A two-sided linear formula object describing the
@@ -167,6 +167,10 @@ Nelder-Mead is from the stats package and the other ones are from the nloptr pac
 \item{prep.s2.lme4}{Whether to prepare initial s2 values based on lme4 theta. Default is FALSE.
 If no phylogenetic or nested random terms, should set it to TRUE since it likely will be faster.
 However, in this case, you probably can just use lme4::lmer.}
+
+\item{add.obs.re}{Wether add observation-level random term for poisson and binomial
+distributions? Normally it would be a good idea to add this to account for overdispersions.
+Thus, we set it to TRUE by default.}
 }
 \value{
 An object (list) of class \code{communityPGLMM} with the following elements:
