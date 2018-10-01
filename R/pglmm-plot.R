@@ -5,7 +5,7 @@
 #' @rdname pglmm-plot-data
 #' @method plot communityPGLMM
 #' @importFrom graphics image
-#' @inheritParams communityPGLMM.binary.LRT
+#' @inheritParams communityPGLMM.profile.LRT
 #' @param show.sp.names Whether to print species names as y-axis labels.
 #' @param show.site.names Whether to print site names as x-axis labels.
 #' @param predicted Whether to plot predicted values side by side with observed ones.

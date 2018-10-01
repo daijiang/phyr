@@ -12,9 +12,10 @@ using namespace Rcpp;
 using namespace arma;
 
 // [[Rcpp::export]]
-List plmm_binary_iV_logdetV_cpp(NumericVector par, arma::vec mu,
+List pglmm_iV_logdetV_cpp(NumericVector par, arma::vec mu,
                                 const arma::sp_mat& Zt, const arma::sp_mat& St, 
-                                const List& nested, bool logdet){
+                                const List& nested, bool logdet,
+                                const std::string family, arma::vec totalSize){
   int q_nonNested = St.n_rows;
   arma::sp_mat Ut;
   arma::sp_mat U;
@@ -47,8 +48,10 @@ List plmm_binary_iV_logdetV_cpp(NumericVector par, arma::vec mu,
   double logdetiA;
   double signiA;
   if (q_Nested == 0){ // then q_nonNested will not be 0, otherwise, no random terms
-    arma::vec pq = mu % (1 - mu);
-    arma::sp_mat iA = sp_mat(diagmat(pq));
+    arma::vec pq = totalSize % mu % (1 - mu);
+    arma::sp_mat iA;
+    if(family == "binomial") iA = sp_mat(diagmat(pq));
+    if(family == "poisson") iA = sp_mat(diagmat(mu));
     arma::sp_mat Ishort = sp_mat(Ut.n_rows, Ut.n_rows); Ishort.eye();
     arma::sp_mat Ut_iA_U = Ut * iA * U;
     // Woodbury identity
@@ -67,8 +70,10 @@ List plmm_binary_iV_logdetV_cpp(NumericVector par, arma::vec mu,
       }
     }
   } else {
-    arma::vec pq = 1 / (mu % (1 - mu));
-    arma::sp_mat A = sp_mat(diagmat(pq));
+    arma::vec pq = 1 / (totalSize % mu % (1 - mu));
+    arma::sp_mat A;
+    if(family == "binomial") A = sp_mat(diagmat(pq));
+    if(family == "poisson") A = sp_mat(diagmat(1 / mu));
     if (q_Nested == 1){
       double snj = pow(sn[0], 2);
       sp_mat nj = nested[0];
@@ -116,9 +121,10 @@ List plmm_binary_iV_logdetV_cpp(NumericVector par, arma::vec mu,
 }
 
 // [[Rcpp::export]]
-arma::sp_mat plmm_binary_V(NumericVector par, const arma::sp_mat& Zt, 
+arma::sp_mat pglmm_V(NumericVector par, const arma::sp_mat& Zt, 
                            const arma::sp_mat& St, arma::vec mu, 
-                           const List& nested, bool missing_mu){
+                           const List& nested, bool missing_mu,
+                           const std::string family, arma::vec totalSize){
   int q_nonNested = St.n_rows;
   arma::sp_mat Ut;
   arma::sp_mat U;
@@ -146,8 +152,9 @@ arma::sp_mat plmm_binary_V(NumericVector par, const arma::sp_mat& Zt,
   if(missing_mu){
     iW = mat(Zt.n_cols, Zt.n_cols, fill::zeros);
   } else {
-    arma::vec pq = 1 / (mu % (1 - mu));
-    iW = diagmat(pq);
+    arma::vec pq = 1 / (totalSize % mu % (1 - mu));
+    if(family == "binomial") iW = diagmat(pq);
+    if(family == "poisson") iW = diagmat(1 / mu);
   }
   
   arma::sp_mat A = sp_mat(iW);
@@ -176,14 +183,15 @@ arma::sp_mat plmm_binary_V(NumericVector par, const arma::sp_mat& Zt,
 }
 
 // [[Rcpp::export]]
-double plmm_binary_LL_cpp(NumericVector par, const arma::vec& H,
+double pglmm_LL_cpp(NumericVector par, const arma::vec& H,
                           const arma::mat& X, const arma::sp_mat& Zt, 
                           const arma::sp_mat& St, const arma::vec& mu, 
-                          const List& nested, bool REML, bool verbose){
+                          const List& nested, bool REML, bool verbose,
+                          const std::string family, arma::vec totalSize){
   Rcpp::checkUserInterrupt();
   par = abs(par);
   // unsigned int n = H.n_rows;
-  List iVdet = plmm_binary_iV_logdetV_cpp(par, mu, Zt, St, nested, true);
+  List iVdet = pglmm_iV_logdetV_cpp(par, mu, Zt, St, nested, true, family, totalSize);
   sp_mat iV0 = as<sp_mat>(iVdet["iV"]);
   mat iV = mat(iV0);
   double logdetV = iVdet["logdetV"];
@@ -203,16 +211,19 @@ double plmm_binary_LL_cpp(NumericVector par, const arma::vec& H,
 
 
 // [[Rcpp::export]]
-List pglmm_binary_internal_cpp(const arma::mat& X, const arma::vec& Y,
+List pglmm_internal_cpp(const arma::mat& X, const arma::vec& Y,
                                const arma::sp_mat& Zt, const arma::sp_mat& St,
                                const List& nested, const bool REML, const bool verbose,
                                const int n, const int p, const int q, const int maxit, 
                                const double reltol, const double tol_pql, const double maxit_pql,
-                               const std::string optimizer, arma::mat B_init, arma::vec ss){
+                               const std::string optimizer, arma::mat B_init, arma::vec ss,
+                               const std::string family, arma::vec totalSize){
   mat B = B_init;
   mat b(n, 1, fill::zeros);
   mat beta = join_vert(B, b);
-  vec mu = arma::exp(X * B) / (1 + arma::exp(X * B));
+  vec mu;
+  if(family == "binomial") mu = arma::exp(X * B) / (1 + arma::exp(X * B));
+  if(family == "poisson") mu = arma::exp(X * B);
   mat ix(n, n, fill::eye);
   mat XX = join_horiz(X, ix);
   
@@ -252,22 +263,26 @@ List pglmm_binary_internal_cpp(const arma::mat& X, const arma::vec& Y,
           iteration_m <= maxit_pql){
       Rcpp::checkUserInterrupt();
       oldest_B_m = est_B_m;
-      List iv = plmm_binary_iV_logdetV_cpp(ss0, mu, Zt, St, nested, false);
+      List iv = pglmm_iV_logdetV_cpp(ss0, mu, Zt, St, nested, false, family, totalSize);
       sp_mat iV0 = iv["iV"];
-      Z = X * B + b + (Y - mu)/(mu % (1 - mu));
+      if(family == "binomial") Z = X * B + b + (Y/totalSize - mu)/(mu % (1 - mu));
+      if(family == "poisson") Z = X * B + b + (Y - mu)/mu;
       
       iV = mat(iV0); // convert to dense matrix
       arma::mat denom = trans(X) * iV * X;
       arma::mat num = trans(X) * iV * Z;
       B = solve(denom, num);
       
-      sp_mat V = plmm_binary_V(ss0, Zt, St, mu, nested, false);
-      vec diav = vectorise(1/(mu % (1 - mu)));
-      sp_mat iW = sp_mat(diagmat(diav));
+      sp_mat V = pglmm_V(ss0, Zt, St, mu, nested, false, family, totalSize);
+      vec diav = vectorise(1/(totalSize % mu % (1 - mu)));
+      sp_mat iW;
+      if(family == "binomial") iW = sp_mat(diagmat(diav));
+      if(family == "poisson") iW = sp_mat(diagmat(1/mu));
       sp_mat C = V - iW;
       b = mat(C) * mat(iV) * (Z - X * B);
       beta = join_vert(B, b);
-      mu = arma::exp(XX * beta) / (1 + arma::exp(XX * beta));
+      if(family == "binomial") mu = arma::exp(XX * beta) / (1 + arma::exp(XX * beta));
+      if(family == "poisson") mu = arma::exp(XX * beta);
       
       est_B_m = B;
       if(verbose) Rcout << "mean part: " << iteration_m << " " << trans(B) << std::endl;
@@ -279,17 +294,19 @@ List pglmm_binary_internal_cpp(const arma::mat& X, const arma::vec& Y,
     } // end while for mean
     
     // variance component
-    Z = X * B + b + (Y - mu)/(mu % (1 - mu)); // B, b, mu all updated
+    if(family == "binomial") Z = X * B + b + (Y/totalSize - mu)/(mu % (1 - mu)); // B, b, mu all updated
+    if(family == "poisson") Z = X * B + b + (Y - mu)/mu;
     H = Z - X * B;
    
     Rcpp::List opt;
     if(optimizer == "Nelder-Mead"){
       if(q > 1){
         opt = optim(_["par"] = ss0,
-                    _["fn"] = Rcpp::InternalFunction(&plmm_binary_LL_cpp),
+                    _["fn"] = Rcpp::InternalFunction(&pglmm_LL_cpp),
                     _["H"] = H, _["X"] = X, _["Zt"] = Zt,
                     _["St"] = St, _["mu"] = mu, _["nested"] = nested,
                       _["REML"] = REML, _["verbose"] = verbose,
+                      _["family"] = family, _["totalSize"] = totalSize,
                       _["method"] = "Nelder-Mead",
                       _["control"] = List::create(_["maxit"] = maxit, _["reltol"] = reltol));
       } else {
@@ -314,10 +331,11 @@ List pglmm_binary_internal_cpp(const arma::mat& X, const arma::vec& Y,
                                _["xtol_rel"] = 0.0001,
                                _["maxeval"] = maxit);
       List S0 = nloptr(_["x0"] = ss0,
-                       _["eval_f"] = Rcpp::InternalFunction(&plmm_binary_LL_cpp),
+                       _["eval_f"] = Rcpp::InternalFunction(&pglmm_LL_cpp),
                        _["opts"] = opts, _["H"] = H, _["X"] = X, _["Zt"] = Zt,
                        _["St"] = St, _["mu"] = mu, _["nested"] = nested,
-                         _["REML"] = REML, _["verbose"] = verbose);
+                         _["REML"] = REML, _["verbose"] = verbose,
+                         _["family"] = family, _["totalSize"] = totalSize);
       opt = List::create(_["par"] = S0["solution"], _["value"] = S0["objective"], 
                          _["counts"] = S0["iterations"], _["convergence"] = S0["status"], 
                          _["message"] = S0["message"]);

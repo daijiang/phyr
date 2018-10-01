@@ -22,6 +22,6 @@ both fixed and random terms), sp, and site.
 }
 \description{
 \code{communityPGLMM.predicted.values} calculates the predicted
-values of Y; for the generalized linear mixed model (family =
-"binomial"), these values are in the logit-1 transformed space.
+values of Y; for the generalized linear mixed model (family %in%
+c("binomial","poisson"), these values are in the transformed space.
 }

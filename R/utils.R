@@ -8,7 +8,7 @@ NULL
 #' @importFrom stats as.dendrogram as.dist as.formula binomial dist family fitted 
 #'   formula glm lm model.frame make.link model.matrix model.response na.omit 
 #'   optim pchisq pnorm printCoefmat reorder reshape residuals rnorm runif sd 
-#'   update var
+#'   update var poisson
 #' @importFrom methods as show is
 #' @importFrom graphics par image
 NULL

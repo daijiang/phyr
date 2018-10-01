@@ -9,6 +9,7 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
     left_join(phyr::envi, by = "site") %>% 
     left_join(phyr::traits, by = "sp")
   dat$pa = as.numeric(dat$freq > 0)
+  dat$freq2 = 20 - dat$freq
   
   test_fit_equal = function(m1, m2) {
     expect_equivalent(m1$B, m2$B)
@@ -17,6 +18,35 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
     expect_equivalent(m1$ss, m2$ss)
     expect_equivalent(m1$AIC, m2$AIC)
   }
+  
+  # poisson plmm
+  test_poisson_cpp = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), 
+                                     dat, tree = phylotree, family = 'poisson', REML = F, cpp = T)
+  test_poisson_r = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), 
+                                          dat, tree = phylotree, family = 'poisson', REML = F, cpp = F)
+  test_fit_equal(test_poisson_cpp, test_poisson_r)
+  
+  # to add observation level random term, add (1 | sp@site)
+  test_poisson_cpp2 = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site) + (1|sp@site), 
+                                          dat, tree = phylotree, family = 'poisson', REML = F, cpp = T)
+  test_poisson_r2 = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site) + (1|sp@site), 
+                                           dat, tree = phylotree, family = 'poisson', REML = F, cpp = F)
+  test_fit_equal(test_poisson_cpp2, test_poisson_r2)
+  
+  # binomial plmm
+  test_binomial_cpp = phyr::communityPGLMM(cbind(freq, freq2) ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), 
+                                          dat, tree = phylotree, family = 'binomial', REML = F, cpp = T)
+  test_binomial_r = phyr::communityPGLMM(cbind(freq, freq2) ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), 
+                                        dat, tree = phylotree, family = 'binomial', REML = F, cpp = F)
+  test_fit_equal(test_binomial_cpp, test_binomial_r)
+  
+  # another form: provide prob
+  dat$prob = dat$freq / 20
+  test_binomial_cpp2 = phyr::communityPGLMM(prob ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), 
+                                           dat, tree = phylotree, family = 'binomial', REML = F, cpp = T)
+  test_binomial_r2 = phyr::communityPGLMM(prob ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), 
+                                         dat, tree = phylotree, family = 'binomial', REML = F, cpp = F)
+  test_fit_equal(test_binomial_cpp2, test_binomial_r2)
   
   # fit models
   test1_gaussian_cpp = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + 
@@ -61,7 +91,7 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   
   test_that("test binary PGLMM random terms LRT", {
     for (i in 1:3) {
-      expect_equal(phyr::communityPGLMM.binary.LRT(test2_binary_cpp, re.number = i), 
+      expect_equal(phyr::communityPGLMM.profile.LRT(test2_binary_cpp, re.number = i), 
                    pez::communityPGLMM.binary.LRT(test2_binary_cpp, re.number = i), tolerance = 1e-04)
     }
   })
@@ -175,10 +205,10 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
     test_fit_equal(z2.na, z2.na.rm)
   })
   
-  # test communityPGLMM.binary.LRT
-  test_that("testing communityPGLMM.binary.LRT", {
-    expect_equal(communityPGLMM.binary.LRT(test2_binary_cpp, re.number = c(1, 3), 
-                                           cpp = T), communityPGLMM.binary.LRT(test2_binary_cpp, re.number = c(1, 3), 
+  # test communityPGLMM.profile.LRT
+  test_that("testing communityPGLMM.profile.LRT", {
+    expect_equal(communityPGLMM.profile.LRT(test2_binary_cpp, re.number = c(1, 3), 
+                                           cpp = T), communityPGLMM.profile.LRT(test2_binary_cpp, re.number = c(1, 3), 
                                                                                cpp = F), tolerance = 1e-05)
   })
   

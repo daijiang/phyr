@@ -63,8 +63,11 @@ The T/F combinations depend on your questions.}
 \item{prep.re.effects}{Whether to prepare random effects for users.}
 
 \item{family}{Either \code{gaussian} for a Linear Mixed Model, or
-\code{binomial} for binary dependent data. If \code{bayes = TRUE}, \code{poisson} is also
-supported.}
+\code{binomial} for binomial dependent data, or \code{poisson} for count data.
+It should be specified as a character string (i.e. quoted). At this moment,
+for binomial data, we fixed the link function to logit; for poisson data,
+we fixed the link function to log. Binomial data can be either presence/absence,
+or a two column array of 'success' and 'fail'.}
 
 \item{prep.s2.lme4}{Whether to prepare initial s2 values based on lme4 theta. Default is FALSE.
 If no phylogenetic or nested random terms, should set it to TRUE since it likely will be faster.
