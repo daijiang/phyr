@@ -20,9 +20,8 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
   }
   
   # arrange data by site; then sp within site
-  data = dplyr::arrange(as.data.frame(data), site, sp)
-  # data = data[order(data$sp),]
-  # data = data[order(data$site),]
+  data = data[order(data$sp),]
+  data = data[order(data$site),]
   data$sp = as.factor(data$sp); sp = data$sp
   data$site = as.factor(data$site); site = data$site
   spl = levels(sp); sitel = levels(site)
@@ -107,7 +106,9 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
       message("The dataframe may have been removed for NAs as its number of row is not nspp * nsite \n
               we will recreate the full data frame for you.")
       # recreate a full data frame to get which rows have been removed
-      data_all = dplyr::arrange(expand.grid(site = sitel, sp = spl), site, sp)
+      data_all = expand.grid(site = sitel, sp = spl)
+      data_all = data_all[order(data_all$sp),]
+      data_all = data_all[order(data_all$site),]
       data_all = dplyr::left_join(data_all, data, by = c("site", "sp"))
       nna.ind = which(!is.na(data_all[, as.character(formula)[2]]))
       if(nrow(data) != length(nna.ind)) stop("Something is wrong with NAs")
