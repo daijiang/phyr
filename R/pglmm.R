@@ -487,7 +487,7 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NUL
                            marginal.summ = "mean", calc.DIC = FALSE, default.prior = "inla.default", cpp = TRUE,
                            optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"), prep.s2.lme4 = FALSE,
                            add.obs.re = TRUE, prior_alpha = 0.1, prior_mu = 1) {
-  
+
   optimizer = match.arg(optimizer)
   if ((family %nin% c("gaussian", "binomial", "poisson")) & (bayes == FALSE)){
     stop("\nSorry, but only binomial, poisson and gaussian options are available for
