@@ -1,11 +1,32 @@
 # R for travis: see documentation at https://docs.travis-ci.com/user/languages/r
 
+os: 
+  - linux
+  - osx
+
 language: R
 sudo: false
 cache: packages
 
+# only run for pushes to master branch
+branches:
+  only:
+   - master
+   
+  
 r_packages:
   - covr
 
+cache:
+  packages: yes
+  directories:
+    - ~/Rlib
+
+before_install:
+  - mkdir -p ~/Rlib
+  - Rscript -e 'if(!"INLA" %in% rownames(installed.packages())) { install.packages("INLA", repos="https://www.math.ntnu.no/inla/R/stable") }'
+  - Rscript -e 'if(!"covr" %in% rownames(installed.packages())) { install.packages("covr", dependencies = TRUE) }'
+  - Rscript -e 'update.packages(ask = FALSE, instlib = "~/Rlib")'
+   
 after_success:
   - Rscript -e 'covr::codecov()'
