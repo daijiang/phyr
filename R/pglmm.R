@@ -496,7 +496,7 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NUL
     if (!requireNamespace("INLA", quietly = TRUE)) {
       stop("To run communityPGLMM with bayes = TRUE, you need to install the packages 'INLA'. \ 
            Please run in your R terminal:\
-           install.packages('INLA', repos='https://www.math.ntnu.no/inla/R/stable')")
+           install.packages('INLA', repos='https://inla.r-inla-download.org/R/stable')")
     }
     if ((family %nin% c("gaussian", "binomial", "poisson"))){
       stop("\nSorry, but only binomial (binary), poisson (count), and gaussian options 
