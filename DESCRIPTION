@@ -40,7 +40,6 @@ Suggests:
     tidyr,
     knitr,
     rmarkdown,
-    INLA,
     covr,
     picante
 VignetteBuilder: knitr
