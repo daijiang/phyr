@@ -506,7 +506,7 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NUL
   
   if(family %in% c("binomial", "poisson") & !is.null(tree)){
     if(("phylo" %in% class(tree)) & !ape::is.ultrametric(tree)){
-      warning("The tree is not ultrametric, which may affect results for binomial and poisson models.")
+      warning("The tree is not ultrametric, which will likely give misleading results for family=binomial and poisson models.")
     }
   }
   
