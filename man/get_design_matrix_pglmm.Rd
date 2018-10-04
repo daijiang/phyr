@@ -28,7 +28,8 @@ Remember to set the argument \code{tree_site} to a phylogeny.
 \item \code{(1|sp__@site__)} represents correlated species are nested within correlated sites
 (i.e. kron(V_sites, V_sp)). This one can also be used for bipartite questions.
 \item \code{(1|sp@site)} will generate a identity matrix, which will be the same as
-the residual of LMM. So not meaningful.
+an observation level random term or the residual of LMM. So not very meaningful for gaussian models;
+observation-level random term will be automatically added for binomial and poisson models.
 }
 
 Second, note that correlated random terms will not be allowed at this moment. For example,

@@ -103,7 +103,8 @@
 #'   3. \code{(1|sp__@site__)} represents correlated species are nested within correlated sites 
 #'   (i.e. kron(V_sites, V_sp)). This one can also be used for bipartite questions.
 #'   4. \code{(1|sp@site)} will generate a identity matrix, which will be the same as
-#'    the residual of LMM. So not meaningful.
+#'   an observation level random term or the residual of LMM. So not very meaningful for gaussian models;
+#'   observation-level random term will be automatically added for binomial and poisson models.
 #'   
 #'   Second, note that correlated random terms will not be allowed at this moment. For example,
 #'   \code{(x|g)} will be equal with \code{(0 + x|g)} in the \code{lme4::lmer} syntax; 
@@ -502,6 +503,12 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NUL
     if ((family %nin% c("gaussian", "binomial", "poisson"))){
       stop("\nSorry, but only binomial (binary), poisson (count), and gaussian options 
            are available for Bayesian communityPGLMM at this time")
+    }
+  }
+  
+  if(family %in% c("binomial", "poisson") & !is.null(tree)){
+    if(("phylo" %in% class(tree)) & !ape::is.ultrametric(tree)){
+      warning("The tree is not ultrametric, which may affect results for binomial and poisson models.")
     }
   }
   

@@ -13,7 +13,8 @@ communityPGLMM(formula, data = NULL, family = "gaussian",
   ML.init = TRUE, marginal.summ = "mean", calc.DIC = FALSE,
   default.prior = "inla.default", cpp = TRUE,
   optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"),
-  prep.s2.lme4 = FALSE, add.obs.re = TRUE)
+  prep.s2.lme4 = FALSE, add.obs.re = TRUE, prior_alpha = 0.1,
+  prior_mu = 1)
 }
 \arguments{
 \item{formula}{A two-sided linear formula object describing the
@@ -36,7 +37,8 @@ Remember to set the argument \code{tree_site} to a phylogeny.
 \item \code{(1|sp__@site__)} represents correlated species are nested within correlated sites
 (i.e. kron(V_sites, V_sp)). This one can also be used for bipartite questions.
 \item \code{(1|sp@site)} will generate a identity matrix, which will be the same as
-the residual of LMM. So not meaningful.
+an observation level random term or the residual of LMM. So not very meaningful for gaussian models;
+observation-level random term will be automatically added for binomial and poisson models.
 }
 
 Second, note that correlated random terms will not be allowed at this moment. For example,
@@ -93,10 +95,7 @@ in their models instead of phylogenetic relationships.}
 \item{REML}{Whether REML or ML is used for model fitting. For the
 generalized linear mixed model for binary data, these don't have
 standard interpretations, and there is no log likelihood function
-that can be used in likelihood ratio tests. If \code{bayes = TRUE},
-\code{REML = TRUE} will place a sum to one constraint on the random
-effects, which should produce more comparable results to a REML analysis
-in a maximum likelihood context.}
+that can be used in likelihood ratio tests. Ignored if \code{bayes = TRUE}}
 
 \item{bayes}{Whether to fit a Bayesian version of the PGLMM using \code{r-inla}.}
 
@@ -148,17 +147,24 @@ the bayesian model fit? Recommended when possible. Only used if
 \item{marginal.summ}{Summary statistic to use for the estimate of coefficients when
 doing a Bayesian PGLMM (when \code{bayes = TRUE}). Options are: "mean",
 "median", or "mode", referring to different characterizations of the central
-tendency of the bayesian posterior marginal distributions. Ignored if \code{bayes == FALSE}}
+tendency of the bayesian posterior marginal distributions. Ignored if \code{bayes = FALSE}}
 
 \item{calc.DIC}{Should the Deviance Informatiob Criterion be calculated and returned,
 when doing a bayesian PGLMM? Ignored if \code{bayes = FALSE}}
 
 \item{default.prior}{Which type of default prior should be used by \code{communityPGLMM}?
-Only used if \code{bayes = TRUE}, ignored otherwise. There are currently two options:
-"inla.default", which uses the default \code{INLA} priors, or "pc.prior", which uses a
+Only used if \code{bayes = TRUE}, ignored otherwise. There are currently four options:
+"inla.default", which uses the default \code{INLA} priors; "pc.prior.auto", which uses a
 complexity penalizing prior (as described in
-\href{https://arxiv.org/abs/1403.4630v3}{Simpson et al. (2017)}).
-"pc.prior" is only implemented for \code{family = "gaussian"} currently.}
+\href{https://arxiv.org/abs/1403.4630v3}{Simpson et al. (2017)}), which tries to automatically
+choose good parameters (only available for gaussian and binomial responses); "pc.prior", which
+allows the user to set custom parameters on the "pc.prior" prior, using the \code{prior_alpha}
+and \code{prior_mu} parameters (Run \code{INLA::inla.doc("pc.prec")} for details on these
+parameters); and "uninformative", which sets a very uniformative prior
+(nearly uniform) by using a very flat exponential distribution. This last one is generally
+not recommended but may in some cases give estimates closer to the maximum likelihood estimates.
+"pc.prior.auto" is only implemented for \code{family = "gaussian"} and \code{family = "binomial"}
+currently.}
 
 \item{cpp}{Whether to use c++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE}.}
 
@@ -172,6 +178,16 @@ However, in this case, you probably can just use lme4::lmer.}
 \item{add.obs.re}{Wether add observation-level random term for poisson and binomial
 distributions? Normally it would be a good idea to add this to account for overdispersions.
 Thus, we set it to TRUE by default.}
+
+\item{prior_alpha}{Only used if \code{bayes = TRUE} and \code{default.prior == "pc.prior"}, in
+which case it sets the alpha parameter of \code{INLA}'s complexity penalizing prior for the
+random effects.The prior is an exponential distribution where prob(sd > mu) = alpha,
+where sd is the standard deviation of the random effect.}
+
+\item{prior_mu}{Only used if \code{bayes = TRUE} and \code{default.prior == "pc.prior"}, in
+which case it sets the mu parameter of \code{INLA}'s complexity penalizing prior for the
+random effects.The prior is an exponential distribution where prob(sd > mu) = alpha,
+where sd is the standard deviation of the random effect.}
 }
 \value{
 An object (list) of class \code{communityPGLMM} with the following elements:

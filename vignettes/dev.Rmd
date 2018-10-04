@@ -30,6 +30,8 @@ tree = phyr::phylotree
 data = dat
 tree_site = ape::rtree(n = nlevels(data$site), tip.label = levels(data$site))
 formula = freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site) + (1|sp@site)
+formula = freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site)
+formula = cbind(freq, freq2) ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site)
 repulsion = F
 REML = F
 s2.init = NULL
@@ -49,6 +51,7 @@ family = "gaussian"
 family = "binomial"
 tol.pql = 10^-6
 maxit.pql = 200
+add.obs.re = F
 dat_prepared = phyr::prep_dat_pglmm(formula, data, tree, repulsion, prep_re, family, prep.s2.lme4, tree_site)
 formula = dat_prepared$formula
 data = dat_prepared$data

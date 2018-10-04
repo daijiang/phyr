@@ -332,9 +332,9 @@ get_design_matrix = function(formula, data, na.action = NULL,
   mf <- model.frame(formula = formula, data = data, na.action = NULL)
   X <- model.matrix(attr(mf, "terms"), data = mf)
   Y <- model.response(mf)
-  if(is.array(Y) && ncol(Y) == 2){ # success, fails for binomial data
-  	size <- rowSums(Y)
-  	Y <- Y[,1]
+  if(is.matrix(Y) && ncol(Y) == 2){ # success, fails for binomial data
+    size <- rowSums(Y)
+    Y <- Y[,1]
   }else{ # other kind of binomial
   	size <- rep(1, length(Y))
   }
