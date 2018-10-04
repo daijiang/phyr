@@ -66,7 +66,8 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
                                         optimizer = "Nelder-Mead")
   
   test1_gaussian_bayes = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | 
-                                                                                 site) + (1 | sp__@site), dat, tree = phylotree, bayes = TRUE)
+                                                                                 site) + (1 | sp__@site), dat, tree = phylotree, bayes = TRUE,
+                                              default.prior = "pc.prior.default")
   
   test1_binomial_bayes = phyr::communityPGLMM(pa ~ 1 + shade + (1 | sp__) + (1 | site) + 
                                                 (1 | sp__@site), dat, tree = phylotree, ML.init = FALSE, bayes = TRUE,
@@ -74,7 +75,8 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   
   test1_poisson_bayes = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + 
                                                (1 | sp__@site), dat, tree = phylotree, bayes = TRUE, ML.init = FALSE, 
-                                             family = "poisson", default.prior = "pc.prior")
+                                             family = "poisson", default.prior = "pc.prior",
+                                             prior_alpha = 0.01, prior_mu = 1)
   
   ## try a 'overdispersed' Poisson (e.g. add row random effect to account for
   ## variance in the lambda values)
