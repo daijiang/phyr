@@ -66,21 +66,23 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
                                         optimizer = "Nelder-Mead")
   
   test1_gaussian_bayes = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | 
-                                                                                 site) + (1 | sp__@site), dat, tree = phylotree, REML = F, bayes = TRUE)
+                                                                                 site) + (1 | sp__@site), dat, tree = phylotree, bayes = TRUE,
+                                              default.prior = "pc.prior.default")
   
   test1_binomial_bayes = phyr::communityPGLMM(pa ~ 1 + shade + (1 | sp__) + (1 | site) + 
-                                                (1 | sp__@site), dat, tree = phylotree, REML = F, bayes = TRUE, ML.init = FALSE, 
-                                              family = "binomial")
+                                                (1 | sp__@site), dat, tree = phylotree, ML.init = FALSE, bayes = TRUE,
+                                              family = "binomial", default.prior = "uninformative")
   
   test1_poisson_bayes = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + 
-                                               (1 | sp__@site), dat, tree = phylotree, REML = F, bayes = TRUE, ML.init = FALSE, 
-                                             family = "poisson")
+                                               (1 | sp__@site), dat, tree = phylotree, bayes = TRUE, ML.init = FALSE, 
+                                             family = "poisson", default.prior = "pc.prior",
+                                             prior_alpha = 0.01, prior_mu = 1)
   
   ## try a 'overdispersed' Poisson (e.g. add row random effect to account for
   ## variance in the lambda values)
   test1_poisson_bayes_overdispersed = phyr::communityPGLMM(freq ~ 1 + shade + (1 | 
                                                                                  sp__) + (1 | site) + (1 | sp__@site) + (1 | sp@site), dat, tree = phylotree, 
-                                                           REML = F, bayes = TRUE, ML.init = FALSE, family = "poisson")
+                                                           bayes = TRUE, ML.init = FALSE, family = "poisson")
   
   test_that("cpp and r version phyr gave the same results: gaussian", {
     expect_equivalent(test1_gaussian_cpp, test1_gaussian_r)
@@ -226,7 +228,7 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   
   z_bipartite_bayes_2 = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site__) + 
                                                (1 | sp__@site) + (1 | sp@site__) + (1 | sp__@site__), data = dat, family = "gaussian", 
-                                             tree = phylotree, tree_site = tree_site, bayes = TRUE, ML.init = FALSE, default.prior = "pc.prior")
+                                             tree = phylotree, tree_site = tree_site, bayes = TRUE, ML.init = FALSE, default.prior = "pc.prior.auto")
   
   # # test tree and tree_site as cov matrix
   # test_that("testing tree and tree_site as cov matrix", {
