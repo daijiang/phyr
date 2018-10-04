@@ -41,5 +41,6 @@ Suggests:
     knitr,
     rmarkdown,
     covr,
-    picante
+    picante,
+    INLA
 VignetteBuilder: knitr
