@@ -69,12 +69,12 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
                                                                                  site) + (1 | sp__@site), dat, tree = phylotree, bayes = TRUE)
   
   test1_binomial_bayes = phyr::communityPGLMM(pa ~ 1 + shade + (1 | sp__) + (1 | site) + 
-                                                (1 | sp__@site), dat, tree = phylotree, ML.init = FALSE, 
-                                              family = "binomial")
+                                                (1 | sp__@site), dat, tree = phylotree, ML.init = FALSE, bayes = TRUE,
+                                              family = "binomial", default.prior = "pc.prior.auto")
   
   test1_poisson_bayes = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + 
                                                (1 | sp__@site), dat, tree = phylotree, bayes = TRUE, ML.init = FALSE, 
-                                             family = "poisson")
+                                             family = "poisson", default.prior = "pc.prior.auto")
   
   ## try a 'overdispersed' Poisson (e.g. add row random effect to account for
   ## variance in the lambda values)

@@ -781,18 +781,13 @@ summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") -
   
   if(x$bayes) {
     if (x$family == "gaussian") {
-      if (x$REML == TRUE) {
-        cat("Linear mixed model fit by Bayesian INLA with contrained variances")
-      } else {
-        cat("Linear mixed model fit by Bayesian INLA")
-      }
+      cat("Linear mixed model fit by Bayesian INLA")
     }
     if (x$family == "binomial") {
-      if (x$REML == TRUE) {
-        cat("Generalized linear mixed model fit by Bayesian INLA with contrained variances")
-      } else {
-        cat("Generalized linear mixed model fit by Bayesian INLA")
-      }
+      cat("Generalized linear mixed model for binomial data fit by Bayesian INLA")
+    }
+    if (x$family == "poisson") {
+      cat("Generalized linear mixed model for poisson data fit by Bayesian INLA")
     }
   } else {
     if (x$family == "gaussian") {
