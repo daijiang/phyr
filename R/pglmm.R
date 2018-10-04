@@ -294,8 +294,6 @@
 #' Can functional traits account for phylogenetic signal in community composition? 
 #' New Phytologist, 214(2), 607-618.
 #' @rdname pglmm
-#' @name pglmm
-#' @aliases communityPGLMM
 #' @export
 #' @examples
 #' ## Structure of examples:
@@ -1110,4 +1108,6 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   results
 }
 
-
+#' @export
+#' @rdname pglmm
+pglmm <- communityPGLMM
