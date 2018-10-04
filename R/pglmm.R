@@ -1095,7 +1095,7 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
                   s2resid = resid_var, s2n.ci = variances.ci[nested, ], 
                   s2r.ci = variances.ci[!nested, ], s2resid.ci = resid_var.ci,
                   logLik = out$mlik[1, 1], AIC = NULL, BIC = NULL, DIC = DIC, 
-                  REML = REML, bayes = TRUE, marginal.summ = marginal.summ, 
+                  REML = NULL, bayes = TRUE, marginal.summ = marginal.summ, 
                   s2.init = s2.init, B.init = B.init, Y = Y, X = X, H = H, 
                   iV = NULL, mu = NULL, nested = nested, sp = sp, site = site, Zt = NULL, St = NULL, 
                   convcode = NULL, niter = NULL, inla.model = out)
