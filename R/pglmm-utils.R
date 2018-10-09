@@ -734,6 +734,7 @@ communityPGLMM.profile.LRT <- function(x, re.number = 0, cpp = TRUE) {
   }
   
   P.H0.s2 <- pchisq(2 * (logLik - logLik0), df = df, lower.tail = F)/2
+  if (P.H0.s2 > 0.499) P.H0.s2 <- 1
   
   list(LR = logLik - logLik0, df = df, Pr = P.H0.s2)
 }
