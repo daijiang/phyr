@@ -1026,10 +1026,19 @@ fitted.communityPGLMM <- function(object, ...){
 
 #' Extract coefficience for fixed terms
 #' 
-#' @param x A fitted model with class communityPGLMM
+#' @param x A fitted model with class communityPGLMM.
+#' @param ... ignored.
 #' @return a dataframe of fixed-effects estimates.
 #' @export
-fixef <- function(x) {
+fixed_effects <- function (x, ...) {
+  UseMethod("fixed_effects", x)
+}
+
+#' Extract coefficience for fixed terms
+#' 
+#' @method fixed_effects communityPGLMM
+#' @export
+fixed_effects.communityPGLMM <- function(x) {
   if (x$bayes) {
     coef <- data.frame(Value = x$B, lower.CI = x$B.ci[, 1], upper.CI = x$B.ci[, 2],
                        Pvalue = ifelse(apply(x$B.ci, 1, function(y)
