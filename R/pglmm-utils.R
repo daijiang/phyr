@@ -1023,30 +1023,29 @@ fitted.communityPGLMM <- function(object, ...){
   ft
 }
 
-
-#' Extract coefficience for fixed terms
+#' Extract the fixed-effects estimates
+#'
+#' Extract the estimates of the fixed-effects parameters from a fitted model.
 #' 
-#' @param x A fitted model with class communityPGLMM.
-#' @param ... ignored.
-#' @return a dataframe of fixed-effects estimates.
+#' @name fixef
+#' @title Extract fixed-effects estimates
+#' @aliases fixef fixed.effects fixef.communityPGLMM
+#' @docType methods
+#' @param object A fitted model with class communityPGLMM.
+#' @return A dataframe of fixed-effects estimates.
+#' @importFrom lme4 fixef
+#' @export fixef
+#' @method fixef communityPGLMM
 #' @export
-fixed_effects <- function (x, ...) {
-  UseMethod("fixed_effects", x)
-}
-
-#' Extract coefficience for fixed terms
-#' 
-#' @method fixed_effects communityPGLMM
-#' @export
-fixed_effects.communityPGLMM <- function(x) {
-  if (x$bayes) {
-    coef <- data.frame(Value = x$B, lower.CI = x$B.ci[, 1], upper.CI = x$B.ci[, 2],
-                       Pvalue = ifelse(apply(x$B.ci, 1, function(y)
+fixef.communityPGLMM <- function(object) {
+  if (object$bayes) {
+    coef <- data.frame(Value = object$B, lower.CI = object$B.ci[, 1], upper.CI = object$B.ci[, 2],
+                       Pvalue = ifelse(apply(object$B.ci, 1, function(y)
                          findInterval(0, y[1], y[2])) == 0,
                          0.04, 0.6))
   } else {
-    coef <- data.frame(Value = x$B, Std.Error = x$B.se, 
-                       Zscore = x$B.zscore, Pvalue = x$B.pvalue)
+    coef <- data.frame(Value = object$B, Std.Error = object$B.se, 
+                       Zscore = object$B.zscore, Pvalue = object$B.pvalue)
   }
   
   coef
