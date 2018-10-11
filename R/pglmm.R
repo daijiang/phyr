@@ -196,7 +196,7 @@
 #'   tendency of the bayesian posterior marginal distributions. Ignored if \code{bayes = FALSE}
 #' @param calc.DIC Should the Deviance Informatiob Criterion be calculated and returned,
 #'   when doing a bayesian PGLMM? Ignored if \code{bayes = FALSE}
-#' @param default.prior Which type of default prior should be used by \code{communityPGLMM}?
+#' @param prior Which type of default prior should be used by \code{communityPGLMM}?
 #'   Only used if \code{bayes = TRUE}, ignored otherwise. There are currently four options:
 #'   "inla.default", which uses the default \code{INLA} priors; "pc.prior.auto", which uses a
 #'   complexity penalizing prior (as described in 
@@ -218,11 +218,11 @@
 #' @param add.obs.re Wether add observation-level random term for poisson and binomial
 #'   distributions? Normally it would be a good idea to add this to account for overdispersions.
 #'   Thus, we set it to TRUE by default.
-#' @param prior_alpha Only used if \code{bayes = TRUE} and \code{default.prior == "pc.prior"}, in
+#' @param prior_alpha Only used if \code{bayes = TRUE} and \code{prior == "pc.prior"}, in
 #'   which case it sets the alpha parameter of \code{INLA}'s complexity penalizing prior for the 
 #'   random effects.The prior is an exponential distribution where prob(sd > mu) = alpha, 
 #'   where sd is the standard deviation of the random effect.
-#' @param prior_mu Only used if \code{bayes = TRUE} and \code{default.prior == "pc.prior"}, in
+#' @param prior_mu Only used if \code{bayes = TRUE} and \code{prior == "pc.prior"}, in
 #'   which case it sets the mu parameter of \code{INLA}'s complexity penalizing prior for the 
 #'   random effects.The prior is an exponential distribution where prob(sd > mu) = alpha, 
 #'   where sd is the standard deviation of the random effect.
@@ -483,7 +483,7 @@
 communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NULL, tree_site = NULL, repulsion = FALSE, sp, site,
                            random.effects = NULL, REML = TRUE, bayes = FALSE, s2.init = NULL, B.init = NULL, reltol = 10^-6, 
                            maxit = 500, tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE, ML.init = TRUE, 
-                           marginal.summ = "mean", calc.DIC = FALSE, default.prior = "inla.default", cpp = TRUE,
+                           marginal.summ = "mean", calc.DIC = FALSE, prior = "inla.default", cpp = TRUE,
                            optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"), prep.s2.lme4 = FALSE,
                            add.obs.re = TRUE, prior_alpha = 0.1, prior_mu = 1) {
 
@@ -498,7 +498,7 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NUL
            Please run in your R terminal:\
            install.packages('INLA', repos='https://inla.r-inla-download.org/R/stable')")
     }
-    if ((family %nin% c("gaussian", "binomial", "poisson"))){
+    if ((family %nin% c("gaussian", "binomial", "poisson", "zeroinflated.binomial", "zeroinflated.poisson"))){
       stop("\nSorry, but only binomial (binary), poisson (count), and gaussian options 
            are available for Bayesian communityPGLMM at this time")
     }
@@ -556,7 +556,7 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NUL
   } 
   
   if(bayes & ML.init & (family %nin% c("binomial", "gaussian", "poisson"))) {
-    warning('ML.init option is only available for binomial and gaussian families. You will have to 
+    warning('ML.init option is only available for binomial, poisson and gaussian families. You will have to 
             specify initial values manually if you think the default are problematic.')
   }
   
@@ -567,7 +567,7 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NUL
                               s2.init = s2.init, B.init = B.init, 
                               verbose = verbose, 
                               marginal.summ = marginal.summ, calc.DIC = calc.DIC, 
-                              default.prior = default.prior, 
+                              prior = prior, 
                               prior_alpha = prior_alpha, 
                               prior_mu = prior_mu)
   } else {# max likelihood 
@@ -891,14 +891,23 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
                                  s2.init = NULL, B.init = NULL, 
                                  verbose = FALSE, 
                                  marginal.summ = "mean", calc.DIC = FALSE, 
-                                 default.prior = "inla.default",
-                                 prior_alpha = 1, prior_mu = 0.1) {
+                                 prior = "inla.default",
+                                 prior_alpha = 1, prior_mu = 0.1,
+                                 Ntrials = NULL) {
   mf <- model.frame(formula = formula, data = data, na.action = NULL)
   X <- model.matrix(attr(mf, "terms"), data = mf)
   Y <- model.response(mf)
   p <- ncol(X)
   n <- nrow(X)
   q <- length(random.effects)
+  
+  if(family == "zeroinflated.binomial") {
+    family <- "zeroinflatedbinomial1"
+  }
+  if(family == "zeroinflated.poisson") {
+    family <- "zeroinflatedpoisson1"
+  }
+  
   if(family == "gaussian") q <- q + 1
   
   # Compute initial estimates assuming no phylogeny if not provided
@@ -925,7 +934,7 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     s2.init <- s2.init[-q]
   }
   
-  if(default.prior == "pc.prior.auto") {
+  if(prior == "pc.prior.auto") {
     if(family == "gaussian") {
       lmod <- lm(formula, data)
       sdres <- sd(residuals(lmod))
@@ -937,16 +946,16 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
         pcprior <- list(prec = list(prior="pc.prec", param = c(1, 0.1)))
       } else {
         warning("pc.prior.auto not yet implemented for this family. switching to default INLA prior...")
-        default.prior <- "inla.default"
+        prior <- "inla.default"
       }
     }
   } 
     
-  if(default.prior == "pc.prior") {
+  if(prior == "pc.prior") {
     pcprior <- list(prec = list(prior="pc.prec", param = c(prior_mu, prior_alpha)))
   }
   
-  if(default.prior == "uninformative") {
+  if(prior == "uninformative") {
     pcprior <- list(prec = list(prior="pc.prec", param = c(100, 0.99))) ## very flat prior, generally not recommended!
   }
   
@@ -977,7 +986,7 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     }
   }
   
-  if(default.prior == "inla.default") {
+  if(prior == "inla.default") {
     for(i in seq_along(random.effects)) {
       if(length(random.effects[[i]]) == 3) { # non-nested term
         if(length(random.effects[[i]][[1]]) == 1) {
@@ -1027,36 +1036,30 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     }
   }
   
+  if(calc.DIC) {
+    control.compute <- list(dic = TRUE)
+  } else {
+    control.compute <- list()
+  }
+  
   if(family == "gaussian") {
-    if(calc.DIC) {
       out <- INLA::inla(as.formula(inla_formula), data = data,
                         verbose = verbose,
                         control.family = list(hyper = list(prec = list(initial = resid.init))),
                         control.fixed = list(prec.intercept = 0.0001, correlation.matrix=TRUE),
-                        control.compute = list(dic = TRUE),
-                        control.predictor=list(compute=TRUE))
-    } else {
-      out <- INLA::inla(as.formula(inla_formula), data = data,
-                        verbose = verbose,
-                        control.family = list(hyper = list(prec = list(initial = resid.init))),
-                        control.fixed = list(prec.intercept = 0.0001, correlation.matrix=TRUE),
-                        control.predictor=list(compute=TRUE))
-    }
+                        control.compute = control.compute,
+                        control.predictor = list(compute=TRUE))
+   
   } else { # other families
-    if(calc.DIC) {
+    
       out <- INLA::inla(as.formula(inla_formula), data = data,
                         verbose = verbose,
                         family = family,
                         control.fixed = list(prec.intercept = 0.0001, correlation.matrix=TRUE),
-                        control.compute = list(dic = TRUE),
-                        control.predictor=list(compute=TRUE))
-    } else {
-      out <- INLA::inla(as.formula(inla_formula), data = data,
-                        verbose = verbose,
-                        family = family,
-                        control.fixed = list(prec.intercept = 0.0001, correlation.matrix=TRUE),
-                        control.predictor=list(compute=TRUE))
-    }
+                        control.compute = control.compute,
+                        control.predictor=list(compute=TRUE),
+                        Ntrials = Ntrials)
+    
   }
   #summary(out)
   #print(out$summary.fitted.values)
@@ -1084,6 +1087,16 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     resid_var.ci <- NULL
   }
   
+  if(grepl("zeroinflated", family)) {
+    zeroinlated_param <- variances[1]
+    variances <- variances[-1]
+    zeroinflated_param.ci <- variances.ci[1, ]
+    variances.ci <- variances.ci[-1, ]
+  } else {
+    zeroinlated_param <- NULL
+    zeroinflated_param.ci <- NULL
+  }
+  
   ss <- c(variances[!nested]^0.5, variances[nested]^0.5, resid_var^0.5)
   
   if(marginal.summ == "median") marginal.summ <- "0.5quant"
@@ -1097,8 +1110,9 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
                   B.ci = out$summary.fixed[ , c("0.025quant", "0.975quant")],
                   B.cov = out$misc$lincomb.derived.correlation.matrix, B.zscore = NULL, 
                   B.pvalue = NULL, ss = ss, s2n = variances[nested], s2r = variances[!nested],
-                  s2resid = resid_var, s2n.ci = variances.ci[nested, ], 
+                  s2resid = resid_var, zi = zeroinlated_param, s2n.ci = variances.ci[nested, ], 
                   s2r.ci = variances.ci[!nested, ], s2resid.ci = resid_var.ci,
+                  zi.ci = zeroinflated_param.ci,
                   logLik = out$mlik[1, 1], AIC = NULL, BIC = NULL, DIC = DIC, 
                   REML = NULL, bayes = TRUE, marginal.summ = marginal.summ, 
                   s2.init = s2.init, B.init = B.init, Y = Y, X = X, H = H, 

@@ -790,6 +790,12 @@ summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") -
     if (x$family == "poisson") {
       cat("Generalized linear mixed model for poisson data fit by Bayesian INLA")
     }
+    if (x$family == "zeroinflated.binomial") {
+      cat("Generalized linear mixed model for binomial data with zero inflation fit by Bayesian INLA")
+    }
+    if (x$family == "zeroinflated.poisson") {
+      cat("Generalized linear mixed model for poisson data with zero inflation fit by Bayesian INLA")
+    }
   } else {
     if (x$family == "gaussian") {
       if (x$REML == TRUE) {
@@ -839,6 +845,11 @@ summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") -
       names(BIC) = "BIC"
       print(c(logLik, AIC, BIC), digits = digits)
     }
+  }
+  
+  if(grepl("zeroinflated", x$family)) {
+    cat("\nZero Inflation Paramater:\n")
+    print(c(Estimate = x$zi, lower.CI = x$zi.ci[1], upper.CI = x$zi.ci[2]), digits = digits)
   }
   
   cat("\nRandom effects:\n")
