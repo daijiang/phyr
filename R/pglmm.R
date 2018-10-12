@@ -950,7 +950,8 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     if (!is.null(B.init) & length(B.init) != p) {
       warning("B.init not correct length, so computed B.init using glm()")
     }
-    if(family == "binomial" & !is.null(Ntrials)) {
+    base_family <- gsub("zeroinflated.", "", family, fixed = TRUE)
+    if(base_family == "binomial" & !is.null(Ntrials)) {
       resp <- all.vars(update(formula, .~0)) 
       formula_glm <- update.formula(formula, as.formula(paste0("cbind(", resp, ", Ntrials - ", resp ,") ~ .")))
       data_glm <- data
@@ -960,7 +961,7 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
       data_glm <- data
     }
     if ((is.null(B.init) | (!is.null(B.init) & length(B.init) != p))) {
-      B.init <- t(matrix(glm(formula = formula_glm, data = data_glm, family = family, na.action = na.omit)$coefficients, ncol = p))
+      B.init <- t(matrix(glm(formula = formula_glm, data = data_glm, family = base_family, na.action = na.omit)$coefficients, ncol = p))
     } else {
       B.init <- matrix(B.init, ncol = 1)
     }
