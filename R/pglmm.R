@@ -960,7 +960,7 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
       data_glm <- data
     }
     if ((is.null(B.init) | (!is.null(B.init) & length(B.init) != p))) {
-      B.init <- t(matrix(glm(formula = formula_glm, data = data, family = family, na.action = na.omit)$coefficients, ncol = p))
+      B.init <- t(matrix(glm(formula = formula_glm, data = data_glm, family = family, na.action = na.omit)$coefficients, ncol = p))
     } else {
       B.init <- matrix(B.init, ncol = 1)
     }
