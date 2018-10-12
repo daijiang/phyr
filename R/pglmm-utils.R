@@ -848,7 +848,7 @@ summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") -
   }
   
   if(grepl("zeroinflated", x$family)) {
-    cat("\nZero Inflation Paramater:\n")
+    cat("\nZero Inflation Parameter:\n")
     print(data.frame(Estimate = x$zi, lower.CI = x$zi.ci[1, 1], upper.CI = x$zi.ci[1, 2]), digits = digits)
   }
   
