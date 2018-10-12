@@ -68,15 +68,30 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   if(requireNamespace("INLA", quietly = TRUE)){
     test1_gaussian_bayes = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | 
                                                                                    site) + (1 | sp__@site), dat, tree = phylotree, bayes = TRUE,
-                                                default.prior = "pc.prior.auto")
+                                                prior = "pc.prior.auto")
     
     test1_binomial_bayes = phyr::communityPGLMM(pa ~ 1 + shade + (1 | sp__) + (1 | site) + 
                                                   (1 | sp__@site), dat, tree = phylotree, ML.init = FALSE, bayes = TRUE,
-                                                family = "binomial", default.prior = "uninformative")
+                                                family = "binomial", prior = "pc.prior.auto")
     
     test1_poisson_bayes = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + 
                                                  (1 | sp__@site), dat, tree = phylotree, bayes = TRUE, ML.init = FALSE, 
-                                               family = "poisson", default.prior = "pc.prior",
+                                               family = "poisson", prior = "pc.prior.auto",
+                                               prior_alpha = 0.01, prior_mu = 1)
+    
+    test2_binomial_bayes = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), 
+                                               dat, tree = phylotree, family = 'binomial', add.obs.re = F, bayes = TRUE,
+                                               Ntrials = dat$freq + dat$freq2, ML.init = FALSE,
+                                               prior = "pc.prior.auto")
+    
+    test2_binomial_bayes_zi = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), 
+                                                  dat, tree = phylotree, family = 'zeroinflated.binomial', add.obs.re = F, bayes = TRUE,
+                                                  Ntrials = dat$freq + dat$freq2, ML.init = FALSE,
+                                                  prior = "pc.prior.auto")
+    
+    test2_poisson_bayes_zi = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + 
+                                                 (1 | sp__@site), dat, tree = phylotree, bayes = TRUE, ML.init = FALSE, 
+                                               family = "zeroinflated.poisson", prior = "pc.prior.auto",
                                                prior_alpha = 0.01, prior_mu = 1)
     
     ## try a 'overdispersed' Poisson (e.g. add row random effect to account for
