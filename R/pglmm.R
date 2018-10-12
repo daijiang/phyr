@@ -922,6 +922,8 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   n <- nrow(X)
   q <- length(random.effects)
   
+  base_family <- gsub("zeroinflated.", "", family, fixed = TRUE)
+  
   if(family == "zeroinflated.binomial") {
     family <- "zeroinflatedbinomial1"
   }
@@ -950,7 +952,6 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     if (!is.null(B.init) & length(B.init) != p) {
       warning("B.init not correct length, so computed B.init using glm()")
     }
-    base_family <- gsub("zeroinflated.", "", family, fixed = TRUE)
     if(base_family == "binomial" & !is.null(Ntrials)) {
       resp <- all.vars(update(formula, .~0)) 
       formula_glm <- update.formula(formula, as.formula(paste0("cbind(", resp, ", Ntrials - ", resp ,") ~ .")))
