@@ -790,6 +790,12 @@ summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") -
     if (x$family == "poisson") {
       cat("Generalized linear mixed model for poisson data fit by Bayesian INLA")
     }
+    if (x$family == "zeroinflated.binomial") {
+      cat("Generalized linear mixed model for binomial data with zero inflation fit by Bayesian INLA")
+    }
+    if (x$family == "zeroinflated.poisson") {
+      cat("Generalized linear mixed model for poisson data with zero inflation fit by Bayesian INLA")
+    }
   } else {
     if (x$family == "gaussian") {
       if (x$REML == TRUE) {
@@ -839,6 +845,11 @@ summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") -
       names(BIC) = "BIC"
       print(c(logLik, AIC, BIC), digits = digits)
     }
+  }
+  
+  if(grepl("zeroinflated", x$family)) {
+    cat("\nZero Inflation Parameter:\n")
+    print(data.frame(Estimate = x$zi, lower.CI = x$zi.ci[1, 1], upper.CI = x$zi.ci[1, 2]), digits = digits)
   }
   
   cat("\nRandom effects:\n")
@@ -1014,10 +1025,14 @@ residuals.communityPGLMM <- function(
 #' @return Fitted values. For binomial and poisson PGLMMs, this is equal to mu.
 #' @export
 fitted.communityPGLMM <- function(object, ...){
-  if(object$family %in% c("binomial","poisson")){
-    ft = object$mu[, 1]
-  } else {
+  if(object$bayes) {
     ft = communityPGLMM.predicted.values(object)$Y_hat
+  } else {
+    if(object$family %in% c("binomial","poisson")){
+      ft = object$mu[, 1]
+    } else {
+      ft = communityPGLMM.predicted.values(object)$Y_hat
+    }
   }
   
   ft
