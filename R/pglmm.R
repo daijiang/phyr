@@ -118,11 +118,9 @@
 #'   \code{binomial} for binomial dependent data, or \code{poisson} for count data.
 #'   It should be specified as a character string (i.e. quoted). At this moment,
 #'   for binomial data, we fixed the link function to logit; for poisson data,
-#'   we fixed the link function to log. If \code{bayes = FALSE} binomial data can be either 
-#'   presence/absence, or a two column array of 'success' and 'fail'. If \code{bayes = TRUE}, 
-#'   can be either presence/absence, or the response should be the number of successes, and 
-#'   the number of trials (e.g. successes + failures) should be entered as a vector into the
-#'   \code{Ntrials} parameter. For both poisson and binomial data, we add an observation-level 
+#'   we fixed the link function to log. Binomial data can be either 
+#'   presence/absence, or a two column array of 'success' and 'fail'. 
+#'   For both poisson and binomial data, we add an observation-level 
 #'   random term by default via \code{add.obs.re = TRUE}. If \code{bayes = TRUE} there are
 #'   two additional families available: "zeroinflated.binomial", and "zeroinflated.poisson",
 #'   which add a "zero inflation" parameter, which is the probability that a the response is
@@ -496,7 +494,7 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NUL
                            maxit = 500, tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE, ML.init = TRUE, 
                            marginal.summ = "mean", calc.DIC = FALSE, prior = "inla.default", cpp = TRUE,
                            optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"), prep.s2.lme4 = FALSE,
-                           add.obs.re = TRUE, prior_alpha = 0.1, prior_mu = 1, Ntrials = NULL) {
+                           add.obs.re = TRUE, prior_alpha = 0.1, prior_mu = 1) {
 
   optimizer = match.arg(optimizer)
   if ((family %nin% c("gaussian", "binomial", "poisson")) & (bayes == FALSE)){
@@ -555,16 +553,8 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NUL
     
     if (family %in% c("binomial", "poisson")) {
       if (is.null(s2.init)) s2.init <- 0.25
-      if(family == "binomial" & !is.null(Ntrials)) {
-        resp <- all.vars(update(formula, .~0)) 
-        formula_glm <- update.formula(formula, as.formula(paste0("cbind(", resp, ", Ntrials - ", resp ,") ~ .")))
-        data_glm <- data
-        data_glm$Ntrials = Ntrials
-      } else {
-        formula_glm <- formula
-        data_glm <- data
-      }
-      ML.init.z <- communityPGLMM.glmm(formula = formula_glm, data = data_glm, 
+ 
+      ML.init.z <- communityPGLMM.glmm(formula = formula, data = data, 
                                          sp = sp, site = site, family = family,
                                          random.effects = random.effects, REML = REML, 
                                          s2.init = s2.init, B.init = B.init, reltol = reltol, 
@@ -589,8 +579,7 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NUL
                               marginal.summ = marginal.summ, calc.DIC = calc.DIC, 
                               prior = prior, 
                               prior_alpha = prior_alpha, 
-                              prior_mu = prior_mu,
-                              Ntrials = Ntrials)
+                              prior_mu = prior_mu)
   } else {# max likelihood 
     if (family == "gaussian") {
       z <- communityPGLMM.gaussian(formula = formula, data = data, 
@@ -913,14 +902,24 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
                                  verbose = FALSE, 
                                  marginal.summ = "mean", calc.DIC = FALSE, 
                                  prior = "inla.default",
-                                 prior_alpha = 1, prior_mu = 0.1,
-                                 Ntrials = NULL) {
+                                 prior_alpha = 1, prior_mu = 0.1) {
   mf <- model.frame(formula = formula, data = data, na.action = NULL)
   X <- model.matrix(attr(mf, "terms"), data = mf)
   Y <- model.response(mf)
   p <- ncol(X)
   n <- nrow(X)
   q <- length(random.effects)
+  
+  if(is.matrix(Y) && ncol(Y) == 2){ # success, fails for binomial data
+    Ntrials <- rowSums(Y) # total trials
+    Y <- Y[, 1] # success
+    # update formula
+    left_side = all.vars(update(formula, .~0))[1]
+    formula_bayes = as.formula(gsub(pattern = "^(cbind[(].*[)])", replacement = left_side, x = deparse(formula)))
+  } else {
+    formula_bayes = formula
+    Ntrials = NULL
+  }
   
   base_family <- gsub("zeroinflated.", "", family, fixed = TRUE)
   
@@ -935,36 +934,31 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   
   # Compute initial estimates assuming no phylogeny if not provided
   if(family == "gaussian") {
-  if (!is.null(B.init) & length(B.init) != p) {
-    warning("B.init not correct length, so computed B.init using glm()")
-  }
-  if ((is.null(B.init) | (!is.null(B.init) & length(B.init) != p)) & !is.null(s2.init)) {
-    B.init <- lm(formula = formula, data = data)$coefficients
-  }
-  if (!is.null(B.init) & is.null(s2.init)) {
-    s2.init <- rep(var(lm(formula = formula, data = data)$residuals)/q, q)
-  }
-  if ((is.null(B.init) | (!is.null(B.init) & length(B.init) != p)) & is.null(s2.init)) {
-    B.init <- lm(formula = formula, data = data)$coefficients
-    s2.init <- rep(var(lm(formula = formula, data = data)$residuals)/q, q)
-  }
+    if (!is.null(B.init) & length(B.init) != p) {
+      warning("B.init not correct length, so computed B.init using glm()")
+    }
+    if ((is.null(B.init) | (!is.null(B.init) & length(B.init) != p)) & !is.null(s2.init)) {
+      B.init <- lm(formula = formula, data = data)$coefficients
+    }
+    if (!is.null(B.init) & is.null(s2.init)) {
+      s2.init <- rep(var(lm(formula = formula, data = data)$residuals)/q, q)
+    }
+    if ((is.null(B.init) | (!is.null(B.init) & length(B.init) != p)) & is.null(s2.init)) {
+      B.init <- lm(formula = formula, data = data)$coefficients
+      s2.init <- rep(var(lm(formula = formula, data = data)$residuals)/q, q)
+    }
   } else {
     if (!is.null(B.init) & length(B.init) != p) {
       warning("B.init not correct length, so computed B.init using glm()")
     }
-    if(base_family == "binomial" & !is.null(Ntrials)) {
-      resp <- all.vars(update(formula, .~0)) 
-      formula_glm <- update.formula(formula, as.formula(paste0("cbind(", resp, ", Ntrials - ", resp ,") ~ .")))
-      data_glm <- data
-      data_glm$Ntrials = Ntrials
-    } else {
-      formula_glm <- formula
-      data_glm <- data
-    }
+    glm_bayes = glm(formula = formula, data = data, family = base_family, na.action = na.omit)
     if ((is.null(B.init) | (!is.null(B.init) & length(B.init) != p))) {
-      B.init <- t(matrix(glm(formula = formula_glm, data = data_glm, family = base_family, na.action = na.omit)$coefficients, ncol = p))
+      B.init <- t(matrix(glm_bayes$coefficients, ncol = p))
     } else {
       B.init <- matrix(B.init, ncol = 1)
+    }
+    if (is.null(s2.init)) {
+      s2.init <- rep(var(glm_bayes$residuals)/q, q)
     }
   }
   #B <- B.init
@@ -981,12 +975,12 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     if(family == "gaussian") {
       lmod <- lm(formula, data)
       sdres <- sd(residuals(lmod))
-      pcprior <- list(prec = list(prior="pc.prec", param = c(3*sdres,0.01)))
+      pcprior <- list(prec = list(prior = "pc.prec", param = c(3 * sdres, 0.01)))
     } else {
       if(family == "binomial") {
-        # lmod <- glm(formula, data = data, family = "binomial")
+        # lmod <- glm(formula, data = data, family = family)
         # sdres <- sd(lmod$y - lmod$fitted.values)
-        pcprior <- list(prec = list(prior="pc.prec", param = c(1, 0.1)))
+        pcprior <- list(prec = list(prior = "pc.prec", param = c(1, 0.1)))
       } else {
         warning("pc.prior.auto not yet implemented for this family. switching to default INLA prior...")
         prior <- "inla.default"
@@ -995,15 +989,16 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   } 
     
   if(prior == "pc.prior") {
-    pcprior <- list(prec = list(prior="pc.prec", param = c(prior_mu, prior_alpha)))
+    pcprior <- list(prec = list(prior = "pc.prec", param = c(prior_mu, prior_alpha)))
   }
   
   if(prior == "uninformative") {
-    pcprior <- list(prec = list(prior="pc.prec", param = c(100, 0.99))) ## very flat prior, generally not recommended!
+    pcprior <- list(prec = list(prior = "pc.prec", param = c(100, 0.99))) 
+    ## very flat prior, generally not recommended!
   }
   
   # contruct INLA formula
-  inla_formula <- Reduce(paste, deparse(formula))
+  inla_formula <- Reduce(paste, deparse(formula_bayes))
   inla_effects <- list()
   inla_Cmat <- list()
   inla_weights <- list()
@@ -1029,80 +1024,61 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     }
   }
   
-  if(prior == "inla.default") {
-    for(i in seq_along(random.effects)) {
-      if(length(random.effects[[i]]) == 3) { # non-nested term
+  f_form = vector(mode = "character", length = length(random.effects))
+  for(i in seq_along(random.effects)) {
+    if(length(random.effects[[i]]) == 3) { # non-nested term
+      if(length(random.effects[[i]][[1]]) == 1) {
+        f_form[i] <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "])")
+      } else {
+        f_form[i] <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "])")
+      }
+    } else { # nested term
+      if(length(random.effects[[i]]) == 4) { 
         if(length(random.effects[[i]][[1]]) == 1) {
-          f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "])")
+          f_form[i] <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "])")
         } else {
-          f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "])")
+          f_form[i] <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "])")
         }
-      } else { # nested term
-        if(length(random.effects[[i]]) == 4) { 
-          if(length(random.effects[[i]][[1]]) == 1) {
-            f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "])")
-          } else {
-            f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "])")
-          }
+      } else {
+        if(length(random.effects[[i]]) == 1) {
+          f_form[i] <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "])")
         } else {
-          if(length(random.effects[[i]]) == 1) {
-            f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "])")
-          } else {
-            f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "])")
-          }
+          f_form[i] <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "])")
         }
       }
-      inla_formula <- paste(inla_formula, f_form, sep = " + ")
-    }
-  } else { # non default prior
-    for(i in seq_along(random.effects)) {
-      if(length(random.effects[[i]]) == 3) { # non-nested term
-        if(length(random.effects[[i]][[1]]) == 1) {
-          f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
-        } else {
-          f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
-        }
-      } else { # nested term
-        if(length(random.effects[[i]]) == 4) {
-          if(length(random.effects[[i]][[1]]) == 1) {
-            f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
-          } else {
-            f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
-          }
-        } else if(length(random.effects[[i]]) == 1) {
-          f_form <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
-        } else {
-          f_form <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], hyper = pcprior)")
-        }
-      }
-      inla_formula <- paste(inla_formula, f_form, sep = " + ")
     }
   }
+  
+  if(prior != "inla.default"){
+    f_form = unname(sapply(f_form, function(x){
+      gsub(pattern = "[)]$", replacement = ", hyper = pcprior)", x)
+    }))
+  }
+  
+  f_form = paste(f_form, collapse = " + ")
+  inla_formula <- paste(inla_formula, f_form, sep = " + ")
   
   if(calc.DIC) {
     control.compute <- list(dic = TRUE)
   } else {
     control.compute <- list()
   }
-  
   if(family == "gaussian") {
       out <- INLA::inla(as.formula(inla_formula), data = data,
                         verbose = verbose,
                         control.family = list(hyper = list(prec = list(initial = resid.init))),
-                        control.fixed = list(prec.intercept = 0.0001, correlation.matrix=TRUE),
+                        control.fixed = list(prec.intercept = 0.0001, correlation.matrix = TRUE),
                         control.compute = control.compute,
-                        control.predictor = list(compute=TRUE))
+                        control.predictor = list(compute = TRUE))
    
   } else { # other families
-    
       out <- INLA::inla(as.formula(inla_formula), data = data,
                         verbose = verbose,
                         family = family,
-                        control.fixed = list(prec.intercept = 0.0001, correlation.matrix=TRUE),
+                        control.fixed = list(prec.intercept = 0.0001, correlation.matrix = TRUE),
                         control.compute = control.compute,
-                        control.predictor=list(compute=TRUE),
+                        control.predictor=list(compute = TRUE),
                         Ntrials = Ntrials)
-    
   }
   #summary(out)
   #print(out$summary.fitted.values)

@@ -11,7 +11,7 @@ communityPGLMM(formula, data = NULL, family = "gaussian",
   s2.init = NULL, B.init = NULL, reltol = 10^-6, maxit = 500,
   tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE,
   ML.init = TRUE, marginal.summ = "mean", calc.DIC = FALSE,
-  default.prior = "inla.default", cpp = TRUE,
+  prior = "inla.default", cpp = TRUE,
   optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"),
   prep.s2.lme4 = FALSE, add.obs.re = TRUE, prior_alpha = 0.1,
   prior_mu = 1)
@@ -22,7 +22,7 @@ pglmm(formula, data = NULL, family = "gaussian", tree = NULL,
   s2.init = NULL, B.init = NULL, reltol = 10^-6, maxit = 500,
   tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE,
   ML.init = TRUE, marginal.summ = "mean", calc.DIC = FALSE,
-  default.prior = "inla.default", cpp = TRUE,
+  prior = "inla.default", cpp = TRUE,
   optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"),
   prep.s2.lme4 = FALSE, add.obs.re = TRUE, prior_alpha = 0.1,
   prior_mu = 1)
@@ -66,9 +66,15 @@ are nested within sites (i.e. arrange first by column site then by column sp).}
 \code{binomial} for binomial dependent data, or \code{poisson} for count data.
 It should be specified as a character string (i.e. quoted). At this moment,
 for binomial data, we fixed the link function to logit; for poisson data,
-we fixed the link function to log. Binomial data can be either presence/absence,
-or a two column array of 'success' and 'fail'. For both poisson and binomial data,
-we add an observation-level random term by default via \code{add.obs.re = TRUE}.}
+we fixed the link function to log. Binomial data can be either
+presence/absence, or a two column array of 'success' and 'fail'.
+For both poisson and binomial data, we add an observation-level
+random term by default via \code{add.obs.re = TRUE}. If \code{bayes = TRUE} there are
+two additional families available: "zeroinflated.binomial", and "zeroinflated.poisson",
+which add a "zero inflation" parameter, which is the probability that a the response is
+a zero. The rest of the parameters of the model then reflect the "non-zero" part part
+of the model. Note that "zeroinflated.binomial" only makes sense as a using successes /
+Ntrials type of response data.}
 
 \item{tree}{A phylogeny for column sp, with "phylo" class. Or a var-cov matrix for sp,
 make sure to have all species in the matrix; if the matrix is not standarized,
@@ -163,7 +169,7 @@ tendency of the bayesian posterior marginal distributions. Ignored if \code{baye
 \item{calc.DIC}{Should the Deviance Informatiob Criterion be calculated and returned,
 when doing a bayesian PGLMM? Ignored if \code{bayes = FALSE}}
 
-\item{default.prior}{Which type of default prior should be used by \code{communityPGLMM}?
+\item{prior}{Which type of default prior should be used by \code{communityPGLMM}?
 Only used if \code{bayes = TRUE}, ignored otherwise. There are currently four options:
 "inla.default", which uses the default \code{INLA} priors; "pc.prior.auto", which uses a
 complexity penalizing prior (as described in
@@ -190,15 +196,19 @@ However, in this case, you probably can just use lme4::lmer.}
 distributions? Normally it would be a good idea to add this to account for overdispersions.
 Thus, we set it to TRUE by default.}
 
-\item{prior_alpha}{Only used if \code{bayes = TRUE} and \code{default.prior == "pc.prior"}, in
+\item{prior_alpha}{Only used if \code{bayes = TRUE} and \code{prior = "pc.prior"}, in
 which case it sets the alpha parameter of \code{INLA}'s complexity penalizing prior for the
 random effects.The prior is an exponential distribution where prob(sd > mu) = alpha,
 where sd is the standard deviation of the random effect.}
 
-\item{prior_mu}{Only used if \code{bayes = TRUE} and \code{default.prior == "pc.prior"}, in
+\item{prior_mu}{Only used if \code{bayes = TRUE} and \code{prior = "pc.prior"}, in
 which case it sets the mu parameter of \code{INLA}'s complexity penalizing prior for the
 random effects.The prior is an exponential distribution where prob(sd > mu) = alpha,
 where sd is the standard deviation of the random effect.}
+
+\item{Ntrials}{Only used if \code{bayes = TRUE} and \code{family = "binomial"} or
+\code{"zeroinflated.binomial"}. A vector of integers, specifying the number of trials
+for each response value (which should be the number of "successes").}
 }
 \value{
 An object (list) of class \code{communityPGLMM} with the following elements:

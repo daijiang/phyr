@@ -79,15 +79,13 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
                                                family = "poisson", prior = "pc.prior.auto",
                                                prior_alpha = 0.01, prior_mu = 1)
     
-    test2_binomial_bayes = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), 
+    test2_binomial_bayes = phyr::communityPGLMM(cbind(freq, freq2) ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site),
                                                dat, tree = phylotree, family = 'binomial', add.obs.re = F, bayes = TRUE,
-                                               Ntrials = dat$freq + dat$freq2, ML.init = FALSE,
-                                               prior = "pc.prior.auto")
+                                               ML.init = FALSE, prior = "pc.prior.auto")
     
-    test2_binomial_bayes_zi = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), 
+    test2_binomial_bayes_zi = phyr::communityPGLMM(cbind(freq, freq2) ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), 
                                                   dat, tree = phylotree, family = 'zeroinflated.binomial', add.obs.re = F, bayes = TRUE,
-                                                  Ntrials = dat$freq + dat$freq2, ML.init = FALSE,
-                                                  prior = "pc.prior.auto")
+                                                  ML.init = FALSE, prior = "pc.prior.auto")
     
     test2_poisson_bayes_zi = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + 
                                                  (1 | sp__@site), dat, tree = phylotree, bayes = TRUE, ML.init = FALSE, 
@@ -125,12 +123,12 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   })
   
   
-  test_that("test binary PGLMM random terms LRT", {
-    for (i in 1:3) {
-      expect_equal(phyr::communityPGLMM.profile.LRT(test2_binary_cpp, re.number = i), 
-                   pez::communityPGLMM.binary.LRT(test2_binary_cpp, re.number = i), tolerance = 1e-04)
-    }
-  })
+  # test_that("test binary PGLMM random terms LRT", {
+  #   for (i in 1:3) {
+  #     expect_equal(phyr::communityPGLMM.profile.LRT(test2_binary_cpp, re.number = i), 
+  #                  pez::communityPGLMM.binary.LRT(test2_binary_cpp, re.number = i), tolerance = 1e-04)
+  #   }
+  # })
   
   test_that("test predicted values of gaussian pglmm", {
     expect_equivalent(phyr::communityPGLMM.predicted.values(test1_gaussian_cpp, gaussian.pred = 'tip_rm')$Y_hat, 
@@ -244,7 +242,7 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
     
     z_bipartite_bayes_2 = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site__) + 
                                                  (1 | sp__@site) + (1 | sp@site__) + (1 | sp__@site__), data = dat, family = "gaussian", 
-                                               tree = phylotree, tree_site = tree_site, bayes = TRUE, ML.init = FALSE, default.prior = "pc.prior.auto")
+                                               tree = phylotree, tree_site = tree_site, bayes = TRUE, ML.init = FALSE, prior = "pc.prior.auto")
   }
   
   # # test tree and tree_site as cov matrix

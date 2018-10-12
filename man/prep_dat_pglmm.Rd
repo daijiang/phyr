@@ -67,9 +67,15 @@ The T/F combinations depend on your questions.}
 \code{binomial} for binomial dependent data, or \code{poisson} for count data.
 It should be specified as a character string (i.e. quoted). At this moment,
 for binomial data, we fixed the link function to logit; for poisson data,
-we fixed the link function to log. Binomial data can be either presence/absence,
-or a two column array of 'success' and 'fail'. For both poisson and binomial data,
-we add an observation-level random term by default via \code{add.obs.re = TRUE}.}
+we fixed the link function to log. Binomial data can be either
+presence/absence, or a two column array of 'success' and 'fail'.
+For both poisson and binomial data, we add an observation-level
+random term by default via \code{add.obs.re = TRUE}. If \code{bayes = TRUE} there are
+two additional families available: "zeroinflated.binomial", and "zeroinflated.poisson",
+which add a "zero inflation" parameter, which is the probability that a the response is
+a zero. The rest of the parameters of the model then reflect the "non-zero" part part
+of the model. Note that "zeroinflated.binomial" only makes sense as a using successes /
+Ntrials type of response data.}
 
 \item{prep.s2.lme4}{Whether to prepare initial s2 values based on lme4 theta. Default is FALSE.
 If no phylogenetic or nested random terms, should set it to TRUE since it likely will be faster.
