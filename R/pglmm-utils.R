@@ -849,7 +849,7 @@ summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") -
   
   if(grepl("zeroinflated", x$family)) {
     cat("\nZero Inflation Paramater:\n")
-    print(data.frame(Estimate = x$zi, lower.CI = x$zi.ci[1], upper.CI = x$zi.ci[2]), digits = digits)
+    print(data.frame(Estimate = x$zi, lower.CI = x$zi.ci[1, 1], upper.CI = x$zi.ci[1, 2]), digits = digits)
   }
   
   cat("\nRandom effects:\n")
@@ -1025,10 +1025,14 @@ residuals.communityPGLMM <- function(
 #' @return Fitted values. For binomial and poisson PGLMMs, this is equal to mu.
 #' @export
 fitted.communityPGLMM <- function(object, ...){
-  if(object$family %in% c("binomial","poisson")){
-    ft = object$mu[, 1]
-  } else {
+  if(object$bayes) {
     ft = communityPGLMM.predicted.values(object)$Y_hat
+  } else {
+    if(object$family %in% c("binomial","poisson")){
+      ft = object$mu[, 1]
+    } else {
+      ft = communityPGLMM.predicted.values(object)$Y_hat
+    }
   }
   
   ft

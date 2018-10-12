@@ -1133,7 +1133,7 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   if(grepl("zeroinflated", family)) {
     zeroinlated_param <- 1/variances[1]
     variances <- variances[-1]
-    zeroinflated_param.ci <- 1/variances.ci[1, ]
+    zeroinflated_param.ci <- rev(1/variances.ci[1, ])
     variances.ci <- variances.ci[-1, ]
   } else {
     zeroinlated_param <- NULL
