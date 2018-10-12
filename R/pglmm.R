@@ -555,7 +555,13 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NUL
     
     if (family %in% c("binomial", "poisson")) {
       if (is.null(s2.init)) s2.init <- 0.25
-      ML.init.z <- communityPGLMM.glmm(formula = formula, data = data, 
+      if(family == "binomial" & !is.null(Ntrials)) {
+        resp <- all.vars(update(formula, .~0)) 
+        formula_glm <- update.formula(formula, as.formula(paste0("cbind(", resp, ", Ntrials - ", resp ,") ~ .")))
+      } else {
+        formula_glm <- formula
+      }
+      ML.init.z <- communityPGLMM.glmm(formula = formula_glm, data = data, 
                                          sp = sp, site = site, family = family,
                                          random.effects = random.effects, REML = REML, 
                                          s2.init = s2.init, B.init = B.init, reltol = reltol, 
@@ -592,22 +598,9 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NUL
                                    verbose = verbose, cpp = cpp, optimizer = optimizer)
     }
     
-    if (family == "poisson") {
+    if (family %in% c("binomial", "poisson")) {
       if (is.null(s2.init)) s2.init <- 0.25
       z <- communityPGLMM.glmm(formula = formula, data = data, family = family,
-                               sp = sp, site = site, 
-                               random.effects = random.effects, REML = REML, 
-                               s2.init = s2.init, B.init = B.init, reltol = reltol, 
-                               maxit = maxit, tol.pql = tol.pql, maxit.pql = maxit.pql, 
-                               verbose = verbose, cpp = cpp, optimizer = optimizer)
-    }
-    if (family == "binomial") {
-      if (is.null(s2.init)) s2.init <- 0.25
-      if(!is.null(Ntrials)) {
-        resp <- all.vars(update(formula, .~0)) 
-        formula_glm <- update.formula(formula, as.formula(paste0("cbind(", resp, ", Ntrials - ", resp ,") ~ .")))
-      }
-      z <- communityPGLMM.glmm(formula = formula_glm, data = data, family = family,
                                sp = sp, site = site, 
                                random.effects = random.effects, REML = REML, 
                                s2.init = s2.init, B.init = B.init, reltol = reltol, 
@@ -936,6 +929,7 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   if(family == "gaussian") q <- q + 1
   
   # Compute initial estimates assuming no phylogeny if not provided
+  if(family == "gaussian") {
   if (!is.null(B.init) & length(B.init) != p) {
     warning("B.init not correct length, so computed B.init using glm()")
   }
@@ -948,6 +942,22 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   if ((is.null(B.init) | (!is.null(B.init) & length(B.init) != p)) & is.null(s2.init)) {
     B.init <- lm(formula = formula, data = data)$coefficients
     s2.init <- rep(var(lm(formula = formula, data = data)$residuals)/q, q)
+  }
+  } else {
+    if (!is.null(B.init) & length(B.init) != p) {
+      warning("B.init not correct length, so computed B.init using glm()")
+    }
+    if(family == "binomial" & !is.null(Ntrials)) {
+      resp <- all.vars(update(formula, .~0)) 
+      formula_glm <- update.formula(formula, as.formula(paste0("cbind(", resp, ", Ntrials - ", resp ,") ~ .")))
+    } else {
+      formula_glm <- formula
+    }
+    if ((is.null(B.init) | (!is.null(B.init) & length(B.init) != p))) {
+      B.init <- t(matrix(glm(formula = formula_glm, data = data, family = family, na.action = na.omit)$coefficients, ncol = p))
+    } else {
+      B.init <- matrix(B.init, ncol = 1)
+    }
   }
   #B <- B.init
   #s <- as.vector(array(s2.init^0.5, dim = c(1, q)))
