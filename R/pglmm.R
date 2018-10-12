@@ -953,8 +953,11 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     if(family == "binomial" & !is.null(Ntrials)) {
       resp <- all.vars(update(formula, .~0)) 
       formula_glm <- update.formula(formula, as.formula(paste0("cbind(", resp, ", Ntrials - ", resp ,") ~ .")))
+      data_glm <- data
+      data_glm$Ntrials = Ntrials
     } else {
       formula_glm <- formula
+      data_glm <- data
     }
     if ((is.null(B.init) | (!is.null(B.init) & length(B.init) != p))) {
       B.init <- t(matrix(glm(formula = formula_glm, data = data, family = family, na.action = na.omit)$coefficients, ncol = p))
