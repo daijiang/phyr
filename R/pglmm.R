@@ -592,9 +592,22 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NUL
                                    verbose = verbose, cpp = cpp, optimizer = optimizer)
     }
     
-    if (family %in% c("binomial", "poisson")) {
+    if (family == "poisson") {
       if (is.null(s2.init)) s2.init <- 0.25
       z <- communityPGLMM.glmm(formula = formula, data = data, family = family,
+                               sp = sp, site = site, 
+                               random.effects = random.effects, REML = REML, 
+                               s2.init = s2.init, B.init = B.init, reltol = reltol, 
+                               maxit = maxit, tol.pql = tol.pql, maxit.pql = maxit.pql, 
+                               verbose = verbose, cpp = cpp, optimizer = optimizer)
+    }
+    if (family == "binomial") {
+      if (is.null(s2.init)) s2.init <- 0.25
+      if(!is.null(Ntrials)) {
+        resp <- all.vars(update(formula, .~0)) 
+        formula_glm <- update.formula(formula, as.formula(paste0("cbind(", resp, ", Ntrials - ", resp ,") ~ .")))
+      }
+      z <- communityPGLMM.glmm(formula = formula_glm, data = data, family = family,
                                sp = sp, site = site, 
                                random.effects = random.effects, REML = REML, 
                                s2.init = s2.init, B.init = B.init, reltol = reltol, 
@@ -953,8 +966,8 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
       pcprior <- list(prec = list(prior="pc.prec", param = c(3*sdres,0.01)))
     } else {
       if(family == "binomial") {
-        lmod <- glm(formula, data = data, family = "binomial")
-        sdres <- sd(lmod$y - lmod$fitted.values)
+        # lmod <- glm(formula, data = data, family = "binomial")
+        # sdres <- sd(lmod$y - lmod$fitted.values)
         pcprior <- list(prec = list(prior="pc.prec", param = c(1, 0.1)))
       } else {
         warning("pc.prior.auto not yet implemented for this family. switching to default INLA prior...")
