@@ -558,10 +558,13 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NUL
       if(family == "binomial" & !is.null(Ntrials)) {
         resp <- all.vars(update(formula, .~0)) 
         formula_glm <- update.formula(formula, as.formula(paste0("cbind(", resp, ", Ntrials - ", resp ,") ~ .")))
+        data_glm <- data
+        data_glm$Ntrials = Ntrials
       } else {
         formula_glm <- formula
+        data_glm <- data
       }
-      ML.init.z <- communityPGLMM.glmm(formula = formula_glm, data = data, 
+      ML.init.z <- communityPGLMM.glmm(formula = formula_glm, data = data_glm, 
                                          sp = sp, site = site, family = family,
                                          random.effects = random.effects, REML = REML, 
                                          s2.init = s2.init, B.init = B.init, reltol = reltol, 
