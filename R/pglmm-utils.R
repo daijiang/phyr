@@ -849,7 +849,7 @@ summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") -
   
   if(grepl("zeroinflated", x$family)) {
     cat("\nZero Inflation Paramater:\n")
-    print(c(Estimate = x$zi, lower.CI = x$zi.ci[1], upper.CI = x$zi.ci[2]), digits = digits)
+    print(data.frame(Estimate = x$zi, lower.CI = x$zi.ci[1], upper.CI = x$zi.ci[2]), digits = digits)
   }
   
   cat("\nRandom effects:\n")
