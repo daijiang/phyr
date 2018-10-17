@@ -240,7 +240,7 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
           d = data[, coln] # extract the column
           xout_nonphy = list(data[, x2[2]], d, covar = diag(nlevels(d)))
           names(xout_nonphy)[2] = coln
-          xout_phy = list(data[, x2[2]], d, covar = Vphy)
+          xout_phy = list(data[, x2[2]], d, covar = if(coln == "sp") Vphy else Vphy_site)
           names(xout_phy)[2] = coln
           xout = list(xout_nonphy, xout_phy)
         } else { # non phylogenetic random term
