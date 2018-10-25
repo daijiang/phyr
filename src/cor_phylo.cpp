@@ -168,11 +168,11 @@ std::vector<double> return_rcond_vals(const LogLikInfo& ll_info) {
   const arma::mat& MM(ll_info.MM);
   const arma::mat& Vphy(ll_info.Vphy);
   const arma::mat& tau(ll_info.tau);
-  const bool& REML(ll_info.REML);
+  // const bool& REML(ll_info.REML);
   const bool& constrain_d(ll_info.constrain_d);
   const double& lower_d(ll_info.lower_d);
-  const bool& verbose(ll_info.verbose);
-  const double& rcond_threshold(ll_info.rcond_threshold);
+  // const bool& verbose(ll_info.verbose);
+  // const double& rcond_threshold(ll_info.rcond_threshold);
   
   std::vector<double> rconds_out(2);
   

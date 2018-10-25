@@ -32,7 +32,7 @@ To install this package:
 
 ```{r eval = F}
 devtools::install_github("daijiang/phyr")
-# or
+# or (may not be the latest version)
 # macOS
 install.packages("https://raw.githubusercontent.com/daijiang/phyr/master/phyr_0.1.5.tgz", repos = NULL)
 # Windows

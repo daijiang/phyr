@@ -37,7 +37,6 @@ double pglmm_gaussian_LL_cpp(NumericVector par,
                            const arma::sp_mat& Zt, const arma::sp_mat& St, 
                            const List& nested, 
                            bool REML, bool verbose){
-  Rcpp::checkUserInterrupt();
   int n = X.n_rows;
   int p = X.n_cols;
   int q_nonNested = St.n_rows;
@@ -277,6 +276,7 @@ Rcpp::List pglmm_gaussian_internal_cpp(NumericVector par,
                                        std::string optimizer, int maxit, double reltol,
                                        int q, int n, int p, const double Pi
                                        ){
+  Rcpp::checkUserInterrupt();
   // start optimization
   Rcpp::Environment stats("package:stats"); 
   Rcpp::Function optim = stats["optim"]; 
