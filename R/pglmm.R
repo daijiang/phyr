@@ -232,9 +232,6 @@
 #'   which case it sets the mu parameter of \code{INLA}'s complexity penalizing prior for the 
 #'   random effects.The prior is an exponential distribution where prob(sd > mu) = alpha, 
 #'   where sd is the standard deviation of the random effect.
-#' @param Ntrials Only used if \code{bayes = TRUE} and \code{family = "binomial"} or 
-#'   \code{"zeroinflated.binomial"}. A vector of integers, specifying the number of trials
-#'   for each response value (which should be the number of "successes").
 #' @return An object (list) of class \code{communityPGLMM} with the following elements:
 #' \item{formula}{the formula for fixed effects}
 #' \item{formula_original}{the formula for both fixed effects and random effects}

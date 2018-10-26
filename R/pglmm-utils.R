@@ -1047,12 +1047,13 @@ fitted.communityPGLMM <- function(object, ...){
 #' @aliases fixef fixed.effects fixef.communityPGLMM
 #' @docType methods
 #' @param object A fitted model with class communityPGLMM.
+#' @param ... Ignored.
 #' @return A dataframe of fixed-effects estimates.
 #' @importFrom lme4 fixef
 #' @export fixef
 #' @method fixef communityPGLMM
 #' @export
-fixef.communityPGLMM <- function(object) {
+fixef.communityPGLMM <- function(object, ...) {
   if (object$bayes) {
     coef <- data.frame(Value = object$B, lower.CI = object$B.ci[, 1], upper.CI = object$B.ci[, 2],
                        Pvalue = ifelse(apply(object$B.ci, 1, function(y)

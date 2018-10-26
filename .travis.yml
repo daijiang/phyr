@@ -8,6 +8,8 @@ language: R
 sudo: false
 cache: packages
 
+warnings_are_errors: false
+
 # only run for pushes to master branch
 branches:
   only:
@@ -20,10 +22,6 @@ r_packages:
 cache:
   packages: yes
 
-
-before_install:
-  - Rscript -e 'if(!"INLA" %in% rownames(installed.packages())) { install.packages("INLA", repos=c(getOption("repos"), INLA="https://inla.r-inla-download.org/R/stable"), dep=TRUE) }'
-  - Rscript -e 'if(!"covr" %in% rownames(installed.packages())) { install.packages("covr", dependencies = TRUE) }'
    
 env:
   global:
@@ -32,3 +30,7 @@ env:
     - R_CHECK_TIME="TRUE"
     - R_CHECK_TESTS="FALSE"
     - _R_CHECK_TIMINGS_="0"
+
+before_install:
+  - Rscript -e 'if(!"covr" %in% rownames(installed.packages())) { install.packages("covr", dependencies = TRUE) }'
+  - Rscript -e 'if(!"INLA" %in% rownames(installed.packages())) { install.packages("INLA", repos=c(getOption("repos"), INLA="https://inla.r-inla-download.org/R/stable"), dep=TRUE) }'
