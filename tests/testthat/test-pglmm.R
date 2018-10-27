@@ -1,7 +1,8 @@
 context("test phylogenetic GLMMs")
 
 test_that("ignore these tests when on CRAN since they are time consuming", {
-  skip_on_cran()
+  testthat::skip_on_cran()
+  testthat::skip_on_travis()
   library(dplyr)
   comm = phyr::comm_a
   comm$site = row.names(comm)
