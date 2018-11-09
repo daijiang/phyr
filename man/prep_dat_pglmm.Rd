@@ -97,9 +97,9 @@ A list with updated formula, data, random.effects, tree, etc.
 \description{
 This function is mainly used within \code{communityPGLMM} but can also be used independently to
 prepare a list of random effects, which then can be updated by users for more complex models.
-If you use this function outside of \code{communityPGLMM}, remember to use to returned updated
+If you use this function outside of \code{communityPGLMM}, remember to use the returned updated
 \code{data} along with the generated \code{random.effects}. The original input \code{data} won't
-match the generated \code{random.effects} because \code{prep_dat_pglmm} has arranged the input \code{data}.
+match the generated \code{random.effects} because \code{prep_dat_pglmm} has arranged it.
 }
 \details{
 This function will arrange the data first by \code{site} then by \code{sp}.
