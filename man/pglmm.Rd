@@ -6,7 +6,7 @@
 \title{Phylogenetic Generalised Linear Mixed Model for Community Data}
 \usage{
 communityPGLMM(formula, data = NULL, family = "gaussian",
-  tree = NULL, tree_site = NULL, repulsion = FALSE, sp, site,
+  tree = NULL, tree_site = NULL, repulsion = FALSE,
   random.effects = NULL, REML = TRUE, bayes = FALSE,
   s2.init = NULL, B.init = NULL, reltol = 10^-6, maxit = 500,
   tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE,
@@ -14,18 +14,17 @@ communityPGLMM(formula, data = NULL, family = "gaussian",
   prior = "inla.default", cpp = TRUE,
   optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"),
   prep.s2.lme4 = FALSE, add.obs.re = TRUE, prior_alpha = 0.1,
-  prior_mu = 1)
+  prior_mu = 1, sp, site)
 
 pglmm(formula, data = NULL, family = "gaussian", tree = NULL,
-  tree_site = NULL, repulsion = FALSE, sp, site,
-  random.effects = NULL, REML = TRUE, bayes = FALSE,
-  s2.init = NULL, B.init = NULL, reltol = 10^-6, maxit = 500,
-  tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE,
-  ML.init = TRUE, marginal.summ = "mean", calc.DIC = FALSE,
-  prior = "inla.default", cpp = TRUE,
+  tree_site = NULL, repulsion = FALSE, random.effects = NULL,
+  REML = TRUE, bayes = FALSE, s2.init = NULL, B.init = NULL,
+  reltol = 10^-6, maxit = 500, tol.pql = 10^-6, maxit.pql = 200,
+  verbose = FALSE, ML.init = TRUE, marginal.summ = "mean",
+  calc.DIC = FALSE, prior = "inla.default", cpp = TRUE,
   optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"),
   prep.s2.lme4 = FALSE, add.obs.re = TRUE, prior_alpha = 0.1,
-  prior_mu = 1)
+  prior_mu = 1, sp, site)
 }
 \arguments{
 \item{formula}{A two-sided linear formula object describing the
@@ -97,10 +96,6 @@ For example, \code{sp__@site} will take one length as well as \code{sp@site__}.
 in the formula, then you should set the repulsion to be something like
 \code{c(TRUE, FALSE, TURE, TURE)} (length of 4).
 The T/F combinations depend on your questions.}
-
-\item{sp}{No longer used, keep here for compatibility}
-
-\item{site}{No longer used, keep here for compatibility}
 
 \item{random.effects}{Pre-build list of random effects. If \code{NULL} (the default),
 the function \code{\link{prep_dat_pglmm}} will prepare it for you. A list of pre-generated
@@ -205,6 +200,10 @@ where sd is the standard deviation of the random effect.}
 which case it sets the mu parameter of \code{INLA}'s complexity penalizing prior for the
 random effects.The prior is an exponential distribution where prob(sd > mu) = alpha,
 where sd is the standard deviation of the random effect.}
+
+\item{sp}{No longer used, keep here for compatibility}
+
+\item{site}{No longer used, keep here for compatibility}
 }
 \value{
 An object (list) of class \code{communityPGLMM} with the following elements:
@@ -287,7 +286,7 @@ Note that while \code{bayes = TRUE} currently only supports \code{family} argume
 other families will shortly be added.
 }
 \details{
-\deqn{Y = \beta_0 + \beta_1x + b_0 + b_1x}{y = beta_0 + beta_1x + b_0 + b_1x}
+\deqn{Y = \beta_0 + \beta_1x + b_0 + b_1x}{Y = beta_0 + beta_1x + b_0 + b_1x}
 \deqn{b_0 ~ Gaussian(0, \sigma_0^2I_{sp})}{b_0 ~ Gaussian(0, sigma_0^2I_(sp))}
 \deqn{b_1 ~ Gaussian(0, \sigma_0^2V_{sp})}{b_0 ~ Gaussian(0, sigma_0^2V_(sp))}
 \deqn{\eta ~ Gaussian(0,\sigma^2)}{e ~ Gaussian(0,sigma^2)}
@@ -301,13 +300,13 @@ Brownian motion evolution). Here, the variation in the mean
 species. Variation in species' responses to predictor variable
 \eqn{x}{x} is given by a random effect \eqn{b_0}{b_0} that is
 assumed to depend on the phylogenetic relatedness among species
-given by \eqn{V_{sp}}{V_(sp_}; if species are closely related,
+given by \eqn{V_{sp}}{V_(sp)}; if species are closely related,
 their specific responses to \eqn{x}{x} will be similar. This
 particular model would be specified as
 
 \code{z <- communityPGLMM(Y ~ X + (1|sp__), data = data, family = "gaussian", tree = phy)}
 
-Or you can prepare the random terms manually (not recommended):
+Or you can prepare the random terms manually (not recommended for simple models but may be necessary for complex models):
 
 \code{re.1 <- list(1, sp = dat$sp, covar = diag(nspp))}
 

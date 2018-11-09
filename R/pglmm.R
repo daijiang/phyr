@@ -25,7 +25,7 @@
 #'  other families will shortly be added. 
 #'  
 #'
-#' \deqn{Y = \beta_0 + \beta_1x + b_0 + b_1x}{y = beta_0 + beta_1x + b_0 + b_1x}
+#' \deqn{Y = \beta_0 + \beta_1x + b_0 + b_1x}{Y = beta_0 + beta_1x + b_0 + b_1x}
 #' \deqn{b_0 ~ Gaussian(0, \sigma_0^2I_{sp})}{b_0 ~ Gaussian(0, sigma_0^2I_(sp))}
 #' \deqn{b_1 ~ Gaussian(0, \sigma_0^2V_{sp})}{b_0 ~ Gaussian(0, sigma_0^2V_(sp))}
 #' \deqn{\eta ~ Gaussian(0,\sigma^2)}{e ~ Gaussian(0,sigma^2)}
@@ -39,13 +39,13 @@
 #' species. Variation in species' responses to predictor variable
 #' \eqn{x}{x} is given by a random effect \eqn{b_0}{b_0} that is
 #' assumed to depend on the phylogenetic relatedness among species
-#' given by \eqn{V_{sp}}{V_(sp_}; if species are closely related,
+#' given by \eqn{V_{sp}}{V_(sp)}; if species are closely related,
 #' their specific responses to \eqn{x}{x} will be similar. This
 #' particular model would be specified as
 #' 
 #' \code{z <- communityPGLMM(Y ~ X + (1|sp__), data = data, family = "gaussian", tree = phy)}
 #' 
-#' Or you can prepare the random terms manually (not recommended):
+#' Or you can prepare the random terms manually (not recommended for simple models but may be necessary for complex models):
 #' 
 #' \code{re.1 <- list(1, sp = dat$sp, covar = diag(nspp))}
 #' 
@@ -486,18 +486,20 @@
 #'   }  
 #' }
 # end of doc ---- 
-communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NULL, tree_site = NULL, repulsion = FALSE, sp, site,
+communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NULL, tree_site = NULL, repulsion = FALSE, 
                            random.effects = NULL, REML = TRUE, bayes = FALSE, s2.init = NULL, B.init = NULL, reltol = 10^-6, 
                            maxit = 500, tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE, ML.init = TRUE, 
                            marginal.summ = "mean", calc.DIC = FALSE, prior = "inla.default", cpp = TRUE,
                            optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"), prep.s2.lme4 = FALSE,
-                           add.obs.re = TRUE, prior_alpha = 0.1, prior_mu = 1) {
+                           add.obs.re = TRUE, prior_alpha = 0.1, prior_mu = 1, sp, site) {
 
   optimizer = match.arg(optimizer)
+  
   if ((family %nin% c("gaussian", "binomial", "poisson")) & (bayes == FALSE)){
     stop("\nSorry, but only binomial, poisson and gaussian options are available for
          communityPGLMM at this time")
   }
+  
   if(bayes) {
     if (!requireNamespace("INLA", quietly = TRUE)) {
       stop("To run communityPGLMM with bayes = TRUE, you need to install the packages 'INLA'. \ 

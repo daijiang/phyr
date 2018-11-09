@@ -2,7 +2,7 @@
 % Please edit documentation in R/pglmm-utils.R
 \name{prep_dat_pglmm}
 \alias{prep_dat_pglmm}
-\title{Utils functions for communityPGLMM}
+\title{Prepare data for \code{communityPGLMM}}
 \usage{
 prep_dat_pglmm(formula, data, tree, repulsion = FALSE,
   prep.re.effects = TRUE, family = "gaussian", prep.s2.lme4 = FALSE,
@@ -92,8 +92,19 @@ distributions? Normally it would be a good idea to add this to account for overd
 Thus, we set it to TRUE by default.}
 }
 \value{
-A list with formula, data, random.effects, etc.
+A list with updated formula, data, random.effects, tree, etc.
 }
 \description{
-\code{prep_dat_pglmm} prepares data for later model fitting
+This function is mainly used within \code{communityPGLMM} but can also be used independently to
+prepare a list of random effects, which then can be updated by users for more complex models.
+If you use this function outside of \code{communityPGLMM}, remember to use to returned updated
+\code{data} along with the generated \code{random.effects}. The original input \code{data} won't
+match the generated \code{random.effects} because \code{prep_dat_pglmm} has arranged the input \code{data}.
+}
+\details{
+This function will arrange the data first by \code{site} then by \code{sp}.
+It will then prune the phylogeny \code{tree} (if provided) to the set of species in the data and
+convert the phylogeny to a variance-covariance matrix and standardize it to have determination of one.
+It will do the same thing for \code{tree_site} if provided. After then, it will parse the \code{formula}
+and prepare a list of random terms to be used later to construct design matrices.
 }
