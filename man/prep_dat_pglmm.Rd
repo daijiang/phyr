@@ -79,7 +79,7 @@ Ntrials type of response data.}
 
 \item{prep.s2.lme4}{Whether to prepare initial s2 values based on lme4 theta. Default is FALSE.
 If no phylogenetic or nested random terms, should set it to TRUE since it likely will be faster.
-However, in this case, you probably can just use lme4::lmer.}
+However, in this case, you probably can just use \code{lme4::lmer}.}
 
 \item{tree_site}{A second phylogeny for "site". This is required only if the site column contains species instead of sites.
 This can be used for bipartitie questions. tree_site can also be a var-cov matrix, make sure to have all sites in the matrix;

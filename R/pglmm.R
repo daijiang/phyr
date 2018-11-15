@@ -194,8 +194,9 @@
 #'   during optimization.
 #' @param ML.init Only relevant if \code{bayes = TRUE}. Should maximum
 #'   likelihood estimates be calculated and used as initial values for
-#'   the bayesian model fit? Recommended when possible. Only used if 
-#'   \code{family = "binomial"} or \code{family = "gaussian"}, ignored otherwise.
+#'   the bayesian model fit? Sometimes this can be helpful; but most of the
+#'   time it may not help; thus we set the default to \code{FALSE}. Also, it
+#'   does not work with the zero-inflated families.
 #' @param marginal.summ Summary statistic to use for the estimate of coefficients when
 #'   doing a Bayesian PGLMM (when \code{bayes = TRUE}). Options are: "mean",
 #'   "median", or "mode", referring to different characterizations of the central
@@ -217,10 +218,11 @@
 #'   currently.
 #' @param cpp Whether to use c++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE}.
 #' @param optimizer nelder-mead-nlopt (default) or bobyqa or Nelder-Mead or subplex. 
-#' Nelder-Mead is from the stats package and the other ones are from the nloptr package.
+#'   Nelder-Mead is from the stats package and the other ones are from the nloptr package.
+#'   Ignored if \code{bayes = TRUE}.
 #' @param prep.s2.lme4 Whether to prepare initial s2 values based on lme4 theta. Default is FALSE.
 #'   If no phylogenetic or nested random terms, should set it to TRUE since it likely will be faster.
-#'   However, in this case, you probably can just use lme4::lmer.
+#'   However, in this case, you probably can just use \code{lme4::lmer}.
 #' @param add.obs.re Wether add observation-level random term for poisson and binomial
 #'   distributions? Normally it would be a good idea to add this to account for overdispersions.
 #'   Thus, we set it to TRUE by default.
@@ -488,7 +490,7 @@
 # end of doc ---- 
 communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NULL, tree_site = NULL, repulsion = FALSE, 
                            random.effects = NULL, REML = TRUE, bayes = FALSE, s2.init = NULL, B.init = NULL, reltol = 10^-6, 
-                           maxit = 500, tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE, ML.init = TRUE, 
+                           maxit = 500, tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE, ML.init = FALSE, 
                            marginal.summ = "mean", calc.DIC = FALSE, prior = "inla.default", cpp = TRUE,
                            optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"), prep.s2.lme4 = FALSE,
                            add.obs.re = TRUE, prior_alpha = 0.1, prior_mu = 1, sp, site) {
