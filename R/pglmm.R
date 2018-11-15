@@ -542,27 +542,35 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NUL
   # initial values for bayesian analysis: binomial and gaussian
   if(bayes & ML.init & (family %in% c("binomial", "gaussian", "poisson"))) {
     if (family == "gaussian") {
-      ML.init.z <- communityPGLMM.gaussian(formula = formula, data = data, 
+      ML.init.z <- try(communityPGLMM.gaussian(formula = formula, data = data, 
                                            sp = sp, site = site, 
                                            random.effects = random.effects, REML = REML, 
                                            s2.init = s2.init, B.init = B.init, 
                                            reltol = reltol, maxit = maxit, 
-                                           verbose = verbose, cpp = cpp, optimizer = optimizer)
-      s2.init <- c(ML.init.z$s2r, ML.init.z$s2n, ML.init.z$s2resid)
-      B.init <- ML.init.z$B[ , 1, drop = TRUE]
+                                           verbose = verbose, cpp = cpp, optimizer = optimizer))
+      if(!inherits(ML.init.z, "try-error")){
+        s2.init <- c(ML.init.z$s2r, ML.init.z$s2n, ML.init.z$s2resid)
+        B.init <- ML.init.z$B[ , 1, drop = TRUE]
+      } else {
+        warning("Initial model fitting with maximum likelihood approach failed.", immediate. = TRUE)
+      }
     }
     
     if (family %in% c("binomial", "poisson")) {
       if (is.null(s2.init)) s2.init <- 0.25
  
-      ML.init.z <- communityPGLMM.glmm(formula = formula, data = data, 
+      ML.init.z <- try(communityPGLMM.glmm(formula = formula, data = data, 
                                          sp = sp, site = site, family = family,
                                          random.effects = random.effects, REML = REML, 
                                          s2.init = s2.init, B.init = B.init, reltol = reltol, 
                                          maxit = maxit, tol.pql = tol.pql, maxit.pql = maxit.pql, 
-                                         verbose = verbose, cpp = cpp, optimizer = optimizer)
-      s2.init <- c(ML.init.z$s2r, ML.init.z$s2n)
-      B.init <- ML.init.z$B[ , 1, drop = TRUE]
+                                         verbose = verbose, cpp = cpp, optimizer = optimizer))
+      if(!inherits(ML.init.z, "try-error")){
+        s2.init <- c(ML.init.z$s2r, ML.init.z$s2n)
+        B.init <- ML.init.z$B[ , 1, drop = TRUE]
+      } else {
+        warning("Initial model fitting with maximum likelihood approach failed.", immediate. = TRUE)
+      }
     }
   } 
   
