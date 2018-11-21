@@ -11,8 +11,9 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
     left_join(phyr::traits, by = "sp")
   dat$pa = as.numeric(dat$freq > 0)
   dat$freq2 = 20 - dat$freq
-  dat = arrange(dat, sp, site)
-  dat = sample_frac(dat, size = 0.8)
+  dat = arrange(dat, site, sp)
+  # dat = sample_frac(dat, size = 0.8)
+  dat = mutate(dat, Species = sp, Location = site) # can be names other than sp or site
   group_by(dat, site) %>% 
     summarise(nsp = n_distinct(sp)) # we now have diff sp in diff site
   
@@ -25,15 +26,15 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   }
   
   # poisson plmm
-  test_poisson_cpp = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), 
-                                     dat, cov_ranef = list(sp = phylotree), family = 'poisson', REML = F, cpp = T)
+  test_poisson_cpp = phyr::communityPGLMM(freq ~ 1 + shade + (1 | Species__) + (1 | site) + (1 | Species__@site), 
+                                     dat, cov_ranef = list(Species = phylotree), family = 'poisson', REML = F, cpp = T)
   test_poisson_r = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), 
                                           dat, cov_ranef = list(sp = phylotree), family = 'poisson', REML = F, cpp = F)
   test_fit_equal(test_poisson_cpp, test_poisson_r)
   
-  # to add observation level random term, add (1 | sp@site)
-  test_poisson_cpp2 = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site) + (1|sp@site), 
-                                          dat, cov_ranef = list(sp = phylotree), family = 'poisson', REML = F, cpp = T)
+  # to add observation level random term, add (1 | Species@site)
+  test_poisson_cpp2 = phyr::communityPGLMM(freq ~ 1 + shade + (1 | Species__) + (1 | Location) + (1 | Species__@site) + (1|Species@site), 
+                                          dat, cov_ranef = list(Species = phylotree), family = 'poisson', REML = F, cpp = T)
   test_poisson_r2 = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site) + (1|sp@site), 
                                            dat, cov_ranef = list(sp = phylotree), family = 'poisson', REML = F, cpp = F)
   test_fit_equal(test_poisson_cpp2, test_poisson_r2)
@@ -42,65 +43,71 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   
   # binomial plmm
   test_binomial_cpp = phyr::communityPGLMM(cbind(freq, freq2) ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), 
-                                          dat, tree = phylotree, family = 'binomial', REML = F, cpp = T, add.obs.re = F)
+                                          dat, cov_ranef = list(sp = phylotree), family = 'binomial', 
+                                          REML = F, cpp = T, add.obs.re = F)
   test_binomial_r = phyr::communityPGLMM(cbind(freq, freq2) ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), 
-                                        dat, tree = phylotree, family = 'binomial', REML = F, cpp = F, add.obs.re = F)
+                                        dat, cov_ranef = list(sp = phylotree), family = 'binomial', 
+                                        REML = F, cpp = F, add.obs.re = F)
   test_fit_equal(test_binomial_cpp, test_binomial_r)
   
   # another form: provide prob
   dat$prob = dat$freq / 20
   test_binomial_cpp2 = phyr::communityPGLMM(prob ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), 
-                                           dat, tree = phylotree, family = 'binomial', REML = F, cpp = T)
+                                           dat, cov_ranef = list(sp = phylotree), family = 'binomial', REML = F, cpp = T)
   test_binomial_r2 = phyr::communityPGLMM(prob ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), 
-                                         dat, tree = phylotree, family = 'binomial', REML = F, cpp = F)
+                                         dat, cov_ranef = list(sp = phylotree), family = 'binomial', REML = F, cpp = F)
   test_fit_equal(test_binomial_cpp2, test_binomial_r2)
   
   # fit models
-  test1_gaussian_cpp = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + 
-                                              (1 | sp__@site), dat, tree = phylotree, REML = F, cpp = T, optimizer = "Nelder-Mead")
+  test1_gaussian_cpp = phyr::communityPGLMM(freq ~ 1 + shade + (1 | Species__) + (1 | site) + 
+                                              (1 | Species__@site), dat, cov_ranef = list(Species = phylotree), REML = F, 
+                                            cpp = T, optimizer = "Nelder-Mead")
   
-  test1_gaussian_r = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + 
-                                            (1 | sp__@site), dat, tree = phylotree, REML = F, cpp = F, optimizer = "Nelder-Mead")
+  test1_gaussian_r = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | Location) + 
+                                            (1 | sp__@site), dat, cov_ranef = list(sp = phylotree), REML = F, 
+                                          cpp = F, optimizer = "Nelder-Mead")
+  
+  test_fit_equal(test1_gaussian_cpp, test1_gaussian_r)
   
   test2_binary_cpp = phyr::communityPGLMM(pa ~ 1 + shade + (1 | sp__) + (1 | site) + 
-                                            (1 | sp__@site), dat, family = "binomial", tree = phylotree, REML = F, cpp = T, 
+                                            (1 | sp__@site), dat, family = "binomial", cov_ranef = list(sp = phylotree), REML = F, cpp = T, 
                                           optimizer = "Nelder-Mead")
   
   test2_binary_r = phyr::communityPGLMM(pa ~ 1 + shade + (1 | sp__) + (1 | site) + 
-                                          (1 | sp__@site), dat, family = "binomial", tree = phylotree, REML = F, cpp = F, 
+                                          (1 | sp__@site), dat, family = "binomial", cov_ranef = list(sp = phylotree), REML = F, cpp = F, 
                                         optimizer = "Nelder-Mead")
   
   if(requireNamespace("INLA", quietly = TRUE)){
     test1_gaussian_bayes = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + 
-                                                  (1 | site) + (1 | sp__@site), dat, tree = phylotree, bayes = TRUE,
+                                                  (1 | site) + (1 | sp__@site), dat, cov_ranef = list(sp = phylotree), bayes = TRUE,
                                                 prior = "pc.prior.auto")
     
     test1_binomial_bayes = phyr::communityPGLMM(pa ~ 1 + shade + (1 | sp__) + (1 | site) + 
-                                                  (1 | sp__@site), dat, tree = phylotree, ML.init = FALSE, bayes = TRUE,
+                                                  (1 | sp__@site), dat, cov_ranef = list(sp = phylotree), ML.init = FALSE, bayes = TRUE,
                                                 family = "binomial", prior = "pc.prior.auto")
     
     test1_poisson_bayes = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + 
-                                                 (1 | sp__@site), dat, tree = phylotree, bayes = TRUE, ML.init = FALSE, 
+                                                 (1 | sp__@site), dat, cov_ranef = list(sp = phylotree), bayes = TRUE, ML.init = FALSE, 
                                                family = "poisson", prior = "pc.prior.auto",
                                                prior_alpha = 0.01, prior_mu = 1)
     
     test2_binomial_bayes = phyr::communityPGLMM(cbind(freq, freq2) ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site),
-                                               dat, tree = phylotree, family = 'binomial', add.obs.re = F, bayes = TRUE,
+                                               dat, cov_ranef = list(sp = phylotree), family = 'binomial', add.obs.re = F, bayes = TRUE,
                                                ML.init = FALSE, prior = "pc.prior.auto")
     
     test2_binomial_bayes_zi = phyr::communityPGLMM(cbind(freq, freq2) ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), 
-                                                  dat, tree = phylotree, family = 'zeroinflated.binomial', add.obs.re = F, bayes = TRUE,
+                                                  dat, cov_ranef = list(sp = phylotree), family = 'zeroinflated.binomial', add.obs.re = F, bayes = TRUE,
                                                   ML.init = FALSE, prior = "pc.prior.auto")
     
     test2_poisson_bayes_zi = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + 
-                                                 (1 | sp__@site), dat, tree = phylotree, bayes = TRUE, ML.init = FALSE, 
+                                                 (1 | sp__@site), dat, cov_ranef = list(sp = phylotree), bayes = TRUE, ML.init = FALSE, 
                                                family = "zeroinflated.poisson", prior = "pc.prior.auto",
                                                prior_alpha = 0.01, prior_mu = 1)
     
     ## try a 'overdispersed' Poisson (e.g. add row random effect to account for
     ## variance in the lambda values)
     test1_poisson_bayes_overdispersed = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site) + (1 | sp@site),
-                                                             dat, tree = phylotree, 
+                                                             dat, cov_ranef = list(sp = phylotree), 
                                                              bayes = TRUE, ML.init = FALSE, family = "poisson")
     
     test_that("Bayesian communityPGLMM produced correct object", {
@@ -120,7 +127,7 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
 
   
   test_that("cpp and r version phyr gave the same results: gaussian", {
-    expect_equivalent(test1_gaussian_cpp, test1_gaussian_r)
+    test_fit_equal(test1_gaussian_cpp, test1_gaussian_r)
   })
   
   test_that("cpp and r version phyr gave the same results: binomial", {
@@ -156,7 +163,6 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   ## test3_binary_cpp_bobyqa$convcode test3_binary_r_bobyqa$convcode
   
   # data prep for pez::communityPGLMM
-  dat = arrange(dat, site, sp)
   nspp = n_distinct(dat$sp)
   nsite = n_distinct(dat$site)
   
@@ -188,7 +194,7 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   test_that("phyr should be able to run in the format of pez: gaussian", {
     pglmm_phyr_pez = phyr::communityPGLMM(freq ~ 1 + shade, data = dat, sp = dat$sp, 
                                           site = dat$site, random.effects = re, REML = F, optimizer = "Nelder-Mead")
-    test_fit_equal(test1_gaussian_pez, pglmm_phyr_pez)
+    test_fit_equal(test1_gaussian_cpp, pglmm_phyr_pez)
   })
   
   test2_binary_pez <- pez::communityPGLMM(pa ~ 1 + shade, data = dat, family = "binomial", 
@@ -210,8 +216,8 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   dat.na.rm = dat.na[!is.na(dat.na$freq), ]
   
   test_that("testing data with NA, gaussian models", {
-    z.na = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), dat.na, tree = phylotree, REML = F)
-    z.na.rm = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), dat.na.rm, tree = phylotree, REML = F)
+    z.na = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), dat.na, cov_ranef = list(sp = phylotree), REML = F)
+    z.na.rm = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), dat.na.rm, cov_ranef = list(sp = phylotree), REML = F)
     # NOTE: freq = NA is DIFFERENT from freq = 0 !
     test_fit_equal(z.na, z.na.rm)
   })
@@ -221,8 +227,8 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   dat.na.rm = dat.na[!is.na(dat.na$pa), ]
   
   test_that("testing data with NA, binomial models", {
-    z2.na = phyr::communityPGLMM(pa ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), dat.na, family = "binomial", tree = phylotree, REML = F)
-    z2.na.rm = phyr::communityPGLMM(pa ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), dat.na.rm, family = "binomial", tree = phylotree, REML = F)
+    z2.na = phyr::communityPGLMM(pa ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), dat.na, family = "binomial", cov_ranef = list(sp = phylotree), REML = F)
+    z2.na.rm = phyr::communityPGLMM(pa ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), dat.na.rm, family = "binomial", cov_ranef = list(sp = phylotree), REML = F)
     # NOTE: pa = NA is DIFFERENT from pa = 0 !
     test_fit_equal(z2.na, z2.na.rm)
   })
@@ -238,16 +244,16 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   tree_site = ape::rtree(n = n_distinct(dat$site), tip.label = sort(unique(dat$site)))
   z_bipartite = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site__) + 
                                        (1 | sp__@site) + (1 | sp@site__) + (1 | sp__@site__), data = dat, family = "gaussian", 
-                                     tree = phylotree, tree_site = tree_site, REML = TRUE)
+                                     cov_ranef = list(sp = phylotree, site = tree_site), REML = TRUE)
   
   if(requireNamespace("INLA", quietly = TRUE)){
     z_bipartite_bayes = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site__) + 
                                                (1 | sp__@site) + (1 | sp@site__) + (1 | sp__@site__), data = dat, family = "gaussian", 
-                                             tree = phylotree, tree_site = tree_site, bayes = TRUE, ML.init = FALSE)
+                                             cov_ranef = list(sp = phylotree), tree_site = tree_site, bayes = TRUE, ML.init = FALSE)
     
     z_bipartite_bayes_2 = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site__) + 
                                                  (1 | sp__@site) + (1 | sp@site__) + (1 | sp__@site__), data = dat, family = "gaussian", 
-                                               tree = phylotree, tree_site = tree_site, bayes = TRUE, ML.init = FALSE, prior = "pc.prior.auto")
+                                               cov_ranef = list(sp = phylotree), tree_site = tree_site, bayes = TRUE, ML.init = FALSE, prior = "pc.prior.auto")
   }
   
   # # test tree and tree_site as cov matrix
@@ -283,7 +289,7 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
                                     random.effects = re)
     z_repul2 = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site__) + 
                                       (1 | sp__@site) + (1 | sp@site__) + (1 | sp__@site__), data = dat, family = "gaussian", 
-                                    tree = phylotree, tree_site = tree_site, repulsion = repul_vec)
+                                    cov_ranef = list(sp = phylotree), tree_site = tree_site, repulsion = repul_vec)
     test_fit_equal(z_repul1, z_repul2)
   })
   
