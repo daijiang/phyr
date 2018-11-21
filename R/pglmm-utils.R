@@ -649,15 +649,18 @@ pglmm.V <- function(par, Zt, St, mu, nested, family, size) {
 }
 # End pglmm.V
 
-#' \code{communityPGLMM.profile.LRT} tests statistical significance of the phylogenetic random effect on 
-#' species slopes using a likelihood ratio test
+#' \code{communityPGLMM.profile.LRT} tests statistical significance of the 
+#' phylogenetic random effect of binomial models on 
+#' species slopes using a likelihood ratio test.
 #' 
 #' @rdname pglmm-utils
-#' @param x A fitted model with class communityPGLMM
+#' @param x A fitted model with class communityPGLMM and family "binomial".
 #' @param re.number Which random term to test? Can be a vector with length >1
 #' @inheritParams pglmm
 #' @export
 communityPGLMM.profile.LRT <- function(x, re.number = 0, cpp = TRUE) {
+  if(x$family != "binomial")
+    stop("Only work with binomial PGLMMs at this moment")
   n <- dim(x$X)[1]
   p <- dim(x$X)[2]
   par <- x$ss
@@ -993,7 +996,7 @@ fitted.communityPGLMM <- function(object, ...){
     }
   }
   
-  ft
+  unname(ft)
 }
 
 #' Extract the fixed-effects estimates
@@ -1028,3 +1031,49 @@ fixef.communityPGLMM <- function(object, ...) {
   coef
 }
 
+
+#' Extract the random-effects estimates
+#'
+#' Extract the estimates of the random-effects parameters from a fitted model.
+#' 
+#' @name ranef
+#' @title Extract random-effects estimates
+#' @aliases fixef random.effects ranef.communityPGLMM
+#' @docType methods
+#' @param object A fitted model with class communityPGLMM.
+#' @param ... Ignored.
+#' @return A dataframe of random-effects estimates.
+#' @importFrom lme4 ranef
+#' @export ranef
+#' @method ranef communityPGLMM
+#' @export
+ranef.communityPGLMM <- function(object, ...) {
+  w <- data.frame(Variance = c(object$s2r, object$s2n, object$s2resid))
+  w$Std.Dev = sqrt(w$Variance)
+  
+  if(object$bayes) {
+    w$lower.CI <- c(object$s2r.ci[ , 1], object$s2n.ci[ , 1], object$s2resid.ci[ , 1])
+    w$upper.CI <- c(object$s2r.ci[ , 2], object$s2n.ci[ , 2], object$s2resid.ci[ , 2])
+  }
+  
+  random.effects = object$random.effects
+  if(!is.null(names(random.effects))){
+    re.names = names(random.effects)[c(
+      which(sapply(random.effects, length) %nin% c(1, 4)),
+      which(sapply(random.effects, length) %in% c(1, 4))
+    )]
+  } else {
+    re.names <- NULL
+    if (length(object$s2r) > 0) {
+      for (i in 1:length(object$s2r)) re.names <- c(re.names, paste("non-nested ", i, sep = ""))
+    }
+    if (length(object$s2n) > 0) {
+      for (i in 1:length(object$s2n)) re.names <- c(re.names, paste("nested ", i, sep = ""))
+    }
+  }
+  
+  if (object$family == "gaussian") re.names <- c(re.names, "residual")
+  
+  row.names(w) <- re.names
+  w
+}

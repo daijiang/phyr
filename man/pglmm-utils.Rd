@@ -5,8 +5,9 @@
 \alias{communityPGLMM.matrix.structure}
 \alias{summary.communityPGLMM}
 \alias{print.communityPGLMM}
-\title{\code{communityPGLMM.profile.LRT} tests statistical significance of the phylogenetic random effect on
-species slopes using a likelihood ratio test}
+\title{\code{communityPGLMM.profile.LRT} tests statistical significance of the
+phylogenetic random effect of binomial models on
+species slopes using a likelihood ratio test.}
 \usage{
 communityPGLMM.profile.LRT(x, re.number = 0, cpp = TRUE)
 
@@ -21,7 +22,7 @@ communityPGLMM.matrix.structure(formula, data = list(),
   3), ...)
 }
 \arguments{
-\item{x}{A fitted model with class communityPGLMM}
+\item{x}{A fitted model with class communityPGLMM and family "binomial".}
 
 \item{re.number}{Which random term to test? Can be a vector with length >1}
 
@@ -103,8 +104,9 @@ The T/F combinations depend on your questions.}
 \item{...}{Additional arguments, currently ignored.}
 }
 \description{
-\code{communityPGLMM.profile.LRT} tests statistical significance of the phylogenetic random effect on
-species slopes using a likelihood ratio test
+\code{communityPGLMM.profile.LRT} tests statistical significance of the
+phylogenetic random effect of binomial models on
+species slopes using a likelihood ratio test.
 
 \code{communityPGLMM.matrix.structure} produces the entire
 covariance matrix structure (V) when you specify random effects.
