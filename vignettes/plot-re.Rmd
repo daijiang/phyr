@@ -129,7 +129,8 @@ To make all plots black or white, use `useAbs = TRUE`.
 ```{r fig.asp=0.6}
 # all black and white
 communityPGLMM.plot.re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
-                       data = d, tree = phy, show.image = TRUE, show.sim.image = FALSE, useAbs = TRUE)
+                       data = d, cov_ranef = list(sp = phy), show.image = TRUE, 
+                       show.sim.image = FALSE, useAbs = TRUE)
 ```
 
 ## Individual plots for var-cov matrices

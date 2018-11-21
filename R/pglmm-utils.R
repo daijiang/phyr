@@ -1,5 +1,61 @@
 # utils functions for pglmm ----
 
+#' Process the var-cov matrices of random terms
+#' 
+#' @param x A named list of var-cov matrices of random terms. The names should be the
+#' group variables that are used as random terms and must be presented. The actual object 
+#' can be a phylogeny with class "phylo" or a prepared var-cov matrix. If it is a phylogeny,
+#' we will prune it and then convert it to a var-cov matrix assuming brownian motion evolution.
+#' We will also standardize all var-cov matrices to have determinant of one.
+#' @param df A data frame that includes the group variables, i.e., names of \code{x}.
+#' @return A named list, which includes the processed var-cov matrices of random terms.
+#' @noRd
+parse_conv_ranef = function(x, df){
+  if(is.null(names(x))) stop("conv_ranef_list must have names")
+  x2 = x
+  out_list = lapply(1:length(x), function(i){
+    xx = x[[i]]
+    spl = levels(df[, names(x)[i]])
+    if("phylo" %in% class(xx)){
+      # phylogeny
+      if(length(setdiff(spl, xx$tip.label))) 
+        stop(paste0("Some species of variable ", names(x)[i],  " not in the phylogeny, 
+                    please either drop these species or update the phylogeny"))
+      if(length(setdiff(xx$tip.label, spl))){
+        warning(paste0("Drop species from the phylogeny that are not in the variable ", names(x)[i]), 
+                call. = FALSE, immediate. = TRUE)
+        xx = ape::drop.tip(xx, setdiff(xx$tip.label, spl))
+      }
+      Vphy <- ape::vcv(xx)
+      Vphy <- Vphy/max(Vphy)
+      Vphy <- Vphy/exp(determinant(Vphy)$modulus[1]/ape::Ntip(xx))
+      Vphy = Vphy[spl, spl] # same order as species levels
+    }
+    
+    if(inherits(xx, c("matrix", "Matrix"))){
+      # already a cov matrix
+      if(length(setdiff(spl, row.names(xx)))) 
+        stop(paste0("Some levels of variable ", names(x)[i],  " not in the martix, 
+                    please either drop these levels or update the matrix"))
+      if(length(setdiff(row.names(xx), spl)))
+        warning(paste0("Drop levels from the matrix that are not in the variable ", names(x)[i]), 
+                call. = FALSE, immediate. = TRUE)
+      xx = xx[spl, spl] # same order
+      if((det(xx) - 1) > 0.0001){
+        warning("The cov matrix is not standarized, we will do this now...", call. = FALSE, immediate. = TRUE)
+        xx <- xx/max(xx)
+        xx <- xx/exp(determinant(xx)$modulus[1]/nrow(xx))
+        if((det(xx) - 1) > 0.0001) warning("Failed to standarized the cov matrix", call. = FALSE, immediate. = TRUE)
+      }
+      Vphy = xx
+    }
+    x2[[i]] <<- xx # update the phylo or cov matrix
+    Vphy
+  })
+  names(out_list) = names(x)
+  list(updated_orgi_list = x2, cleaned_list = out_list)
+}
+
 #' Prepare data for \code{communityPGLMM}
 #' 
 #' This function is mainly used within \code{communityPGLMM} but can also be used independently to
@@ -19,311 +75,212 @@
 #' @param prep.re.effects Whether to prepare random effects for users.
 #' @return A list with updated formula, data, random.effects, tree, etc.
 #' @export
-prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE, 
-                          prep.re.effects = TRUE, family = "gaussian", 
-                          prep.s2.lme4 = FALSE, tree_site = NULL, 
-                          bayes = FALSE, add.obs.re = TRUE){
-
-  # make sure the data has sp and site columns
-  if(!all(c("sp", "site") %in% names(data))) {
-    stop("The data frame should have a column named as 'sp' and a column named as 'site'.")
-  }
-  
-  # arrange data by site; then sp within site
-  data = data[order(data$sp),]
-  data = data[order(data$site),]
-  data$sp = as.factor(data$sp); sp = data$sp
-  data$site = as.factor(data$site); site = data$site
-  spl = levels(sp); sitel = levels(site)
-  nspp = nlevels(sp); nsite = nlevels(site)
-  
+prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE, 
+                          prep.re.effects = TRUE, family = "gaussian",
+                          add.obs.re = TRUE){
   fm = unique(lme4::findbars(formula))
   formula.nobars <- lme4::nobars(formula)
+  
+  # make sure group variables are factors
+  grp_vars = unique(unlist(lapply(fm, function(x){
+    xx = gsub(pattern = "__", replacement = "", x = as.character(x)[3])
+    strsplit(xx, "[@]")
+  })))
+  data = dplyr::mutate_at(data, grp_vars, as.factor)
   
   if(prep.re.effects){
     # @ for nested; __ at the end for phylogenetic cov
     if(is.null(fm)) stop("No random terms specified, use lm or glm instead")
-    if(any(grepl("sp__", fm))){
-      if(class(tree) == "phylo"){
-        # phylogeny
-        if(length(setdiff(spl, tree$tip.label))) stop("Some species not in the phylogeny, please either drop these species or update the phylogeny")
-        if(length(setdiff(tree$tip.label, spl))){
-          warning("Drop species from the phylogeny that are not in the data", immediate. = TRUE)
-          tree = ape::drop.tip(tree, setdiff(tree$tip.label, spl))
-        }
-        Vphy <- ape::vcv(tree)
-        Vphy <- Vphy/max(Vphy)
-        Vphy <- Vphy/exp(determinant(Vphy)$modulus[1]/nspp)
-        Vphy = Vphy[spl, spl] # same order as species levels
-      }
+    
+    if(any(grepl("__", fm))){ # has specified cov
+      if(is.null(cov_ranef)) stop("cov_ranef, the list of cov matrices, is not specified")
+      cov_list = parse_conv_ranef(cov_ranef, data)
+      cov_ranef_list = cov_list$cleaned_list
+      cov_ranef_updated = cov_list$updated_orgi_list
       
-      if(inherits(tree, c("matrix", "Matrix"))){
-        # tree is already a cov matrix
-        if(length(setdiff(spl, row.names(tree)))) stop("Some species not in the cov matrix, please either drop these species or update the matrix")
-        if(length(setdiff(row.names(tree), spl))){
-          warning("Drop species from the cov matrix that are not in the data", immediate. = TRUE)
-        }
-        tree = tree[spl, spl] # drop sp and to be the same order as data$sp
-        if((det(tree) - 1) > 0.0001){
-          warning("The cov matrix is not standarized, we will do this now...", immediate. = TRUE)
-          tree <- tree/max(tree)
-          tree <- tree/exp(determinant(tree)$modulus[1]/nrow(tree))
-          if((det(tree) - 1) > 0.0001) warning("Failed to standarized the cov matrix", immediate. = TRUE)
-        }
-        Vphy = tree
+      # number of potential repulsions (both __ and @)
+      if(all(grepl("@", fm) == FALSE)) {# no nested term
+        n_repulsion = 1
+      } else {
+        n_repulsion = sum(sapply(fm[grepl("@", fm)], function(x){
+          xx = strsplit(as.character(x)[3], "@")[[1]]
+          sum(grepl("__", xx))
+        }))
       }
-    } else {
-      Vphy = NULL
-    }
-    
-    if(any(grepl("site__", fm))){
-      if(is.null(tree_site)) stop("tree_site not specified")
+      if(length(repulsion) == 1) repulsion = rep(repulsion, n_repulsion)
+      if(length(repulsion) != n_repulsion) 
+        stop("The number of repulsion terms specified is not correct: please double check")
+      nested_repul_i = 1
+      no_obs_re = TRUE # flag for message later
       
-      if(class(tree_site) == "phylo"){
-        # phylogeny
-        if(length(setdiff(sitel, tree_site$tip.label))) stop("Some species not in the phylogeny tree_site, please either drop these species or update the phylogeny")
-        if(length(setdiff(tree_site$tip.label, sitel))){
-          warning("Drop species from the phylogeny tree_site that are not in the data", immediate. = TRUE)
-          tree = ape::drop.tip(tree_site, setdiff(tree_site$tip.label, sitel))
-        }
-        Vphy_site <- ape::vcv(tree_site)
-        Vphy_site <- Vphy_site/max(Vphy_site)
-        Vphy_site <- Vphy_site/exp(determinant(Vphy_site)$modulus[1]/nsite)
-        Vphy_site = Vphy_site[sitel, sitel] # same order as site levels
-      }
-      
-      if(inherits(tree_site, c("matrix", "Matrix"))){
-        # tree_site is already a cov matrix
-        if(length(setdiff(sitel, row.names(tree_site)))) stop("Some species not in the cov matrix tree_site, please either drop these species or update the matrix tree_site")
-        if(length(setdiff(row.names(tree_site), sitel))){
-          warning("Drop species from the cov matrix that are not in the data", immediate. = TRUE)
-        }
-        tree_site = tree_site[sitel, sitel] # drop sp and to be the same order as data$sp
-        if((det(tree_site) - 1) > 0.0001){
-          warning("The cov matrix is not standarized, we will do this now...", immediate. = TRUE)
-          tree_site <- tree_site/max(tree_site)
-          tree_site <- tree_site/exp(determinant(tree_site)$modulus[1]/nrow(tree_site))
-          if((det(tree_site) - 1) > 0.0001) warning("Failed to standarized the cov matrix", immediate. = TRUE)
-        }
-        Vphy_site = tree_site
-      }
-    } else {
-      Vphy_site = NULL
-    }
-    
-    if(nrow(data) != nspp * nsite){
-      # NAs that have been removed
-      message("The dataframe may have been removed for NAs as its number of row is not nspp * nsite \n
-              we will recreate the full data frame for you.")
-      # recreate a full data frame to get which rows have been removed
-      data_all = expand.grid(site = sitel, sp = spl)
-      data_all = data_all[order(data_all$sp),]
-      data_all = data_all[order(data_all$site),]
-      data_all = dplyr::left_join(data_all, data, by = c("site", "sp"))
-      nna.ind = which(!is.na(data_all[, as.character(formula)[2]]))
-      if(nrow(data) != length(nna.ind)) stop("Something is wrong with NAs")
-    }
-    
-    # number of potential repulsions (both __ and @)
-    if(all(grepl("@", fm) == FALSE)) {# no nested term
-      n_repulsion = 1
-    } else {
-      n_repulsion = sum(sapply(fm[grepl("@", fm)], function(x){
-        xx = strsplit(as.character(x)[3], "@")[[1]]
-        sum(grepl("__", xx))
-      }))
-    }
-    if(length(repulsion) == 1) repulsion = rep(repulsion, n_repulsion)
-    if(length(repulsion) != n_repulsion) stop("The number of repulsion terms specified is not correct: please double check")
-    nested_repul_i = 1
-    no_obs_re = TRUE # flag for message later
-    
-    random.effects = lapply(fm, function(x){
-      x2 = as.character(x)
-      x2 = gsub(pattern = "^0 ?[+] ?", replacement = "", x2) # replace 0 +  x with x
-      if(grepl("[+]", x2[2])) stop("(x1 + x2|g) form of random terms are not allowed yet, pleast split it")
-      if(x2[2] == "1"){ # intercept
-        if(!grepl("[@]", x2[3])){ # single column; non-nested
-          if(grepl("__$", x2[3])){
+      random.effects = lapply(fm, function(x){
+        x2 = as.character(x)
+        x2 = gsub(pattern = "^0 ?[+] ?", replacement = "", x2) # replace 0 + x with x
+        if(grepl("[+]", x2[2])) stop("(x1 + x2|g) form of random terms are not allowed yet, pleast split it")
+        if(x2[2] == "1"){ # intercept
+          if(!grepl("[@]", x2[3])){ # single column; non-nested; 1|sp or 1|sp__
+            if(grepl("__$", x2[3])){
+              # also want phylogenetic version, 
+              # it makes sense if the phylogenetic version is in, the non-phy part should be there too
+              coln = gsub("__$", "", x2[3])
+              d = data[, coln] # extract the column
+              xout_nonphy = list(1, d, covar = diag(nlevels(d)))
+              names(xout_nonphy)[2] = coln
+              if(coln %nin% names(cov_ranef_list)) 
+                stop(paste0("Cov matrix of variable ", coln, " not specified in cov_ranef."))
+              xout_phy = list(1, d, covar = cov_ranef_list[[coln]])
+              names(xout_phy)[2] = x2[3]
+              xout = list(xout_nonphy, xout_phy)
+            } else { # non phylogenetic random term
+              d = data[, x2[3]] # extract the column
+              xout = list(1, d, covar = diag(nlevels(d)))
+              names(xout)[2] = x2[3]
+              xout = list(xout)
+            } 
+          } else { # nested term, e.g. sp@site, sp__@site, sp@site__, sp__@site__
+            sp_or_site = strsplit(x2[3], split = "@")[[1]]
+            colns = gsub("__$", "", sp_or_site)
+            site_sp_c = paste(as.character(data[, colns[2]]), as.character(data[, colns[1]]), sep = "___")
+            
+            if(any(colns[grepl("__", sp_or_site)] %nin% names(cov_ranef_list)))
+              stop(paste0("Cov matrix of variable ", 
+                          paste(colns[grepl("__", sp_or_site)], collapse = " and "), 
+                          " not specified in cov_ranef."))
+            
+            if(!grepl("__", x2[3])){ # no phylogenetic term; e.g. sp@site
+              if(family == 'poisson' | 
+                 (family == 'binomial' & 
+                  is.array(model.response(model.frame(formula.nobars, data = data, na.action = NULL))))){
+                if(add.obs.re) {
+                  message("It seems that you specified an observation-level random term already; 
+                       we will set 'add.obs.re' to FALSE.")
+                  add.obs.re <<- FALSE
+                  no_obs_re <<- FALSE
+                }
+              }
+              # message("Nested term without specify phylogeny, use identity matrix instead")
+              xout = list(as(diag(nrow(data)), "dgCMatrix"))
+              xout = list(xout)
+            } else { # has phylogenetic term; sp__@site; sp__@site__; sp@site__
+              if(grepl("__", sp_or_site[1]) & !grepl("__", sp_or_site[2])){ # sp__@site
+                n_dim = nlevels(data[, colns[2]])
+                if(repulsion[nested_repul_i]){
+                  xout = as(kronecker(diag(n_dim), solve(cov_ranef_list[[colns[1]]])), "dgCMatrix")
+                } else {
+                  xout = as(kronecker(diag(n_dim), cov_ranef_list[[colns[1]]]), "dgCMatrix")
+                }
+                # put names back
+                rownames(xout) = colnames(xout) = paste(
+                  rep(levels(data[, colns[2]]), each = nrow(cov_ranef_list[[colns[1]]])),
+                  rep(rownames(cov_ranef_list[[colns[1]]]), nlevels(data[, colns[2]])),
+                  sep = "___")
+                # select the actual combination in the data; e.g. not all sp observed in every site.
+                xout = xout[site_sp_c, site_sp_c]
+                xout = list(xout)
+                nested_repul_i <<- nested_repul_i + 1 # update repulsion index
+              }
+              
+              if(!grepl("__", sp_or_site[1]) & grepl("__", sp_or_site[2])){ # sp@site__
+                n_dim = length(unique(data[, colns[1]]))
+                if(repulsion[nested_repul_i]){
+                  xout = as(kronecker(solve(cov_ranef_list[[colns[2]]]), diag(n_dim)), "dgCMatrix")
+                } else {
+                  xout = as(kronecker(cov_ranef_list[[colns[2]]], diag(n_dim)), "dgCMatrix")
+                }
+                
+                # put names back
+                rownames(xout) = colnames(xout) = paste(
+                  rep(rownames(cov_ranef_list[[colns[2]]]), each = nlevels(data[, colns[1]])),
+                  rep(levels(data[, colns[1]]), nrow(cov_ranef_list[[colns[2]]])),
+                  sep = "___")
+                # select the actual combination in the data; e.g. not all sp observed in every site.
+                xout = xout[site_sp_c, site_sp_c]
+                
+                xout = list(xout)
+                nested_repul_i <<- nested_repul_i + 1
+              }
+              
+              if(grepl("__", sp_or_site[1]) & grepl("__", sp_or_site[2])){ # sp__@site__
+                if(repulsion[nested_repul_i]){
+                  Vphy2 = solve(cov_ranef_list[[colns[1]]])
+                } else {
+                  Vphy2 = cov_ranef_list[[colns[1]]]
+                }
+                nested_repul_i <<- nested_repul_i + 1
+                
+                if(repulsion[nested_repul_i]){
+                  Vphy_site2 = solve(cov_ranef_list[[colns[2]]])
+                } else {
+                  Vphy_site2 = cov_ranef_list[[colns[2]]]
+                }
+                nested_repul_i <<- nested_repul_i + 1
+                
+                xout = as(kronecker(Vphy_site2, Vphy2), "dgCMatrix")
+                # put names back
+                rownames(xout) = colnames(xout) = paste(
+                  rep(rownames(cov_ranef_list[[colns[2]]]), each = nrow(cov_ranef_list[[colns[1]]])),
+                  rep(rownames(cov_ranef_list[[colns[1]]]), nrow(cov_ranef_list[[colns[2]]])),
+                  sep = "___")
+                # select the actual combination in the data; e.g. not all sp observed in every site.
+                xout = xout[site_sp_c, site_sp_c]
+                xout = list(xout)
+              }
+              
+              xout = list(xout) # to put the matrix in a list
+            }
+          }
+        } else { # slope
+          if(grepl("@", x2[3])) stop("Sorry, random terms for slopes cannot be nested")
+          if(grepl("__$", x2[3])){ # x|sp__
             # also want phylogenetic version, 
             # it makes sense if the phylogenetic version is in, the non-phy part should be there too
             coln = gsub("__$", "", x2[3])
-            if(coln %nin% c("sp", "site")) stop("Group variable with phylogenetic var-covar matrix must be named either sp or site")
             d = data[, coln] # extract the column
-            xout_nonphy = list(1, d, covar = diag(nlevels(d)))
+            xout_nonphy = list(data[, x2[2]], d, covar = diag(nlevels(d)))
             names(xout_nonphy)[2] = coln
-            if(coln == "sp"){
-              xout_phy = list(1, d, covar = Vphy)
-            }
-            if(coln == "site"){
-              xout_phy = list(1, d, covar = Vphy_site)
-            }
-            names(xout_phy)[2] = coln
+            xout_phy = list(data[, x2[2]], d, covar = cov_ranef_list[[coln]])
+            names(xout_phy)[2] = x2[3]
             xout = list(xout_nonphy, xout_phy)
-          } else { # non phylogenetic random term
+          } else { # non phylogenetic random term; x|sp
             d = data[, x2[3]] # extract the column
-            xout = list(1, d, covar = diag(length(unique(d))))
+            xout = list(data[, x2[2]], d, covar = diag(nlevels(d)))
             names(xout)[2] = x2[3]
             xout = list(xout)
           } 
-        } else { # nested term 
-          sp_or_site = strsplit(x2[3], split = "@")[[1]]
-          
-          if(!grepl("__", x2[3])){ # no phylogenetic term
-            if(family == 'poisson' | 
-               (family == 'binomial' & 
-                is.array(model.response(model.frame(formula.nobars, data = data, na.action = NULL))))){
-              if(add.obs.re) {
-                message("It seems that you specified an observation-level random term already; 
-                       we will set 'add.obs.re' to FALSE.")
-                add.obs.re <<- FALSE
-                no_obs_re <<- FALSE
-              }
-            }
-            # message("Nested term without specify phylogeny, use identity matrix instead")
-            xout = list(1, sp = data[, sp_or_site[1]], 
-                        covar = diag(length(unique(data[, sp_or_site[1]]))), 
-                        site = data[, sp_or_site[2]])
-            names(xout)[c(2, 4)] = sp_or_site
-            xout = list(xout)
-          } else { # has phylogenetic term
-            if(sp_or_site[1] == "sp__" & !grepl("__", sp_or_site[2])){ # sp__@site or other variables w/o phylo var
-              if(bayes){
-                if(repulsion[nested_repul_i]){
-                  xout = list(1, sp, covar = solve(Vphy), data[, sp_or_site[2]])
-                } else {
-                  xout = list(1, sp, covar = Vphy, data[, sp_or_site[2]])
-                }
-              } else {
-                n_dim = length(unique(data[, sp_or_site[2]]))
-                if(repulsion[nested_repul_i]){
-                  xout = as(kronecker(diag(n_dim), solve(Vphy)), "dgCMatrix")
-                } else {
-                  xout = as(kronecker(diag(n_dim), Vphy), "dgCMatrix")
-                }
-                xout = list(xout)
-              }
-              nested_repul_i <<- nested_repul_i + 1 # update repulsion index
-            }
-            
-            if(sp_or_site[1] == "sp" & sp_or_site[2] == "site__"){ # sp@site__
-              if(repulsion[nested_repul_i]){
-                xout = as(kronecker(solve(Vphy_site), diag(nspp)), "dgCMatrix")
-              } else {
-                xout = as(kronecker(Vphy_site, diag(nspp)), "dgCMatrix")
-              }
-              xout = list(xout)
-              nested_repul_i <<- nested_repul_i + 1
-            }
-            
-            if(sp_or_site[1] == "sp__" & sp_or_site[2] == "site__"){ # sp__@site__
-              if(repulsion[nested_repul_i]){
-                Vphy2 = solve(Vphy)
-              } else {
-                Vphy2 = Vphy
-              }
-              nested_repul_i <<- nested_repul_i + 1
-              
-              if(repulsion[nested_repul_i]){
-                Vphy_site2 = solve(Vphy_site)
-              } else {
-                Vphy_site2 = Vphy_site
-              }
-              nested_repul_i <<- nested_repul_i + 1
-              
-              xout = as(kronecker(Vphy_site2, Vphy2), "dgCMatrix")
-              xout = list(xout)
-            }
-            
-            # if has NAs and NAs have been removed
-            if(nrow(data) != nspp * nsite) xout[[1]] = xout[[1]][nna.ind, nna.ind] 
-            xout = list(xout) # to put the matrix in a list
-          }
         }
-      } else { # slope
-        if(grepl("@", x2[3])) stop("Sorry, random terms for slopes cannot be nested")
-        if(grepl("__$", x2[3])){
-          # also want phylogenetic version, 
-          # it makes sense if the phylogenetic version is in, the non-phy part should be there too
-          coln = gsub("__$", "", x2[3])
-          if(coln %nin% c("sp", "site")) stop("Group variable with phylogenetic var-covar matrix must be named either sp or site")
-          d = data[, coln] # extract the column
-          xout_nonphy = list(data[, x2[2]], d, covar = diag(nlevels(d)))
-          names(xout_nonphy)[2] = coln
-          xout_phy = list(data[, x2[2]], d, covar = if(coln == "sp") Vphy else Vphy_site)
-          names(xout_phy)[2] = coln
-          xout = list(xout_nonphy, xout_phy)
-        } else { # non phylogenetic random term
-          d = data[, x2[3]] # extract the column
-          xout = list(data[, x2[2]], d, covar = diag(dplyr::n_distinct(d)))
-          names(xout)[2] = x2[3]
-          xout = list(xout)
-        } 
-      }
-      xout
-    })
-    random.effects = unlist(random.effects, recursive = FALSE)
-    names(random.effects) = unlist(sapply(fm, function(x){
-      x2 = as.character(x)
-      x3 = paste0(x2[2], x2[1], x2[3])
-      if(grepl("__$", x2[3]) & !grepl("@", x2[3])){
-        x4 = gsub("__$", "", x3)
-        return(c(x4, x3))
-      }
-      x3
-    }), recursive = T)
-    
-    # Add observation-level variances for families binomial (size>1) and poisson
-    if(family == 'poisson' | 
-       (family == 'binomial' & 
-        is.array(model.response(model.frame(formula.nobars, data = data, na.action = NULL))))){
-      if(add.obs.re){
-        message("We add an observation-level random term '1|obs' for poisson and binomial data.")
-        random.effects[[length(random.effects) + 1]] <- list(diag(nspp * nsite))
-        names(random.effects)[length(random.effects)] <- "1|obs"
-      } else {
-        if(no_obs_re) message("For poisson and binomial data, it would be a good idea to add an observation-level random term (add.obs.re = TRUE).")
-      }
-    }
-     
-    if(prep.s2.lme4){
-      # lme4 to get initial theta
-      s2_init = numeric(length(random.effects))
-      names(s2_init) = names(random.effects)
-      dv = sqrt(var(lm(formula = lme4::nobars(formula), data = data)$residuals)/length(s2_init))
-      s2_init[grep(pattern = "__", x = names(s2_init))] = dv # init phy term
-      s2_init[grep(pattern = "@", x = names(s2_init))] = dv # init nested term
+        xout
+      })
+      random.effects = unlist(random.effects, recursive = FALSE)
+      names(random.effects) = unlist(sapply(fm, function(x){
+        x2 = as.character(x)
+        x3 = paste0(x2[2], x2[1], x2[3])
+        if(grepl("__$", x2[3]) & !grepl("@", x2[3])){ # 1|sp__
+          x4 = gsub("__$", "", x3)
+          return(c(x4, x3)) # 1|sp  1|sp__
+        }
+        x3
+      }), recursive = T)
       
-      no__ = gsub(pattern = "__", replacement = "", x = formula)
-      if(grepl(pattern = "@", no__[3])){
-        no__[3] = gsub(pattern = "[+] *[(]1 *[|] *[sitep]{2,4}@[sitep]{2,4}[)]", 
-                       replacement = "", x = no__[3])
-      }
-      fm_no__ = as.formula(paste0(no__[2], no__[1], no__[3]))
-      if(family == "gaussian"){
-        itheta = lme4::lFormula(fm_no__, data)$reTrms$theta
-      } else {
-        itheta = lme4::glFormula(fm_no__, data)$reTrms$theta
-      }
-      lt = grep("__|@", names(s2_init), invert = TRUE)
-      if(length(lt) != length(itheta)) {
-        warning("automated s2.init failed, set to NULL", immediate. = TRUE)
-        s2_init = NULL
-      } else {
-        s2_init[lt] = itheta
+      # Add observation-level variances for families binomial (size>1) and poisson
+      if(family == 'poisson' | 
+         (family == 'binomial' & 
+          is.array(model.response(model.frame(formula.nobars, data = data, na.action = NULL))))){
+        if(add.obs.re){
+          message("We add an observation-level random term '1|obs' for poisson and binomial data.")
+          random.effects[[length(random.effects) + 1]] <- list(as(diag(nrow(data)), "dgCMatrix"))
+          names(random.effects)[length(random.effects)] <- "1|obs"
+        } else {
+          if(no_obs_re) message("For poisson and binomial data, it would be a good idea to add an observation-level random term (add.obs.re = TRUE).")
+        }
       }
     } else {
-      s2_init = NULL
+      random.effects = NA
     }
-  } else {
-    random.effects = NA
-    s2_init = NULL
   }
   
-  return(list(formula = formula.nobars, data = data, sp = sp, site = site, 
-              random.effects = random.effects, s2_init = s2_init,
-              tree = tree, tree_site = tree_site, 
-              Vphy = Vphy, Vphy_site = Vphy_site))
+  return(list(formula = formula.nobars, 
+              random.effects = random.effects,
+              cov_ranef_updated = cov_ranef_updated))
 }
 
 #' \code{get_design_matrix} gets design matrix for gaussian, binomial, and poisson models
@@ -333,13 +290,9 @@ prep_dat_pglmm = function(formula, data, tree, repulsion = FALSE,
 #' @inheritParams pglmm
 #' @return A list of design matrices.
 #' @export
-get_design_matrix = function(formula, data, na.action = NULL, 
-                             sp, site, random.effects){
-
-  nspp <- nlevels(sp)
-  nsite <- nlevels(site)
+get_design_matrix = function(formula, data, random.effects, na.action = NULL){
   
-  mf <- model.frame(formula = formula, data = data, na.action = NULL)
+  mf <- model.frame(formula = formula, data = data, na.action = na.action)
   X <- model.matrix(attr(mf, "terms"), data = mf)
   Y <- model.response(mf)
   if(is.matrix(Y) && ncol(Y) == 2){ # success, fails for binomial data
@@ -755,15 +708,12 @@ communityPGLMM.profile.LRT <- function(x, re.number = 0, cpp = TRUE) {
 #' @rdname pglmm-utils
 #' @export
 communityPGLMM.matrix.structure <- function(formula, data = list(), family = "binomial", 
-                                            tree, repulsion = FALSE, ss = 1, cpp = TRUE) {
-  dat_prepared = prep_dat_pglmm(formula, data, tree, repulsion, family = family)
+                                            cov_ranef, repulsion = FALSE, ss = 1, cpp = TRUE) {
+  dat_prepared = prep_dat_pglmm(formula, data, cov_ranef, repulsion, family = family)
   formula = dat_prepared$formula
-  data = dat_prepared$data
-  sp = dat_prepared$sp
-  site = dat_prepared$site
   random.effects = dat_prepared$random.effects
   
-  dm = get_design_matrix(formula, data, na.action = NULL, sp, site, random.effects)
+  dm = get_design_matrix(formula, data, random.effects, na.action = NULL)
   X = dm$X; Y = dm$Y; St = dm$St; Zt = dm$Zt; nested = dm$nested; size = dm$size
   # p <- ncol(X)
   # n <- nrow(X)
@@ -929,8 +879,9 @@ print.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ..
 #' @export
 #' @return a data frame with three columns: Y_hat (predicted values accounting for 
 #'   both fixed and random terms), sp, and site.
-communityPGLMM.predicted.values <- function(
-  x, cpp = TRUE, gaussian.pred = c("nearest_node", "tip_rm")) {
+communityPGLMM.predicted.values <- function(x, cpp = TRUE, 
+                                            gaussian.pred = c("nearest_node", "tip_rm")) 
+  {
   ptype = match.arg(gaussian.pred)
   if(x$bayes) {
     marginal.summ <- x$marginal.summ
@@ -978,7 +929,7 @@ communityPGLMM.predicted.values <- function(
     if(x$family == "poisson") predicted.values <- log(x$mu)
   }
   
-  data.frame(Y_hat = predicted.values, sp = x$sp, site = x$site)
+  data.frame(Y_hat = predicted.values)
 }
 
 #' Residuals of communityPGLMM objects

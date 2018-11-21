@@ -109,14 +109,10 @@
 #'   Second, note that correlated random terms will not be allowed at this moment. For example,
 #'   \code{(x|g)} will be equal with \code{(0 + x|g)} in the \code{lme4::lmer} syntax; 
 #'   also, \code{(x1 + x2|g)} won't work.
-#' @param data A \code{\link{data.frame}} containing the variables
-#'   named in formula. The data frame should have long format with
-#'   a column for species (named as 'sp') and a column for sites (named as 'site'). 
-#'   \code{communityPGLMM} will reorder rows of the data frame so that species 
-#'   are nested within sites (i.e. arrange first by column site then by column sp).
-#' @param family Either \code{gaussian} for a Linear Mixed Model, or
-#'   \code{binomial} for binomial dependent data, or \code{poisson} for count data.
-#'   It should be specified as a character string (i.e. quoted). At this moment,
+#' @param data A \code{\link{data.frame}} containing the variables named in formula. 
+#' @param family Either "gaussian" for a Linear Mixed Model, or
+#'   "binomial" for binomial dependent data, or "poisson" for count data.
+#'   It should be specified as a character string (i.e., quoted). At this moment,
 #'   for binomial data, we fixed the link function to logit; for poisson data,
 #'   we fixed the link function to log. Binomial data can be either 
 #'   presence/absence, or a two column array of 'success' and 'fail'. 
@@ -126,15 +122,31 @@
 #'   which add a "zero inflation" parameter, which is the probability that a the response is
 #'   a zero. The rest of the parameters of the model then reflect the "non-zero" part part
 #'   of the model. Note that "zeroinflated.binomial" only makes sense as a using successes /
-#'   Ntrials type of response data.
-#' @param tree A phylogeny for column sp, with "phylo" class. Or a var-cov matrix for sp, 
-#'   make sure to have all species in the matrix; if the matrix is not standarized, 
-#'   i.e. det(tree) != 1, we will try to standarize it for you.
-#' @param tree_site A second phylogeny for "site". This is required only if the site column contains species instead of sites.
-#' This can be used for bipartitie questions. tree_site can also be a var-cov matrix, make sure to have all sites in the matrix; 
-#' if the matrix is not standarized, i.e. det(tree_site) != 1, we will try to standarize for you.
+#'   fail type of response data.
+#' @param cov_ranef A named list of var-cov matrices of random terms. The names should be the
+#'   group variables that are used as random terms with specified var-cov matrices 
+#'   (without the two underscores, e.g. \code{list(sp = tree1, site = tree2)}). The actual object 
+#'   can be either a phylogeny with class "phylo" or a prepared var-cov matrix. If it is a phylogeny,
+#'   we will prune it and then convert it to a var-cov matrix assuming brownian motion evolution.
+#'   We will also standardize all var-cov matrices to have determinant of one. Group variables
+#'   will be converted to factors and all var-cov matrices will be rearranged so that rows and
+#'   columns are in the same order as the levels of their corresponding group variables.
+#' @param random.effects Optional pre-build list of random effects. If \code{NULL} (the default), 
+#'   the function \code{\link{prep_dat_pglmm}} will prepare it for you based on the information
+#'   in \code{formula}, \code{data}, and \code{cov_ranef}. A list of pre-generated
+#'   random terms is also accepted (mainly to be compatible with code from previous versions).
+#'   If so, make sure that the orders of rows and columns of var-cov matrices in the generated 
+#'   list are the same as their corresponding group variables in the data. This argument can be 
+#'   useful if users want to use more complicated random terms.
+#' @param REML Whether REML or ML is used for model fitting. For the
+#'   generalized linear mixed model for binary data, these don't have
+#'   standard interpretations, and there is no log likelihood function
+#'   that can be used in likelihood ratio tests. Ignored if \code{bayes = TRUE}
+#' @param optimizer nelder-mead-nlopt (default) or bobyqa or Nelder-Mead or subplex. 
+#'   Nelder-Mead is from the stats package and the other ones are from the nloptr package.
+#'   Ignored if \code{bayes = TRUE}.
 #' @param repulsion When nested random term specified, do you want to test repulsion 
-#'   (i.e. overdispersion) or underdispersion? Default is FALSE, i.e. test underdispersion. 
+#'   (i.e., overdispersion) or underdispersion? Default is \code{FALSE}, i.e. test underdispersion. 
 #'   This argument can be either a logical vector of length 1 or >1.
 #'   If its length is 1, then all cov matrices in nested terms will be either inverted (overdispersion) or not.
 #'   If its length is >1, then this means the users can select which cov matrix in the nested terms to be inverted.
@@ -146,18 +158,13 @@
 #'   in the formula, then you should set the repulsion to be something like 
 #'   \code{c(TRUE, FALSE, TURE, TURE)} (length of 4). 
 #'   The T/F combinations depend on your questions.
-#' @param sp No longer used, keep here for compatibility
-#' @param site No longer used, keep here for compatibility
-#' @param random.effects Pre-build list of random effects. If \code{NULL} (the default), 
-#'   the function \code{\link{prep_dat_pglmm}} will prepare it for you. A list of pre-generated
-#'   random terms is also accepted (mainly to be compatible with code from previous versions).
-#'   If so, make sure that the orders of sp and site in the generated list are the same as the
-#'   data. This argument can be useful if users want to use other correlations (e.g. spatial)
-#'   in their models instead of phylogenetic relationships.
-#' @param REML Whether REML or ML is used for model fitting. For the
-#'   generalized linear mixed model for binary data, these don't have
-#'   standard interpretations, and there is no log likelihood function
-#'   that can be used in likelihood ratio tests. Ignored if \code{bayes = TRUE}
+#' @param add.obs.re Wether add observation-level random term for poisson and binomial
+#'   distributions? Normally it would be a good idea to add this to account for overdispersions.
+#'   Thus, we set it to \code{TRUE} by default.
+#' @param verbose If \code{TRUE}, the model deviance and running
+#'   estimates of \code{s2} and \code{B} are plotted each iteration
+#'   during optimization.
+#' @param cpp Whether to use c++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE}.
 #' @param bayes Whether to fit a Bayesian version of the PGLMM using \code{r-inla}.
 #' @param s2.init An array of initial estimates of s2 for each random
 #'   effect that scales the variance. If s2.init is not provided for
@@ -189,14 +196,6 @@
 #' @param maxit.pql A control parameter dictating the maximum number
 #'   of iterations in the PQL estimates of the mean components of the
 #'   binomial GLMM.
-#' @param verbose If \code{TRUE}, the model deviance and running
-#'   estimates of \code{s2} and \code{B} are plotted each iteration
-#'   during optimization.
-#' @param ML.init Only relevant if \code{bayes = TRUE}. Should maximum
-#'   likelihood estimates be calculated and used as initial values for
-#'   the bayesian model fit? Sometimes this can be helpful; but most of the
-#'   time it may not help; thus we set the default to \code{FALSE}. Also, it
-#'   does not work with the zero-inflated families.
 #' @param marginal.summ Summary statistic to use for the estimate of coefficients when
 #'   doing a Bayesian PGLMM (when \code{bayes = TRUE}). Options are: "mean",
 #'   "median", or "mode", referring to different characterizations of the central
@@ -216,16 +215,6 @@
 #'   not recommended but may in some cases give estimates closer to the maximum likelihood estimates.
 #'   "pc.prior.auto" is only implemented for \code{family = "gaussian"} and \code{family = "binomial"} 
 #'   currently.
-#' @param cpp Whether to use c++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE}.
-#' @param optimizer nelder-mead-nlopt (default) or bobyqa or Nelder-Mead or subplex. 
-#'   Nelder-Mead is from the stats package and the other ones are from the nloptr package.
-#'   Ignored if \code{bayes = TRUE}.
-#' @param prep.s2.lme4 Whether to prepare initial s2 values based on lme4 theta. Default is FALSE.
-#'   If no phylogenetic or nested random terms, should set it to TRUE since it likely will be faster.
-#'   However, in this case, you probably can just use \code{lme4::lmer}.
-#' @param add.obs.re Wether add observation-level random term for poisson and binomial
-#'   distributions? Normally it would be a good idea to add this to account for overdispersions.
-#'   Thus, we set it to TRUE by default.
 #' @param prior_alpha Only used if \code{bayes = TRUE} and \code{prior = "pc.prior"}, in
 #'   which case it sets the alpha parameter of \code{INLA}'s complexity penalizing prior for the 
 #'   random effects.The prior is an exponential distribution where prob(sd > mu) = alpha, 
@@ -234,6 +223,22 @@
 #'   which case it sets the mu parameter of \code{INLA}'s complexity penalizing prior for the 
 #'   random effects.The prior is an exponential distribution where prob(sd > mu) = alpha, 
 #'   where sd is the standard deviation of the random effect.
+#' @param ML.init Only relevant if \code{bayes = TRUE}. Should maximum
+#'   likelihood estimates be calculated and used as initial values for
+#'   the bayesian model fit? Sometimes this can be helpful; but most of the
+#'   time it may not help; thus we set the default to \code{FALSE}. Also, it
+#'   does not work with the zero-inflated families.
+#' @param tree A phylogeny for column sp, with "phylo" class. Or a var-cov matrix for sp, 
+#'   make sure to have all species in the matrix; if the matrix is not standarized, 
+#'   i.e. det(tree) != 1, we will try to standarize it for you. 
+#'   No longer used, keep here for compatibility.
+#' @param tree_site A second phylogeny for "site". This is required only if the 
+#'   site column contains species instead of sites. This can be used for bipartitie 
+#'   questions. tree_site can also be a var-cov matrix, make sure to have all sites 
+#'   in the matrix; if the matrix is not standarized, i.e. det(tree_site) != 1, 
+#'   we will try to standarize for you. No longer used, keep here for compatibility
+#' @param sp No longer used, keep here for compatibility.
+#' @param site No longer used, keep here for compatibility.
 #' @return An object (list) of class \code{communityPGLMM} with the following elements:
 #' \item{formula}{the formula for fixed effects}
 #' \item{formula_original}{the formula for both fixed effects and random effects}
@@ -286,9 +291,6 @@
 #' \item{niter}{number of iterations performed by \code{\link{optim}}. This is set to NULL if \code{bayes = TRUE}}
 #' \item{inla.model}{Model object fit by underlying \code{inla} function. Only returned
 #' if \code{bayes = TRUE}}
-#' \item{sp, site}{the sp and site columns}
-#' \item{tree}{the reordered phylogeny to generate Vsp}
-#' \item{tree_site}{the reordered site phylogeny (if specified)}
 #' @author Anthony R. Ives, Daijiang Li, Russell Dinnage
 #' @references Ives, A. R. and M. R. Helmus. 2011. Generalized linear
 #' mixed models for phylogenetic analyses of community
@@ -321,24 +323,26 @@
 #'
 #' # Model 1 (Eq. 1)
 #' z <- communityPGLMM(freq ~ sp + (1|site) + (1|sp__@site), data = dat, family = "binomial", 
-#'                    tree = phy, REML = TRUE, verbose = TRUE, s2.init=.1)
+#'                    cov_ranef = list(sp = phy), REML = TRUE, verbose = TRUE, s2.init=.1)
 #' 
 #' # Model 2 (Eq. 2)
 #' z <- communityPGLMM(freq ~ sp + X + (1|site) + (X|sp__), data = dat, family = "binomial",
-#'                     tree = phy, REML = TRUE, verbose = TRUE, s2.init=.1)
+#'                     cov_ranef = list(sp = phy), REML = TRUE, verbose = TRUE, s2.init=.1)
 #' 
 #' # Model 3 (Eq. 3)
 #' z <- communityPGLMM(freq ~ sp*X + (1|site) + (1|sp__@site), data = dat, family = "binomial",
-#'                     tree = phy, REML = TRUE, verbose = TRUE, s2.init=.1)
+#'                     cov_ranef = list(sp = phy), REML = TRUE, verbose = TRUE, s2.init=.1)
 #' 
 #' ## Model structure from Rafferty & Ives (2013) (Eq. 3)
 #' # dat = data set
-#' # phyPol = phylogeny for pollinators (sp)
-#' # phyPlt = phylogeny for plants (site)
+#' # phyPol = phylogeny for pollinators (pol)
+#' # phyPlt = phylogeny for plants (plt)
 #' 
 #' z <- communityPGLMM(freq ~ sp * X + (1|sp__) + (1|site__) + (1|sp__@site) +
-#'  (1|sp@site__) + (1|sp__@site__), data = dat, family = "binomial", 
-#'  tree = phyPol, tree_site = phyPlt, REML = TRUE, verbose = TRUE, s2.init=.1)
+#'                     (1|sp@site__) + (1|sp__@site__), 
+#'                     data = dat, family = "binomial", 
+#'                     cov_ranef = list(pol = phyPol, plt = phyPlt), 
+#'                     REML = TRUE, verbose = TRUE, s2.init=.1)
 #' }
 #' 
 #' #########################################################
@@ -449,7 +453,8 @@
 #' # - please take a look at them because they're *very* useful!
 #' \dontrun{ 
 #'   z.binary <- communityPGLMM(Y ~ X + (1|sp__) + (X|sp__), data = dat, family = "binomial",
-#'                              tree = phy, REML = TRUE, verbose = FALSE, optimizer = "Nelder-Mead")
+#'                              cov_ranef = list(sp = phy), REML = TRUE, verbose = FALSE, 
+#'                              optimizer = "Nelder-Mead")
 #'   
 #'   # output results
 #'   z.binary
@@ -466,7 +471,8 @@
 #'   
 #'   # examine the structure of the first covariance matrix
 #'   ar1 = communityPGLMM.matrix.structure(Y ~ X + (1|sp__) + (X|sp__), data = dat, 
-#'                                         family = "binomial", tree = phy, ss = 1)
+#'                                         family = "binomial", 
+#'                                         cov_ranef = list(sp = phy))
 #'   Matrix::image(ar1)
 #'   
 #'   # plot random terms' var-cov matrix
@@ -488,12 +494,17 @@
 #'   }  
 #' }
 # end of doc ---- 
-communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NULL, tree_site = NULL, repulsion = FALSE, 
-                           random.effects = NULL, REML = TRUE, bayes = FALSE, s2.init = NULL, B.init = NULL, reltol = 10^-6, 
-                           maxit = 500, tol.pql = 10^-6, maxit.pql = 200, verbose = FALSE, ML.init = FALSE, 
-                           marginal.summ = "mean", calc.DIC = FALSE, prior = "inla.default", cpp = TRUE,
-                           optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"), prep.s2.lme4 = FALSE,
-                           add.obs.re = TRUE, prior_alpha = 0.1, prior_mu = 1, sp, site) {
+communityPGLMM <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
+                           random.effects = NULL, REML = TRUE, 
+                           optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"),
+                           repulsion = FALSE, add.obs.re = TRUE, verbose = FALSE, 
+                           cpp = TRUE, bayes = FALSE, 
+                           s2.init = NULL, B.init = NULL, reltol = 10^-6, 
+                           maxit = 500, tol.pql = 10^-6, maxit.pql = 200,  
+                           marginal.summ = "mean", calc.DIC = FALSE, prior = "inla.default", 
+                           prior_alpha = 0.1, prior_mu = 1, ML.init = FALSE,
+                           tree = NULL, tree_site = NULL, sp = NULL, site = NULL
+                           ) {
 
   optimizer = match.arg(optimizer)
   
@@ -523,21 +534,22 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NUL
   fm_original = formula
   prep_re = if(is.null(random.effects)) TRUE else FALSE
   if(prep_re) {
-    dat_prepared = prep_dat_pglmm(formula, data, tree, repulsion, prep_re, family, 
-                                  prep.s2.lme4, tree_site, bayes = FALSE, add.obs.re)
+    # to make old code work ...
+    if(is.null(cov_ranef) & any(grepl("__", all.vars(formula)))){
+      if(!is.null(tree) | !is.null(tree_site))
+        warning("arguments tree and tree_site are deprecated; please use cov_ranef instead.", 
+                call. = FALSE)
+      if(!is.null(tree) & is.null(tree_site)) cov_ranef = list(sp = tree)
+      if(is.null(tree) & !is.null(tree_site)) cov_ranef = list(site = tree_site)
+      if(!is.null(tree) & !is.null(tree_site)) cov_ranef = list(sp = tree, site = tree_site)
+    }
+    dat_prepared = prep_dat_pglmm(formula, data, cov_ranef, repulsion, prep_re, family, add.obs.re)
     formula = dat_prepared$formula
-    data = dat_prepared$data
-    sp = dat_prepared$sp 
-    site = dat_prepared$site
     random.effects = dat_prepared$random.effects
-    tree = dat_prepared$tree
-    tree_site = dat_prepared$tree_site
+    cov_ranef_updated = dat_prepared$cov_ranef_updated
   } else {
     formula = lme4::nobars(formula)
-    if(missing(sp)) sp = as.factor(data$sp)
-    if(missing(site)) site = as.factor(data$site)
   }
-  if(prep.s2.lme4) s2.init = dat_prepared$s2_init
   
   # initial values for bayesian analysis: binomial and gaussian
   if(bayes & ML.init & (family %in% c("binomial", "gaussian", "poisson"))) {
@@ -611,8 +623,7 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", tree = NUL
   }
   
   z$formula_original = fm_original
-  z$tree = tree # updated tree
-  z$tree_site = tree_site
+  z$cov_ranef = cov_ranef_updated
   
   # add names for ss
   if(!is.null(names(random.effects))){
@@ -633,7 +644,7 @@ communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian",
                                     reltol = 10^-8, maxit = 500, verbose = FALSE, 
                                     cpp = TRUE, optimizer = "bobyqa") {
   
-  dm = get_design_matrix(formula, data, na.action = NULL, sp, site, random.effects)
+  dm = get_design_matrix(formula, data, random.effects, na.action = NULL)
   X = dm$X; Y = dm$Y; St = dm$St; Zt = dm$Zt; nested = dm$nested
   p <- ncol(X)
   n <- nrow(X)
@@ -719,7 +730,7 @@ communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian",
                   B.pvalue = B.pvalue, ss = ss, s2n = out$s2n, s2r = out$s2r,
                   s2resid = out$s2resid, logLik = logLik, AIC = AIC, BIC = BIC, 
                   REML = REML, bayes = FALSE, s2.init = s2.init, B.init = B.init, Y = Y, X = X, H = out$H, 
-                  iV = as.matrix(out$iV), mu = NULL, nested = nested, sp = sp, site = site, Zt = Zt, St = St, 
+                  iV = as.matrix(out$iV), mu = NULL, nested = nested, Zt = Zt, St = St, 
                   convcode = convcode, niter = niter)
   class(results) <- "communityPGLMM"
   results
@@ -732,7 +743,7 @@ communityPGLMM.glmm <- function(formula, data = list(), family = "binomial",
                                 maxit.pql = 200, verbose = FALSE, cpp = TRUE,
                                 optimizer = "bobyqa") {
   
-  dm = get_design_matrix(formula, data, na.action = NULL, sp, site, random.effects)
+  dm = get_design_matrix(formula, data, random.effects, na.action = NULL)
   X = dm$X; Y = dm$Y; size = dm$size; St = dm$St; Zt = dm$Zt; nested = dm$nested
   p <- ncol(X)
   n <- nrow(X)
@@ -899,7 +910,7 @@ communityPGLMM.glmm <- function(formula, data = list(), family = "binomial",
                   B = B, B.se = B.se, B.cov = B.cov, B.zscore = B.zscore, B.pvalue = B.pvalue, 
                   ss = ss, s2n = s2n, s2r = s2r, s2resid = NULL, logLik = logLik, AIC = NULL, 
                   BIC = NULL, REML = REML, bayes = FALSE, s2.init = s2.init, B.init = B.init, Y = Y, size = size, X = X, 
-                  H = as.matrix(H), iV = iV, mu = mu, nested = nested, sp = sp, site = site, Zt = Zt, St = St, 
+                  H = as.matrix(H), iV = iV, mu = mu, nested = nested, Zt = Zt, St = St, 
                   convcode = convcode, niter = niter)
   class(results) <- "communityPGLMM"
   return(results)
@@ -1022,14 +1033,14 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
       inla_weights[[i]] <- random.effects[[i]][1]
       inla_Cmat[[i]] <- solve(random.effects[[i]][[2]])
     } else if(length(random.effects[[i]]) == 3) { # non-nested term
-      inla_effects[[i]] <- as.numeric(as.factor(random.effects[[i]][[2]]))
+      inla_effects[[i]] <- as.numeric(random.effects[[i]][[2]])
       inla_Cmat[[i]] <- solve(random.effects[[i]][[3]])
       inla_weights[[i]] <- random.effects[[i]][[1]]
     } else { # nested term
-      inla_effects[[i]] <- as.numeric(as.factor(random.effects[[i]][[2]]))
+      inla_effects[[i]] <- as.numeric(random.effects[[i]][[2]])
       inla_Cmat[[i]] <- solve(random.effects[[i]][[3]])
       inla_weights[[i]] <- random.effects[[i]][[1]]
-      inla_reps[[i]] <- as.numeric(as.factor(random.effects[[i]][[4]]))
+      inla_reps[[i]] <- as.numeric(random.effects[[i]][[4]])
     }
   }
   
@@ -1144,7 +1155,7 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
                   logLik = out$mlik[1, 1], AIC = NULL, BIC = NULL, DIC = DIC, 
                   REML = NULL, bayes = TRUE, marginal.summ = marginal.summ, 
                   s2.init = s2.init, B.init = B.init, Y = Y, X = X, H = H, 
-                  iV = NULL, mu = NULL, nested = nested, sp = sp, site = site, Zt = NULL, St = NULL, 
+                  iV = NULL, mu = NULL, nested = nested, Zt = NULL, St = NULL, 
                   convcode = NULL, niter = NULL, inla.model = out)
   class(results) <- "communityPGLMM"
   results

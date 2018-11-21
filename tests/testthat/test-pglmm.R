@@ -11,6 +11,10 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
     left_join(phyr::traits, by = "sp")
   dat$pa = as.numeric(dat$freq > 0)
   dat$freq2 = 20 - dat$freq
+  dat = arrange(dat, sp, site)
+  dat = sample_frac(dat, size = 0.8)
+  group_by(dat, site) %>% 
+    summarise(nsp = n_distinct(sp)) # we now have diff sp in diff site
   
   test_fit_equal = function(m1, m2) {
     expect_equivalent(m1$B, m2$B)
@@ -22,16 +26,16 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   
   # poisson plmm
   test_poisson_cpp = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), 
-                                     dat, tree = phylotree, family = 'poisson', REML = F, cpp = T)
+                                     dat, cov_ranef = list(sp = phylotree), family = 'poisson', REML = F, cpp = T)
   test_poisson_r = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), 
-                                          dat, tree = phylotree, family = 'poisson', REML = F, cpp = F)
+                                          dat, cov_ranef = list(sp = phylotree), family = 'poisson', REML = F, cpp = F)
   test_fit_equal(test_poisson_cpp, test_poisson_r)
   
   # to add observation level random term, add (1 | sp@site)
   test_poisson_cpp2 = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site) + (1|sp@site), 
-                                          dat, tree = phylotree, family = 'poisson', REML = F, cpp = T)
+                                          dat, cov_ranef = list(sp = phylotree), family = 'poisson', REML = F, cpp = T)
   test_poisson_r2 = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site) + (1|sp@site), 
-                                           dat, tree = phylotree, family = 'poisson', REML = F, cpp = F)
+                                           dat, cov_ranef = list(sp = phylotree), family = 'poisson', REML = F, cpp = F)
   test_fit_equal(test_poisson_cpp2, test_poisson_r2)
   test_fit_equal(test_poisson_cpp, test_poisson_cpp2)
   
@@ -67,8 +71,8 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
                                         optimizer = "Nelder-Mead")
   
   if(requireNamespace("INLA", quietly = TRUE)){
-    test1_gaussian_bayes = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | 
-                                                                                   site) + (1 | sp__@site), dat, tree = phylotree, bayes = TRUE,
+    test1_gaussian_bayes = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + 
+                                                  (1 | site) + (1 | sp__@site), dat, tree = phylotree, bayes = TRUE,
                                                 prior = "pc.prior.auto")
     
     test1_binomial_bayes = phyr::communityPGLMM(pa ~ 1 + shade + (1 | sp__) + (1 | site) + 
@@ -239,7 +243,7 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   if(requireNamespace("INLA", quietly = TRUE)){
     z_bipartite_bayes = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site__) + 
                                                (1 | sp__@site) + (1 | sp@site__) + (1 | sp__@site__), data = dat, family = "gaussian", 
-                                             tree = phylotree, tree_site = tree_site, bayes = TRUE, ML.init = TRUE)
+                                             tree = phylotree, tree_site = tree_site, bayes = TRUE, ML.init = FALSE)
     
     z_bipartite_bayes_2 = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site__) + 
                                                  (1 | sp__@site) + (1 | sp@site__) + (1 | sp__@site__), data = dat, family = "gaussian", 

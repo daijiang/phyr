@@ -11,7 +11,8 @@ species slopes using a likelihood ratio test}
 communityPGLMM.profile.LRT(x, re.number = 0, cpp = TRUE)
 
 communityPGLMM.matrix.structure(formula, data = list(),
-  family = "binomial", tree, repulsion = FALSE, ss = 1, cpp = TRUE)
+  family = "binomial", cov_ranef, repulsion = FALSE, ss = 1,
+  cpp = TRUE)
 
 \method{summary}{communityPGLMM}(object, digits = max(3,
   getOption("digits") - 3), ...)
@@ -54,15 +55,11 @@ Second, note that correlated random terms will not be allowed at this moment. Fo
 \code{(x|g)} will be equal with \code{(0 + x|g)} in the \code{lme4::lmer} syntax;
 also, \code{(x1 + x2|g)} won't work.}
 
-\item{data}{A \code{\link{data.frame}} containing the variables
-named in formula. The data frame should have long format with
-a column for species (named as 'sp') and a column for sites (named as 'site').
-\code{communityPGLMM} will reorder rows of the data frame so that species
-are nested within sites (i.e. arrange first by column site then by column sp).}
+\item{data}{A \code{\link{data.frame}} containing the variables named in formula.}
 
-\item{family}{Either \code{gaussian} for a Linear Mixed Model, or
-\code{binomial} for binomial dependent data, or \code{poisson} for count data.
-It should be specified as a character string (i.e. quoted). At this moment,
+\item{family}{Either "gaussian" for a Linear Mixed Model, or
+"binomial" for binomial dependent data, or "poisson" for count data.
+It should be specified as a character string (i.e., quoted). At this moment,
 for binomial data, we fixed the link function to logit; for poisson data,
 we fixed the link function to log. Binomial data can be either
 presence/absence, or a two column array of 'success' and 'fail'.
@@ -72,14 +69,19 @@ two additional families available: "zeroinflated.binomial", and "zeroinflated.po
 which add a "zero inflation" parameter, which is the probability that a the response is
 a zero. The rest of the parameters of the model then reflect the "non-zero" part part
 of the model. Note that "zeroinflated.binomial" only makes sense as a using successes /
-Ntrials type of response data.}
+fail type of response data.}
 
-\item{tree}{A phylogeny for column sp, with "phylo" class. Or a var-cov matrix for sp,
-make sure to have all species in the matrix; if the matrix is not standarized,
-i.e. det(tree) != 1, we will try to standarize it for you.}
+\item{cov_ranef}{A named list of var-cov matrices of random terms. The names should be the
+group variables that are used as random terms with specified var-cov matrices
+(without the two underscores, e.g. \code{list(sp = tree1, site = tree2)}). The actual object
+can be either a phylogeny with class "phylo" or a prepared var-cov matrix. If it is a phylogeny,
+we will prune it and then convert it to a var-cov matrix assuming brownian motion evolution.
+We will also standardize all var-cov matrices to have determinant of one. Group variables
+will be converted to factors and all var-cov matrices will be rearranged so that rows and
+columns are in the same order as the levels of their corresponding group variables.}
 
 \item{repulsion}{When nested random term specified, do you want to test repulsion
-(i.e. overdispersion) or underdispersion? Default is FALSE, i.e. test underdispersion.
+(i.e., overdispersion) or underdispersion? Default is \code{FALSE}, i.e. test underdispersion.
 This argument can be either a logical vector of length 1 or >1.
 If its length is 1, then all cov matrices in nested terms will be either inverted (overdispersion) or not.
 If its length is >1, then this means the users can select which cov matrix in the nested terms to be inverted.
