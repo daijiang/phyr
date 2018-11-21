@@ -623,7 +623,7 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", cov_ranef 
   }
   
   z$formula_original = fm_original
-  z$cov_ranef = cov_ranef_updated
+  z$cov_ranef = if(is.null(cov_ranef)) NA else cov_ranef_updated
   
   # add names for ss
   if(!is.null(names(random.effects))){

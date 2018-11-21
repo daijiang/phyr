@@ -9,7 +9,7 @@
   getOption("digits") - 3), predicted = FALSE, ...)
 }
 \arguments{
-\item{x}{A fitted model with class communityPGLMM}
+\item{x}{A fitted model with class communityPGLMM and family "binomial".}
 
 \item{sp.var}{The variable name of "species"; y-axis of the image.}
 
