@@ -87,13 +87,24 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
     strsplit(xx, "[@]")
   })))
   data = dplyr::mutate_at(data, grp_vars, as.factor)
-  
+
   if(prep.re.effects){
     # @ for nested; __ at the end for phylogenetic cov
     if(is.null(fm)) stop("No random terms specified, use lm or glm instead")
     
     if(any(grepl("__", fm))){ # has specified cov
+      grp_vars2 = unique(unlist(lapply(fm, function(x){
+        strsplit(as.character(x)[3], "[@]")
+      })))
+      grp_vars2 = gsub("__$", "", grp_vars2[grepl("__$", grp_vars2)])
+      
       if(is.null(cov_ranef)) stop("cov_ranef, the list of cov matrices, is not specified")
+      names(cov_ranef) = gsub("__$", "", names(cov_ranef)) # in case with trailing __
+      if(!all(grp_vars2 %in% names(cov_ranef))){
+        stop(paste0("Some group variables (",  
+                    paste(setdiff(grp_vars2, names(cov_ranef)), collapse = ", "), 
+                    ") assigned to have specific cov matrix are not in cov_ranef"))
+      }
       cov_list = parse_conv_ranef(cov_ranef, data)
       cov_ranef_list = cov_list$cleaned_list
       cov_ranef_updated = cov_list$updated_orgi_list

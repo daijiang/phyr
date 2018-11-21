@@ -268,6 +268,13 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   # test bipartite
   tree_site = ape::rtree(n = n_distinct(dat$site), 
                          tip.label = sort(unique(dat$site)))
+  
+  expect_error(phyr::communityPGLMM(
+    freq ~ 1 + shade + (1 | sp__) + (1 | site__) + (1 | sp__@site) + 
+      (1 | sp@site__) + (1 | sp__@site__), 
+    data = dat, family = "gaussian", 
+    cov_ranef = list(spi = phylotree), REML = TRUE))
+  
   z_bipartite = phyr::communityPGLMM(
     freq ~ 1 + shade + (1 | sp__) + (1 | site__) + (1 | sp__@site) + 
       (1 | sp@site__) + (1 | sp__@site__), 
