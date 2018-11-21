@@ -4,18 +4,22 @@
 \alias{plot.communityPGLMM}
 \title{Plot the original dataset and predicted values (optional)}
 \usage{
-\method{plot}{communityPGLMM}(x, digits = max(3, getOption("digits") -
-  3), show.sp.names = FALSE, show.site.names = FALSE,
-  predicted = FALSE, ...)
+\method{plot}{communityPGLMM}(x, sp.var = "sp", site.var = "site",
+  show.sp.names = FALSE, show.site.names = FALSE, digits = max(3,
+  getOption("digits") - 3), predicted = FALSE, ...)
 }
 \arguments{
 \item{x}{A fitted model with class communityPGLMM}
 
-\item{digits}{Minimal number of significant digits for printing, as in \code{\link{print.default}}}
+\item{sp.var}{The variable name of "species"; y-axis of the image.}
+
+\item{site.var}{The variable name of "site"; x-axis of the image.}
 
 \item{show.sp.names}{Whether to print species names as y-axis labels.}
 
 \item{show.site.names}{Whether to print site names as x-axis labels.}
+
+\item{digits}{Minimal number of significant digits for printing, as in \code{\link{print.default}}}
 
 \item{predicted}{Whether to plot predicted values side by side with observed ones.}
 

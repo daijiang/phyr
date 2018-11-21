@@ -32,6 +32,7 @@ tree_site = ape::rtree(n = nlevels(data$site), tip.label = levels(data$site))
 formula = freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site) + (1|sp@site)
 formula = freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site)
 formula = cbind(freq, freq2) ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site)
+cov_ranef = list(sp = phylotree)
 repulsion = F
 REML = F
 s2.init = NULL
