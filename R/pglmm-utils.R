@@ -1062,9 +1062,12 @@ fitted.communityPGLMM <- function(object, ...){
 #' @export
 fixef.communityPGLMM <- function(object, ...) {
   if (object$bayes) {
+
+    in_interval <- function(x, y1, y2){ y1 <= x & x <= y2 }
+
     coef <- data.frame(Value = object$B, lower.CI = object$B.ci[, 1], upper.CI = object$B.ci[, 2],
                        Pvalue = ifelse(apply(object$B.ci, 1, function(y)
-                         findInterval(0, y[1], y[2])) == 0,
+                         in_interval(0, y[1], y[2])) == FALSE,
                          0.04, 0.6))
   } else {
     coef <- data.frame(Value = object$B, Std.Error = object$B.se, 
