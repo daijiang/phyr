@@ -893,13 +893,10 @@ summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") -
   print(w, digits = digits)
   
   cat("\nFixed effects:\n")
+  coef <- fixef.communityPGLMM(x)
   if(x$bayes) {
-    coef <- data.frame(Value = x$B, lower.CI = x$B.ci[ , 1], upper.CI = x$B.ci[ , 2], 
-                       Pvalue = ifelse(apply(x$B.ci, 1, function(y) findInterval(0, y[1], y[2])) == 0,
-                                       0.04, 0.6))
     printCoefmat(coef, P.values = FALSE, has.Pvalue = TRUE)
   } else {
-    coef <- data.frame(Value = x$B, Std.Error = x$B.se, Zscore = x$B.zscore, Pvalue = x$B.pvalue)
     printCoefmat(coef, P.values = TRUE, has.Pvalue = TRUE)
   }
   cat("\n")
@@ -1065,9 +1062,12 @@ fitted.communityPGLMM <- function(object, ...){
 #' @export
 fixef.communityPGLMM <- function(object, ...) {
   if (object$bayes) {
+
+    in_interval <- function(x, y1, y2){ y1 <= x & x <= y2 }
+
     coef <- data.frame(Value = object$B, lower.CI = object$B.ci[, 1], upper.CI = object$B.ci[, 2],
                        Pvalue = ifelse(apply(object$B.ci, 1, function(y)
-                         findInterval(0, y[1], y[2])) == 0,
+                         in_interval(0, y[1], y[2])) == FALSE,
                          0.04, 0.6))
   } else {
     coef <- data.frame(Value = object$B, Std.Error = object$B.se, 
