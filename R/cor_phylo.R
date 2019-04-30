@@ -1,10 +1,11 @@
-# ================================================================================
-# ================================================================================
+# ================================================================================*
+# ================================================================================*
 
-# Inner "info" functions for extracting info from `cor_phylo` call
+# Inner "info" functions -----
+# ... for extracting info from `cor_phylo` call
 
-# ================================================================================
-# ================================================================================
+# ================================================================================*
+# ================================================================================*
 
 
 
@@ -288,7 +289,7 @@ extract_meas_errors <- function(meas_errors, phy_order, trait_names, data) {
 #' Get row names for output based on trait names and list of covariate(s).
 #'
 #' @inheritParams trait_names process_cov_me_list
-#' @inheritParams U cor_phylo_
+#' @inheritParams U cor_phylo_cpp
 #'
 #' @return A vector of row names.
 #' 
@@ -314,13 +315,13 @@ cp_get_row_names <- function(trait_names, U) {
 
 
 
-# ================================================================================
-# ================================================================================
+# ================================================================================*
+# ================================================================================*
 
-# Simulating data
+# Simulating data -----
 
-# ================================================================================
-# ================================================================================
+# ================================================================================*
+# ================================================================================*
 
 #' Simulate `p` correlated traits (with phylogenetic signal) from `n` species.
 #' 
@@ -448,13 +449,13 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, B)
 
 
 
-# ================================================================================
-# ================================================================================
+# ================================================================================*
+# ================================================================================*
 
-# Main function
+# Main function -----
 
-# ================================================================================
-# ================================================================================
+# ================================================================================*
+# ================================================================================*
 
 
 
@@ -950,12 +951,12 @@ cor_phylo <- function(traits,
   M <- extract_meas_errors(meas_errors, phy_order, trait_names, data)
 
 
-  # `cor_phylo_` returns a list with the following objects:
+  # `cor_phylo_cpp` returns a list with the following objects:
   # corrs, d, B, (previously B, B_se, B_zscore, and B_pvalue),
   #     B_cov, logLik, AIC, BIC
-  output <- cor_phylo_(X, U, M, Vphy, REML, constrain_d, lower_d, verbose,
-                       rcond_threshold, rel_tol, max_iter, method, boot,
-                       keep_boots, sann)
+  output <- cor_phylo_cpp(X, U, M, Vphy, REML, constrain_d, lower_d, verbose,
+                          rcond_threshold, rel_tol, max_iter, method, boot,
+                          keep_boots, sann)
   # Taking care of row and column names:
   colnames(output$corrs) <- rownames(output$corrs) <- trait_names
   rownames(output$d) <- trait_names
