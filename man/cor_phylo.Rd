@@ -7,8 +7,8 @@
 \title{Correlations among multiple traits with phylogenetic signal}
 \usage{
 cor_phylo(traits, species, phy,
-          covariates = list(),
-          meas_errors = list(),
+          covariates = NULL, 
+          meas_errors = NULL,
           data = sys.frame(sys.parent()),
           REML = TRUE, 
           method = c("nelder-mead-nlopt", "bobyqa",
@@ -17,7 +17,7 @@ cor_phylo(traits, species, phy,
           lower_d = 1e-7,
           rel_tol = 1e-6,
           max_iter = 1000,
-          sann_options = list(),
+          sann_options = NULL,
           verbose = FALSE,
           rcond_threshold = 1e-10,
           boot = 0,
@@ -29,50 +29,38 @@ cor_phylo(traits, species, phy,
   ...)
 }
 \arguments{
-\item{traits}{A list of object names or a matrix that contains trait values.
-In the former case, the list must be of length \code{p}, one name for each trait,
-and each name must must refer to an object in \code{data}.
-See "Using names" in the Details for more info on using names.
-In the latter case, the matrix must have \code{n} rows and \code{p} columns;
+\item{traits}{A formula or a matrix specifying trait information.
+The formula should be one-sided of the form \code{~ A + B + C} for trait vectors
+\code{A}, \code{B}, and \code{C} that are present in \code{data}.
+In the matrix case, the matrix must have \code{n} rows and \code{p} columns (for \code{p} traits);
 if the matrix columns aren't named, \code{cor_phylo} will name them \code{par_1 ... par_p}.}
 
-\item{species}{An object-name or a vector that indicates the species.
-In the former case, see "Using names" in the Details for more info on using names.
-In the latter case, the vector must be of the same type as the input
-phylogeny's tip labels.}
+\item{species}{A one-sided formula implicating the variable inside \code{data}
+representing species, or a vector directly specifying the species.
+If a formula, it must be of the form \code{~ spp} for the \code{spp} object containing
+the species information inside \code{data}.
+If a vector, it must be the same length as that of the tip labels in \code{phy},
+and it will be coerced to a character vector like \code{phy}'s tip labels.}
 
-\item{phy}{A \code{phylo} object giving the phylogenetic tree.}
+\item{phy}{A \code{phylo} object giving the phylogenetic tree.
+Tip labels will be coerced to a character vector.}
 
-\item{covariates}{A list containing covariate(s) for each trait.
-The list can contain only names (see "Using names" in Details),
-matrices, or \code{NULL} and can be assembled in one of two ways:
-\enumerate{
-\item Named items. Each name in the list should correspond to a name
-in the traits matrix that is built from the \code{traits} argument.
-So if you use a list of names in the \code{traits} argument, these names should
-be used here.
-If you use a matrix in the \code{traits} argument, column names should be used here.
-You can simply omit names with no covariates instead of using \code{NULL} items.
-\item Ordered items. The list must be of length \code{p}, each item referring to the
-trait at that location in the matrix built from the \code{traits} argument.
-The trait order is same as in either the list or matrix input to the \code{traits}
-argument.
-To indicate that a trait doesn't have a covariate, the corresponding
-item in this list should be \code{NULL}.
-}
-If specifying more than one covariate, use \code{cbind()} rather than \code{c()};
-the latter concatenates them into a too-long vector (see Examples).
-If these aren't named, \code{cor_phylo} will name them \code{cov_1 ... cov_q}, where
-\code{q} is the total number of covariates.
-Defaults to \code{list()}, which indicates no covariates.}
+\item{covariates}{A list specifying covariate(s) for each trait.
+The list can contain only two-sided formulas or matrices.
+Formulas should be of the typical form: \code{y ~ x1 + x2} or \code{y ~ x1 * x2}.
+If using a list of matrices, each item must be named (e.g.,
+\code{list(y = matrix(...))} specifying trait \code{y}'s covariates).
+If the matrix columns aren't named, \code{cor_phylo} will name them \code{cov_1 ... cov_q},
+where \code{q} is the total number of covariates for all traits.
+Having factor covariates is not supported.
+Defaults to \code{NULL}, which indicates no covariates.}
 
-\item{meas_errors}{A list containing measurement error for each trait.
-This argument can be built in the same way as for the \code{covariates} argument
+\item{meas_errors}{A list or matrix containing measurement error info for each trait.
+If a list, it must contain only two-sided formulas like those for \code{covariates}
 (except that you can't have multiple measurement errors for a single trait).
-You can additionally pass an \code{n} x \code{p} matrix with each column associated
-with the trait in the same position; if using a matrix, you can make a trait
-not have measurement error by making its associated column contain only zeros.
-Defaults to \code{list()}, which indicates no measurement errors.}
+You can additionally pass an \code{n}-row matrix with column names
+corresponding to the associated trait names.
+Defaults to \code{NULL}, which indicates no measurement errors.}
 
 \item{data}{An optional data frame, list, or environment that contains the
 variables in the model. By default, variables are taken from the environment
@@ -114,7 +102,7 @@ This list can only contain the names \code{"maxit"}, \code{"temp"}, and/or \code
 which will control the maximum number of iterations,
 starting temperature, and number of function evaluations at each temperature,
 respectively.
-Defaults to \code{list()}, which results in \code{maxit = 1000}, \code{temp = 1}, and \code{tmax = 1}.
+Defaults to \code{NULL}, which results in \code{maxit = 1000}, \code{temp = 1}, and \code{tmax = 1}.
 Note that these are different from the defaults for \code{\link[stats]{optim}}.}
 
 \item{verbose}{If \code{TRUE}, the model \code{logLik} and running estimates of the
@@ -234,21 +222,6 @@ independent variables affecting each trait.
 \item \code{print}: prints \code{cor_phylo} objects
 }}
 
-\section{Using names}{
-
-The arguments \code{traits}, \code{species}, \code{covariates}, and \code{meas_errors} can use names
-that exist inside the \code{data} argument instead of using objects directly.
-For instance, if \code{data} is a data frame with column names \code{x} and \code{y}, but
-you have not defined any objects named \code{x} or \code{y} anywhere else, you can still
-use \code{cor_phylo(traits = list(x, y), ...)} without quotes (quotes work, too).
-
-It's also important to note that you should use names for all of these arguments
-or none of them. That's because if a name isn't present in the \code{data} environment,
-you may get errors.
-Sometimes it works anyway, but I don't recommend it.
-See \code{\link[base]{eval}} for more info.
-}
-
 \section{Walkthrough}{
 
 For the case of two variables, the function estimates parameters for the model of
@@ -295,33 +268,18 @@ data_df <- data.frame(
 )
 data_df$par2 <- data_df$par2 + 0.5 * data_df$cov2
 
-# `cor_phylo` allows for data to be input in multiple ways
 
-# Using names and named lists:
-cor_phylo(traits = list(par1, par2, par3),
-          species = species, phy = phy,
-          covariates = list(par2 = cov2),
-          meas_errors = list(par1 = se1, par2 = se2),
-          data = data_df)
-# Instead using strings and non-named lists:
-cor_phylo(traits = list("par1", "par2", "par3"),
-          species = "species", phy = phy,
-          covariates = list(NULL, "cov2", NULL),
-          meas_errors = list("se1", "se2", NULL),
-          data = data_df)
-# Combine the methods above:
-cor_phylo(traits = list(par1, "par2", par3),
-          species = "species", phy = phy,
-          covariates = list(par2 = cov2),
-          meas_errors = list("se1", se2, NULL),
+cor_phylo(traits = ~ par1 + par2 + par3,
+          covariates = list(par2 ~ cov2),
+          meas_errors = list(par1 ~ se1, par2 ~ se2),
+          species = ~ species,
+          phy = phy,
           data = data_df)
 
-# If you've already created matrices...
+# If you've already created matrices/lists...
 X <- as.matrix(data_df[,c("par1", "par2", "par3")])
-U <- list(NULL,
-          as.matrix(data_df[, "cov2", drop = FALSE]),
-          NULL)
-M <- cbind(data_df$se1, data_df$se2, rep(0, 10))
+U <- list(par2 = cbind(cov2 = data_df$cov2))
+M <- cbind(par1 = data_df$se1, par2 = data_df$se2)
 
 # ... you can also use those directly
 # (notice that I'm inputting an object for `species`
@@ -329,8 +287,6 @@ M <- cbind(data_df$se1, data_df$se2, rep(0, 10))
 cor_phylo(traits = X, species = data_df$species,
           phy = phy, covariates = U,
           meas_errors = M)
-
-# I do not recommend mixing matrix and list input methods.
 
 
 
@@ -351,6 +307,7 @@ set.seed(1)
 # Set up parameter values for simulating data
 n <- 50
 phy <- rcoal(n, tip.label = 1:n)
+trt_names <- paste0("par", 1:2)
 
 R <- matrix(c(1, 0.7, 0.7, 1), nrow = 2, ncol = 2)
 d <- c(0.3, 0.95)
@@ -358,6 +315,7 @@ B2 <- 1
 
 Se <- c(0.2, 1)
 M <- matrix(Se, nrow = n, ncol = 2, byrow = TRUE)
+colnames(M) <- trt_names
 
 # Set up needed matrices for the simulations
 p <- length(d)
@@ -397,16 +355,19 @@ B.list <- matrix(0, nrow = Nrep, ncol = 3)
 B.noM.list <- matrix(0, nrow = Nrep, ncol = 3)
 B.noP.list <- matrix(0, nrow = Nrep, ncol = 3)
 
+
 set.seed(2)
 for (rep in 1:Nrep) {
-  
+
   XX <- iD \%*\% rnorm(2 * n)
   X <- matrix(XX, n, p)
-  
-  U <- list(NULL, cbind(rnorm(n, mean = 2, sd = 10)))
-  
-  X[,2] <- X[,2] + B2[1] * U[[2]][,1] - B2[1] * mean(U[[2]][,1])
-  
+  colnames(X) <- trt_names
+
+  U <- list(cbind(rnorm(n, mean = 2, sd = 10)))
+  names(U) <- trt_names[2]
+
+  X[,2] <- X[,2] + B2[1] * U[[1]][,1] - B2[1] * mean(U[[1]][,1])
+
   # Call cor_phylo with (i) phylogeny and measurement error,
   # (ii) just phylogeny,
   # and (iii) just measurement error
@@ -424,17 +385,17 @@ for (rep in 1:Nrep) {
                      meas_errors = M,
                      phy = star,
                      species = phy$tip.label)
-  
+
   cor.list[rep] <- z$corrs[1, 2]
   cor.noM.list[rep] <- z.noM$corrs[1, 2]
   cor.noP.list[rep] <- z.noP$corrs[1, 2]
   cor.noMP.list[rep] <- cor(cbind(
     lm(X[,1] ~ 1)$residuals,
-    lm(X[,2] ~ U[[2]])$residuals))[1,2]
-  
+    lm(X[,2] ~ U[[1]])$residuals))[1,2]
+
   d.list[rep, ] <- z$d
   d.noM.list[rep, ] <- z.noM$d
-  
+
   B.list[rep, ] <- z$B[,1]
   B.noM.list[rep, ] <- z.noM$B[,1]
   B.noP.list[rep, ] <- z.noP$B[,1]
@@ -459,24 +420,24 @@ colnames(est.B) <- rownames(z$B)
 correlation
 #                       [,1]
 # True             0.7000000
-# With M and Phy   0.6981450
-# Without M        0.2975294
-# Without Phy      0.3715866
+# With M and Phy   0.6943712
+# Without M        0.2974162
+# Without Phy      0.3715406
 # Without Phy or M 0.3291473
 
 signal.d
 #                     [,1]      [,2]
 # True           0.3000000 0.9500000
-# With M and Phy 0.3061470 0.9418049
-# Without M      0.2406226 0.4013869
+# With M and Phy 0.3025853 0.9422067
+# Without M      0.2304527 0.4180208
 
 est.B
-#                     par_1_0   par_2_0 par_2_cov_1
-# True            0.000000000 0.0000000   1.0000000
-# With M and Phy -0.008688085 0.1093656   0.9996199
-# Without M      -0.008542294 0.1146948   0.9982382
-# Without Phy     0.002933341 0.1096578   1.0028482
-    
+#                      par1_0    par2_0 par2_cov_1
+# True            0.000000000 0.0000000  1.0000000
+# With M and Phy -0.008838245 0.1093819  0.9995058
+# Without M      -0.008240453 0.1142330  0.9995625
+# Without Phy     0.002933341 0.1096578  1.0028474
+
 }
 
 
