@@ -430,9 +430,9 @@ void fit_cor_phylo_R(LogLikInfo& ll_info,
 //' `X`.
 //' 
 //' 
-//' @inheritParams X cor_phylo_
-//' @inheritParams U cor_phylo_
-//' @inheritParams M cor_phylo_
+//' @inheritParams X cor_phylo_cpp
+//' @inheritParams U cor_phylo_cpp
+//' @inheritParams M cor_phylo_cpp
 //' 
 //' @return Nothing. Matrices are standardized in place.
 //' 
@@ -473,13 +473,13 @@ void standardize_matrices(arma::mat& X,
 //' 
 //' The output `LogLikInfo` is used for model fitting.
 //' 
-//' @inheritParams X cor_phylo_
-//' @inheritParams U cor_phylo_
-//' @inheritParams M cor_phylo_
-//' @inheritParams Vphy_ cor_phylo_
-//' @inheritParams REML_ cor_phylo_
-//' @inheritParams constrain_d_ cor_phylo_
-//' @inheritParams verbose_ cor_phylo_
+//' @inheritParams X cor_phylo_cpp
+//' @inheritParams U cor_phylo_cpp
+//' @inheritParams M cor_phylo_cpp
+//' @inheritParams Vphy_ cor_phylo_cpp
+//' @inheritParams REML_ cor_phylo_cpp
+//' @inheritParams constrain_d_ cor_phylo_cpp
+//' @inheritParams verbose_ cor_phylo_cpp
 //' 
 //' @return a LogLikInfo that contains info necessary for model fitting
 //' 
@@ -583,9 +583,9 @@ LogLikInfo::LogLikInfo(const arma::mat& X,
 //' This is confusing, so I'm trying to avoid that.
 //' 
 //' 
-//' @inheritParams X cor_phylo_
-//' @inheritParams U cor_phylo_
-//' @inheritParams M cor_phylo_
+//' @inheritParams X cor_phylo_cpp
+//' @inheritParams U cor_phylo_cpp
+//' @inheritParams M cor_phylo_cpp
 //' @param other Another LogLikInfo object from which to derive much of the information.
 //' 
 //' @return a LogLikInfo that contains info necessary for model fitting
@@ -681,8 +681,8 @@ inline void main_output(arma::mat& corrs, arma::mat& B, arma::mat& B_cov, arma::
 
 //' Retrieve objects for output `cor_phylo` object.
 //' 
-//' @inheritParams X cor_phylo_
-//' @inheritParams U cor_phylo_
+//' @inheritParams X cor_phylo_cpp
+//' @inheritParams U cor_phylo_cpp
 //' @param ll_info an LogLikInfo object that contains info necessary to fit the model.
 //'   After optimization, it contains info from the model fit.
 //' 
@@ -794,24 +794,24 @@ List cp_get_output(const arma::mat& X,
 //' @return a list containing output information, to later be coerced to a `cor_phylo`
 //'   object by the `cor_phylo` function.
 //' @noRd
-//' @name cor_phylo_
+//' @name cor_phylo_cpp
 //' 
 //[[Rcpp::export]]
-List cor_phylo_(const arma::mat& X,
-                const std::vector<arma::mat>& U,
-                const arma::mat& M,
-                const arma::mat& Vphy_,
-                const bool& REML,
-                const bool& constrain_d,
-                const double& lower_d,
-                const bool& verbose,
-                const double& rcond_threshold,
-                const double& rel_tol,
-                const int& max_iter,
-                const std::string& method,
-                const uint_fast32_t& boot,
-                const std::string& keep_boots,
-                const std::vector<double>& sann) {
+List cor_phylo_cpp(const arma::mat& X,
+                   const std::vector<arma::mat>& U,
+                   const arma::mat& M,
+                   const arma::mat& Vphy_,
+                   const bool& REML,
+                   const bool& constrain_d,
+                   const double& lower_d,
+                   const bool& verbose,
+                   const double& rcond_threshold,
+                   const double& rel_tol,
+                   const int& max_iter,
+                   const std::string& method,
+                   const uint_fast32_t& boot,
+                   const std::string& keep_boots,
+                   const std::vector<double>& sann) {
   
 
   // LogLikInfo is C++ class to use for organizing info for optimizing
