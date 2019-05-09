@@ -1049,7 +1049,7 @@ fixef.communityPGLMM <- function(object, ...) {
 #' 
 #' @name ranef
 #' @title Extract random-effects estimates
-#' @aliases fixef random.effects ranef.communityPGLMM
+#' @aliases ranef random.effects ranef.communityPGLMM
 #' @docType methods
 #' @param object A fitted model with class communityPGLMM.
 #' @param ... Ignored.

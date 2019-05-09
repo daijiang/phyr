@@ -4,7 +4,6 @@
 \name{ranef}
 \alias{ranef}
 \alias{ranef.communityPGLMM}
-\alias{fixef}
 \alias{random.effects}
 \title{Extract random-effects estimates}
 \usage{
