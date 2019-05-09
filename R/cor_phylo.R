@@ -1118,7 +1118,6 @@ refit_boots <- function(cp_obj, inds = NULL, ...) {
 #'
 #' @param x an object of class \code{cp_refits}.
 #' @param digits the number of digits to be printed.
-#' @param ... arguments passed to and from other methods.
 #'
 #' @export
 #'

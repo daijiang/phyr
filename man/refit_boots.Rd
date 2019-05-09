@@ -29,8 +29,6 @@ to bootstrap your bootstraps.}
 \item{x}{an object of class \code{cp_refits}.}
 
 \item{digits}{the number of digits to be printed.}
-
-\item{...}{arguments passed to and from other methods.}
 }
 \value{
 A \code{cp_refits} object, which is a list of \code{cor_phylo} objects
