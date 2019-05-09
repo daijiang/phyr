@@ -286,6 +286,13 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
     data = dat, family = "gaussian", 
     cov_ranef = list(sp = phylotree, site = tree_site), REML = TRUE)
   
+  z_bipartite2 = phyr::communityPGLMM(
+    freq ~ 1 + shade + (1 | Species__) + (1 | Location__) + (1 | Species__@Location) + 
+      (1 | Species@Location__) + (1 | Species__@Location__), 
+    data = dat, family = "gaussian", 
+    cov_ranef = list(Species = phylotree, Location = tree_site), REML = TRUE)
+  test_fit_equal(z_bipartite, z_bipartite2)
+  
   if(requireNamespace("INLA", quietly = TRUE)){
     z_bipartite_bayes = phyr::communityPGLMM(
       freq ~ 1 + shade + (1 | sp__) + (1 | site__) + 
