@@ -72,6 +72,11 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
     dat, cov_ranef = list(Species = phylotree), REML = F, 
     cpp = T, optimizer = "Nelder-Mead")
   
+  expect_warning(phyr::communityPGLMM(
+    freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), 
+    dat, tree = phylotree, REML = F, 
+    cpp = T, optimizer = "Nelder-Mead"))
+  
   test1_gaussian_r = phyr::communityPGLMM(
     freq ~ 1 + shade + (1 | sp__) + (1 | Location) + (1 | sp__@site), 
     dat, cov_ranef = list(sp = phylotree), REML = F, 
