@@ -117,18 +117,20 @@ dat$pa = as.numeric(dat$freq > 0)
 head(dat)
 # phy-LMM
 test1 = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
-                             data = dat, family = "gaussian", tree = phylotree, REML = F)
+                             data = dat, family = "gaussian", REML = F,
+                             cov_ranef = list(sp = phylotree))
 test1
 # phy-GLMM
 test3 = phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
-                             data = dat, family = "binomial", tree = phylotree, REML = F)
+                             data = dat, family = "binomial", REML = F,
+                             cov_ranef = list(sp = phylotree))
 test3
 # bipartite
 tree_site = ape::rtree(n = n_distinct(dat$site), tip.label = sort(unique(dat$site)))
 z_bipartite = phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site__) + 
                                      (1|sp__@site) + (1|sp@site__) + (1|sp__@site__), 
-                    data = dat, family = "gaussian", tree = phylotree, tree_site = tree_site, 
-                    REML = TRUE)
+                    data = dat, family = "gaussian",REML = TRUE,
+                    cov_ranef = list(sp = phylotree, site = tree_site))
 z_bipartite
 ```
 
@@ -162,11 +164,14 @@ re = list(re.sp = re.sp, re.sp.phy = re.sp.phy, re.nested.phy = re.nested.phy, r
 # about 4-10 times faster for a small dataset
 microbenchmark::microbenchmark(
   phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
-                       dat, tree = phylotree, REML = F, cpp = T, optimizer = "bobyqa"),
+                       dat, cov_ranef = list(sp = phylotree), REML = F, 
+                       cpp = T, optimizer = "bobyqa"),
   phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
-                       dat, tree = phylotree, REML = F, cpp = T, optimizer = "Nelder-Mead"),
+                       dat, cov_ranef = list(sp = phylotree), REML = F, 
+                       cpp = T, optimizer = "Nelder-Mead"),
   phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
-                       dat, tree = phylotree, REML = F, cpp = F, optimizer = "Nelder-Mead"),
+                       dat, cov_ranef = list(sp = phylotree), REML = F, 
+                       cpp = F, optimizer = "Nelder-Mead"),
   pez::communityPGLMM(freq ~ 1 + shade, data = dat, sp = dat$sp, site = dat$site, 
                       random.effects = re, REML = F),
   times = 5
@@ -175,14 +180,14 @@ microbenchmark::microbenchmark(
 # about 6 times faster for a small dataset
 microbenchmark::microbenchmark(
   phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), dat, 
-                       family = "binomial", tree = phylotree, REML = F, cpp = T, 
-                       optimizer = "bobyqa"),
+                       family = "binomial", cov_ranef = list(sp = phylotree), REML = F, 
+                       cpp = T, optimizer = "bobyqa"),
     phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), dat, 
-                       family = "binomial", tree = phylotree, REML = F, cpp = T, 
-                       optimizer = "Nelder-Mead"),
+                       family = "binomial", cov_ranef = list(sp = phylotree), REML = F,
+                       cpp = T, optimizer = "Nelder-Mead"),
   phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), dat, 
-                       family = "binomial", tree = phylotree, REML = F, cpp = F, 
-                       optimizer = "Nelder-Mead"),
+                       family = "binomial", cov_ranef = list(sp = phylotree), REML = F, 
+                       cpp = F, optimizer = "Nelder-Mead"),
   pez::communityPGLMM(pa ~ 1 + shade, data = dat, family = "binomial", sp = dat$sp, 
                       site = dat$site, random.effects = re, REML = F),
   times = 5
