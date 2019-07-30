@@ -496,7 +496,7 @@
 # end of doc ---- 
 communityPGLMM <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
                            random.effects = NULL, REML = TRUE, 
-                           optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"),
+                           optimizer = c("bobyqa", "Nelder-Mead", "nelder-mead-nlopt", "subplex"),
                            repulsion = FALSE, add.obs.re = TRUE, verbose = FALSE, 
                            cpp = TRUE, bayes = FALSE, 
                            s2.init = NULL, B.init = NULL, reltol = 10^-6, 
@@ -895,17 +895,26 @@ communityPGLMM.glmm <- function(formula, data = list(), family = "binomial",
   s2r <- sr^2
   s2n <- sn^2
   
+  if(family == 'binomial'){
+    mu_hat <- exp(X %*% B)/(1 + exp(X %*% B))
+    if(any(size>1)){
+      logLik.glm <- sum(Y*log(mu_hat) + (size-Y)*log(1-mu_hat) + log(factorial(size)/(factorial(Y)*factorial(size-Y))))
+    }else{
+      logLik.glm <- sum(Y*log(mu_hat) + (1-Y)*log(1-mu_hat))
+    }
+  }else{
+    mu_hat <- exp(X %*% B)
+    logLik.glm <- sum(-mu_hat + Y * log(mu_hat) - log(factorial(Y)))
+  }
+  
+  logLik <- logLik.glm + as.numeric(-LL + pglmm.LL(0*ss, H=H, X=X, Zt=Zt, St=St, mu=mu, nested=nested, REML = REML, family = family, size = size, verbose = verbose))
+
+
   B.cov <- solve(t(X) %*% iV %*% X)
   B.se <- as.matrix(diag(B.cov))^0.5
   B.zscore <- B/B.se
   B.pvalue <- 2 * pnorm(abs(B/B.se), lower.tail = FALSE)
   
-  if (REML == TRUE) {
-      logLik <- as.numeric(-0.5 * (n - p) * log(2 * pi) + 0.5 * determinant(t(X) %*% X)$modulus[1] - LL)
-  } else {
-      logLik <- as.numeric(-0.5 * n * log(2 * pi) - LL)
-  }
-
   results <- list(formula = formula, data = data, family = family, random.effects = random.effects, 
                   B = B, B.se = B.se, B.cov = B.cov, B.zscore = B.zscore, B.pvalue = B.pvalue, 
                   ss = ss, s2n = s2n, s2r = s2r, s2resid = NULL, logLik = logLik, AIC = NULL, 

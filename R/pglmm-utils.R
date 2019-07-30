@@ -501,6 +501,7 @@ pglmm_gaussian_LL_calc = function(par, X, Y, Zt, St, nested = NULL,
     # concentrated REML likelihood function
     # s2.conc <- t(H) %*% iV %*% H/(n - p)
     s2resid <- as.numeric(crossprod(H, iV) %*% H/(n - p))
+    #s2resid <- as.numeric(crossprod(H, iV) %*% H/n)
   } else {
     # concentrated ML likelihood function
     # s2.conc <- t(H) %*% iV %*% H/n
@@ -669,9 +670,8 @@ pglmm.V <- function(par, Zt, St, mu, nested, family, size) {
 #' @param re.number Which random term to test? Can be a vector with length >1
 #' @inheritParams pglmm
 #' @export
+#' 
 communityPGLMM.profile.LRT <- function(x, re.number = 0, cpp = TRUE) {
-  if(x$family != "binomial")
-    stop("Only work with binomial PGLMMs at this moment")
   n <- dim(x$X)[1]
   p <- dim(x$X)[2]
   par <- x$ss
@@ -715,6 +715,7 @@ communityPGLMM.profile.LRT <- function(x, re.number = 0, cpp = TRUE) {
   
   list(LR = logLik - logLik0, df = df, Pr = P.H0.s2)
 }
+pglmm.profile.LRT <- communityPGLMM.profile.LRT
 
 #' \code{communityPGLMM.matrix.structure} produces the entire
 #' covariance matrix structure (V) when you specify random effects.
