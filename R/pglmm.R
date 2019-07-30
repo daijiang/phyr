@@ -919,8 +919,8 @@ communityPGLMM.glmm <- function(formula, data = list(), family = "binomial",
   
   results <- list(formula = formula, data = data, family = family, random.effects = random.effects, 
                   B = B, B.se = B.se, B.cov = B.cov, B.zscore = B.zscore, B.pvalue = B.pvalue, 
-                  ss = ss, s2n = s2n, s2r = s2r, s2resid = NULL, logLik = logLik, AIC = NULL, 
-                  BIC = NULL, REML = REML, bayes = FALSE, s2.init = s2.init, B.init = B.init, Y = Y, size = size, X = X, 
+                  ss = ss, s2n = s2n, s2r = s2r, s2resid = NULL, logLik = logLik, AIC = AIC, 
+                  BIC = BIC, REML = REML, bayes = FALSE, s2.init = s2.init, B.init = B.init, Y = Y, size = size, X = X, 
                   H = as.matrix(H), iV = iV, mu = mu, nested = nested, Zt = Zt, St = St, 
                   convcode = convcode, niter = niter)
   class(results) <- "communityPGLMM"
