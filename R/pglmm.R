@@ -908,7 +908,9 @@ communityPGLMM.glmm <- function(formula, data = list(), family = "binomial",
   }
   
   logLik <- logLik.glm + as.numeric(-LL + pglmm.LL(0*ss, H=H, X=X, Zt=Zt, St=St, mu=mu, nested=nested, REML = REML, family = family, size = size, verbose = verbose))
-
+  k <- p + q + 1
+  AIC <- -2 * logLik + 2 * k
+  BIC <- -2 * logLik + k * (log(n) - log(pi))
 
   B.cov <- solve(t(X) %*% iV %*% X)
   B.se <- as.matrix(diag(B.cov))^0.5
