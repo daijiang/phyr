@@ -10,33 +10,56 @@
 
 
 
-#' Check phylogeny and reorder it.
+#' Check and extract var-cov matrix from phylogeny.
 #' 
-#' It checks for it being `phylo` class, having branch lengths, and having tip labels.
+#' If `phy` is a phylogeny, it checks for it being `phylo` class, having branch
+#' lengths, and having tip labels.
+#' It then creates the var-cov matrix using `ape::vcv`.`
 #'
-#' @param phy A phylogeny that should be a `phylo` object.
+#' @param phy A phylogeny that should be a `phylo` object or var-cov matrix.
 #'
-#' @return A phylogenetic tree that's been reordered using `ape::reorder.phylo(phy, "postorder")`
+#' @return A var-cov matrix from a phylogenetic tree that's been reordered using
+#' `ape::reorder.phylo(phy, "postorder")`
 #'
 #' @noRd
 #' 
-check_phy <- function(phy) {
+get_Vphy <- function(phy) {
   
-  if (!inherits(phy, "phylo")) {
-    stop("\nThe input phylogeny is not of class \"phylo\".")
-  }
-  if (is.null(phy$edge.length)) {
-    stop("\nThe input phylogeny has no branch lengths.")
-  }
-  if (is.null(phy$tip.label)) {
-    stop("\nThe input phylogeny has no tip labels.")
-  }
+  Vphy <- matrix(NA_real_, 0, 0)
   
-  phy <- ape::reorder.phylo(phy, "postorder")
+  if (inherits(phy, "phylo")) {
+    
+    if (is.null(phy$edge.length)) {
+      stop("\nThe input phylogeny has no branch lengths.")
+    }
+    if (is.null(phy$tip.label)) {
+      stop("\nThe input phylogeny has no tip labels.")
+    }
+    phy$tip.label <- paste(phy$tip.label)
+    phy <- ape::reorder.phylo(phy, "postorder")
+    Vphy <- ape::vcv(phy)
+    
+  } else if (inherits(phy, c("matrix", "Matrix"))) {
+    
+    if ((det(phy) - 1) > 0.0001){
+      
+      phy <- phy / max(phy)
+      phy <- phy/exp(determinant(phy)$modulus[1]/nrow(phy))
+      
+      if((det(phy) - 1) > 0.0001) {
+        warning("\nFailed to standarized the var-cov matrix in `phy` argument to ",
+                "`cor_phylo`", call. = FALSE, immediate. = TRUE)
+      }
+    }
+    
+    Vphy <- phy
+    
+  } else stop("\nThe `phy` argument to `cor_phylo` is not of class \"phylo\" ",
+              "or a matrix.", call. = FALSE)
+  
+
+  return(Vphy)
 }
-
-
-
 
 
 
@@ -177,17 +200,16 @@ proper_formula <- function(formula, arg, data) {
 
 #' Get values and check validity of the `species` argument passed to `cor_phylo`
 #'
-#' @inheritParams species cor_phylo
-#' @inheritParams data cor_phylo
-#' @inheritParams phy cor_phylo
+#' @inheritParams cor_phylo
+#' @param Vphy var-cov matrix from a phylogeny.
 #'
 #' @return A vector of species names.
 #'
 #' @noRd
 #' 
-cp_get_species <- function(species, data, phy) {
+cp_get_species <- function(species, data, Vphy) {
   
-  n <- length(phy$tip.label)
+  n <- nrow(Vphy)
   
   if (inherits(species, "formula")) {
     spp_vec <- proper_formula(species, "species", data)
@@ -207,15 +229,14 @@ cp_get_species <- function(species, data, phy) {
   if (sum(duplicated(spp_vec)) > 0) {
     stop("\nDuplicate species not allowed in `cor_phylo`.", call. = FALSE)
   }
-  if (!all(spp_vec %in% phy$tip.label)) {
-    stop("\nIn `cor_phylo`, the `species` argument has one or more species not ",
-         "found in the phylogeny. Please filter the input data and try again.",
-         call. = FALSE)
-  } else if (!all(phy$tip.label %in% spp_vec)) {
-    cat(paste(spp_vec, collapse = " "), "\n")
-    stop("\nIn `cor_phylo`, the phylogeny has one or more species not found ",
-         "in the `species` argument. (Printed above is the `species` argument.)",
-         "Please filter the input phylogeny and try again.", call. = FALSE)
+  if (!all(spp_vec %in% rownames(Vphy))) {
+    stop("\nIn `cor_phylo`, the following species in the `species` argument are not ",
+         "found in the phylogeny: ",
+         paste(spp_vec[!spp_vec %in% rownames(Vphy)], collapse = " "), call. = FALSE)
+  } else if (!all(rownames(Vphy) %in% spp_vec)) {
+    stop("\nIn `cor_phylo`, the following species in the phylogeny are not found ",
+         "in the `species` argument: ",
+         paste(rownames(Vphy)[!rownames(Vphy) %in% spp_vec], collapse = " "), call. = FALSE)
   }
   return(spp_vec)
 }
@@ -644,8 +665,11 @@ sim_cor_phylo_variates <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, 
 #'   the species information inside `data`.
 #'   If a vector, it must be the same length as that of the tip labels in `phy`,
 #'   and it will be coerced to a character vector like `phy`'s tip labels.
-#' @param phy A `phylo` object giving the phylogenetic tree.
-#'   Tip labels will be coerced to a character vector.
+#' @param phy Either a phylogeny of class `phylo` or a prepared variance-covariance
+#'   matrix.
+#'   If it is a phylogeny, we will coerce tip labels to a character vector, and
+#'   convert it to a variance-covariance matrix assuming brownian motion evolution.
+#'   We will also standardize all var-cov matrices to have determinant of one.
 #' @param covariates A list specifying covariate(s) for each variate.
 #'   The list can contain only two-sided formulas or matrices.
 #'   Formulas should be of the typical form: `y ~ x1 + x2` or `y ~ x1 * x2`.
@@ -1036,14 +1060,11 @@ cor_phylo <- function(variates,
     }
   }
   
+  Vphy <- get_Vphy(phy)
+
+  spp_vec <- cp_get_species(species, data, Vphy)
   
-  phy$tip.label <- paste(phy$tip.label)
-  phy <- check_phy(phy)
-  Vphy <- ape::vcv(phy)
-  
-  spp_vec <- cp_get_species(species, data, phy)
-  
-  phy_order <- match(phy$tip.label, spp_vec)
+  phy_order <- match(rownames(Vphy), spp_vec)
   X <- extract_variates(variates, phy_order, data)
   variate_names <- colnames(X)
   U <- extract_covariates(covariates, phy_order, variate_names, data)
@@ -1077,7 +1098,7 @@ cor_phylo <- function(variates,
   # Ordering output matrices back to original order (bc they were previously
   # reordered based on the phylogeny)
   if (length(output$bootstrap$mats) > 0) {
-    order_ <- match(spp_vec, phy$tip.label)
+    order_ <- match(spp_vec, rownames(Vphy))
     for (i in 1:length(output$bootstrap$mats)) {
       output$bootstrap$mats[[i]] <-
         output$bootstrap$mats[[i]][order_, , drop = FALSE]
@@ -1149,11 +1170,11 @@ refit_boots <- function(cp_obj, inds = NULL, ...) {
   new_call$keep_boots <- NULL
   
   data <- eval(new_call$data)
-  phy <- check_phy(eval(new_call$phy))
+  Vphy <- get_Vphy(eval(new_call$phy))
   
-  spp_vec <- cp_get_species(new_call$species, data, phy)
+  spp_vec <- cp_get_species(new_call$species, data, Vphy)
   
-  phy_order <- match(phy$tip.label, spp_vec)
+  phy_order <- match(rownames(Vphy), spp_vec)
   X <- extract_variates(new_call$variates, phy_order, data)
   variate_names <- colnames(X)
   U <- call_arg(new_call, "covariates")
@@ -1161,7 +1182,7 @@ refit_boots <- function(cp_obj, inds = NULL, ...) {
   M <- call_arg(new_call, "meas_errors")
   M <- extract_meas_errors(M, phy_order, variate_names, data)
   
-  species <- phy$tip.label
+  species <- rownames(Vphy)
   
   new_call$variates <- quote(X)
   new_call$species <- quote(species)
