@@ -952,6 +952,13 @@ cor_phylo <- function(traits,
   if (call_[1] != as.call(quote(cor_phylo()))) {
     call_[1] <- as.call(quote(cor_phylo()))
   }
+  # Fixing later errors when users used `T` or `F` instead of `TRUE` or `FALSE`
+  for (log_par in c("REML", "constrain_d", "verbose")) {
+    if (!is.null(call_[[log_par]]) && inherits(call_[[log_par]], "name")) {
+      call_[[log_par]] <- as.logical(paste(call_[[log_par]]))
+    }
+  }
+  
   
   phy$tip.label <- paste(phy$tip.label)
   phy <- check_phy(phy)
