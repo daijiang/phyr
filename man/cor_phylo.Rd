@@ -4,9 +4,9 @@
 \alias{cor_phylo}
 \alias{boot_ci.cor_phylo}
 \alias{print.cor_phylo}
-\title{Correlations among multiple traits with phylogenetic signal}
+\title{Correlations among multiple variates with phylogenetic signal}
 \usage{
-cor_phylo(traits, species, phy,
+cor_phylo(variates, species, phy,
           covariates = NULL, 
           meas_errors = NULL,
           data = sys.frame(sys.parent()),
@@ -29,10 +29,11 @@ cor_phylo(traits, species, phy,
   ...)
 }
 \arguments{
-\item{traits}{A formula or a matrix specifying trait information.
-The formula should be one-sided of the form \code{~ A + B + C} for trait vectors
+\item{variates}{A formula or a matrix specifying variates between which correlations
+are being calculated.
+The formula should be one-sided of the form \code{~ A + B + C} for variate vectors
 \code{A}, \code{B}, and \code{C} that are present in \code{data}.
-In the matrix case, the matrix must have \code{n} rows and \code{p} columns (for \code{p} traits);
+In the matrix case, the matrix must have \code{n} rows and \code{p} columns (for \code{p} variates);
 if the matrix columns aren't named, \code{cor_phylo} will name them \code{par_1 ... par_p}.}
 
 \item{species}{A one-sided formula implicating the variable inside \code{data}
@@ -42,24 +43,27 @@ the species information inside \code{data}.
 If a vector, it must be the same length as that of the tip labels in \code{phy},
 and it will be coerced to a character vector like \code{phy}'s tip labels.}
 
-\item{phy}{A \code{phylo} object giving the phylogenetic tree.
-Tip labels will be coerced to a character vector.}
+\item{phy}{Either a phylogeny of class \code{phylo} or a prepared variance-covariance
+matrix.
+If it is a phylogeny, we will coerce tip labels to a character vector, and
+convert it to a variance-covariance matrix assuming brownian motion evolution.
+We will also standardize all var-cov matrices to have determinant of one.}
 
-\item{covariates}{A list specifying covariate(s) for each trait.
+\item{covariates}{A list specifying covariate(s) for each variate.
 The list can contain only two-sided formulas or matrices.
 Formulas should be of the typical form: \code{y ~ x1 + x2} or \code{y ~ x1 * x2}.
 If using a list of matrices, each item must be named (e.g.,
-\code{list(y = matrix(...))} specifying trait \code{y}'s covariates).
+\code{list(y = matrix(...))} specifying variate \code{y}'s covariates).
 If the matrix columns aren't named, \code{cor_phylo} will name them \code{cov_1 ... cov_q},
-where \code{q} is the total number of covariates for all traits.
+where \code{q} is the total number of covariates for all variates.
 Having factor covariates is not supported.
 Defaults to \code{NULL}, which indicates no covariates.}
 
-\item{meas_errors}{A list or matrix containing measurement error info for each trait.
+\item{meas_errors}{A list or matrix containing standard errors for each variate.
 If a list, it must contain only two-sided formulas like those for \code{covariates}
-(except that you can't have multiple measurement errors for a single trait).
+(except that you can't have multiple measurement errors for a single variate).
 You can additionally pass an \code{n}-row matrix with column names
-corresponding to the associated trait names.
+corresponding to the associated variate names.
 Defaults to \code{NULL}, which indicates no measurement errors.}
 
 \item{data}{An optional data frame, list, or environment that contains the
@@ -119,7 +123,7 @@ Defaults to \code{1e-10}.}
 \item{boot}{Number of parametric bootstrap replicates. Defaults to \code{0}.}
 
 \item{keep_boots}{Character specifying when to output data (indices, convergence codes,
-and simulated trait data) from bootstrap replicates.
+and simulated variate data) from bootstrap replicates.
 This is useful for troubleshooting when one or more bootstrap replicates
 fails to converge or outputs ridiculous results.
 Setting this to \code{"all"} keeps all \code{boot} parameter sets,
@@ -151,7 +155,7 @@ Defaults to \code{NULL}.}
 \code{cor_phylo} returns an object of class \code{cor_phylo}:
 \item{\code{call}}{The matched call.}
 \item{\code{corrs}}{The \code{p} x \code{p} matrix of correlation coefficients.}
-\item{\code{d}}{Values of \code{d} from the OU process for each trait.}
+\item{\code{d}}{Values of \code{d} from the OU process for each variate.}
 \item{\code{B}}{A matrix of regression-coefficient estimates, SE, Z-scores, and P-values,
 respectively. Rownames indicate which coefficient it refers to.}
 \item{\code{B_cov}}{Covariance matrix for regression coefficients.}
@@ -204,16 +208,16 @@ upper limits and values below being the lower limits.}
 }
 \description{
 This function calculates Pearson correlation coefficients for multiple continuous
-traits that may have phylogenetic signal, allowing users to specify measurement
-error as the standard error of trait values at the tips of the phylogenetic tree.
-Phylogenetic signal for each trait is estimated from the data assuming that trait
+variates that may have phylogenetic signal, allowing users to specify measurement
+error as the standard error of variate values at the tips of the phylogenetic tree.
+Phylogenetic signal for each variate is estimated from the data assuming that variate
 evolution is given by a Ornstein-Uhlenbeck process.  Thus, the function allows the
-estimation of phylogenetic signal in multiple traits while incorporating
-correlations among traits. It is also possible to include independent variables
-(covariates) for each trait to remove possible confounding effects.
-\code{cor_phylo} returns the correlation matrix for trait values, estimates
-of phylogenetic signal for each trait, and regression coefficients for
-independent variables affecting each trait.
+estimation of phylogenetic signal in multiple variates while incorporating
+correlations among variates. It is also possible to include independent variables
+(covariates) for each variate to remove possible confounding effects.
+\code{cor_phylo} returns the correlation matrix for variate values, estimates
+of phylogenetic signal for each variate, and regression coefficients for
+independent variables affecting each variate.
 }
 \section{Methods (by generic)}{
 \itemize{
@@ -243,8 +247,8 @@ matrices \eqn{M1} and \eqn{M2} of measurement standard errors for \eqn{X[1]} and
 \deqn{V[2,2] = C[2,2](d2) + M2}
 
 where \eqn{C[i,j](d1,d2)} are derived from \code{phy} under the assumption of joint
-OU evolutionary processes for each trait (see Zheng et al. 2009). This formulation
-extends in the obvious way to more than two traits.
+OU evolutionary processes for each variate (see Zheng et al. 2009). This formulation
+extends in the obvious way to more than two variates.
 }
 
 \examples{
@@ -256,7 +260,7 @@ set.seed(10)
 phy <- ape::rcoal(10, tip.label = 1:10)
 data_df <- data.frame(
     species = phy$tip.label,
-    # traits:
+    # variates:
     par1 = rnorm(10),
     par2 = rnorm(10),
     par3 = rnorm(10),
@@ -269,7 +273,7 @@ data_df <- data.frame(
 data_df$par2 <- data_df$par2 + 0.5 * data_df$cov2
 
 
-cor_phylo(traits = ~ par1 + par2 + par3,
+cor_phylo(variates = ~ par1 + par2 + par3,
           covariates = list(par2 ~ cov2),
           meas_errors = list(par1 ~ se1, par2 ~ se2),
           species = ~ species,
@@ -284,7 +288,7 @@ M <- cbind(par1 = data_df$se1, par2 = data_df$se2)
 # ... you can also use those directly
 # (notice that I'm inputting an object for `species`
 # bc I ommitted `data`):
-cor_phylo(traits = X, species = data_df$species,
+cor_phylo(variates = X, species = data_df$species,
           phy = phy, covariates = U,
           meas_errors = M)
 
@@ -371,16 +375,16 @@ for (rep in 1:Nrep) {
   # Call cor_phylo with (i) phylogeny and measurement error,
   # (ii) just phylogeny,
   # and (iii) just measurement error
-  z <- cor_phylo(traits = X,
+  z <- cor_phylo(variates = X,
                  covariates = U,
                  meas_errors = M,
                  phy = phy,
                  species = phy$tip.label)
-  z.noM <- cor_phylo(traits = X,
+  z.noM <- cor_phylo(variates = X,
                      covariates = U,
                      phy = phy,
                      species = phy$tip.label)
-  z.noP <- cor_phylo(traits = X,
+  z.noP <- cor_phylo(variates = X,
                      covariates = U,
                      meas_errors = M,
                      phy = star,
