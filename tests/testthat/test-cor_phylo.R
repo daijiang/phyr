@@ -241,7 +241,6 @@ test_that("cor_phylo produces the same output with different input methods", {
 
 
 
-
 # ==================================================================*
 # ==================================================================*
 
@@ -266,3 +265,34 @@ test_that("boot_ci.cor_phylo produced expected output types", {
   expect_identical(paste(sapply(cp_bci, class)), rep("matrix", 4))
   
 })
+
+
+
+
+
+
+
+
+# ----------------------------
+
+# Making sure having no correlation works properly
+
+# ----------------------------
+
+
+data_list$data$par3 <- runif(nrow(data_list$data)) * data_list$data$par1
+
+phyr_cp_nc <- cor_phylo(variates = ~ par1 + par2 + par3,
+                        data = data_list$data, phy = data_list$phy,
+                        species = ~ species, method = "nelder-mead-r",
+                        no_corr = TRUE)
+
+test_that("having no correlation works", {
+  
+  expect_equal(sum(phyr_cp_nc$corrs[lower.tri(phyr_cp_nc$corrs)]), 0)
+  expect_equal(sum(phyr_cp_nc$corrs[upper.tri(phyr_cp_nc$corrs)]), 0)
+
+})
+
+
+
