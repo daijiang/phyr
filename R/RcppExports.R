@@ -20,6 +20,8 @@ binpglmm_inter_while_cpp2 <- function(est_B_m, B, mu, C, rcondflag, B_init, X, X
 #' 
 #' 
 #' @name cor_phylo_LL_
+#' 
+#' 
 #' @noRd
 #' 
 #' 
@@ -203,8 +205,8 @@ cor_phylo_LL <- function(par, XX, UU, MM, Vphy, tau, REML, constrain_d, lower_d,
 #' @noRd
 #' @name cor_phylo_cpp
 #' 
-cor_phylo_cpp <- function(X, U, M, Vphy_, REML, constrain_d, lower_d, verbose, rcond_threshold, rel_tol, max_iter, method, boot, keep_boots, sann) {
-    .Call(`_phyr_cor_phylo_cpp`, X, U, M, Vphy_, REML, constrain_d, lower_d, verbose, rcond_threshold, rel_tol, max_iter, method, boot, keep_boots, sann)
+cor_phylo_cpp <- function(X, U, M, Vphy_, REML, constrain_d, lower_d, verbose, rcond_threshold, rel_tol, max_iter, method, no_corr, boot, keep_boots, sann) {
+    .Call(`_phyr_cor_phylo_cpp`, X, U, M, Vphy_, REML, constrain_d, lower_d, verbose, rcond_threshold, rel_tol, max_iter, method, no_corr, boot, keep_boots, sann)
 }
 
 set_seed <- function(seed) {
