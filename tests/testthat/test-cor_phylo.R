@@ -102,14 +102,6 @@ test_that("cor_phylo produces the same results as ape::corphylo", {
 # ----------------------------
 
 
-# cor_phylo(variates = ~ par1 + par2,
-#           covariates = list(par2 ~ cov2a),
-#           meas_errors = list(par1 ~ se1, par2 ~ se2),
-#           data = data_list$data, phy = data_list$phy,
-#           species = ~ species, method = "nelder-mead-r",
-#           lower_d = 0)
-
-
 test_that("cor_phylo produces errors when nonsense is passed to it", {
   
   expect_error(cor_phylo(variates = ~ par1 + par2,
@@ -254,7 +246,7 @@ cp <- cor_phylo(variates = ~ par1 + par2,
           covariates = list(par2 ~ cov2a),
           meas_errors = list(par1 ~ se1, par2 ~ se2),
           data = data_list$data, phy = data_list$phy,
-          species = ~ species, boot = 10)
+          species = ~ species, boot = 1)
 
 cp_bci <- boot_ci(cp)
 
@@ -293,6 +285,30 @@ test_that("having no correlation works", {
   expect_equal(sum(phyr_cp_nc$corrs[upper.tri(phyr_cp_nc$corrs)]), 0)
 
 })
+
+
+
+
+
+
+
+# ----------------------------
+
+# Testing for fix of error in printing when using `T` or `F` instead of `TRUE` or `FALSE`
+
+# ----------------------------
+
+
+phyr_cp <- cor_phylo(variates = ~ par1 + par2,
+                     data = data_list$data, phy = data_list$phy,
+                     species = ~ species, constrain_d = T)
+
+test_that("printing works when using `T` or `F` instead of `TRUE` or `FALSE`", {
+  
+  expect_output(print(phyr_cp), "Call to cor_phylo:")
+  
+})
+
 
 
 

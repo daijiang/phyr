@@ -697,7 +697,7 @@ sim_cor_phylo_variates <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, 
 #'   \code{\link[stats]{optim}}.
 #'   See \url{https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/} for information
 #'   on the `nlopt` algorithms.
-#'   Defaults to `"nelder-mead-nlopt"`.
+#'   Defaults to `"nelder-mead-r"`.
 #' @param no_corr A single logical for whether to make all correlations zero.
 #'   Running `cor_phylo` with `no_corr = TRUE` is useful for comparing it to the same
 #'   model run with correlations != 0.
@@ -997,8 +997,8 @@ sim_cor_phylo_variates <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, 
 #'           meas_errors = NULL,
 #'           data = sys.frame(sys.parent()),
 #'           REML = TRUE, 
-#'           method = c("nelder-mead-nlopt", "bobyqa",
-#'               "subplex", "nelder-mead-r", "sann"),
+#'           method = c("nelder-mead-r", "bobyqa",
+#'               "subplex", "nelder-mead-nlopt", "sann"),
 #'           no_corr = FALSE,
 #'           constrain_d = FALSE,
 #'           lower_d = 1e-7,
@@ -1017,8 +1017,8 @@ cor_phylo <- function(variates,
                       meas_errors = NULL,
                       data = sys.frame(sys.parent()),
                       REML = TRUE, 
-                      method = c("nelder-mead-nlopt", "bobyqa", "subplex",
-                                 "nelder-mead-r", "sann"),
+                      method = c("nelder-mead-r", "bobyqa", "subplex",
+                                 "nelder-mead-nlopt", "sann"),
                       no_corr = FALSE,
                       constrain_d = FALSE,
                       lower_d = 1e-7,

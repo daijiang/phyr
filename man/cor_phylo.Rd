@@ -11,8 +11,8 @@ cor_phylo(variates, species, phy,
           meas_errors = NULL,
           data = sys.frame(sys.parent()),
           REML = TRUE, 
-          method = c("nelder-mead-nlopt", "bobyqa",
-              "subplex", "nelder-mead-r", "sann"),
+          method = c("nelder-mead-r", "bobyqa",
+              "subplex", "nelder-mead-nlopt", "sann"),
           no_corr = FALSE,
           constrain_d = FALSE,
           lower_d = 1e-7,
@@ -81,7 +81,7 @@ The first three are carried out by \code{nlopt}, and the latter two by
 \code{\link[stats]{optim}}.
 See \url{https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/} for information
 on the \code{nlopt} algorithms.
-Defaults to \code{"nelder-mead-nlopt"}.}
+Defaults to \code{"nelder-mead-r"}.}
 
 \item{no_corr}{A single logical for whether to make all correlations zero.
 Running \code{cor_phylo} with \code{no_corr = TRUE} is useful for comparing it to the same
