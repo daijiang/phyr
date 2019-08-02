@@ -698,6 +698,10 @@ sim_cor_phylo_variates <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, 
 #'   See \url{https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/} for information
 #'   on the `nlopt` algorithms.
 #'   Defaults to `"nelder-mead-nlopt"`.
+#' @param no_corr A single logical for whether to make all correlations zero.
+#'   Running `cor_phylo` with `no_corr = TRUE` is useful for comparing it to the same
+#'   model run with correlations != 0.
+#'   Defaults to `FALSE`.
 #' @param constrain_d If `constrain_d` is `TRUE`, the estimates of `d` are 
 #'   constrained to be between zero and 1. This can make estimation more stable and 
 #'   can be tried if convergence is problematic. This does not necessarily lead to 
@@ -995,6 +999,7 @@ sim_cor_phylo_variates <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, 
 #'           REML = TRUE, 
 #'           method = c("nelder-mead-nlopt", "bobyqa",
 #'               "subplex", "nelder-mead-r", "sann"),
+#'           no_corr = FALSE,
 #'           constrain_d = FALSE,
 #'           lower_d = 1e-7,
 #'           rel_tol = 1e-6,
@@ -1014,6 +1019,7 @@ cor_phylo <- function(variates,
                       REML = TRUE, 
                       method = c("nelder-mead-nlopt", "bobyqa", "subplex",
                                  "nelder-mead-r", "sann"),
+                      no_corr = FALSE,
                       constrain_d = FALSE,
                       lower_d = 1e-7,
                       rel_tol = 1e-6, 
@@ -1054,7 +1060,7 @@ cor_phylo <- function(variates,
     call_[1] <- as.call(quote(cor_phylo()))
   }
   # Fixing later errors when users used `T` or `F` instead of `TRUE` or `FALSE`
-  for (log_par in c("REML", "constrain_d", "verbose")) {
+  for (log_par in c("REML", "no_corr", "constrain_d", "verbose")) {
     if (!is.null(call_[[log_par]]) && inherits(call_[[log_par]], "name")) {
       call_[[log_par]] <- as.logical(paste(call_[[log_par]]))
     }
@@ -1085,7 +1091,7 @@ cor_phylo <- function(variates,
   # corrs, d, B, (previously B, B_se, B_zscore, and B_pvalue),
   #     B_cov, logLik, AIC, BIC
   output <- cor_phylo_cpp(X, U, M, Vphy, REML, constrain_d, lower_d, verbose,
-                          rcond_threshold, rel_tol, max_iter, method, boot,
+                          rcond_threshold, rel_tol, max_iter, method, no_corr, boot,
                           keep_boots, sann)
   # Taking care of row and column names:
   colnames(output$corrs) <- rownames(output$corrs) <- variate_names

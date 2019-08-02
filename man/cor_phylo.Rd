@@ -13,6 +13,7 @@ cor_phylo(variates, species, phy,
           REML = TRUE, 
           method = c("nelder-mead-nlopt", "bobyqa",
               "subplex", "nelder-mead-r", "sann"),
+          no_corr = FALSE,
           constrain_d = FALSE,
           lower_d = 1e-7,
           rel_tol = 1e-6,
@@ -81,6 +82,11 @@ The first three are carried out by \code{nlopt}, and the latter two by
 See \url{https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/} for information
 on the \code{nlopt} algorithms.
 Defaults to \code{"nelder-mead-nlopt"}.}
+
+\item{no_corr}{A single logical for whether to make all correlations zero.
+Running \code{cor_phylo} with \code{no_corr = TRUE} is useful for comparing it to the same
+model run with correlations != 0.
+Defaults to \code{FALSE}.}
 
 \item{constrain_d}{If \code{constrain_d} is \code{TRUE}, the estimates of \code{d} are
 constrained to be between zero and 1. This can make estimation more stable and
