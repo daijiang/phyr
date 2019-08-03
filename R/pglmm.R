@@ -496,7 +496,7 @@
 # end of doc ---- 
 pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
                            random.effects = NULL, REML = TRUE, 
-                           optimizer = c("bobyqa", "Nelder-Mead", "nelder-mead-nlopt", "subplex"),
+                           optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"),
                            repulsion = FALSE, add.obs.re = TRUE, verbose = FALSE, 
                            cpp = TRUE, bayes = FALSE, 
                            s2.init = NULL, B.init = NULL, reltol = 10^-6, 
