@@ -396,7 +396,7 @@ get_design_matrix = function(formula, data, random.effects, na.action = NULL){
     St <- as(St, "dgTMatrix")
     Zt <- as(Zt, "dgTMatrix")
   } else {
-    St <- NULL
+    St <- NULL # for cpp
     Zt <- NULL
   }
   
@@ -526,9 +526,11 @@ pglmm_gaussian_LL_calc = function(par, X, Y, Zt, St, nested = NULL,
 }
 
 # Log likelihood function for binomial and poisson models
-pglmm.LL <- function(par, H, X, Zt, St, mu, nested, REML = TRUE, verbose = FALSE, family = family, size) {
+pglmm.LL <- function(par, H, X, Zt, St, mu, nested, REML = TRUE, 
+                     verbose = FALSE, family = family, size) {
   par <- abs(par) 
-  iVdet <- pglmm.iV.logdetV(par = par, Zt = Zt, St = St, mu = mu, nested = nested, logdet = TRUE, family = family, size = size)
+  iVdet <- pglmm.iV.logdetV(par = par, Zt = Zt, St = St, mu = mu, nested = nested, 
+                            logdet = TRUE, family = family, size = size)
   
   iV <- iVdet$iV
   logdetV <- iVdet$logdetV
@@ -708,14 +710,17 @@ communityPGLMM.profile.LRT <- function(x, re.number = 0, cpp = TRUE) {
   
   list(LR = logLik - logLik0, df = df, Pr = P.H0.s2)
 }
+
+#' @export
+#' @rdname pglmm-utils
 pglmm.profile.LRT <- communityPGLMM.profile.LRT
 
-#' \code{communityPGLMM.matrix.structure} produces the entire
+#' \code{pglmm.matrix.structure} produces the entire
 #' covariance matrix structure (V) when you specify random effects.
 #' @param ss Which of the \code{random.effects} to produce.
 #' @rdname pglmm-utils
 #' @export
-communityPGLMM.matrix.structure <- function(formula, data = list(), family = "binomial", 
+pglmm.matrix.structure <- function(formula, data = list(), family = "binomial", 
                                             cov_ranef, repulsion = FALSE, ss = 1, cpp = TRUE) {
   dat_prepared = prep_dat_pglmm(formula, data, cov_ranef, repulsion, family = family)
   formula = dat_prepared$formula
@@ -738,6 +743,10 @@ communityPGLMM.matrix.structure <- function(formula, data = list(), family = "bi
   
   return(V)
 }
+
+#' @rdname pglmm-utils
+#' @export
+communityPGLMM.matrix.structure <- pglmm.matrix.structure
 
 #' @rdname pglmm-utils
 #' @method summary communityPGLMM
@@ -936,6 +945,10 @@ communityPGLMM.predicted.values <- function(x, cpp = TRUE,
   
   data.frame(Y_hat = predicted.values)
 }
+
+#' @rdname pglmm-utils
+#' @export
+communityPGLMM.predicted.values <- pglmm.predicted.values
 
 #' Residuals of communityPGLMM objects
 #' 

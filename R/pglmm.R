@@ -11,7 +11,7 @@
 #' more specific than \code{\link[lme4:lmer]{lmer}} in that it can
 #' only analyze a subset of the types of model designed handled by
 #' \code{\link[lme4:lmer]{lmer}}. It is also much slower than
-#' \code{\link[lme4:lmer]{lmer}}. \code{communityPGLMM} can analyze models in Ives and
+#' \code{\link[lme4:lmer]{lmer}}. \code{pglmm} can analyze models in Ives and
 #' Helmus (2011). It can also analyze bipartite phylogenetic data,
 #' such as that analyzed in Rafferty and Ives (2011), by giving sites
 #' phylogenetic correlations. 
@@ -202,7 +202,7 @@
 #'   tendency of the bayesian posterior marginal distributions. Ignored if \code{bayes = FALSE}
 #' @param calc.DIC Should the Deviance Informatiob Criterion be calculated and returned,
 #'   when doing a bayesian PGLMM? Ignored if \code{bayes = FALSE}
-#' @param prior Which type of default prior should be used by \code{communityPGLMM}?
+#' @param prior Which type of default prior should be used by \code{pglmm}?
 #'   Only used if \code{bayes = TRUE}, ignored otherwise. There are currently four options:
 #'   "inla.default", which uses the default \code{INLA} priors; "pc.prior.auto", which uses a
 #'   complexity penalizing prior (as described in 
@@ -680,7 +680,7 @@ communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian",
     out$s2r = as.vector(out$s2r)
     convcode = out_res$convcode
     niter = out_res$niter[,1]
-  } else {
+  } else {# R version
     if(optimizer == "Nelder-Mead"){
       if (q > 1) {
         opt <- optim(fn = pglmm_gaussian_LL_calc, par = s, X = X, Y = Y, Zt = Zt, St = St, 
@@ -896,19 +896,24 @@ communityPGLMM.glmm <- function(formula, data = list(), family = "binomial",
   s2r <- sr^2
   s2n <- sn^2
   
-  if(family == 'binomial'){
-    mu_hat <- exp(X %*% B)/(1 + exp(X %*% B))
-    if(any(size>1)){
-      logLik.glm <- sum(Y*log(mu_hat) + (size-Y)*log(1-mu_hat) + log(factorial(size)/(factorial(Y)*factorial(size-Y))))
-    }else{
-      logLik.glm <- sum(Y*log(mu_hat) + (1-Y)*log(1-mu_hat))
+  if (family == 'binomial') {
+    mu_hat <- exp(X %*% B) / (1 + exp(X %*% B))
+    if (any(size > 1)) {
+      logLik.glm <-
+        sum(Y * log(mu_hat) + (size - Y) * log(1 - mu_hat) + 
+              log(factorial(size) / (factorial(Y) * factorial(size - Y))))
+    } else{
+      logLik.glm <- sum(Y * log(mu_hat) + (1 - Y) * log(1 - mu_hat))
     }
-  }else{
+  } else{
     mu_hat <- exp(X %*% B)
     logLik.glm <- sum(-mu_hat + Y * log(mu_hat) - log(factorial(Y)))
   }
   
-  logLik <- logLik.glm + as.numeric(-LL + pglmm.LL(0*ss, H=H, X=X, Zt=Zt, St=St, mu=mu, nested=nested, REML = REML, family = family, size = size, verbose = verbose))
+  logLik <- logLik.glm + 
+    as.numeric(-LL + pglmm.LL(0 * ss, H = H, X = X, Zt = Zt, St = St, mu = mu, 
+                              nested = nested, REML = REML, family = family,
+                              size = size, verbose = verbos))
   k <- p + q + 1
   AIC <- -2 * logLik + 2 * k
   BIC <- -2 * logLik + k * (log(n) - log(pi))
