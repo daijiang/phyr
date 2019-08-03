@@ -60,20 +60,11 @@ parse_conv_ranef = function(x, df){
 #' 
 #' This function is mainly used within \code{pglmm} but can also be used independently to
 #' prepare a list of random effects, which then can be updated by users for more complex models. 
-#' If you use this function outside of \code{pglmm}, remember to use the returned updated
-#' \code{data} along with the generated \code{random.effects}. The original input \code{data} won't
-#' match the generated \code{random.effects} because \code{prep_dat_pglmm} has arranged it.
-#' 
-#' This function will arrange the data first by \code{site} then by \code{sp}.
-#' It will then prune the phylogeny \code{tree} (if provided) to the set of species in the data and
-#' convert the phylogeny to a variance-covariance matrix and standardize it to have determination of one.
-#' It will do the same thing for \code{tree_site} if provided. After then, it will parse the \code{formula}
-#' and prepare a list of random terms to be used later to construct design matrices. 
 #' 
 #' @rdname prep_dat_pglmm
 #' @inheritParams pglmm
 #' @param prep.re.effects Whether to prepare random effects for users.
-#' @return A list with updated formula, data, random.effects, tree, etc.
+#' @return A list with updated formula, random.effects, and updated cov_ranef.
 #' @export
 prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE, 
                           prep.re.effects = TRUE, family = "gaussian",
