@@ -153,7 +153,7 @@
 #'   If so, make sure to get the length right: for all the terms with \code{@}, 
 #'   count the number of "__" and this will be the length of repulsion. 
 #'   For example, \code{sp__@site} will take one length as well as \code{sp@site__}.
-#'   \code{sp__@site__} will take two elements. So, if you nested terms are 
+#'   \code{sp__@site__} will take two elements (repulsion for sp and repulsion for site). So, if you nested terms are 
 #'   \code{(1|sp__@site) + (1|sp@site__) + (1|sp__@site__)}
 #'   in the formula, then you should set the repulsion to be something like 
 #'   \code{c(TRUE, FALSE, TURE, TURE)} (length of 4). 
@@ -494,7 +494,7 @@
 #'   }  
 #' }
 # end of doc ---- 
-communityPGLMM <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
+pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
                            random.effects = NULL, REML = TRUE, 
                            optimizer = c("bobyqa", "Nelder-Mead", "nelder-mead-nlopt", "subplex"),
                            repulsion = FALSE, add.obs.re = TRUE, verbose = FALSE, 
@@ -510,18 +510,18 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", cov_ranef 
   
   if ((family %nin% c("gaussian", "binomial", "poisson")) & (bayes == FALSE)){
     stop("\nSorry, but only binomial, poisson and gaussian options are available for
-         communityPGLMM at this time")
+         pglmm at this time")
   }
   
   if(bayes) {
     if (!requireNamespace("INLA", quietly = TRUE)) {
-      stop("To run communityPGLMM with bayes = TRUE, you need to install the packages 'INLA'. \ 
+      stop("To run pglmm with bayes = TRUE, you need to install the packages 'INLA'. \ 
            Please run in your R terminal:\
            install.packages('INLA', repos='https://inla.r-inla-download.org/R/stable')")
     }
     if ((family %nin% c("gaussian", "binomial", "poisson", "zeroinflated.binomial", "zeroinflated.poisson"))){
-      stop("\nSorry, but only binomial (binary), poisson (count), and gaussian options 
-           are available for Bayesian communityPGLMM at this time")
+      stop("\nSorry, but only binomial (binary or success/failure), poisson (count), and gaussian options 
+           are available for Bayesian pglmm at this time")
     }
   }
   
@@ -531,16 +531,17 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", cov_ranef 
     }
   }
   
+  data = as.data.frame(data) # in case of tibbles
   fm_original = formula
   prep_re = if(is.null(random.effects)) TRUE else FALSE
   if(prep_re) {
     # to make old code work ...
     if(is.null(cov_ranef) & any(grepl("__", all.vars(formula)))){
       if(!is.null(tree) | !is.null(tree_site))
-        warning("arguments tree and tree_site are deprecated; please use cov_ranef instead.", 
+        warning("arguments `tree` and `tree_site` are deprecated; please use `cov_ranef` instead.", 
                 call. = FALSE)
-      if(!is.null(tree) & is.null(tree_site)) cov_ranef = list(sp = tree)
-      if(is.null(tree) & !is.null(tree_site)) cov_ranef = list(site = tree_site)
+      if(!is.null(tree) & is.null(tree_site)) cov_ranef = list(sp = tree) # column name must be sp
+      if(is.null(tree) & !is.null(tree_site)) cov_ranef = list(site = tree_site) # column name must be site
       if(!is.null(tree) & !is.null(tree_site)) cov_ranef = list(sp = tree, site = tree_site)
     }
     dat_prepared = prep_dat_pglmm(formula, data, cov_ranef, repulsion, prep_re, family, add.obs.re)
@@ -568,7 +569,7 @@ communityPGLMM <- function(formula, data = NULL, family = "gaussian", cov_ranef 
       }
     }
     
-    if (family %in% c("binomial", "poisson")) {
+    if (family %in% c("binomial", "poisson")) {# this may take too long if dataset is large...
       if (is.null(s2.init)) s2.init <- 0.25
  
       ML.init.z <- try(communityPGLMM.glmm(formula = formula, data = data, 
@@ -1174,4 +1175,4 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
 
 #' @export
 #' @rdname pglmm
-pglmm <- communityPGLMM
+communityPGLMM <- pglmm # to be compatible with old code
