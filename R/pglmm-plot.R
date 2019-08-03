@@ -188,7 +188,7 @@ communityPGLMM.plot.re <- function(
     pl_re_all = do.call(gridExtra::arrangeGrob, c(pl, ncol = n_col, nrow = n_row))
   }
   
-  if(is.na(cov_ranef_update)){
+  if(is.na(cov_ranef_update)){# model with user provided random effects
     add.tree.sp = FALSE
     add.tree.site = FALSE
   }
@@ -236,13 +236,26 @@ communityPGLMM.plot.re <- function(
     row.names(Y.mat) = Y.mat$site
     Y.mat$site = NULL
     names(Y.mat) = gsub(pattern = "^Y", replacement = "", names(Y.mat))
+    sim[[i]] <- as(as.matrix(Y.mat), "denseMatrix")
+    # reorder data to match cov matrix
     if(!is.na(cov_ranef_update)){
-      sim[[i]] <- as(as.matrix(Y.mat), "denseMatrix")[, cov_ranef_update[[sp.var]]$tip.label]
-      if(!is.null(cov_ranef_update[[site.var]])){ # bipartite problems
-        sim[[i]] <- sim[[i]][cov_ranef_update[[site.var]]$tip.label, ]
+      spll = if(inherits(cov_ranef_update[[sp.var]], "phylo")){
+        cov_ranef_update[[sp.var]]$tip.label
+      } else {
+        rownames(cov_ranef_update[[sp.var]])
       }
-    } else {
-      sim[[i]] <- as(as.matrix(Y.mat), "denseMatrix")
+      if(all(names(Y.mat) %in% spll)){
+        sim[[i]] = sim[[i]][, spll]
+      }
+      # bipartite problems
+      sitell = if(inherits(cov_ranef_update[[site.var]], "phylo")){
+        cov_ranef_update[[site.var]]$tip.label
+      } else {
+        rownames(cov_ranef_update[[site.var]])
+      }
+      if(all(rownames(Y.mat) %in% sitell)){
+        sim[[i]] = sim[[i]][sitell, ]
+      }
     }
   }
   names(sim) <- names(random.effects)
