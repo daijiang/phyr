@@ -11,7 +11,7 @@
 #' @return A named list, which includes the processed var-cov matrices of random terms.
 #' @noRd
 parse_conv_ranef = function(x, df){
-  if(is.null(names(x))) stop("conv_ranef_list must have names")
+  if(is.null(names(x))) stop("conv_ranef list must have names")
   x2 = x
   out_list = lapply(1:length(x), function(i){
     xx = x[[i]]
@@ -56,11 +56,11 @@ parse_conv_ranef = function(x, df){
   list(updated_orgi_list = x2, cleaned_list = out_list)
 }
 
-#' Prepare data for \code{communityPGLMM}
+#' Prepare data for \code{pglmm}
 #' 
-#' This function is mainly used within \code{communityPGLMM} but can also be used independently to
+#' This function is mainly used within \code{pglmm} but can also be used independently to
 #' prepare a list of random effects, which then can be updated by users for more complex models. 
-#' If you use this function outside of \code{communityPGLMM}, remember to use the returned updated
+#' If you use this function outside of \code{pglmm}, remember to use the returned updated
 #' \code{data} along with the generated \code{random.effects}. The original input \code{data} won't
 #' match the generated \code{random.effects} because \code{prep_dat_pglmm} has arranged it.
 #' 
@@ -79,15 +79,17 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
                           prep.re.effects = TRUE, family = "gaussian",
                           add.obs.re = TRUE){
   fm = unique(lme4::findbars(formula))
-  formula.nobars <- lme4::nobars(formula)
+  formula.nobars <- lme4::nobars(formula) # fixed terms
   
   # make sure group variables are factors
-  grp_vars = unique(unlist(lapply(fm, function(x){
-    xx = gsub(pattern = "__", replacement = "", x = as.character(x)[3])
-    strsplit(xx, "[@]")
-  })))
-  data = dplyr::mutate_at(data, grp_vars, as.factor)
-  
+  if(!is.null(fm)){
+    grp_vars = unique(unlist(lapply(fm, function(x){
+      xx = gsub(pattern = "__", replacement = "", x = as.character(x)[3])
+      strsplit(xx, "[@]")
+    })))
+    data = dplyr::mutate_at(data, grp_vars, as.factor)
+  }
+
   if(prep.re.effects){
     # @ for nested; __ at the end for phylogenetic cov
     if(is.null(fm)) stop("No random terms specified, use lm or glm instead")
@@ -99,7 +101,7 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
       grp_vars2 = gsub("__$", "", grp_vars2[grepl("__$", grp_vars2)])
       
       if(is.null(cov_ranef)) stop("cov_ranef, the list of cov matrices, is not specified")
-      names(cov_ranef) = gsub("__$", "", names(cov_ranef)) # in case with trailing __
+      names(cov_ranef) = gsub("__$", "", names(cov_ranef)) # remove potential trailing __
       if(!all(grp_vars2 %in% names(cov_ranef))){
         stop(paste0("Some group variables (",  
                     paste(setdiff(grp_vars2, names(cov_ranef)), collapse = ", "), 
@@ -109,7 +111,7 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
       cov_ranef_list = cov_list$cleaned_list
       cov_ranef_updated = cov_list$updated_orgi_list
     } else {
-      cov_ranef_updated = NULL
+      cov_ranef_updated = NULL # no need cov_ranef_list
     }
     
     # number of potential repulsions (both __ and @)
@@ -166,7 +168,7 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
                (family == 'binomial' & 
                 is.array(model.response(model.frame(formula.nobars, data = data, na.action = NULL))))){
               if(add.obs.re) {
-                message("It seems that you specified an observation-level random term already; 
+                message("It seems that you specified an observation-level random term already e.g. (1|sp@site); 
                        we will set 'add.obs.re' to FALSE.")
                 add.obs.re <<- FALSE
                 no_obs_re <<- FALSE
@@ -275,7 +277,7 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
       x3
     }), recursive = T)
     
-    # Add observation-level variances for families binomial (size>1) and poisson
+    # Add observation-level variances for families binomial (size > 1) and poisson
     if(family == 'poisson' | 
        (family == 'binomial' & 
         is.array(model.response(model.frame(formula.nobars, data = data, na.action = NULL))))){
