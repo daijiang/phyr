@@ -948,7 +948,7 @@ communityPGLMM.predicted.values <- function(x, cpp = TRUE,
 
 #' @rdname pglmm-utils
 #' @export
-communityPGLMM.predicted.values <- pglmm.predicted.values
+pglmm.predicted.values <- communityPGLMM.predicted.values
 
 #' Residuals of communityPGLMM objects
 #' 

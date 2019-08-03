@@ -8,7 +8,7 @@
 communityPGLMM.plot.re(formula = NULL, data = NULL,
   family = "gaussian", sp.var = "sp", site.var = "site",
   tree = NULL, tree_site = NULL, repulsion = FALSE, x = NULL,
-  show.image = NULL, show.sim.image = NULL, random.effects = NULL,
+  show.image = TRUE, show.sim.image = FALSE, random.effects = NULL,
   add.tree.sp = TRUE, add.tree.site = FALSE, cov_ranef = NULL,
   tree.panel.space = 0.5, title.space = 5, tree.size = 3, ...)
 }
@@ -80,7 +80,7 @@ If its length is >1, then this means the users can select which cov matrix in th
 If so, make sure to get the length right: for all the terms with \code{@},
 count the number of "__" and this will be the length of repulsion.
 For example, \code{sp__@site} will take one length as well as \code{sp@site__}.
-\code{sp__@site__} will take two elements. So, if you nested terms are
+\code{sp__@site__} will take two elements (repulsion for sp and repulsion for site). So, if you nested terms are
 \code{(1|sp__@site) + (1|sp@site__) + (1|sp__@site__)}
 in the formula, then you should set the repulsion to be something like
 \code{c(TRUE, FALSE, TURE, TURE)} (length of 4).

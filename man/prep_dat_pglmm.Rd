@@ -2,7 +2,7 @@
 % Please edit documentation in R/pglmm-utils.R
 \name{prep_dat_pglmm}
 \alias{prep_dat_pglmm}
-\title{Prepare data for \code{communityPGLMM}}
+\title{Prepare data for \code{pglmm}}
 \usage{
 prep_dat_pglmm(formula, data, cov_ranef = NULL, repulsion = FALSE,
   prep.re.effects = TRUE, family = "gaussian", add.obs.re = TRUE)
@@ -55,7 +55,7 @@ If its length is >1, then this means the users can select which cov matrix in th
 If so, make sure to get the length right: for all the terms with \code{@},
 count the number of "__" and this will be the length of repulsion.
 For example, \code{sp__@site} will take one length as well as \code{sp@site__}.
-\code{sp__@site__} will take two elements. So, if you nested terms are
+\code{sp__@site__} will take two elements (repulsion for sp and repulsion for site). So, if you nested terms are
 \code{(1|sp__@site) + (1|sp@site__) + (1|sp__@site__)}
 in the formula, then you should set the repulsion to be something like
 \code{c(TRUE, FALSE, TURE, TURE)} (length of 4).
@@ -82,19 +82,9 @@ distributions? Normally it would be a good idea to add this to account for overd
 Thus, we set it to \code{TRUE} by default.}
 }
 \value{
-A list with updated formula, data, random.effects, tree, etc.
+A list with updated formula, random.effects, and updated cov_ranef.
 }
 \description{
-This function is mainly used within \code{communityPGLMM} but can also be used independently to
+This function is mainly used within \code{pglmm} but can also be used independently to
 prepare a list of random effects, which then can be updated by users for more complex models.
-If you use this function outside of \code{communityPGLMM}, remember to use the returned updated
-\code{data} along with the generated \code{random.effects}. The original input \code{data} won't
-match the generated \code{random.effects} because \code{prep_dat_pglmm} has arranged it.
-}
-\details{
-This function will arrange the data first by \code{site} then by \code{sp}.
-It will then prune the phylogeny \code{tree} (if provided) to the set of species in the data and
-convert the phylogeny to a variance-covariance matrix and standardize it to have determination of one.
-It will do the same thing for \code{tree_site} if provided. After then, it will parse the \code{formula}
-and prepare a list of random terms to be used later to construct design matrices.
 }

@@ -2,14 +2,22 @@
 % Please edit documentation in R/pglmm-utils.R
 \name{communityPGLMM.profile.LRT}
 \alias{communityPGLMM.profile.LRT}
+\alias{pglmm.profile.LRT}
+\alias{pglmm.matrix.structure}
 \alias{communityPGLMM.matrix.structure}
 \alias{summary.communityPGLMM}
 \alias{print.communityPGLMM}
+\alias{pglmm.predicted.values}
 \title{\code{communityPGLMM.profile.LRT} tests statistical significance of the
 phylogenetic random effect of binomial models on
 species slopes using a likelihood ratio test.}
 \usage{
 communityPGLMM.profile.LRT(x, re.number = 0, cpp = TRUE)
+
+pglmm.profile.LRT(x, re.number = 0, cpp = TRUE)
+
+pglmm.matrix.structure(formula, data = list(), family = "binomial",
+  cov_ranef, repulsion = FALSE, ss = 1, cpp = TRUE)
 
 communityPGLMM.matrix.structure(formula, data = list(),
   family = "binomial", cov_ranef, repulsion = FALSE, ss = 1,
@@ -20,6 +28,9 @@ communityPGLMM.matrix.structure(formula, data = list(),
 
 \method{print}{communityPGLMM}(x, digits = max(3, getOption("digits") -
   3), ...)
+
+pglmm.predicted.values(x, cpp = TRUE, gaussian.pred = c("nearest_node",
+  "tip_rm"))
 }
 \arguments{
 \item{x}{A fitted model with class communityPGLMM and family "binomial".}
@@ -89,7 +100,7 @@ If its length is >1, then this means the users can select which cov matrix in th
 If so, make sure to get the length right: for all the terms with \code{@},
 count the number of "__" and this will be the length of repulsion.
 For example, \code{sp__@site} will take one length as well as \code{sp@site__}.
-\code{sp__@site__} will take two elements. So, if you nested terms are
+\code{sp__@site__} will take two elements (repulsion for sp and repulsion for site). So, if you nested terms are
 \code{(1|sp__@site) + (1|sp@site__) + (1|sp__@site__)}
 in the formula, then you should set the repulsion to be something like
 \code{c(TRUE, FALSE, TURE, TURE)} (length of 4).
@@ -108,6 +119,6 @@ The T/F combinations depend on your questions.}
 phylogenetic random effect of binomial models on
 species slopes using a likelihood ratio test.
 
-\code{communityPGLMM.matrix.structure} produces the entire
+\code{pglmm.matrix.structure} produces the entire
 covariance matrix structure (V) when you specify random effects.
 }

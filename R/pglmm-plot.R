@@ -25,7 +25,9 @@ plot.communityPGLMM <- function(x, sp.var = "sp", site.var = "site",
   row.names(Y) = Y$sp
   Y <- Y[, -1]
   y = as(as.matrix(Y), "dgCMatrix")
-  p = image(y, xlab = "Site", ylab = "Species", sub = "", useAbs = FALSE, 
+  p = image(y, xlab = ifelse(site.var == "site", "Site", site.var), 
+            ylab = ifelse(sp.var == "sp", "Species", sp.var), 
+            sub = "", useAbs = FALSE, main = "Observed value",
             scales = list(tck = c(1,0)), ...)
   if(show.sp.names){
     p = update(p, scales = list(y = list(at = 1:length(rownames(y)), labels = rownames(y))))
@@ -42,7 +44,9 @@ plot.communityPGLMM <- function(x, sp.var = "sp", site.var = "site",
     row.names(Y2) = Y2$sp
     Y2 <- Y2[, -1]
     y2 = as(as.matrix(Y2), "dgCMatrix")
-    p2 = image(y2, xlab = "Site", ylab = "Species", main = "Predicted value",
+    p2 = image(y2, xlab = ifelse(site.var == "site", "Site", site.var), 
+               ylab = ifelse(sp.var == "sp", "Species", sp.var), 
+               main = "Predicted value",
                sub = "", useAbs = FALSE, 
                scales = list(tck = c(1,0)), ...)
     if(show.sp.names){
@@ -98,9 +102,16 @@ communityPGLMM.plot.re <- function(
   formula = NULL, data = NULL, family = "gaussian", 
   sp.var = "sp", site.var = "site",
   tree = NULL, tree_site = NULL, repulsion = FALSE, x = NULL, 
-  show.image = NULL, show.sim.image = NULL, random.effects = NULL, 
+  show.image = TRUE, show.sim.image = FALSE, random.effects = NULL, 
   add.tree.sp = TRUE, add.tree.site = FALSE, cov_ranef = NULL,
   tree.panel.space = 0.5, title.space = 5, tree.size = 3, ...) {
+  
+  if(hasArg(formula)){
+    if(inherits(formula, "communityPGLMM")){
+      stop("You supplied a fitted model, please use the argument `x`, 
+           i.e. `x = your_model`.", call. = FALSE)
+    }
+  }
   
   if(!is.null(x)){ # model input
     random.effects <- x$random.effects
@@ -113,7 +124,7 @@ communityPGLMM.plot.re <- function(
     # tree_site <- x$tree_site
   } else {
     if (is.null(random.effects)) {
-      if(is.null(cov_ranef) & any(grepl("__", all.vars(formula)))){
+      if(is.null(cov_ranef) & any(grepl("__", all.vars(formula)))){ # model not fitted yet
         if(!is.null(tree) | !is.null(tree_site))
           warning("arguments tree and tree_site are deprecated; please use cov_ranef instead.", 
                   call. = FALSE)
@@ -135,6 +146,8 @@ communityPGLMM.plot.re <- function(
   }
   
   dss = data.frame(sp = as.factor(data[, sp.var]), site = as.factor(data[, site.var]))
+  nspp <- nlevels(dss$sp)
+  nsite <- nlevels(dss$site)
   
   nv <- length(random.effects)
   n <- dim(data)[1]
@@ -152,34 +165,6 @@ communityPGLMM.plot.re <- function(
     # colnames(vcv[[i]]) = data$site
   }
   names(vcv) <- names(random.effects)
-  
-  sim <- vector("list", length = nv)
-  nspp <- nlevels(dss$sp)
-  nsite <- nlevels(dss$site)
-  for(i in 1:nv){
-    Y <- array(mvtnorm::rmvnorm(n = 1, sigma = as.matrix(vcv[[i]])))
-    dat.sim = data.frame(site = dss$site, sp = dss$sp, Y = Y)
-    Y.mat <- reshape(data = dat.sim, timevar = "sp", idvar = "site", direction = "wide", sep = "")
-    row.names(Y.mat) = Y.mat$site
-    Y.mat$site = NULL
-    names(Y.mat) = gsub(pattern = "^Y", replacement = "", names(Y.mat))
-    sim[[i]] <- as(as.matrix(Y.mat), "denseMatrix")[, cov_ranef_update[[sp.var]]$tip.label]
-    if(!is.null(cov_ranef_update[[site.var]])){ # bipartite problems
-      sim[[i]] <- sim[[i]][cov_ranef_update[[site.var]]$tip.label, ]
-    }
-  }
-  names(sim) <- names(random.effects)
-  
-  # sort rows and columns of vcv to match tree and tree_site
-  ## why?
-  
-  if (is.null(show.image)) {
-    if (n <= 200) show.image <- T else show.image <- F
-  }
-  
-  if (is.null(show.sim.image)) {
-    if (n >= 100) show.sim.image <- T else show.sim.image <- F
-  }
   
   n_col <- ceiling(length(vcv)^0.5)
   n_row <- (length(vcv) - 1) %/% n_col + 1
@@ -203,35 +188,72 @@ communityPGLMM.plot.re <- function(
     pl_re_all = do.call(gridExtra::arrangeGrob, c(pl, ncol = n_col, nrow = n_row))
   }
   
+  if(is.na(cov_ranef_update)){
+    add.tree.sp = FALSE
+    add.tree.site = FALSE
+  }
+  
   if(add.tree.sp){
     tree = cov_ranef_update[[sp.var]]
-    if(!ape::is.ultrametric(tree)){
-      # correct round offs, force to be ultrametric
-      h <- diag(ape::vcv(tree))
-      d <- max(h) - h
-      ii <- sapply(1:ape::Ntip(tree), function(x,y) which(y==x), y = tree$edge[,2])
-      tree$edge.length[ii] <- tree$edge.length[ii] + d
+    if(inherits(tree, "phylo")){
+      if(!ape::is.ultrametric(tree)){
+        # correct round offs, force to be ultrametric
+        h <- diag(ape::vcv(tree))
+        d <- max(h) - h
+        ii <- sapply(1:ape::Ntip(tree), function(x,y) which(y==x), y = tree$edge[,2])
+        tree$edge.length[ii] <- tree$edge.length[ii] + d
+      }
+      hc <- ape::as.hclust.phylo(tree)
+    } else {
+      warning("Tree of species is not a phylogeny, skipped")
+      add.tree.sp = FALSE
     }
-    hc <- ape::as.hclust.phylo(tree)
   }
   
   if(add.tree.site){
     tree_site = cov_ranef_update[[site.var]]
-    if(!ape::is.ultrametric(tree_site)){
-      # correct round offs, force to be ultrametric
-      h <- diag(ape::vcv(tree_site))
-      d <- max(h) - h
-      ii <- sapply(1:ape::Ntip(tree_site), function(x,y) which(y==x), y = tree_site$edge[,2])
-      tree_site$edge.length[ii] <- tree_site$edge.length[ii] + d
+    if(inherits(tree, "phylo")){
+      if(!ape::is.ultrametric(tree_site)){
+        # correct round offs, force to be ultrametric
+        h <- diag(ape::vcv(tree_site))
+        d <- max(h) - h
+        ii <- sapply(1:ape::Ntip(tree_site), function(x,y) which(y==x), y = tree_site$edge[,2])
+        tree_site$edge.length[ii] <- tree_site$edge.length[ii] + d
+      }
+      hc_site <- ape::as.hclust.phylo(tree_site)
+    } else {
+      warning("Tree of site is not a phylogeny, skipped")
+      add.tree.site = FALSE
     }
-    hc_site <- ape::as.hclust.phylo(tree_site)
   }
+  
+  # simulated data
+  sim <- vector("list", length = nv)
+  for(i in 1:nv){
+    Y <- array(mvtnorm::rmvnorm(n = 1, sigma = as.matrix(vcv[[i]])))
+    dat.sim = data.frame(site = dss$site, sp = dss$sp, Y = Y)
+    Y.mat <- reshape(data = dat.sim, timevar = "sp", idvar = "site", direction = "wide", sep = "")
+    row.names(Y.mat) = Y.mat$site
+    Y.mat$site = NULL
+    names(Y.mat) = gsub(pattern = "^Y", replacement = "", names(Y.mat))
+    if(!is.na(cov_ranef_update)){
+      sim[[i]] <- as(as.matrix(Y.mat), "denseMatrix")[, cov_ranef_update[[sp.var]]$tip.label]
+      if(!is.null(cov_ranef_update[[site.var]])){ # bipartite problems
+        sim[[i]] <- sim[[i]][cov_ranef_update[[site.var]]$tip.label, ]
+      }
+    } else {
+      sim[[i]] <- as(as.matrix(Y.mat), "denseMatrix")
+    }
+  }
+  names(sim) <- names(random.effects)
   
   pl_sim = vector("list", length = nv)
   names(pl_sim) = names(random.effects)
   for (i in 1:nv) {
     if(add.tree.sp & !add.tree.site){ # only add tree for sp
-      plx = image(sim[[i]], main = names(sim)[i], ylab = "Site", xlab = "Species", 
+      plx = image(sim[[i]], main = names(sim)[i], 
+                  ylab = ifelse(site.var == "site", "Site", site.var), 
+                  xlab = ifelse(sp.var == "sp", "Species", sp.var), 
                   sub = "", scales = list(tck = c(1,0)),
                   legend = list(top = list(fun = latticeExtra::dendrogramGrob, 
                                            args = list(x = as.dendrogram(hc), 
@@ -239,12 +261,16 @@ communityPGLMM.plot.re <- function(
     }
     
     if(!add.tree.sp & !add.tree.site){ # not to add trees 
-      plx = image(sim[[i]], main = names(sim)[i], ylab = "Site", 
-                  xlab = "Species", sub = "", ...)
+      plx = image(sim[[i]], main = names(sim)[i],
+                  ylab = ifelse(site.var == "site", "Site", site.var), 
+                  xlab = ifelse(sp.var == "sp", "Species", sp.var), 
+                  sub = "", ...)
     }
     
     if(add.tree.site & !add.tree.sp){
-      plx = image(sim[[i]], main = names(sim)[i], ylab = "Site", xlab = "Species", 
+      plx = image(sim[[i]], main = names(sim)[i], 
+                  ylab = ifelse(site.var == "site", "Site", site.var), 
+                  xlab = ifelse(sp.var == "sp", "Species", sp.var),
                   sub = "", scales = list(tck = c(1,0)), 
                   legend = list(right = list(fun = latticeExtra::dendrogramGrob, 
                                              args = list(x = as.dendrogram(hc_site), 
@@ -252,7 +278,9 @@ communityPGLMM.plot.re <- function(
     }
     
     if(add.tree.sp & add.tree.site){
-      plx = image(sim[[i]], main = names(sim)[i], ylab = "Site", xlab = "Species", 
+      plx = image(sim[[i]], main = names(sim)[i], 
+                  ylab = ifelse(site.var == "site", "Site", site.var), 
+                  xlab = ifelse(sp.var == "sp", "Species", sp.var),
                   sub = "", scales = list(tck = c(1,0)),
                   legend = list(top = list(fun = latticeExtra::dendrogramGrob, 
                                            args = list(x = as.dendrogram(hc), 
@@ -290,24 +318,33 @@ communityPGLMM.plot.re <- function(
   }
   
   if(show.image & show.sim.image){
-    return(invisible(list(vcv = lapply(vcv, as.matrix), sim = lapply(sim, as.matrix), tree = tree, 
+    return(invisible(list(vcv = lapply(vcv, as.matrix), 
+                          sim = lapply(sim, as.matrix), tree = tree, 
                           plt_re_all_in_one = pl_re_all, plt_sim_all_in_one = pl_sim_all,
                           plt_re_list = pl, plt_sim_list = pl_sim)))
   }
   if(show.image){
-    return(invisible(list(vcv = lapply(vcv, as.matrix), sim = lapply(sim, as.matrix), tree = tree, 
+    return(invisible(list(vcv = lapply(vcv, as.matrix), 
+                          sim = lapply(sim, as.matrix), tree = tree, 
                           plt_re_list = pl, plt_sim_list = pl_sim,
                           plt_re_all_in_one = pl_re_all)))
   }
   if(show.sim.image) {
-    return(invisible(list(vcv = lapply(vcv, as.matrix), sim = lapply(sim, as.matrix), tree = tree, 
+    return(invisible(list(vcv = lapply(vcv, as.matrix), 
+                          sim = lapply(sim, as.matrix), tree = tree, 
                           plt_re_list = pl, plt_sim_list = pl_sim,
                           plt_sim_all_in_one = pl_sim_all)))
   }
-  return(invisible(list(vcv = lapply(vcv, as.matrix), sim = lapply(sim, as.matrix), tree = tree, 
+  
+  return(invisible(list(vcv = lapply(vcv, as.matrix), 
+                        sim = lapply(sim, as.matrix), tree = tree, 
                         plt_re_list = pl, plt_sim_list = pl_sim)))
 }
 
 #' @export
 #' @aliases communityPGLMM.plot.re
 communityPGLMM.show.re <- communityPGLMM.plot.re
+
+#' @export
+#' @aliases communityPGLMM.plot.re
+pglmm.plot.re <- communityPGLMM.plot.re
