@@ -19,6 +19,8 @@ branches:
 r_packages:
   - covr
 
+r_github_packages: andrewzm/INLA
+ 
 cache:
   packages: yes
 
@@ -38,10 +40,3 @@ before_install:
 
 after_success:
  - Rscript -e 'library(covr);codecov()'
-
-matrix:
-  include:
-    - r: release
-      r_github_packages: andrewzm/INLA
-    - r: devel
-      r_github_packages: andrewzm/INLA
