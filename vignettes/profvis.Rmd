@@ -33,7 +33,7 @@ dat = tidyr::gather(comm, key = "sp", value = "freq", -site) %>%
   left_join(envi, by = "site") %>% 
   left_join(traits, by = "sp")
 dat$pa = as.numeric(dat$freq > 0)
-tree = phylotree
+cov_ranef = list(sp = phylotree)
 ```
 
 Then, we start the profvis.
@@ -45,7 +45,7 @@ Then, we start the profvis.
 ```{r prof1}
 profvis({
   phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), dat, 
-                       tree = phylotree, REML = T, cpp = F, optimizer = "bobyqa")
+                       cov_ranef = list(sp = phylotree), REML = T, cpp = F, optimizer = "bobyqa")
 })
 ```
 
@@ -54,7 +54,7 @@ profvis({
 ```{r prof2}
 profvis({
   phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), dat, 
-                       tree = phylotree, REML = T, cpp = T, optimizer = "bobyqa")
+                       cov_ranef = list(sp = phylotree), REML = T, cpp = T, optimizer = "bobyqa")
 })
 ```
 
@@ -63,7 +63,7 @@ profvis({
 ```{r prof3}
 profvis({
   phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), dat, 
-                       tree = phylotree, REML = T, cpp = F, optimizer = "Nelder-Mead")
+                       cov_ranef = list(sp = phylotree), REML = T, cpp = F, optimizer = "Nelder-Mead")
 })
 ```
 
@@ -72,7 +72,7 @@ profvis({
 ```{r prof4}
 profvis({
   phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), dat, 
-                       tree = phylotree, REML = T, cpp = T, optimizer = "Nelder-Mead")
+                       cov_ranef = list(sp = phylotree), REML = T, cpp = T, optimizer = "Nelder-Mead")
 })
 ```
 
@@ -83,7 +83,7 @@ profvis({
 ```{r prof5}
 profvis({
   phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), dat, 
-                       family = "binomial", tree = phylotree, REML = T, cpp = F, 
+                       family = "binomial", cov_ranef = list(sp = phylotree), REML = T, cpp = F, 
                        optimizer = "bobyqa")
 })
 ```
@@ -93,7 +93,7 @@ profvis({
 ```{r prof6}
 profvis({
   phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), dat, 
-                       family = "binomial", tree = phylotree, REML = T, cpp = T, 
+                       family = "binomial", cov_ranef = list(sp = phylotree), REML = T, cpp = T, 
                        optimizer = "bobyqa")
 })
 ```
@@ -103,7 +103,7 @@ profvis({
 ```{r prof7}
 profvis({
   phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), dat, 
-                       family = "binomial", tree = phylotree, REML = T, cpp = F, 
+                       family = "binomial", cov_ranef = list(sp = phylotree), REML = T, cpp = F, 
                        optimizer = "Nelder-Mead")
 })
 ```
@@ -113,7 +113,7 @@ profvis({
 ```{r prof8}
 profvis({
   phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), dat, 
-                       family = "binomial", tree = phylotree, REML = T, cpp = T, 
+                       family = "binomial", cov_ranef = list(sp = phylotree), REML = T, cpp = T, 
                        optimizer = "Nelder-Mead")
 })
 ```
