@@ -490,8 +490,7 @@ dat <- data.frame(Y = YY, X = XX, site = as.factor(site), sp = as.factor(sp))
 # random slope with species independent
 # random slope with species showing phylogenetic covariances
 # random effect for site
-communityPGLMM(Y ~ X + (1|site), data = dat, family = "binomial",
-               tree = phy, REML = TRUE)
+pglmm(Y ~ X + (1|site), data = dat, family = "binomial", REML = TRUE)
 # The rest of these tests are not run to save CRAN server time;
 # - please take a look at them because they're *very* useful!
 \dontrun{ 
@@ -505,26 +504,26 @@ communityPGLMM(Y ~ X + (1|site), data = dat, family = "binomial",
   
   # test statistical significance of the phylogenetic random effect
   # on species slopes using a likelihood ratio test
-  communityPGLMM.profile.LRT(z.binary, re.number = 4)$Pr
+  pglmm.profile.LRT(z.binary, re.number = 4)$Pr
   
   # extract the predicted values of Y
-  communityPGLMM.predicted.values(z.binary)
+  pglmm.predicted.values(z.binary)
   # plot both orginal data and predicted data (in logit^-1 space)
   plot(z.binary, predicted = TRUE) 
   
   # examine the structure of the first covariance matrix
-  ar1 = communityPGLMM.matrix.structure(Y ~ X + (1|sp__) + (X|sp__), data = dat, 
+  ar1 = pglmm.matrix.structure(Y ~ X + (1|sp__) + (X|sp__), data = dat, 
                                         family = "binomial", 
                                         cov_ranef = list(sp = phy))
   Matrix::image(ar1)
   
   # plot random terms' var-cov matrix
-  communityPGLMM.plot.re(x = z.binary, show.sim.image = FALSE)
+  pglmm.plot.re(x = z.binary)
   
   # compare results to glmer() when the model contains no
   # phylogenetic covariance among species; the results should be
   # similar.
-  communityPGLMM(Y ~ X + (1|sp) + (X|sp), data = dat, family = "binomial", REML = FALSE)
+  pglmm(Y ~ X + (1|sp) + (X|sp), data = dat, family = "binomial", REML = FALSE)
   
   # lmer
   if(require(lme4)){
@@ -532,7 +531,7 @@ communityPGLMM(Y ~ X + (1|site), data = dat, family = "binomial",
     
     # compare results to lmer() when the model contains no phylogenetic
     # covariance among species; the results should be similar.
-    communityPGLMM(Y ~ X + (1 | sp) + (0 + X | sp), data = dat, family = "gaussian", REML = FALSE)
+    pglmm(Y ~ X + (1 | sp) + (0 + X | sp), data = dat, family = "gaussian", REML = FALSE)
     summary(lme4::lmer(Y ~ X + (1 | sp) + (0 + X | sp), data=dat, REML = FALSE))    
   }  
 }

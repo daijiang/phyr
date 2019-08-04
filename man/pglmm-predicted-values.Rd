@@ -2,10 +2,14 @@
 % Please edit documentation in R/pglmm-utils.R
 \name{communityPGLMM.predicted.values}
 \alias{communityPGLMM.predicted.values}
+\alias{pglmm.predicted.values}
 \title{Predicted values of PGLMM}
 \usage{
 communityPGLMM.predicted.values(x, cpp = TRUE,
   gaussian.pred = c("nearest_node", "tip_rm"))
+
+pglmm.predicted.values(x, cpp = TRUE, gaussian.pred = c("nearest_node",
+  "tip_rm"))
 }
 \arguments{
 \item{x}{a fitted model with class communityPGLMM.}

@@ -14,8 +14,11 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   dat = arrange(dat, site, sp)
   # dat = sample_frac(dat, size = 0.8)
   dat = mutate(dat, Species = sp, Location = site) # can be names other than sp or site
+  
   group_by(dat, site) %>% 
     summarise(nsp = n_distinct(sp)) # we now have diff sp in diff site
+  
+  dat = filter(dat, sp %in% sample(unique(dat$sp), 5), site %in% sample(unique(dat$site), 8))
   
   test_fit_equal = function(m1, m2) {
     expect_equivalent(m1$B, m2$B)
@@ -23,6 +26,13 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
     expect_equivalent(m1$B.pvalue, m2$B.pvalue)
     expect_equivalent(m1$ss, m2$ss)
     expect_equivalent(m1$AIC, m2$AIC)
+  }
+  
+  test_fit_equal2 = function(m1, m2) {
+    expect_equivalent(m1$B, m2$B)
+    expect_equivalent(m1$B.se, m2$B.se)
+    expect_equivalent(m1$B.pvalue, m2$B.pvalue)
+    expect_equivalent(m1$ss, m2$ss)
   }
   
   # poisson plmm
@@ -220,7 +230,7 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
     site = dat$site, random.effects = re, REML = F)
   
   test_that("testing binomial models with pez package, should have same results", {
-    test_fit_equal(test2_binary_cpp, test2_binary_pez)
+    test_fit_equal2(test2_binary_cpp, test2_binary_pez)
   })
   
   test_that("phyr should be able to run in the format of pez: binomial", {
@@ -228,7 +238,7 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
       pa ~ 1 + shade, data = dat, family = "binomial", 
       sp = dat$sp, site = dat$site, random.effects = re, 
       REML = F, optimizer = "Nelder-Mead")
-    test_fit_equal(test2_binary_pez, pglmm_phyr_pez)
+    test_fit_equal2(test2_binary_pez, pglmm_phyr_pez)
   })
   
   # test NAs

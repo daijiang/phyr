@@ -3,6 +3,7 @@
 \name{communityPGLMM.plot.re}
 \alias{communityPGLMM.plot.re}
 \alias{communityPGLMM.show.re}
+\alias{pglmm.plot.re}
 \title{Visualize random terms of communityPGLMMs}
 \usage{
 communityPGLMM.plot.re(formula = NULL, data = NULL,
@@ -11,6 +12,20 @@ communityPGLMM.plot.re(formula = NULL, data = NULL,
   show.image = TRUE, show.sim.image = FALSE, random.effects = NULL,
   add.tree.sp = TRUE, add.tree.site = FALSE, cov_ranef = NULL,
   tree.panel.space = 0.5, title.space = 5, tree.size = 3, ...)
+
+communityPGLMM.show.re(formula = NULL, data = NULL,
+  family = "gaussian", sp.var = "sp", site.var = "site",
+  tree = NULL, tree_site = NULL, repulsion = FALSE, x = NULL,
+  show.image = TRUE, show.sim.image = FALSE, random.effects = NULL,
+  add.tree.sp = TRUE, add.tree.site = FALSE, cov_ranef = NULL,
+  tree.panel.space = 0.5, title.space = 5, tree.size = 3, ...)
+
+pglmm.plot.re(formula = NULL, data = NULL, family = "gaussian",
+  sp.var = "sp", site.var = "site", tree = NULL, tree_site = NULL,
+  repulsion = FALSE, x = NULL, show.image = TRUE,
+  show.sim.image = FALSE, random.effects = NULL, add.tree.sp = TRUE,
+  add.tree.site = FALSE, cov_ranef = NULL, tree.panel.space = 0.5,
+  title.space = 5, tree.size = 3, ...)
 }
 \arguments{
 \item{formula}{A two-sided linear formula object describing the

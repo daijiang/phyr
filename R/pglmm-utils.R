@@ -61,7 +61,6 @@ parse_conv_ranef = function(x, df){
 #' This function is mainly used within \code{pglmm} but can also be used independently to
 #' prepare a list of random effects, which then can be updated by users for more complex models. 
 #' 
-#' @rdname prep_dat_pglmm
 #' @inheritParams pglmm
 #' @param prep.re.effects Whether to prepare random effects for users.
 #' @return A list with updated formula, random.effects, and updated cov_ranef.
@@ -660,7 +659,7 @@ pglmm.V <- function(par, Zt, St, mu, nested, family, size) {
 #' phylogenetic random effect of binomial models on 
 #' species slopes using a likelihood ratio test.
 #' 
-#' @rdname pglmm-utils
+#' @rdname pglmm-profile-LRT
 #' @param x A fitted model with class communityPGLMM and family "binomial".
 #' @param re.number Which random term to test? Can be a vector with length >1
 #' @inheritParams pglmm
@@ -712,13 +711,14 @@ communityPGLMM.profile.LRT <- function(x, re.number = 0, cpp = TRUE) {
 }
 
 #' @export
-#' @rdname pglmm-utils
+#' @rdname pglmm-profile-LRT
 pglmm.profile.LRT <- communityPGLMM.profile.LRT
 
 #' \code{pglmm.matrix.structure} produces the entire
 #' covariance matrix structure (V) when you specify random effects.
 #' @param ss Which of the \code{random.effects} to produce.
-#' @rdname pglmm-utils
+#' @rdname pglmm-matrix-structure
+#' @inheritParams pglmm
 #' @export
 pglmm.matrix.structure <- function(formula, data = list(), family = "binomial", 
                                             cov_ranef, repulsion = FALSE, ss = 1, cpp = TRUE) {
@@ -744,14 +744,16 @@ pglmm.matrix.structure <- function(formula, data = list(), family = "binomial",
   return(V)
 }
 
-#' @rdname pglmm-utils
+#' @rdname pglmm-matrix-structure
 #' @export
 communityPGLMM.matrix.structure <- pglmm.matrix.structure
 
-#' @rdname pglmm-utils
+#' Summary information of fitted model
+#' 
 #' @method summary communityPGLMM
 #' @param object A fitted model with class communityPGLMM.
-#' @param digits Minimal number of significant digits for printing, as in \code{\link{print.default}}
+#' @param digits Minimal number of significant digits for printing, as in \code{\link{print.default}}.
+#' @param ... Additional arguments, currently ignored.
 #' @export
 summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") - 3), ...) {
   x <- object # summary generic function first argument is object, not x.
@@ -869,8 +871,11 @@ summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") -
   cat("\n")
 }
 
-#' @rdname pglmm-utils
+#' Print summary information of fitted model
+#' 
 #' @method print communityPGLMM
+#' @param x A fitted communityPGLMM model.
+#' @param digits Minimal number of significant digits for printing, as in \code{\link{print.default}}.
 #' @param ... Additional arguments, currently ignored.
 #' @export
 print.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ...) {
@@ -884,7 +889,7 @@ print.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ..
 #' values of Y; for the generalized linear mixed model (family %in% 
 #' c("binomial","poisson"), these values are in the transformed space.
 #' 
-#' @rdname communityPGLMM.predicted.values
+#' @rdname pglmm-predicted-values
 #' @param x a fitted model with class communityPGLMM.
 #' @param cpp whether to use c++ code. Default is TRUE.
 #' @param gaussian.pred when family is gaussian, which type of prediction to calculate?
@@ -946,7 +951,7 @@ communityPGLMM.predicted.values <- function(x, cpp = TRUE,
   data.frame(Y_hat = predicted.values)
 }
 
-#' @rdname pglmm-utils
+#' @rdname pglmm-predicted-values
 #' @export
 pglmm.predicted.values <- communityPGLMM.predicted.values
 
@@ -959,7 +964,6 @@ pglmm.predicted.values <- communityPGLMM.predicted.values
 #'   "deviance" (default) and "response" for binomial and poisson pglmm.
 #' @param scaled Scale residuals by residual standard deviation for gaussian pglmm.
 #' @param \dots Additional arguments, ignored for method compatibility.
-#' @rdname residuals.pglmm
 #' @method residuals communityPGLMM
 #' @export
 residuals.communityPGLMM <- function(

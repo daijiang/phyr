@@ -11,6 +11,7 @@
 #' @param site.var The variable name of "site"; x-axis of the image.
 #' @param show.sp.names Whether to print species names as y-axis labels.
 #' @param show.site.names Whether to print site names as x-axis labels.
+#' @param digits Not used.
 #' @param predicted Whether to plot predicted values side by side with observed ones.
 #' @inheritParams communityPGLMM.plot.re
 #' @note The underlying plot grid object is returned but invisible. It can be saved for later uses.
@@ -355,9 +356,11 @@ communityPGLMM.plot.re <- function(
 }
 
 #' @export
+#' @rdname pglmm-plot-re
 #' @aliases communityPGLMM.plot.re
 communityPGLMM.show.re <- communityPGLMM.plot.re
 
 #' @export
+#' @rdname pglmm-plot-re
 #' @aliases communityPGLMM.plot.re
 pglmm.plot.re <- communityPGLMM.plot.re
