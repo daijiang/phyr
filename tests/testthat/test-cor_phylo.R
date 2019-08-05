@@ -1,11 +1,11 @@
 
 context("test cor_phylo output")
 
-# ----------------------------
+# ----------------------------*
 
-# Simulating data
+# Simulating data ----
 
-# ----------------------------
+# ----------------------------*
 
 
 # Set up parameter values for simulating data
@@ -37,11 +37,13 @@ U <- lapply(1:p, function(i) {
 
 
 
-# ----------------------------
 
-# Call cor_phylo, then ape::corphylo
 
-# ----------------------------
+# ----------------------------*
+
+# compare to corphylo ----
+
+# ----------------------------*
 
 phyr_cp <- cor_phylo(variates = ~ par1 + par2,
                      covariates = list(par2 ~ cov2a),
@@ -53,11 +55,11 @@ ape_cp <- ape::corphylo(X = X, SeM = SeM, U = U, phy = data_list$phy,
                         method = "Nelder-Mead")
 
 
-# ----------------------------
+# ----------------------------*
 
 # Test output
 
-# ----------------------------
+# ----------------------------*
 
 test_that("cor_phylo produces a proper cor_phylo object", {
   expect_is(phyr_cp, "cor_phylo")
@@ -75,6 +77,11 @@ test_that("cor_phylo produces a proper cor_phylo object", {
                              expected_classes[[.(par_name)]])))
   }
   for (n_ in names(phyr_cp)) expect_class_equal(n_)
+  
+  # Test that not converging produces proper warning:
+  phyr_cp$convcode <- 1
+  expect_output(print(phyr_cp), regexp = "Warning: convergence in .* not reached")
+
 })
 
 
@@ -95,11 +102,69 @@ test_that("cor_phylo produces the same results as ape::corphylo", {
 })
 
 
-# ----------------------------
+
+
+
+# ----------------------------*
+
+# different inputs -----
+
+# ----------------------------*
+
+
+test_that("cor_phylo produces a proper cor_phylo object with different inputs", {
+  
+  Vphy <- ape::vcv(data_list$phy)
+  
+  phyr_cp <- cor_phylo(variates = ~ par1 + par2,
+                       meas_errors = list(par1 ~ se1, par2 ~ se2),
+                       data = data_list$data, phy = Vphy,
+                       REML = FALSE,
+                       species = ~ species, method = "subplex")
+  
+  expect_is(phyr_cp, "cor_phylo")
+  expect_equivalent(names(phyr_cp), c("corrs", "d", "B", "B_cov", "logLik", "AIC",
+                                      "BIC", "niter", "convcode", "rcond_vals",
+                                      "bootstrap", "call"),
+                    label = "Names not correct.")
+  phyr_cp_names <- sapply(names(phyr_cp), function(x) class(phyr_cp[[x]]))
+  expected_classes <- c(corrs = "matrix", d = "matrix", B = "matrix", B_cov = "matrix", 
+                        logLik = "numeric", AIC = "numeric", BIC = "numeric", 
+                        niter = "numeric", convcode = "integer", rcond_vals = "numeric",
+                        bootstrap = "list", call = "call")
+  expect_class_equal <- function(par_name) {
+    eval(bquote(expect_equal(class(phyr_cp[[.(par_name)]]), 
+                             expected_classes[[.(par_name)]])))
+  }
+  for (n_ in names(phyr_cp)) expect_class_equal(n_)
+  
+  
+  # Test that not converging produces proper warning:
+  phyr_cp$convcode <- 1
+  expect_output(print(phyr_cp), regexp = "Warning: convergence in .* not reached")
+  
+  # Inspecting verbose output and testing `sann_options`:
+  cp_out <- capture.output({
+    phyr_cp_sann <- cor_phylo(variates = ~ par1 + par2,
+                              meas_errors = list(par1 ~ se1, par2 ~ se2),
+                              data = data_list$data, phy = Vphy,
+                              species = ~ species, method = "sann",
+                              verbose = TRUE,
+                              sann_options = list(maxit = 100, temp = 1.1, tmax = 2))
+  })
+  cp_out <- unique(sapply(strsplit(cp_out, split = "\\s+"), length))
+  expect_identical(cp_out, 6L)
+  
+})
+
+
+
+
+# ----------------------------*
 
 # Test for errors
 
-# ----------------------------
+# ----------------------------*
 
 
 test_that("cor_phylo produces errors when nonsense is passed to it", {
@@ -186,11 +251,11 @@ test_that("cor_phylo produces errors when nonsense is passed to it", {
 
 
 
-# ----------------------------
+# ----------------------------*
 
 # Making sure different methods of input result in the same output
 
-# ----------------------------
+# ----------------------------*
 
 
 # To store output:
@@ -236,7 +301,7 @@ test_that("cor_phylo produces the same output with different input methods", {
 # ==================================================================*
 # ==================================================================*
 
-# Testing bootstrapping -----
+# bootstrapping -----
 
 # ==================================================================*
 # ==================================================================*
@@ -246,15 +311,43 @@ cp <- cor_phylo(variates = ~ par1 + par2,
           covariates = list(par2 ~ cov2a),
           meas_errors = list(par1 ~ se1, par2 ~ se2),
           data = data_list$data, phy = data_list$phy,
-          species = ~ species, boot = 1)
+          species = ~ species, boot = 1, keep_boots = "all")
+
+# With matrices as input
+cp2 <- 
+  cor_phylo(variates = X,
+            covariates = U,
+            meas_errors = M,
+            species = data_list$data$species,
+            phy = data_list$phy,
+            boot = 1, keep_boots = "all")
 
 cp_bci <- boot_ci(cp)
+cp_bci2 <- boot_ci(cp2)
 
 
 test_that("boot_ci.cor_phylo produced expected output types", {
   
   expect_identical(names(cp_bci), c("corrs", "d", "B0", "B_cov"))
+  expect_identical(names(cp_bci2), c("corrs", "d", "B0", "B_cov"))
   expect_identical(paste(sapply(cp_bci, class)), rep("matrix", 4))
+  expect_identical(paste(sapply(cp_bci2, class)), rep("matrix", 4))
+  
+  expect_output(print(cp), regexp = "Bootstrapped 95\\% CIs \\(.* reps\\):")
+  expect_output(print(cp2), regexp = "Bootstrapped 95\\% CIs \\(.* reps\\):")
+  
+})
+
+
+
+
+cp_refit <- refit_boots(cp)
+cp_refit2 <- refit_boots(cp2)
+
+test_that("refit_boots produced expected output", {
+  
+  expect_output(print(cp_refit), "< Refits to cor_phylo bootstraps >")
+  expect_output(print(cp_refit2), "< Refits to cor_phylo bootstraps >")
   
 })
 
@@ -262,14 +355,11 @@ test_that("boot_ci.cor_phylo produced expected output types", {
 
 
 
+# ----------------------------*
 
+# no correlation -----
 
-
-# ----------------------------
-
-# Making sure having no correlation works properly
-
-# ----------------------------
+# ----------------------------*
 
 
 data_list$data$par3 <- runif(nrow(data_list$data)) * data_list$data$par1
@@ -292,11 +382,11 @@ test_that("having no correlation works", {
 
 
 
-# ----------------------------
+# ----------------------------*
 
 # Testing for fix of error in printing when using `T` or `F` instead of `TRUE` or `FALSE`
 
-# ----------------------------
+# ----------------------------*
 
 
 phyr_cp <- cor_phylo(variates = ~ par1 + par2,
