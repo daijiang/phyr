@@ -42,6 +42,7 @@ public:
   arma::mat Vphy;
   arma::mat tau;
   bool REML;
+  bool no_corr;
   bool constrain_d;
   double lower_d;
   bool verbose;
@@ -57,6 +58,7 @@ public:
           const arma::mat& M,
           const arma::mat& Vphy_,
           const bool& REML_,
+          const bool& no_corr_,
           const bool& constrain_d_,
           const double& lower_d_,
           const bool& verbose_,
@@ -75,6 +77,7 @@ public:
     Vphy = ll_info2.Vphy;
     tau = ll_info2.tau;
     REML = ll_info2.REML;
+    no_corr = ll_info2.no_corr;
     constrain_d = ll_info2.constrain_d;
     lower_d = ll_info2.lower_d;
     verbose = ll_info2.verbose;
@@ -249,24 +252,69 @@ inline arma::vec pnorm_cpp(const arma::vec& values, const bool& lower_tail) {
  */
 
 
-
-inline arma::mat make_L(const arma::vec& par, const uint_t& n, const uint_t& p) {
-  arma::vec L_elements = par(arma::span(0, (p + p * (p - 1)/2) - 1));
-  arma::mat L(p, p, arma::fill::zeros);
-  for (uint_t i = 0, j = 0, k = p - 1; i < p; i++) {
-    L(arma::span(i, p-1), i) = L_elements(arma::span(j, k));
-    j = k + 1;
-    k += (p - i - 1);
+inline arma::vec make_par(const uint_t& p, const arma::mat& L, const bool& no_corr) {
+  
+  arma::vec par0;
+  if (!no_corr) {
+    
+    par0 = arma::vec((static_cast<double>(p) / 2) * (1 + p) + p);
+    par0.fill(0.5);
+    for (uint_t i = 0, j = 0, k = p - 1; i < p; i++) {
+      par0(arma::span(j, k)) = L(arma::span(i, p-1), i);
+      j = k + 1;
+      k += (p - i - 1);
+    }
+    
+  } else {
+    
+    par0 = arma::vec(p * 2);
+    par0.head(p) = L.diag();
+    par0.tail(p).fill(0.5);
+    
   }
-  return L;
+  
+  return par0;
+  
 }
 
-inline arma::vec make_d(const arma::vec& par, const uint_t& n, const uint_t& p,
+
+inline arma::mat make_L(const arma::vec& par, const uint_t& p) {
+  
+  arma::mat L(p, p, arma::fill::zeros);
+  
+  if (par.n_elem == static_cast<uint_t>((static_cast<double>(p) / 2) * (1 + p) + p)) {
+    
+    for (uint_t i = 0, j = 0, k = p - 1; i < p; i++) {
+      L(arma::span(i, p-1), i) = par(arma::span(j, k));
+      j = k + 1;
+      k += (p - i - 1);
+    }
+    
+  } else if (par.n_elem == (2 * p)) {
+    
+    for (uint_t i = 0; i < p; i++) {
+      L(i, i) = par(i);
+    }
+    
+  } else {
+    
+    stop("\nINTERNAL ERROR: inappropriate length of `par` inside `make_L`");
+    
+  }
+  
+  return L;
+  
+}
+
+
+
+
+inline arma::vec make_d(const arma::vec& par, const uint_t& p,
                         const bool& constrain_d, const double& lower_d, 
                         bool do_checks) {
   arma::vec d;
   if (constrain_d) {
-    arma::vec logit_d = par(arma::span((p + p * (p - 1) / 2), par.n_elem - 1));
+    arma::vec logit_d = par.tail(p);
     if (do_checks) {
       // In function `cor_phylo_LL_`, `d.n_elem == 0` indicates to return a huge value
       if (arma::max(arma::abs(logit_d)) > 10) return d;
@@ -277,7 +325,7 @@ inline arma::vec make_d(const arma::vec& par, const uint_t& n, const uint_t& p,
     d *= (upper_d - lower_d);
     d += lower_d;
   } else {
-    d = par(arma::span((p + p * (p - 1) / 2), par.n_elem - 1));
+    d = par.tail(p);
     d += lower_d;
     if (do_checks) {
       if (arma::max(d) > 10) d.reset();
@@ -285,18 +333,18 @@ inline arma::vec make_d(const arma::vec& par, const uint_t& n, const uint_t& p,
   }
   return d;
 }
-inline arma::vec make_d(const arma::vec& par, const uint_t& n, const uint_t& p,
+inline arma::vec make_d(const arma::vec& par, const uint_t& p,
                         const bool& constrain_d, const double& lower_d) {
   arma::vec d;
   if (constrain_d) {
-    arma::vec logit_d = par(arma::span((p + p * (p - 1) / 2), par.n_elem - 1));
+    arma::vec logit_d = par.tail(p);
     d = 1/(1 + arma::exp(-logit_d));
     // If you ever want to allow this to be changed:
     double upper_d = 1.0;
     d *= (upper_d - lower_d);
     d += lower_d;
   } else {
-    d = par(arma::span((p + p * (p - 1) / 2), par.n_elem - 1));
+    d = par.tail(p);
     d += lower_d;
   }
   return d;

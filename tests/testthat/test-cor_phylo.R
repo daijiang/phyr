@@ -1,3 +1,4 @@
+
 context("test cor_phylo output")
 
 # ----------------------------
@@ -20,19 +21,20 @@ U_means <- list(NULL, 2)
 U_sds <- list(NULL, 10)
 B <- list(NULL, 0.1)
 # Simulate them using this internal function
-data_list <- phyr:::sim_cor_phylo_traits(n, Rs, d, M, X_means, X_sds, U_means, U_sds, B)
+data_list <- phyr:::sim_cor_phylo_variates(n, Rs, d, M, X_means, X_sds, U_means, U_sds, B)
 
 # Converting to matrices for the call to ape::corphylo
 SeM <- as.matrix(data_list$data[, grepl("^se", colnames(data_list$data))])
-rownames(SeM) <- data_list$phy$tip.label
+rownames(SeM) <- data_list$data$species
 X <- as.matrix(data_list$data[, grepl("^par", colnames(data_list$data))])
-rownames(X) <- data_list$phy$tip.label
+rownames(X) <- data_list$data$species
 U <- lapply(1:p, function(i) {
   UM <- as.matrix(data_list$data[,grepl(paste0("^cov", i), colnames(data_list$data))])
   if (ncol(UM) == 0) return(NULL)
-  rownames(UM) <- data_list$phy$tip.label
+  rownames(UM) <- data_list$data$species
   return(UM)
 })
+
 
 
 # ----------------------------
@@ -41,11 +43,11 @@ U <- lapply(1:p, function(i) {
 
 # ----------------------------
 
-phyr_cp <- cor_phylo(traits = list(par1, par2),
-                     covariates = list(NULL, cov2a),
-                     meas_errors = list(se1, se2),
+phyr_cp <- cor_phylo(variates = ~ par1 + par2,
+                     covariates = list(par2 ~ cov2a),
+                     meas_errors = list(par1 ~ se1, par2 ~ se2),
                      data = data_list$data, phy = data_list$phy,
-                     species = species, method = "nelder-mead-r",
+                     species = ~ species, method = "nelder-mead-r",
                      lower_d = 0)
 ape_cp <- ape::corphylo(X = X, SeM = SeM, U = U, phy = data_list$phy, 
                         method = "Nelder-Mead")
@@ -100,62 +102,82 @@ test_that("cor_phylo produces the same results as ape::corphylo", {
 # ----------------------------
 
 
-
 test_that("cor_phylo produces errors when nonsense is passed to it", {
   
-  expect_error(cor_phylo(traits = list(par1, par2),
-                         covariates = list(NULL, cov2a),
-                         meas_errors = list(se1, se2),
-                         data = data_list$data, phy = ape::rtree(n, br = NULL),
-                         species = species), 
-               label = "no branch lengths in phylogeny")
+  expect_error(cor_phylo(variates = ~ par1 + par2,
+                         covariates = list(par2 ~ cov2a),
+                         meas_errors = list(par1 ~ se1, par2 ~ se2),
+                         species = ~ species,
+                         data = data_list$data, 
+                         phy = ape::rtree(n, br = NULL)), 
+               regexp = "The input phylogeny has no branch lengths")
   
-  expect_error(cor_phylo(traits = list(par1),
-                         data = data_list$data, phy = data_list$phy,
-                         species = species), 
-               label = "only one variable")
+  expect_error(cor_phylo(variates = ~ par1,
+                         data = data_list$data,
+                         phy = data_list$phy,
+                         species = ~ species), 
+               regexp = "argument `variates` should have >= 2 variables.")
   
-  expect_error(cor_phylo(traits = c(par1, par2),
+  expect_error(cor_phylo(variates = c("par1", "par2"),
                          data = data_list$data, phy = data_list$phy,
-                         species = species), 
-               label = "traits input as a list or matrix")
-  expect_error(cor_phylo(traits = list(par1, par2),
-                         covariates = c(NULL, cov2a),
+                         species = ~ species), 
+               regexp = "The `variates` argument to `cor_phylo` must be a formula or matrix")
+  expect_error(cor_phylo(variates = ~ par1 + par2,
+                         covariates = c("cov2a"),
                          data = data_list$data, phy = data_list$phy,
-                         species = species), 
-               label = "covariates input as a list or matrix")
-  expect_error(cor_phylo(traits = list(par1, par2),
-                         meas_errors = c(NULL, se2),
+                         species = ~ species), 
+               regexp = "arg `covariates` must be NULL or a list")
+  expect_error(cor_phylo(variates = ~ par1 + par2,
+                         meas_errors = c("se2"),
                          data = data_list$data, phy = data_list$phy,
-                         species = species), 
-               label = "measurement error input as a list or matrix")
+                         species = ~ species), 
+               regexp = paste("The `meas_errors` argument to `cor_phylo` must be NULL,",
+                             "a list, or matrix."))
   
-  expect_error(cor_phylo(traits = list(par1, par2[1:(n-1)]),
+  # ---------*
+  # Inserting NAs:
+  # ---------*
+  x <- data_list$data$par1[10]
+  data_list$data$par1[10] <- NA
+  expect_error(cor_phylo(variates = ~ par1 + par2,
+                         covariates = list(par2 ~ cov2a),
+                         meas_errors = list(par1 ~ se1, par2 ~ se2),
                          data = data_list$data, phy = data_list$phy,
-                         species = species), 
-               label = "traits must be of length `n`")
-  expect_error(cor_phylo(traits = list(par1, par2),
-                         covariates = list(NULL, cov2a[1:(n-1)]),
-                         data = data_list$data, phy = data_list$phy,
-                         species = species), 
-               label = "covariates must be of length `n`")
-  expect_error(cor_phylo(traits = list(par1, par2),
-                         meas_errors = list(NULL, se2[1:(n-1)]),
-                         data = data_list$data, phy = data_list$phy,
-                         species = species), 
-               label = "measurement error must be of length `n`")
+                         species = ~ species), 
+               regexp = "NAs are not allowed in `variates`")
+  data_list$data$par1[10] <- x
   
+  x <- data_list$data$cov2a[10]
+  data_list$data$cov2a[10] <- NA
+  expect_error(cor_phylo(variates = ~ par1 + par2,
+                         covariates = list(par2 ~ cov2a),
+                         meas_errors = list(par1 ~ se1, par2 ~ se2),
+                         data = data_list$data, phy = data_list$phy,
+                         species = ~ species), 
+               regexp = "NAs are not allowed in `covariates`")
+  data_list$data$cov2a[10] <- x
   
-  expect_error(cor_phylo(traits = list(par1, par2),
-                         covariates = list(NULL, par2 = cov2a),
+  x <- data_list$data$se1[10]
+  data_list$data$se1[10] <- NA
+  expect_error(cor_phylo(variates = ~ par1 + par2,
+                         covariates = list(par2 ~ cov2a),
+                         meas_errors = list(par1 ~ se1, par2 ~ se2),
                          data = data_list$data, phy = data_list$phy,
-                         species = species),
-               label = "covariates must be entirely named or entirely not")
-  expect_error(cor_phylo(traits = list(par1, par2),
-                         meas_errors = list(se1, par2 = se2),
+                         species = ~ species), 
+               regexp = "NAs are not allowed in `meas_errors`")
+  data_list$data$se1[10] <- x
+  
+  x <- data_list$data$species[10]
+  data_list$data$species[10] <- NA
+  expect_error(cor_phylo(variates = ~ par1 + par2,
+                         covariates = list(par2 ~ cov2a),
+                         meas_errors = list(par1 ~ se1, par2 ~ se2),
                          data = data_list$data, phy = data_list$phy,
-                         species = species),
-               label = "measurement error must be entirely named or entirely not")
+                         species = ~ species), 
+               regexp = "NAs are not allowed in `species`")
+  data_list$data$species[10] <- x
+  
+
 })
 
 
@@ -172,46 +194,25 @@ test_that("cor_phylo produces errors when nonsense is passed to it", {
 
 
 # To store output:
-cp_output_tests <- list(names_named = NA,
-                        strings_unnamed = NA,
-                        combo = NA,
+cp_output_tests <- list(forms = NA,
                         matrices = NA)
 
-# Using names and named lists:
-cp_output_tests$names_named <- 
-  cor_phylo(traits = list(par1, par2),
-            covariates = list(par2 = cov2a),
-            meas_errors = list(par1 = se1, par2 = se2),
-            species = species,
+# Using formulas:
+cp_output_tests$forms <- 
+  cor_phylo(variates = ~ par1 + par2,
+            covariates = list(par2 ~ cov2a),
+            meas_errors = list(par1 ~ se1, par2 ~ se2),
+            species = ~ species,
             phy = data_list$phy, data = data_list$data)
 
-# Using strings instead of names, and the meas_errors doesn't use a named list:
-cp_output_tests$strings_unnamed <- 
-  cor_phylo(traits = list("par1", "par2"),
-            covariates = list(NULL, "cov2a"),
-            meas_errors = list("se1", "se2"),
-            species = "species",
-            phy = data_list$phy, data = data_list$data)
+# Using matrices:
 
-# Combine the methods above:
-cp_output_tests$combo <- 
-  cor_phylo(traits = list(par1, "par2"),
-            covariates = list(par2 = cov2a),
-            meas_errors = list("se1", se2),
-            species = "species",
-            phy = data_list$phy,
-            data = data_list$data)
-
-
-# If you've already created matrices...
 X <- as.matrix(data_list$data[,c("par1", "par2")])
-U <- list(NULL, as.matrix(data_list$data[, "cov2a", drop = FALSE]))
-M <- cbind(data_list$data$se1, data_list$data$se2)
+U <- list(par2 = cbind(cov2a = data_list$data$cov2a))
+M <- cbind(par1 = data_list$data$se1, par2 = data_list$data$se2)
 
-# you can use those directly
-# (notice that I'm inputting an object for `species` bc I ommitted `data`):
 cp_output_tests$matrices <- 
-  cor_phylo(traits = X,
+  cor_phylo(variates = X,
             covariates = U,
             meas_errors = M,
             species = data_list$data$species,
@@ -227,5 +228,87 @@ test_that("cor_phylo produces the same output with different input methods", {
                  expected.label = names(cp_output_tests)[i])
   }
 })
+
+
+
+
+
+# ==================================================================*
+# ==================================================================*
+
+# Testing bootstrapping -----
+
+# ==================================================================*
+# ==================================================================*
+
+
+cp <- cor_phylo(variates = ~ par1 + par2,
+          covariates = list(par2 ~ cov2a),
+          meas_errors = list(par1 ~ se1, par2 ~ se2),
+          data = data_list$data, phy = data_list$phy,
+          species = ~ species, boot = 1)
+
+cp_bci <- boot_ci(cp)
+
+
+test_that("boot_ci.cor_phylo produced expected output types", {
+  
+  expect_identical(names(cp_bci), c("corrs", "d", "B0", "B_cov"))
+  expect_identical(paste(sapply(cp_bci, class)), rep("matrix", 4))
+  
+})
+
+
+
+
+
+
+
+
+# ----------------------------
+
+# Making sure having no correlation works properly
+
+# ----------------------------
+
+
+data_list$data$par3 <- runif(nrow(data_list$data)) * data_list$data$par1
+
+phyr_cp_nc <- cor_phylo(variates = ~ par1 + par2 + par3,
+                        data = data_list$data, phy = data_list$phy,
+                        species = ~ species, method = "nelder-mead-r",
+                        no_corr = TRUE)
+
+test_that("having no correlation works", {
+  
+  expect_equal(sum(phyr_cp_nc$corrs[lower.tri(phyr_cp_nc$corrs)]), 0)
+  expect_equal(sum(phyr_cp_nc$corrs[upper.tri(phyr_cp_nc$corrs)]), 0)
+
+})
+
+
+
+
+
+
+
+# ----------------------------
+
+# Testing for fix of error in printing when using `T` or `F` instead of `TRUE` or `FALSE`
+
+# ----------------------------
+
+
+phyr_cp <- cor_phylo(variates = ~ par1 + par2,
+                     data = data_list$data, phy = data_list$phy,
+                     species = ~ species, constrain_d = T)
+
+test_that("printing works when using `T` or `F` instead of `TRUE` or `FALSE`", {
+  
+  expect_output(print(phyr_cp), "Call to cor_phylo:")
+  
+})
+
+
 
 

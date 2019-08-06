@@ -3,14 +3,29 @@
 \name{communityPGLMM.plot.re}
 \alias{communityPGLMM.plot.re}
 \alias{communityPGLMM.show.re}
+\alias{pglmm.plot.re}
 \title{Visualize random terms of communityPGLMMs}
 \usage{
 communityPGLMM.plot.re(formula = NULL, data = NULL,
-  family = "gaussian", tree = NULL, tree_site = NULL,
-  repulsion = FALSE, x = NULL, show.image = NULL,
-  show.sim.image = NULL, random.effects = NULL, add.tree.sp = TRUE,
-  add.tree.site = FALSE, tree.panel.space = 0.5, title.space = 5,
-  tree.size = 3, ...)
+  family = "gaussian", sp.var = "sp", site.var = "site",
+  tree = NULL, tree_site = NULL, repulsion = FALSE, x = NULL,
+  show.image = TRUE, show.sim.image = FALSE, random.effects = NULL,
+  add.tree.sp = TRUE, add.tree.site = FALSE, cov_ranef = NULL,
+  tree.panel.space = 0.5, title.space = 5, tree.size = 3, ...)
+
+communityPGLMM.show.re(formula = NULL, data = NULL,
+  family = "gaussian", sp.var = "sp", site.var = "site",
+  tree = NULL, tree_site = NULL, repulsion = FALSE, x = NULL,
+  show.image = TRUE, show.sim.image = FALSE, random.effects = NULL,
+  add.tree.sp = TRUE, add.tree.site = FALSE, cov_ranef = NULL,
+  tree.panel.space = 0.5, title.space = 5, tree.size = 3, ...)
+
+pglmm.plot.re(formula = NULL, data = NULL, family = "gaussian",
+  sp.var = "sp", site.var = "site", tree = NULL, tree_site = NULL,
+  repulsion = FALSE, x = NULL, show.image = TRUE,
+  show.sim.image = FALSE, random.effects = NULL, add.tree.sp = TRUE,
+  add.tree.site = FALSE, cov_ranef = NULL, tree.panel.space = 0.5,
+  title.space = 5, tree.size = 3, ...)
 }
 \arguments{
 \item{formula}{A two-sided linear formula object describing the
@@ -41,15 +56,11 @@ Second, note that correlated random terms will not be allowed at this moment. Fo
 \code{(x|g)} will be equal with \code{(0 + x|g)} in the \code{lme4::lmer} syntax;
 also, \code{(x1 + x2|g)} won't work.}
 
-\item{data}{A \code{\link{data.frame}} containing the variables
-named in formula. The data frame should have long format with
-a column for species (named as 'sp') and a column for sites (named as 'site').
-\code{communityPGLMM} will reorder rows of the data frame so that species
-are nested within sites (i.e. arrange first by column site then by column sp).}
+\item{data}{A \code{\link{data.frame}} containing the variables named in formula.}
 
-\item{family}{Either \code{gaussian} for a Linear Mixed Model, or
-\code{binomial} for binomial dependent data, or \code{poisson} for count data.
-It should be specified as a character string (i.e. quoted). At this moment,
+\item{family}{Either "gaussian" for a Linear Mixed Model, or
+"binomial" for binomial dependent data, or "poisson" for count data.
+It should be specified as a character string (i.e., quoted). At this moment,
 for binomial data, we fixed the link function to logit; for poisson data,
 we fixed the link function to log. Binomial data can be either
 presence/absence, or a two column array of 'success' and 'fail'.
@@ -59,25 +70,32 @@ two additional families available: "zeroinflated.binomial", and "zeroinflated.po
 which add a "zero inflation" parameter, which is the probability that a the response is
 a zero. The rest of the parameters of the model then reflect the "non-zero" part part
 of the model. Note that "zeroinflated.binomial" only makes sense as a using successes /
-Ntrials type of response data.}
+fail type of response data.}
+
+\item{sp.var}{The variable name of "species"; y-axis of the image.}
+
+\item{site.var}{The variable name of "site"; x-axis of the image.}
 
 \item{tree}{A phylogeny for column sp, with "phylo" class. Or a var-cov matrix for sp,
 make sure to have all species in the matrix; if the matrix is not standarized,
-i.e. det(tree) != 1, we will try to standarize it for you.}
+i.e. det(tree) != 1, we will try to standarize it for you.
+No longer used, keep here for compatibility.}
 
-\item{tree_site}{A second phylogeny for "site". This is required only if the site column contains species instead of sites.
-This can be used for bipartitie questions. tree_site can also be a var-cov matrix, make sure to have all sites in the matrix;
-if the matrix is not standarized, i.e. det(tree_site) != 1, we will try to standarize for you.}
+\item{tree_site}{A second phylogeny for "site". This is required only if the
+site column contains species instead of sites. This can be used for bipartitie
+questions. tree_site can also be a var-cov matrix, make sure to have all sites
+in the matrix; if the matrix is not standarized, i.e. det(tree_site) != 1,
+we will try to standarize for you. No longer used, keep here for compatibility}
 
 \item{repulsion}{When nested random term specified, do you want to test repulsion
-(i.e. overdispersion) or underdispersion? Default is FALSE, i.e. test underdispersion.
+(i.e., overdispersion) or underdispersion? Default is \code{FALSE}, i.e. test underdispersion.
 This argument can be either a logical vector of length 1 or >1.
 If its length is 1, then all cov matrices in nested terms will be either inverted (overdispersion) or not.
 If its length is >1, then this means the users can select which cov matrix in the nested terms to be inverted.
 If so, make sure to get the length right: for all the terms with \code{@},
 count the number of "__" and this will be the length of repulsion.
 For example, \code{sp__@site} will take one length as well as \code{sp@site__}.
-\code{sp__@site__} will take two elements. So, if you nested terms are
+\code{sp__@site__} will take two elements (repulsion for sp and repulsion for site). So, if you nested terms are
 \code{(1|sp__@site) + (1|sp@site__) + (1|sp__@site__)}
 in the formula, then you should set the repulsion to be something like
 \code{c(TRUE, FALSE, TURE, TURE)} (length of 4).
@@ -90,18 +108,28 @@ The T/F combinations depend on your questions.}
 \item{show.sim.image}{Whether to show the images of simulated site by sp matrix.
 This can be useful to see how the phylogenetic information were included.}
 
-\item{random.effects}{Pre-build list of random effects. If \code{NULL} (the default),
-the function \code{\link{prep_dat_pglmm}} will prepare it for you. A list of pre-generated
+\item{random.effects}{Optional pre-build list of random effects. If \code{NULL} (the default),
+the function \code{\link{prep_dat_pglmm}} will prepare it for you based on the information
+in \code{formula}, \code{data}, and \code{cov_ranef}. A list of pre-generated
 random terms is also accepted (mainly to be compatible with code from previous versions).
-If so, make sure that the orders of sp and site in the generated list are the same as the
-data. This argument can be useful if users want to use other correlations (e.g. spatial)
-in their models instead of phylogenetic relationships.}
+If so, make sure that the orders of rows and columns of var-cov matrices in the generated
+list are the same as their corresponding group variables in the data. This argument can be
+useful if users want to use more complicated random terms.}
 
 \item{add.tree.sp}{Whether to add a phylogeny of species at the top of the
 simulated site by sp matrix plot, default is TRUE.}
 
 \item{add.tree.site}{Whether to add a phylogeny of sites at the right of the
 simulated site by sp matrix plot, default is FALSE.}
+
+\item{cov_ranef}{A named list of var-cov matrices of random terms. The names should be the
+group variables that are used as random terms with specified var-cov matrices
+(without the two underscores, e.g. \code{list(sp = tree1, site = tree2)}). The actual object
+can be either a phylogeny with class "phylo" or a prepared var-cov matrix. If it is a phylogeny,
+we will prune it and then convert it to a var-cov matrix assuming brownian motion evolution.
+We will also standardize all var-cov matrices to have determinant of one. Group variables
+will be converted to factors and all var-cov matrices will be rearranged so that rows and
+columns are in the same order as the levels of their corresponding group variables.}
 
 \item{tree.panel.space}{The number of lines between the phylogeney and
 the matrix plot, if add.tree is TRUE.}
@@ -129,7 +157,7 @@ it is a grid object.
 \description{
 Plot variance-cov matrix of random terms; also it is optional to simulate and
 visualize data based on these var-cov matrices. The input can be a communityPGLMM
-model (by setting argument x). If no model has been fitted, you can also specify
+model (by setting argument \code{x}). If no model has been fitted, you can also specify
 data, formula, and family, etc. without actually fitting the model, which will
 save time.
 }

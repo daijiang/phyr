@@ -4,22 +4,33 @@
 \alias{plot.communityPGLMM}
 \title{Plot the original dataset and predicted values (optional)}
 \usage{
-\method{plot}{communityPGLMM}(x, digits = max(3, getOption("digits") -
-  3), show.sp.names = FALSE, show.site.names = FALSE,
-  predicted = FALSE, ...)
+\method{plot}{communityPGLMM}(x, sp.var = "sp", site.var = "site",
+  show.sp.names = FALSE, show.site.names = FALSE, digits = max(3,
+  getOption("digits") - 3), predicted = FALSE, ...)
 }
 \arguments{
-\item{x}{A fitted model with class communityPGLMM}
+\item{x}{A fitted model with class communityPGLMM and family "binomial".}
 
-\item{digits}{Minimal number of significant digits for printing, as in \code{\link{print.default}}}
+\item{sp.var}{The variable name of "species"; y-axis of the image.}
+
+\item{site.var}{The variable name of "site"; x-axis of the image.}
 
 \item{show.sp.names}{Whether to print species names as y-axis labels.}
 
 \item{show.site.names}{Whether to print site names as x-axis labels.}
 
+\item{digits}{Not used.}
+
 \item{predicted}{Whether to plot predicted values side by side with observed ones.}
 
-\item{...}{Additional arguments, currently ignored.}
+\item{...}{Additional arguments for \code{Matrix::image()} or \code{lattice::levelplot()}.
+Common ones are:
+\itemize{
+\item \code{useAbs} whether to use absolute values of the matrix; if no negative values,
+this will be set to TRUE if not specified. When \code{useAbs = TRUE} the color scheme
+will be black-white, otherwise, it will be red/blue.
+\item \code{colorkey} whether to draw the scale legend at the right side of each plot?
+}}
 }
 \description{
 Plot the original dataset and predicted values (optional)

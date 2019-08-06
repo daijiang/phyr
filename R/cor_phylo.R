@@ -1,47 +1,242 @@
-# ================================================================================
-# ================================================================================
+# ================================================================================*
+# ================================================================================*
 
-# Inner "info" functions for extracting info from `cor_phylo` call
+# Inner "info" functions -----
+# ... for extracting info from `cor_phylo` call
 
-# ================================================================================
-# ================================================================================
+# ================================================================================*
+# ================================================================================*
 
+
+
+
+#' Check and extract var-cov matrix from phylogeny.
+#' 
+#' If `phy` is a phylogeny, it checks for it being `phylo` class, having branch
+#' lengths, and having tip labels.
+#' It then creates the var-cov matrix using `ape::vcv`.`
+#'
+#' @param phy A phylogeny that should be a `phylo` object or var-cov matrix.
+#'
+#' @return A var-cov matrix from a phylogenetic tree that's been reordered using
+#' `ape::reorder.phylo(phy, "postorder")`
+#'
+#' @noRd
+#' 
+get_Vphy <- function(phy) {
+  
+  Vphy <- matrix(NA_real_, 0, 0)
+  
+  if (inherits(phy, "phylo")) {
+    
+    if (is.null(phy$edge.length)) {
+      stop("\nThe input phylogeny has no branch lengths.")
+    }
+    if (is.null(phy$tip.label)) {
+      stop("\nThe input phylogeny has no tip labels.")
+    }
+    phy$tip.label <- paste(phy$tip.label)
+    phy <- ape::reorder.phylo(phy, "postorder")
+    Vphy <- ape::vcv(phy)
+    
+  } else if (inherits(phy, c("matrix", "Matrix"))) {
+    
+    if ((det(phy) - 1) > 0.0001){
+      
+      phy <- phy / max(phy)
+      phy <- phy/exp(determinant(phy)$modulus[1]/nrow(phy))
+      
+      if((det(phy) - 1) > 0.0001) {
+        warning("\nFailed to standarized the var-cov matrix in `phy` argument to ",
+                "`cor_phylo`", call. = FALSE, immediate. = TRUE)
+      }
+    }
+    
+    Vphy <- phy
+    
+  } else stop("\nThe `phy` argument to `cor_phylo` is not of class \"phylo\" ",
+              "or a matrix.", call. = FALSE)
+  
+
+  return(Vphy)
+}
+
+
+
+
+#' Retrieve an argument value based on a function call.
+#' 
+#' If not present in the call, this returns the default value for that function.
+#' Note that this returns an object of class `call`, not a vector.
+#' Note also that if you used `match.arg` inside the function, you should do
+#' `eval(call_arg(...))[1]` to get the actual value of the argument used.
+#' 
+#'
+#' @param .call Call to a function.
+#' @param .arg Name of argument from the function.
+#' 
+#' @noRd
+#' 
+call_arg <- function(.call, .arg) {
+  
+  .fun <- eval(.call[[1]])
+  fun_formals <- formals(.fun)
+  default_value <- fun_formals[[.arg]]
+  
+  call_list <- as.list(.call)[-1]
+  if (is.null(call_list[[.arg]])) {
+    if (is.null(names(call_list))) {
+      if (length(call_list) < which(names(fun_formals) == .arg)) return(default_value)
+      names(call_list) <- rep("", length(call_list))
+    }
+    
+    # arguments in `.fun` not represented by names in the call:
+    cp_args <- fun_formals[!names(fun_formals) %in% names(call_list)]
+    
+    # removing named arguments from `.fun` call bc we already know they don't
+    # contain `.arg`
+    call_list <- call_list[names(call_list) == ""]
+    
+    if (length(call_list) < which(names(cp_args) == .arg)) {
+      return(default_value)
+    } else {
+      return(cp_args[[which(names(cp_args) == .arg)]])
+    }
+    
+  } else {
+    return(call_list[[.arg]])
+  }
+}
+
+
+#' Deparse a formula to a single string.
+#'
+#' @noRd
+#'
+f_deparse <- function(form) {
+  ss <- deparse(form, 500L)
+  if (length(ss) > 1) ss <- paste(ss, collapse = "")
+  return(ss)
+}
+
+
+#' Check that a formula is proper for a given argument, then output as a matrix.
+#' 
+#' @noRd
+#' 
+proper_formula <- function(formula, arg, data) {
+  
+  arg <- match.arg(arg, c("variates", "species", "covariates", "meas_errors"))
+  
+  em <- function(...) stop(paste0("\nIn `cor_phylo`, argument `", arg, "` ", 
+                                  paste(..., collapse = " "), "."), call. = FALSE)
+  
+  if (arg == "variates") {
+    one_sided <- TRUE
+    allow_inter <- FALSE
+    max_vars <- Inf
+    min_vars <- 2
+  } else if (arg == "species") {
+    one_sided <- TRUE
+    allow_inter <- FALSE
+    max_vars <- 1
+    min_vars <- 1
+  } else if (arg == "covariates") {
+    one_sided <- FALSE
+    allow_inter <- TRUE
+    max_vars <- Inf
+    min_vars <- 1
+  } else {  # meas_errors
+    one_sided <- FALSE
+    allow_inter <- FALSE
+    max_vars <- 2
+    min_vars <- 2
+  }
+  
+  if (!inherits(formula, "formula") || !identical(quote(`~`), formula[[1]])) {
+    em("is not a formula")
+  }
+  if (sum(all.names(formula) == "~") > 1) em("should never include > 1 tilde (`~`)")
+  
+  if (one_sided && length(formula) != 2) em("is not a one-sided formula")
+  if (!one_sided && length(formula) != 3) em("is not a two-sided formula")
+  
+  if (!allow_inter && grepl("\\*", f_deparse(formula))) {
+    em("is not allowed to include interactions, so should never contain \"*\"")
+  }
+  
+  var_names <- all.vars(formula)
+  
+  if (length(var_names) > max_vars) em("should have <=", max_vars, "variables")
+  if (length(var_names) < min_vars) em("should have >=", min_vars, "variables")
+  
+  for (v in var_names) {
+    vv <- eval(parse(text = v), data)
+    if (arg %in% c("variates", "covariates", "meas_errors")) {
+      if (!inherits(vv, c("integer", "numeric"))) {
+        em("should point to only numeric or integer variables")
+      }
+    }
+    if (any(is.na(vv))) stop("\nIn `cor_phylo`, NAs are not allowed in `", arg, "`.",
+                             call. = FALSE)
+  }
+  
+  if (arg == "species") {
+    mmat <- paste(eval(parse(text = var_names[1]), data))
+  } else {
+    mmat <- model.matrix(formula, data)
+    if ("(Intercept)" %in% colnames(mmat)) {
+      mmat <- mmat[, -which(colnames(mmat) == "(Intercept)"), drop=FALSE]
+    }
+    attr(mmat, "assign") <- NULL
+    rownames(mmat) <- NULL
+    if (max_vars == 1) dim(mmat) <- NULL
+  }
+  
+  return(mmat)
+  
+}
 
 
 #' Get values and check validity of the `species` argument passed to `cor_phylo`
 #'
-#' @inheritParams species cor_phylo
-#' @inheritParams data cor_phylo
-#' @inheritParams phy cor_phylo
+#' @inheritParams cor_phylo
+#' @param Vphy var-cov matrix from a phylogeny.
 #'
 #' @return A vector of species names.
 #'
 #' @noRd
 #' 
-cp_get_species <- function(species, data, phy) {
+cp_get_species <- function(species, data, Vphy) {
   
-  n <- length(phy$tip.label)
+  n <- nrow(Vphy)
   
-  spp_vec <- eval(species, data)
+  if (inherits(species, "formula")) {
+    spp_vec <- proper_formula(species, "species", data)
+  } else {
+    spp_vec <- paste(species)
+    if (any(is.na(spp_vec))) {
+      stop("\nIn `cor_phylo`, NAs are not allowed in `species`.", call. = FALSE)
+    }
+    
+  }
+  
+  if (length(spp_vec) != n) {
+    stop("\nIn `cor_phylo`, the `species` argument is not the same length as the ",
+         "number of tips in the phylogeny.", call. = FALSE)
+  }
   
   if (sum(duplicated(spp_vec)) > 0) {
-    stop("\nDuplicate species not allowed in cor_phylo.", call. = FALSE)
+    stop("\nDuplicate species not allowed in `cor_phylo`.", call. = FALSE)
   }
-  if (class(spp_vec) != class(phy$tip.label)) {
-    stop("\nIn cor_phylo, the `species` argument is not the same type of vector ",
-         "as the phylogeny's tip labels. Please convert and try again.",
-         call. = FALSE)
-  }
-  if (!all(spp_vec %in% phy$tip.label)) {
-    stop("\nIn cor_phylo, the `species` argument has one or more species not ",
-         "found in the phylogeny. Please filter the input data and try again.",
-         call. = FALSE)
-  } else if (!all(phy$tip.label %in% spp_vec)) {
-    cat(paste(spp_vec, collapse = " "), "\n")
-    stop("\nIn cor_phylo, the phylogeny has one or more species not found ",
-         "in the `species` argument. (Printed above is the `species` argument.)",
-         "Please filter the input phylogeny and try again. ",
-         call. = FALSE)
+  if (!all(spp_vec %in% rownames(Vphy))) {
+    stop("\nIn `cor_phylo`, the following species in the `species` argument are not ",
+         "found in the phylogeny: ",
+         paste(spp_vec[!spp_vec %in% rownames(Vphy)], collapse = " "), call. = FALSE)
+  } else if (!all(rownames(Vphy) %in% spp_vec)) {
+    stop("\nIn `cor_phylo`, the following species in the phylogeny are not found ",
+         "in the `species` argument: ",
+         paste(rownames(Vphy)[!rownames(Vphy) %in% spp_vec], collapse = " "), call. = FALSE)
   }
   return(spp_vec)
 }
@@ -50,55 +245,38 @@ cp_get_species <- function(species, data, phy) {
 
 
 
-#' Extract traits matrix from arguments input to `cor_phylo`.
+#' Extract variates matrix from arguments input to `cor_phylo`.
 #' 
 #' @inheritParams cor_phylo
 #' @param phy_order The order of species as indicated by the phylogeny.
 #' 
 #' @noRd
 #' 
-extract_traits <- function(traits, phy_order, data) {
+extract_variates <- function(variates, phy_order, data) {
   
   n <- length(phy_order)
   
-  out <- eval(traits, data)
-  
-  if (inherits(out, "list")) {
-    if (length(out) < 2) {
-      stop("\nIf a list, the argument `traits` input to `cor_phylo` should be of ",
-           "length >= 2, one item for each trait.",
+  if (inherits(variates, "formula")) {
+    variates <- proper_formula(variates, "variates", data)
+  } else if (inherits(variates, "matrix")) {
+    if (ncol(variates) < 2) {
+      stop("\nIf a matrix, the argument `variates` input to `cor_phylo` should have ",
+           ">= 2 columns, one for each variate.",
            call. = FALSE)
     }
-    for (i in 1:length(out)) {
-      if (!is.numeric(out[[i]]) & length(out[[i]]) > 1) {
-        stop("\nItem ", i, " in `traits` is a non-numeric vector. ",
-             call. = TRUE)
-      }
-      if (inherits(out[[i]], "character")) out[[i]] <- get(out[[i]], data)
+    if (is.null(colnames(variates))) colnames(variates) <- paste0("par_", 1:ncol(variates))
+    if (any(is.na(variates))) {
+      stop("\nIn `cor_phylo`, NAs are not allowed in `variates`.", call. = FALSE)
     }
-    if (length(unique(sapply(out, length))) > 1) {
-      stop("\nItems in the `traits` argument of `cor_phylo` are being interpreted as ",
-           "vectors of different lengths.",
-           call. = FALSE)
-    }
-    out <- do.call(cbind, out)
-    colnames(out) <- paste(traits)[-1]
-  } else if (inherits(out, "matrix")) {
-    if (ncol(out) < 2) {
-      stop("\nIf a matrix, the argument `traits` input to `cor_phylo` should have ",
-           ">= 2 columns, one for each trait.",
-           call. = FALSE)
-    }
-    if (is.null(colnames(out))) colnames(out) <- paste0("par_", 1:ncol(out))
   } else {
-    stop("\nThe `traits` argument to `cor_phylo` must be a list or matrix.",
+    stop("\nThe `variates` argument to `cor_phylo` must be a formula or matrix.",
          call. = FALSE)
   }
 
   # Ordering the same as the phylogeny
-  out <- out[phy_order, , drop = FALSE]
+  variates <- variates[phy_order, , drop = FALSE]
   
-  return(out)
+  return(variates)
 }
 
 
@@ -106,97 +284,77 @@ extract_traits <- function(traits, phy_order, data) {
 
 #' Process an input list for covariates or measurement error in `cor_phylo`.
 #' 
-#' @param out A list that's been been evaluated in the `data` environment.
 #' @param cov_me Either the `covariates` or `meas_errors` arguments to `cor_phylo`.
-#' @param trait_names Names of the traits used from the `traits` argument to `cor_phylo`.
-#' @inheritParams phy_order extract_traits
+#' @param variate_names Names of the variates used from the `variates` argument to `cor_phylo`.
+#' @inheritParams phy_order extract_variates
 #' @param is_me Logical for whether it's measurement errors (vs covariates).
 #' @inheritParams data cor_phylo
 #' 
 #' @noRd
 #' 
-process_cov_me_list <- function(out, cov_me, trait_names, phy_order, is_me, data) {
+process_cov_me_list <- function(cov_me, variate_names, phy_order, data, arg) {
   
   n <- length(phy_order)
-  p <- length(trait_names)
+  p <- length(variate_names)
   
-  # If it's an empty list, then return 1-column matrices of zeros
-  if (length(out) == 0) {
+  # If it's NULL or length 0, then return 1-column matrices of zeros
+  if (is.null(cov_me) || length(cov_me) == 0) {
     out <- rep(list(matrix(0, n, 1)), p)
-    names(out) <- trait_names
+    names(out) <- variate_names
     return(out)
   }
   
-  label <- ifelse(is_me, "meas_errors", "covariates")
-  
-  if (!inherits(out, "list")) {
-    stop("\nYou're calling `process_cov_me_list` on a non-list.", call. = FALSE)
-  }
-  
-  # Checking names or lack thereof
-  if (!is.null(names(out))) {
-    if (any(names(out) == "")) {
-      stop("\nThe `", label, "` argument to `cor_phylo` must be a list that is either ",
-           "named for all items or none. ",
-           "(Blank names won't work at all.)",
-           call. = FALSE)
-    } else if (any(!names(out) %in% trait_names)) {
-      stop("\nIf using names for the `", label, "` argument to `cor_phylo`, ",
-           "they all need to be present in the `traits` argument.",
-           call. = FALSE)
-    }
-  } else if (length(out) != p) {
-    stop("\nIf not using names for the `", label, "` argument to `cor_phylo`, ",
-         "you need to have an item for each trait. ",
-         "(Also make sure that they're in the same order as the traits.)",
+  if (!inherits(cov_me, "list")) {
+    stop(sprintf("\nIn `cor_phylo`, arg `%s` must be NULL or a list.", arg),
          call. = FALSE)
-  } else {
-    # Just to be OCD about having the same output regardless of inputs...
-    names(out) <- trait_names
   }
   
+  cm_mats <- cov_me
   
-  for (i in 1:length(out)) {
-    if (is.null(out[[i]])) {
-      out[[i]] <- matrix(0, n, 1)
-      next
-    }
-    if (!is.numeric(out[[i]]) & length(out[[i]]) > 1) {
-      stop("\nItem ", i, " in `", label, "` is a non-numeric vector/matrix. ",
-           call. = TRUE)
-    }
-    if (inherits(out[[i]], "character")) out[[i]] <- get(out[[i]], data)
-    if (is.null(attributes(out[[i]])$dim)) {
-      if (length(out[[i]]) != n) {
-        stop("\nItem ", i, " of the `", label, "` argument of `cor_phylo` ",
-             "is being interpreted as a vector with a length not equal to `n`. ",
-             "You may need to convert this object to a matrix or ",
-             "use `cbind()` instead of `c()`.",
-             call. = FALSE)
+  for (i in 1:length(cov_me)) {
+    if (inherits(cov_me[[i]], "formula")) {
+      cm_mats[[i]] <- proper_formula(cov_me[[i]], arg, data)
+      if (ncol(cm_mats[[i]]) == 0) cm_mats[[i]] <- matrix(0, n, 1)
+      names(cm_mats)[i] <- paste(cov_me[[i]][[2]])
+    } else if (inherits(cov_me[[i]], "matrix")) {
+      if (is.null(names(cov_me)) || names(cov_me)[i] == "") {
+        stop("\nFor `cor_phylo` argument `", arg, "`, all items that are matrices ",
+             "must be named.", call. = FALSE)
       }
-      out[[i]] <- cbind(out[[i]])
-      colnames(out[[i]]) <- paste(cov_me)[-1][i]
-    } else if (nrow(out[[i]]) != n) {
-      stop("\nItem ", i, " of the `", label, "` argument of `cor_phylo` ",
+      if (!names(cov_me)[i] %in% variate_names) {
+        stop("\nFor `cor_phylo` argument `", arg, "`, all items that are matrices ",
+             "have names that match variate names.", call. = FALSE)
+      }
+      if (any(is.na(cov_me[[i]]))) {
+        stop("\nIn `cor_phylo`, NAs are not allowed in `", arg, "`.", call. = FALSE)
+      }
+    } else {
+      stop("\nIn `cor_phylo`, all items in argument `", arg, "` must be formulas ",
+           "or matrices.", call. = FALSE)
+    }
+    if (nrow(cm_mats[[i]]) != n) {
+      stop("\nItem ", i, " of the `", arg, "` argument of `cor_phylo` ",
            "is being interpreted as a matrix with a number of rows not equal to `n`. ",
            call. = FALSE)
-      # Making sure there aren't multiple columns specified for a measurement error:
-    } else if (is_me & ncol(out[[i]]) > 1) {
-      stop("\nItem ", i, " of the `", label, "` argument of `cor_phylo` ",
+    }
+    # Making sure there aren't multiple columns specified for a measurement error:
+    if (arg == "meas_errors" && ncol(cm_mats[[i]]) > 1) {
+      stop("\nItem ", i, " of the `", arg, "` argument of `cor_phylo` ",
            "is being interpreted as a matrix more than one column, ",
-           "which does not work for measurement error.",
-           call. = FALSE)
+           "which does not work for measurement error.", call. = FALSE)
     }
     # Ordering the same as the phylogeny
-    out[[i]] <- out[[i]][phy_order, , drop = FALSE]
+    cm_mats[[i]] <- cm_mats[[i]][phy_order, , drop = FALSE]
   }
   
   # Filling in any names that are missing:
-  for (tn in trait_names[!trait_names %in% names(out)]) out[[tn]] <- matrix(0, n, 1)
-  # Reordering `out` in the same order as `trait_names`:
-  out <- out[trait_names]
+  for (tn in variate_names[!variate_names %in% names(cm_mats)]) {
+    cm_mats[[tn]] <- matrix(0, n, 1)
+  }
+  # Reordering `cm_mats` in the same order as `variate_names`:
+  cm_mats <- cm_mats[variate_names]
   
-  return(out)
+  return(cm_mats)
 }
 
 
@@ -204,102 +362,98 @@ process_cov_me_list <- function(out, cov_me, trait_names, phy_order, is_me, data
 #' 
 #' 
 #' @inheritParams covariates cor_phylo
-#' @inheritParams phy_order extract_traits
-#' @param trait_names Names of the traits used from the `traits` argument to `cor_phylo`.
+#' @inheritParams phy_order extract_variates
+#' @param variate_names Names of the variates used from the `variates` argument to `cor_phylo`.
 #' @inheritParams data cor_phylo
 #' 
 #' @noRd
 #' 
-extract_covariates <- function(covariates, phy_order, trait_names, data) {
-
-  out <- eval(covariates, data)
+extract_covariates <- function(covariates, phy_order, variate_names, data) {
   
-  if (!inherits(out, "list")) {
-    stop("\nThe `covariates` argument to `cor_phylo` must be a list.",
-         call. = FALSE)
-  }
   
-  out <- process_cov_me_list(out, covariates, trait_names, phy_order, FALSE, data)
+  n <- length(phy_order)
+  p <- length(variate_names)
+  
+  cov_mats <- process_cov_me_list(covariates, variate_names, phy_order, data, "covariates")
   
   # Naming unnamed covariates
   j <- 1
-  for (i in 1:length(out)) {
-    if (any(out[[i]] != 0)) {
-      names_ <- paste0("cov_", j:(j+ncol(out[[i]])-1))
-      if (is.null(colnames(out[[i]]))) {
-        colnames(out[[i]]) <- names_
-      } else if (any(is.na(colnames(out[[i]])))) {
-        inds_ <- which(is.na(colnames(out[[i]])))
-        colnames(out[[i]])[inds_] <- names_[inds_]
+  for (i in 1:length(cov_mats)) {
+    if (any(cov_mats[[i]] != 0)) {
+      names_ <- paste0("cov_", j:(j+ncol(cov_mats[[i]])-1))
+      if (is.null(colnames(cov_mats[[i]]))) {
+        colnames(cov_mats[[i]]) <- names_
+      } else if (any(is.na(colnames(cov_mats[[i]])))) {
+        inds_ <- which(is.na(colnames(cov_mats[[i]])))
+        colnames(cov_mats[[i]])[inds_] <- names_[inds_]
       }
-      j <- j + ncol(out[[i]])
+      j <- j + ncol(cov_mats[[i]])
     }
   }
   
-  return(out)
+  return(cov_mats)
 }
 
 #' Extract covariates or measurement errors from arguments input to `cor_phylo`.
 #' 
 #' 
 #' @inheritParams meas_errors cor_phylo
-#' @inheritParams phy_order extract_traits
-#' @inheritParams trait_names extract_covariates
+#' @inheritParams phy_order extract_variates
+#' @inheritParams variate_names extract_covariates
 #' @inheritParams data cor_phylo
 #' 
 #' @noRd
 #' 
-extract_meas_errors <- function(meas_errors, phy_order, trait_names, data) {
+extract_meas_errors <- function(meas_errors, phy_order, variate_names, data) {
   
   n <- length(phy_order)
-  p <- length(trait_names)
-
-  out <- eval(meas_errors, data)
+  p <- length(variate_names)
   
-  if (inherits(out, "list")) {
-    out <- process_cov_me_list(out, meas_errors, trait_names, phy_order,
-                               TRUE, data)
-    out <- do.call(cbind, out)
-  } else if (inherits(out, "matrix")) {
-    if (ncol(out) != p) {
-      stop("\nIf `meas_errors` argument to `cor_phylo` is a matrix, ",
-           "then it must have the same number of columns as the trait matrix. ",
-           "(If you want trait(s) to have no measurement error, make ",
-           "those column(s) in the measurement error matrix all zeros.)",
-           call. = FALSE)
+  if (inherits(meas_errors, "matrix")) {
+    if (any(!colnames(meas_errors) %in% variate_names)) {
+      stop("\nIf `meas_errors` argument to `cor_phylo` is a matrix, then it must ",
+           "have column names that all correspond to variate names.", call. = FALSE)
     }
-    if (nrow(out) != n) {
+    if (nrow(meas_errors) != n) {
       stop("\nIf `meas_errors` argument to `cor_phylo` is a matrix, ",
-           "then it must have `n` rows.",
-           call. = FALSE)
+           "then it must have `n` rows.", call. = FALSE)
     }
-    # Ordering the same as the phylogeny
-    out <- out[phy_order, , drop = FALSE]
-  } else {
-    stop("\nThe `meas_errors` argument to `cor_phylo` must be a list ",
-         "or matrix.",
-         call. = FALSE)
+    cnames <- colnames(meas_errors)
+    # Split it to use `process_cov_me_list`
+    meas_errors <- lapply(split(meas_errors, col(meas_errors)), cbind)
+    names(meas_errors) <- cnames
+  } else if (!is.null(meas_errors) && !inherits(meas_errors, "list")) {
+    stop("\nThe `meas_errors` argument to `cor_phylo` must be NULL, a list, ",
+         "or matrix.", call. = FALSE)
   }
   
-  return(out)
+  me_mat <- process_cov_me_list(meas_errors, variate_names, phy_order,
+                                data, "meas_errors")
+  cnames <- names(me_mat)
+  me_mat <- do.call(cbind, me_mat)
+  colnames(me_mat) <- cnames
+  # Ordering the same as the phylogeny
+  me_mat <- me_mat[phy_order, , drop = FALSE]
+  
+  return(me_mat)
 }
 
 
-#' Get row names for output based on trait names and list of covariate(s).
+#' Get row names for output based on variate names and list of covariate(s).
 #'
-#' @inheritParams trait_names process_cov_me_list
-#' @inheritParams U cor_phylo_
+#' @inheritParams variate_names process_cov_me_list
+#' @inheritParams U cor_phylo_cpp
 #'
 #' @return A vector of row names.
 #' 
 #' @noRd
 #'
-cp_get_row_names <- function(trait_names, U) {
+cp_get_row_names <- function(variate_names, U) {
   
   cov_names <- lapply(U, colnames)
-  names(cov_names) <- trait_names
+  names(cov_names) <- variate_names
   
-  row_names <- lapply(trait_names,
+  row_names <- lapply(variate_names,
                       function(n) {
                         uu <- cov_names[[n]]
                         paste(n, c("0", uu), sep = "_")
@@ -314,36 +468,36 @@ cp_get_row_names <- function(trait_names, U) {
 
 
 
-# ================================================================================
-# ================================================================================
+# ================================================================================*
+# ================================================================================*
 
-# Simulating data
+# Simulating data -----
 
-# ================================================================================
-# ================================================================================
+# ================================================================================*
+# ================================================================================*
 
-#' Simulate `p` correlated traits (with phylogenetic signal) from `n` species.
+#' Simulate `p` correlated variates (with phylogenetic signal) from `n` species.
 #' 
 #' Inner function used for testing. Can also incorporate covariates.
 #' 
 #' @param n Number of species.
-#' @param Rs vector of the correlations between traits.
-#' @param d `p`-length vector of trait phylogenetic signals.
-#' @param M `n` x `p` matrix of trait measurement errors by species. Set this column
+#' @param Rs vector of the correlations between variates.
+#' @param d `p`-length vector of variate phylogenetic signals.
+#' @param M `n` x `p` matrix of variate measurement errors by species. Set this column
 #'   to zero for no measurement error.
-#' @param X_means A list of means for the traits. Defaults to 0 for all.
-#' @param X_sds A list of standard deviations for the traits. Defaults to 1 for all.
+#' @param X_means A list of means for the variates. Defaults to 0 for all.
+#' @param X_sds A list of standard deviations for the variates. Defaults to 1 for all.
 #' @param U_means A list of means for the covariates. Make a parameter's item in 
 #'   this list `NULL` to make it not have a covariate.
 #' @param U_sds A list of standard deviations for the covariates.
 #'   Make a parameter's item in this list `NULL` to make it not have a covariate.
-#' @param B `p`-length list of covariate coefficients for each trait. Leave empty
+#' @param B `p`-length list of covariate coefficients for each variate. Leave empty
 #'   as for `U_means` and `U_sds`.
 #' 
 #' 
 #' @noRd
 #' 
-sim_cor_phylo_traits <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, B) {
+sim_cor_phylo_variates <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, B) {
   
   p <- length(d)
   
@@ -448,44 +602,31 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, B)
 
 
 
-# ================================================================================
-# ================================================================================
+# ================================================================================*
+# ================================================================================*
 
-# Main function
+# Main function -----
 
-# ================================================================================
-# ================================================================================
-
-
+# ================================================================================*
+# ================================================================================*
 
 
-#' Correlations among multiple traits with phylogenetic signal
+
+
+#' Correlations among multiple variates with phylogenetic signal
 #' 
 #' This function calculates Pearson correlation coefficients for multiple continuous
-#' traits that may have phylogenetic signal, allowing users to specify measurement
-#' error as the standard error of trait values at the tips of the phylogenetic tree.
-#' Phylogenetic signal for each trait is estimated from the data assuming that trait
+#' variates that may have phylogenetic signal, allowing users to specify measurement
+#' error as the standard error of variate values at the tips of the phylogenetic tree.
+#' Phylogenetic signal for each variate is estimated from the data assuming that variate
 #' evolution is given by a Ornstein-Uhlenbeck process.  Thus, the function allows the
-#' estimation of phylogenetic signal in multiple traits while incorporating
-#' correlations among traits. It is also possible to include independent variables
-#' (covariates) for each trait to remove possible confounding effects.
-#' `cor_phylo` returns the correlation matrix for trait values, estimates
-#' of phylogenetic signal for each trait, and regression coefficients for
-#' independent variables affecting each trait.
+#' estimation of phylogenetic signal in multiple variates while incorporating
+#' correlations among variates. It is also possible to include independent variables
+#' (covariates) for each variate to remove possible confounding effects.
+#' `cor_phylo` returns the correlation matrix for variate values, estimates
+#' of phylogenetic signal for each variate, and regression coefficients for
+#' independent variables affecting each variate.
 #' 
-#' 
-#' @section Using names:
-#' The arguments `traits`, `species`, `covariates`, and `meas_errors` can use names
-#' that exist inside the `data` argument instead of using objects directly.
-#' For instance, if `data` is a data frame with column names `x` and `y`, but
-#' you have not defined any objects named `x` or `y` anywhere else, you can still
-#' use `cor_phylo(traits = list(x, y), ...)` without quotes (quotes work, too).
-#' 
-#' It's also important to note that you should use names for all of these arguments
-#' or none of them. That's because if a name isn't present in the `data` environment,
-#' you may get errors.
-#' Sometimes it works anyway, but I don't recommend it.
-#' See \code{\link[base]{eval}} for more info.
 #' 
 #' 
 #' @section Walkthrough:
@@ -508,50 +649,42 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, B)
 #' \deqn{V[2,2] = C[2,2](d2) + M2}
 #' 
 #' where \eqn{C[i,j](d1,d2)} are derived from `phy` under the assumption of joint 
-#' OU evolutionary processes for each trait (see Zheng et al. 2009). This formulation 
-#' extends in the obvious way to more than two traits.
+#' OU evolutionary processes for each variate (see Zheng et al. 2009). This formulation 
+#' extends in the obvious way to more than two variates.
 #' 
 #'
-#' @param traits A list of object names or a matrix that contains trait values.
-#'   In the former case, the list must be of length `p`, one name for each trait,
-#'   and each name must must refer to an object in `data`.
-#'   See "Using names" in the Details for more info on using names.
-#'   In the latter case, the matrix must have `n` rows and `p` columns;
+#' @param variates A formula or a matrix specifying variates between which correlations
+#'   are being calculated.
+#'   The formula should be one-sided of the form `~ A + B + C` for variate vectors
+#'   `A`, `B`, and `C` that are present in `data`.
+#'   In the matrix case, the matrix must have `n` rows and `p` columns (for `p` variates);
 #'   if the matrix columns aren't named, `cor_phylo` will name them `par_1 ... par_p`.
-#' @param species An object-name or a vector that indicates the species.
-#'   In the former case, see "Using names" in the Details for more info on using names.
-#'   In the latter case, the vector must be of the same type as the input
-#'   phylogeny's tip labels.
-#' @param phy A `phylo` object giving the phylogenetic tree.
-#' @param covariates A list containing covariate(s) for each trait.
-#'   The list can contain only names (see "Using names" in Details),
-#'   matrices, or `NULL` and can be assembled in one of two ways:
-#'   \enumerate{
-#'     \item Named items. Each name in the list should correspond to a name
-#'       in the traits matrix that is built from the `traits` argument.
-#'       So if you use a list of names in the `traits` argument, these names should
-#'       be used here.
-#'       If you use a matrix in the `traits` argument, column names should be used here.
-#'       You can simply omit names with no covariates instead of using `NULL` items.
-#'     \item Ordered items. The list must be of length `p`, each item referring to the
-#'       trait at that location in the matrix built from the `traits` argument.
-#'       The trait order is same as in either the list or matrix input to the `traits`
-#'       argument.
-#'       To indicate that a trait doesn't have a covariate, the corresponding
-#'       item in this list should be `NULL`.
-#'   }
-#'   If specifying more than one covariate, use `cbind()` rather than `c()`;
-#'   the latter concatenates them into a too-long vector (see Examples).
-#'   If these aren't named, `cor_phylo` will name them `cov_1 ... cov_q`, where
-#'   `q` is the total number of covariates.
-#'   Defaults to `list()`, which indicates no covariates.
-#' @param meas_errors A list containing measurement error for each trait.
-#'   This argument can be built in the same way as for the `covariates` argument
-#'   (except that you can't have multiple measurement errors for a single trait).
-#'   You can additionally pass an `n` x `p` matrix with each column associated
-#'   with the trait in the same position; if using a matrix, you can make a trait
-#'   not have measurement error by making its associated column contain only zeros.
-#'   Defaults to `list()`, which indicates no measurement errors.
+#' @param species A one-sided formula implicating the variable inside `data`
+#'   representing species, or a vector directly specifying the species.
+#'   If a formula, it must be of the form `~ spp` for the `spp` object containing
+#'   the species information inside `data`.
+#'   If a vector, it must be the same length as that of the tip labels in `phy`,
+#'   and it will be coerced to a character vector like `phy`'s tip labels.
+#' @param phy Either a phylogeny of class `phylo` or a prepared variance-covariance
+#'   matrix.
+#'   If it is a phylogeny, we will coerce tip labels to a character vector, and
+#'   convert it to a variance-covariance matrix assuming brownian motion evolution.
+#'   We will also standardize all var-cov matrices to have determinant of one.
+#' @param covariates A list specifying covariate(s) for each variate.
+#'   The list can contain only two-sided formulas or matrices.
+#'   Formulas should be of the typical form: `y ~ x1 + x2` or `y ~ x1 * x2`.
+#'   If using a list of matrices, each item must be named (e.g.,
+#'   `list(y = matrix(...))` specifying variate `y`'s covariates).
+#'   If the matrix columns aren't named, `cor_phylo` will name them `cov_1 ... cov_q`,
+#'   where `q` is the total number of covariates for all variates.
+#'   Having factor covariates is not supported.
+#'   Defaults to `NULL`, which indicates no covariates.
+#' @param meas_errors A list or matrix containing standard errors for each variate.
+#'   If a list, it must contain only two-sided formulas like those for `covariates`
+#'   (except that you can't have multiple measurement errors for a single variate).
+#'   You can additionally pass an `n`-row matrix with column names
+#'   corresponding to the associated variate names.
+#'   Defaults to `NULL`, which indicates no measurement errors.
 #' @param data An optional data frame, list, or environment that contains the
 #'   variables in the model. By default, variables are taken from the environment
 #'   from which `cor_phylo` was called.
@@ -564,7 +697,11 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, B)
 #'   \code{\link[stats]{optim}}.
 #'   See \url{https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/} for information
 #'   on the `nlopt` algorithms.
-#'   Defaults to `"nelder-mead-nlopt"`.
+#'   Defaults to `"nelder-mead-r"`.
+#' @param no_corr A single logical for whether to make all correlations zero.
+#'   Running `cor_phylo` with `no_corr = TRUE` is useful for comparing it to the same
+#'   model run with correlations != 0.
+#'   Defaults to `FALSE`.
 #' @param constrain_d If `constrain_d` is `TRUE`, the estimates of `d` are 
 #'   constrained to be between zero and 1. This can make estimation more stable and 
 #'   can be tried if convergence is problematic. This does not necessarily lead to 
@@ -585,7 +722,7 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, B)
 #'   which will control the maximum number of iterations,
 #'   starting temperature, and number of function evaluations at each temperature,
 #'   respectively.
-#'   Defaults to `list()`, which results in `maxit = 1000`, `temp = 1`, and `tmax = 1`.
+#'   Defaults to `NULL`, which results in `maxit = 1000`, `temp = 1`, and `tmax = 1`.
 #'   Note that these are different from the defaults for \code{\link[stats]{optim}}.
 #' @param verbose If `TRUE`, the model `logLik` and running estimates of the
 #'   correlation coefficients and values of `d` are printed each iteration
@@ -598,7 +735,7 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, B)
 #'   Defaults to `1e-10`.
 #' @param boot Number of parametric bootstrap replicates. Defaults to `0`.
 #' @param keep_boots Character specifying when to output data (indices, convergence codes,
-#'   and simulated trait data) from bootstrap replicates.
+#'   and simulated variate data) from bootstrap replicates.
 #'   This is useful for troubleshooting when one or more bootstrap replicates
 #'   fails to converge or outputs ridiculous results.
 #'   Setting this to `"all"` keeps all `boot` parameter sets,
@@ -610,7 +747,7 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, B)
 #' @return `cor_phylo` returns an object of class `cor_phylo`:
 #'   \item{`call`}{The matched call.}
 #'   \item{`corrs`}{The `p` x `p` matrix of correlation coefficients.}
-#'   \item{`d`}{Values of `d` from the OU process for each trait.}
+#'   \item{`d`}{Values of `d` from the OU process for each variate.}
 #'   \item{`B`}{A matrix of regression-coefficient estimates, SE, Z-scores, and P-values,
 #'     respectively. Rownames indicate which coefficient it refers to.}
 #'   \item{`B_cov`}{Covariance matrix for regression coefficients.}
@@ -661,7 +798,7 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, B)
 #' phy <- ape::rcoal(10, tip.label = 1:10)
 #' data_df <- data.frame(
 #'     species = phy$tip.label,
-#'     # traits:
+#'     # variates:
 #'     par1 = rnorm(10),
 #'     par2 = rnorm(10),
 #'     par3 = rnorm(10),
@@ -673,42 +810,25 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, B)
 #' )
 #' data_df$par2 <- data_df$par2 + 0.5 * data_df$cov2
 #' 
-#' # `cor_phylo` allows for data to be input in multiple ways
 #' 
-#' # Using names and named lists:
-#' cor_phylo(traits = list(par1, par2, par3),
-#'           species = species, phy = phy,
-#'           covariates = list(par2 = cov2),
-#'           meas_errors = list(par1 = se1, par2 = se2),
-#'           data = data_df)
-#' # Instead using strings and non-named lists:
-#' cor_phylo(traits = list("par1", "par2", "par3"),
-#'           species = "species", phy = phy,
-#'           covariates = list(NULL, "cov2", NULL),
-#'           meas_errors = list("se1", "se2", NULL),
-#'           data = data_df)
-#' # Combine the methods above:
-#' cor_phylo(traits = list(par1, "par2", par3),
-#'           species = "species", phy = phy,
-#'           covariates = list(par2 = cov2),
-#'           meas_errors = list("se1", se2, NULL),
+#' cor_phylo(variates = ~ par1 + par2 + par3,
+#'           covariates = list(par2 ~ cov2),
+#'           meas_errors = list(par1 ~ se1, par2 ~ se2),
+#'           species = ~ species,
+#'           phy = phy,
 #'           data = data_df)
 #' 
-#' # If you've already created matrices...
+#' # If you've already created matrices/lists...
 #' X <- as.matrix(data_df[,c("par1", "par2", "par3")])
-#' U <- list(NULL,
-#'           as.matrix(data_df[, "cov2", drop = FALSE]),
-#'           NULL)
-#' M <- cbind(data_df$se1, data_df$se2, rep(0, 10))
+#' U <- list(par2 = cbind(cov2 = data_df$cov2))
+#' M <- cbind(par1 = data_df$se1, par2 = data_df$se2)
 #' 
 #' # ... you can also use those directly
 #' # (notice that I'm inputting an object for `species`
 #' # bc I ommitted `data`):
-#' cor_phylo(traits = X, species = data_df$species,
+#' cor_phylo(variates = X, species = data_df$species,
 #'           phy = phy, covariates = U,
 #'           meas_errors = M)
-#' 
-#' # I do not recommend mixing matrix and list input methods.
 #' 
 #' 
 #' 
@@ -729,6 +849,7 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, B)
 #' # Set up parameter values for simulating data
 #' n <- 50
 #' phy <- rcoal(n, tip.label = 1:n)
+#' trt_names <- paste0("par", 1:2)
 #' 
 #' R <- matrix(c(1, 0.7, 0.7, 1), nrow = 2, ncol = 2)
 #' d <- c(0.3, 0.95)
@@ -736,6 +857,7 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, B)
 #' 
 #' Se <- c(0.2, 1)
 #' M <- matrix(Se, nrow = n, ncol = 2, byrow = TRUE)
+#' colnames(M) <- trt_names
 #' 
 #' # Set up needed matrices for the simulations
 #' p <- length(d)
@@ -775,44 +897,47 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, B)
 #' B.noM.list <- matrix(0, nrow = Nrep, ncol = 3)
 #' B.noP.list <- matrix(0, nrow = Nrep, ncol = 3)
 #' 
+#' 
 #' set.seed(2)
 #' for (rep in 1:Nrep) {
-#'   
+#' 
 #'   XX <- iD %*% rnorm(2 * n)
 #'   X <- matrix(XX, n, p)
-#'   
-#'   U <- list(NULL, cbind(rnorm(n, mean = 2, sd = 10)))
-#'   
-#'   X[,2] <- X[,2] + B2[1] * U[[2]][,1] - B2[1] * mean(U[[2]][,1])
-#'   
+#'   colnames(X) <- trt_names
+#' 
+#'   U <- list(cbind(rnorm(n, mean = 2, sd = 10)))
+#'   names(U) <- trt_names[2]
+#' 
+#'   X[,2] <- X[,2] + B2[1] * U[[1]][,1] - B2[1] * mean(U[[1]][,1])
+#' 
 #'   # Call cor_phylo with (i) phylogeny and measurement error,
 #'   # (ii) just phylogeny,
 #'   # and (iii) just measurement error
-#'   z <- cor_phylo(traits = X,
+#'   z <- cor_phylo(variates = X,
 #'                  covariates = U,
 #'                  meas_errors = M,
 #'                  phy = phy,
 #'                  species = phy$tip.label)
-#'   z.noM <- cor_phylo(traits = X,
+#'   z.noM <- cor_phylo(variates = X,
 #'                      covariates = U,
 #'                      phy = phy,
 #'                      species = phy$tip.label)
-#'   z.noP <- cor_phylo(traits = X,
+#'   z.noP <- cor_phylo(variates = X,
 #'                      covariates = U,
 #'                      meas_errors = M,
 #'                      phy = star,
 #'                      species = phy$tip.label)
-#'   
+#' 
 #'   cor.list[rep] <- z$corrs[1, 2]
 #'   cor.noM.list[rep] <- z.noM$corrs[1, 2]
 #'   cor.noP.list[rep] <- z.noP$corrs[1, 2]
 #'   cor.noMP.list[rep] <- cor(cbind(
 #'     lm(X[,1] ~ 1)$residuals,
-#'     lm(X[,2] ~ U[[2]])$residuals))[1,2]
-#'   
+#'     lm(X[,2] ~ U[[1]])$residuals))[1,2]
+#' 
 #'   d.list[rep, ] <- z$d
 #'   d.noM.list[rep, ] <- z.noM$d
-#'   
+#' 
 #'   B.list[rep, ] <- z$B[,1]
 #'   B.noM.list[rep, ] <- z.noM$B[,1]
 #'   B.noP.list[rep, ] <- z.noP$B[,1]
@@ -837,24 +962,24 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, B)
 #' correlation
 #' #                       [,1]
 #' # True             0.7000000
-#' # With M and Phy   0.6981450
-#' # Without M        0.2975294
-#' # Without Phy      0.3715866
+#' # With M and Phy   0.6943712
+#' # Without M        0.2974162
+#' # Without Phy      0.3715406
 #' # Without Phy or M 0.3291473
 #' 
 #' signal.d
 #' #                     [,1]      [,2]
 #' # True           0.3000000 0.9500000
-#' # With M and Phy 0.3061470 0.9418049
-#' # Without M      0.2406226 0.4013869
+#' # With M and Phy 0.3025853 0.9422067
+#' # Without M      0.2304527 0.4180208
 #' 
 #' est.B
-#' #                     par_1_0   par_2_0 par_2_cov_1
-#' # True            0.000000000 0.0000000   1.0000000
-#' # With M and Phy -0.008688085 0.1093656   0.9996199
-#' # Without M      -0.008542294 0.1146948   0.9982382
-#' # Without Phy     0.002933341 0.1096578   1.0028482
-#'     
+#' #                      par1_0    par2_0 par2_cov_1
+#' # True            0.000000000 0.0000000  1.0000000
+#' # With M and Phy -0.008838245 0.1093819  0.9995058
+#' # Without M      -0.008240453 0.1142330  0.9995625
+#' # Without Phy     0.002933341 0.1096578  1.0028474
+#' 
 #' }
 #' 
 #' 
@@ -867,51 +992,50 @@ sim_cor_phylo_traits <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, B)
 #' 
 #' 
 #' 
-#' @usage cor_phylo(traits, species, phy,
-#'           covariates = list(),
-#'           meas_errors = list(),
+#' @usage cor_phylo(variates, species, phy,
+#'           covariates = NULL, 
+#'           meas_errors = NULL,
 #'           data = sys.frame(sys.parent()),
 #'           REML = TRUE, 
-#'           method = c("nelder-mead-nlopt", "bobyqa",
-#'               "subplex", "nelder-mead-r", "sann"),
+#'           method = c("nelder-mead-r", "bobyqa",
+#'               "subplex", "nelder-mead-nlopt", "sann"),
+#'           no_corr = FALSE,
 #'           constrain_d = FALSE,
 #'           lower_d = 1e-7,
 #'           rel_tol = 1e-6,
 #'           max_iter = 1000,
-#'           sann_options = list(),
+#'           sann_options = NULL,
 #'           verbose = FALSE,
 #'           rcond_threshold = 1e-10,
 #'           boot = 0,
 #'           keep_boots = c("fail", "none", "all"))
 #' 
-cor_phylo <- function(traits, 
+cor_phylo <- function(variates, 
                       species,
                       phy,
-                      covariates = list(),
-                      meas_errors = list(),
+                      covariates = NULL,
+                      meas_errors = NULL,
                       data = sys.frame(sys.parent()),
                       REML = TRUE, 
-                      method = c("nelder-mead-nlopt", "bobyqa", "subplex",
-                                 "nelder-mead-r", "sann"),
+                      method = c("nelder-mead-r", "bobyqa", "subplex",
+                                 "nelder-mead-nlopt", "sann"),
+                      no_corr = FALSE,
                       constrain_d = FALSE,
                       lower_d = 1e-7,
                       rel_tol = 1e-6, 
                       max_iter = 1000, 
-                      sann_options = list(),
+                      sann_options = NULL,
                       verbose = FALSE,
                       rcond_threshold = 1e-10,
                       boot = 0,
                       keep_boots = c("fail", "none", "all")) {
   
-  stopifnot(rel_tol > 0)
-  
-  traits <- substitute(traits)
-  covariates <- substitute(covariates)
-  meas_errors <- substitute(meas_errors)
-  species <- substitute(species)
+  if (rel_tol <= 0) {
+    stop("\nIn `cor_phylo`, the `rel_tol` argument must be > 0", call. = FALSE)
+  }
 
   sann <- c(maxit = 1000, temp = 1, tmax = 1)
-  if (length(sann_options) > 1) {
+  if (!is.null(sann_options)) {
     if (!inherits(sann_options, "list")) {
       stop("\nThe `sann_options` argument to `cor_phylo` must be a list.",
            call. = FALSE)
@@ -935,39 +1059,52 @@ cor_phylo <- function(traits,
   if (call_[1] != as.call(quote(cor_phylo()))) {
     call_[1] <- as.call(quote(cor_phylo()))
   }
+  # Fixing later errors when users used `T` or `F` instead of `TRUE` or `FALSE`
+  for (log_par in c("REML", "no_corr", "constrain_d", "verbose")) {
+    if (!is.null(call_[[log_par]]) && inherits(call_[[log_par]], "name")) {
+      call_[[log_par]] <- as.logical(paste(call_[[log_par]]))
+    }
+  }
   
-  phy <- check_phy(phy)
-  Vphy <- ape::vcv(phy)
+  Vphy <- get_Vphy(phy)
+
+  spp_vec <- cp_get_species(species, data, Vphy)
   
-  # If a character, convert to an expression before evaluating in cp_get_species():
-  if (is.character(species)) species <- parse(text = species)
-  spp_vec <- cp_get_species(species, data, phy)
-  
-  phy_order <- match(phy$tip.label, spp_vec)
-  X <- extract_traits(traits, phy_order, data)
-  trait_names <- colnames(X)
-  U <- extract_covariates(covariates, phy_order, trait_names, data)
-  M <- extract_meas_errors(meas_errors, phy_order, trait_names, data)
+  phy_order <- match(rownames(Vphy), spp_vec)
+  X <- extract_variates(variates, phy_order, data)
+  variate_names <- colnames(X)
+  U <- extract_covariates(covariates, phy_order, variate_names, data)
+  M <- extract_meas_errors(meas_errors, phy_order, variate_names, data)
+  # Check for NAs:
+  if (sum(is.na(X)) > 0) {
+    stop("\nIn `cor_phylo`, no NAs allowed in `variates`.", call. = FALSE)
+  }
+  if (any(sapply(U, function(x) sum(is.na(x)) > 0))) {
+    stop("\nIn `cor_phylo`, no NAs allowed in `covariates`.", call. = FALSE)
+  }
+  if (sum(is.na(M)) > 0) {
+    stop("\nIn `cor_phylo`, no NAs allowed in `meas_errors`.", call. = FALSE)
+  }
 
 
-  # `cor_phylo_` returns a list with the following objects:
+  # `cor_phylo_cpp` returns a list with the following objects:
   # corrs, d, B, (previously B, B_se, B_zscore, and B_pvalue),
   #     B_cov, logLik, AIC, BIC
-  output <- cor_phylo_(X, U, M, Vphy, REML, constrain_d, lower_d, verbose,
-                       rcond_threshold, rel_tol, max_iter, method, boot,
-                       keep_boots, sann)
+  output <- cor_phylo_cpp(X, U, M, Vphy, REML, constrain_d, lower_d, verbose,
+                          rcond_threshold, rel_tol, max_iter, method, no_corr, boot,
+                          keep_boots, sann)
   # Taking care of row and column names:
-  colnames(output$corrs) <- rownames(output$corrs) <- trait_names
-  rownames(output$d) <- trait_names
+  colnames(output$corrs) <- rownames(output$corrs) <- variate_names
+  rownames(output$d) <- variate_names
   colnames(output$d) <- "d"
-  rownames(output$B) <- cp_get_row_names(trait_names, U)
+  rownames(output$B) <- cp_get_row_names(variate_names, U)
   colnames(output$B) <- c("Estimate", "SE", "Z-score", "P-value")
-  colnames(output$B_cov) <- rownames(output$B_cov) <- cp_get_row_names(trait_names, U)
+  colnames(output$B_cov) <- rownames(output$B_cov) <- cp_get_row_names(variate_names, U)
 
   # Ordering output matrices back to original order (bc they were previously
   # reordered based on the phylogeny)
   if (length(output$bootstrap$mats) > 0) {
-    order_ <- match(spp_vec, phy$tip.label)
+    order_ <- match(spp_vec, rownames(Vphy))
     for (i in 1:length(output$bootstrap$mats)) {
       output$bootstrap$mats[[i]] <-
         output$bootstrap$mats[[i]][order_, , drop = FALSE]
@@ -1039,21 +1176,21 @@ refit_boots <- function(cp_obj, inds = NULL, ...) {
   new_call$keep_boots <- NULL
   
   data <- eval(new_call$data)
-  phy <- check_phy(eval(new_call$phy))
+  Vphy <- get_Vphy(eval(new_call$phy))
   
-  spp_vec <- cp_get_species(new_call$species, data, phy)
+  spp_vec <- cp_get_species(new_call$species, data, Vphy)
   
-  phy_order <- match(phy$tip.label, spp_vec)
-  X <- extract_traits(new_call$traits, phy_order, data)
-  trait_names <- colnames(X)
+  phy_order <- match(rownames(Vphy), spp_vec)
+  X <- extract_variates(new_call$variates, phy_order, data)
+  variate_names <- colnames(X)
   U <- call_arg(new_call, "covariates")
-  U <- extract_covariates(U, phy_order, trait_names, data)
+  U <- extract_covariates(U, phy_order, variate_names, data)
   M <- call_arg(new_call, "meas_errors")
-  M <- extract_meas_errors(M, phy_order, trait_names, data)
+  M <- extract_meas_errors(M, phy_order, variate_names, data)
   
-  species <- phy$tip.label
+  species <- rownames(Vphy)
   
-  new_call$traits <- quote(X)
+  new_call$variates <- quote(X)
   new_call$species <- quote(species)
   new_call$phy <- quote(phy)
   new_call$covariates <- quote(U)
@@ -1070,12 +1207,12 @@ refit_boots <- function(cp_obj, inds = NULL, ...) {
   for (i in inds) {
     
     X <- cp_obj$bootstrap$mats[[i]]
-    colnames(X) <- trait_names
+    colnames(X) <- variate_names
     X <- X[phy_order,]
     
     new_cps[[i]] <- eval(new_call)
     
-    new_cps[[i]]$call$traits <- cp_obj$call$traits
+    new_cps[[i]]$call$variates <- cp_obj$call$variates
     new_cps[[i]]$call$species <- cp_obj$call$species
     new_cps[[i]]$call$phy <- cp_obj$call$phy
     new_cps[[i]]$call$covariates <- cp_obj$call$covariates
@@ -1088,16 +1225,12 @@ refit_boots <- function(cp_obj, inds = NULL, ...) {
   return(new_cps)
 }
 
-
-
-#' Print a `cp_refits` object.
+#' @describeIn refit_boots prints `cp_refits` objects
 #'
 #' @param x an object of class \code{cp_refits}.
 #' @param digits the number of digits to be printed.
-#' @param ... arguments passed to and from other methods.
 #'
 #' @export
-#' @noRd
 #'
 print.cp_refits <- function(x, digits = max(3, getOption("digits") - 3), ...) {
   if (length(x) == 0) {
@@ -1128,63 +1261,16 @@ print.cp_refits <- function(x, digits = max(3, getOption("digits") - 3), ...) {
 
 
 
-
-#' Combine original bootstrapping with refits when convergence fails in the former.
-#' 
-#' @param env Environment with `mod` and `refits` from 
-#' 
-#' @noRd
-#' 
-combine_boots <- function(env) {
-  
-  if (is.null(env$mod)) stop("\nmod not found", call. = FALSE)
-  
-  # Data to be estimated:
-  env$corrs <- env$mod$bootstrap$corrs
-  env$d <- env$mod$bootstrap$d
-  env$B0 <- env$mod$bootstrap$B0
-  env$B_cov <- env$mod$bootstrap$B_cov
-  
-  
-  fails <- env$mod$bootstrap$inds[env$mod$bootstrap$convcodes != 0]
-  
-  # ----------------
-  # Dealing with failed convergences:
-  # ----------------
-  
-  if (length(fails) > 0 & !is.null(env$refits)) {
-    # If just one input, make it a list so it can be treated the same:
-    if (inherits(env$refits, "cp_refits")) env$refits <- list(env$refits)
-    # Add estimates from env$refits when they didn't converge in original:
-    fails_to_keep <- !logical(length(fails))
-    for (i in 1:length(fails)) {
-      bi <- which(env$mod$bootstrap$inds == fails[i])
-      ei <- env$mod$bootstrap$inds[bi]
-      for (j in 1:length(env$refits)) {
-        if (inherits(env$refits[[j]][[bi]], "cor_phylo")) {
-          if (env$refits[[j]][[bi]]$convcode == 0) {
-            env$corrs[,,ei] <- env$refits[[j]][[bi]]$corrs
-            env$d[,ei] <- env$refits[[j]][[bi]]$d
-            env$B0[,ei] <- env$refits[[j]][[bi]]$B[,1]
-            env$B_cov[,,ei] <- env$refits[[j]][[bi]]$B_cov
-            fails_to_keep[i] <- FALSE
-            break
-          }
-        }
-      }
-    }
-    # Remove from `fails` if it converged in env$refits:
-    fails <- fails[fails_to_keep]
-  }
-  # If some still failed, remove those from the estimate objects:
-  if (length(fails) > 0) {
-    env$corrs <- env$corrs[,,-fails,drop=FALSE]
-    env$d <- env$d[,-fails,drop=FALSE]
-    env$B0 <- env$B0[,-fails,drop=FALSE]
-    env$B_cov <- env$B_cov[,,-fails,drop=FALSE]
-  }
-  
-  invisible(NULL)
+#' Generic method to output bootstrap confidence intervals from an object.
+#'
+#' Implemented only for `cor_phylo` objects thus far.
+#'
+#' @param mod A `cor_phylo` object.
+#' @param ... Additional arguments.
+#' @export
+#'
+boot_ci <- function(mod, ...) {
+  UseMethod("boot_ci")
 }
 
 
@@ -1226,30 +1312,73 @@ boot_ci.cor_phylo <- function(mod, refits = NULL, alpha = 0.05, ...) {
          "We recommend >= 2000, but expect this to take 20 minutes or ",
          "longer.", call. = FALSE)
   }
-  if (!is.null(refits)) {
-    # Check validity of refits argument:
-    if (!inherits(refits, "list") & !inherits(refits, "cp_refits")) {
-      stop("\nIn boot_ci for a cor_phylo object, the refits argument must be a list, ",
-           "a cp_refits object, or NULL.",
-           call. = FALSE)
-    }
-    if (inherits(refits, "list")) {
-      if (any(!sapply(refits, inherits, what = "cp_refits"))) {
-        stop("\nIn boot_ci for a cor_phylo object, if the refits argument is a list, ",
-             "all items in that list must be cp_refits objects.",
+  # Indices for failed convergences:
+  orig_fail <- mod$bootstrap$inds[mod$bootstrap$convcodes != 0]
+  # Data to be estimated:
+  corrs <- mod$bootstrap$corrs
+  d <- mod$bootstrap$d
+  B0 <- mod$bootstrap$B0
+  B_cov <- mod$bootstrap$B_cov
+  
+  
+  fails <- mod$bootstrap$inds[mod$bootstrap$convcodes != 0]
+  
+  corrs <- mod$bootstrap$corrs
+  d <- mod$bootstrap$d
+  B0 <- mod$bootstrap$B0
+  B_cov <- mod$bootstrap$B_cov
+  
+  
+  # ----------------*
+  # Dealing with failed convergences:
+  # ----------------*
+  
+  if (length(fails) > 0) {
+    if (!is.null(refits)) {
+      # Check validity of refits argument:
+      if (!inherits(refits, "list") & !inherits(refits, "cp_refits")) {
+        stop("\nIn boot_ci for a cor_phylo object, the refits argument must be a list, ",
+             "a cp_refits object, or NULL.",
              call. = FALSE)
       }
+      if (inherits(refits, "list")) {
+        if (any(!sapply(refits, inherits, what = "cp_refits"))) {
+          stop("\nIn boot_ci for a cor_phylo object, if the refits argument is a list, ",
+               "all items in that list must be cp_refits objects.",
+               call. = FALSE)
+        }
+      }
+      # If just one input, make it a list so it can be treated the same:
+      if (inherits(refits, "cp_refits")) refits <- list(refits)
+      # Add estimates from refits when they didn't converge in original:
+      fails_to_keep <- !logical(length(fails))
+      for (i in 1:length(fails)) {
+        bi <- which(mod$bootstrap$inds == fails[i])
+        ei <- mod$bootstrap$inds[bi]
+        for (j in 1:length(refits)) {
+          if (inherits(refits[[j]][[bi]], "cor_phylo")) {
+            if (refits[[j]][[bi]]$convcode == 0) {
+              corrs[,,ei] <- refits[[j]][[bi]]$corrs
+              d[,ei] <- refits[[j]][[bi]]$d
+              B0[,ei] <- refits[[j]][[bi]]$B[,1]
+              B_cov[,,ei] <- refits[[j]][[bi]]$B_cov
+              fails_to_keep[i] <- FALSE
+              break
+            }
+          }
+        }
+      }
+      # Remove from `fails` if it converged in refits:
+      fails <- fails[fails_to_keep]
+    }
+    # If some still failed, remove those from the estimate objects:
+    if (length(fails) > 0) {
+      corrs <- corrs[,,-fails,drop=FALSE]
+      d <- d[,-fails,drop=FALSE]
+      B0 <- B0[,-fails,drop=FALSE]
+      B_cov <- B_cov[,,-fails,drop=FALSE]
     }
   }
-  
-  # Defining these variables here to avoid notes in devtools::check()
-  corrs <- NULL
-  d <- NULL
-  B0 <- NULL
-  B_cov <- NULL
-  
-  # Create objects:
-  combine_boots(environment())
   
   # Now calculate CIs:
   corrs_list <- list(lower = apply(corrs, c(1, 2), quantile, probs = alpha / 2),
@@ -1274,7 +1403,7 @@ boot_ci.cor_phylo <- function(mod, refits = NULL, alpha = 0.05, ...) {
   colnames(B0s) <- colnames(ds) <- c("lower", "upper")
   rownames(B_covs) <- rownames(mod$B_cov)
   colnames(B_covs) <- colnames(mod$B_cov)
-  
+
   return(list(corrs = corrs, d = ds, B0 = B0s, B_cov = B_covs))
   
 }
@@ -1341,3 +1470,4 @@ print.cor_phylo <- function(x, digits = max(3, getOption("digits") - 3), ...) {
   }
   cat("\n")
 }
+

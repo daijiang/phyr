@@ -8,6 +8,8 @@ language: R
 sudo: false
 cache: packages
 
+warnings_are_errors: false
+
 # only run for pushes to master branch
 branches:
   only:
@@ -17,11 +19,24 @@ branches:
 r_packages:
   - covr
 
+r_github_packages: andrewzm/INLA
+ 
 cache:
   packages: yes
 
+   
+env:
+  global:
+    - R_BUILD_ARGS="--no-build-vignettes --no-manual --no-resave-data"
+    - R_CHECK_ARGS="--no-build-vignettes --no-manual --timings --as-cran"
+    - R_CHECK_TIME="TRUE"
+    - R_CHECK_TESTS="FALSE"
+    - _R_CHECK_TIMINGS_="0"
+    - _R_CHECK_FORCE_SUGGESTS_="FALSE"
 
 before_install:
-  - Rscript -e 'if(!"INLA" %in% rownames(installed.packages())) { install.packages("INLA", repos=c(getOption("repos"), INLA="https://inla.r-inla-download.org/R/stable"), dep=TRUE) }'
   - Rscript -e 'if(!"covr" %in% rownames(installed.packages())) { install.packages("covr", dependencies = TRUE) }'
-   
+#  - Rscript -e 'if(!"INLA" %in% rownames(installed.packages())) { install.packages("INLA", repos=c(getOption("repos"), INLA="https://inla.r-inla-download.org/R/stable"), dep=TRUE) }'
+
+after_success:
+ - Rscript -e 'library(covr);codecov()'

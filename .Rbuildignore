@@ -4,3 +4,5 @@
 ^README\.Rmd$
 ^\.travis\.yml$
 ^codecov\.yml$
+^phyr_.*.zip$
+^phyr_.*.tgz$

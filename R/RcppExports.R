@@ -20,6 +20,8 @@ binpglmm_inter_while_cpp2 <- function(est_B_m, B, mu, C, rcondflag, B_init, X, X
 #' 
 #' 
 #' @name cor_phylo_LL_
+#' 
+#' 
 #' @noRd
 #' 
 #' 
@@ -84,9 +86,9 @@ NULL
 #' `X`.
 #' 
 #' 
-#' @inheritParams X cor_phylo_
-#' @inheritParams U cor_phylo_
-#' @inheritParams M cor_phylo_
+#' @inheritParams X cor_phylo_cpp
+#' @inheritParams U cor_phylo_cpp
+#' @inheritParams M cor_phylo_cpp
 #' 
 #' @return Nothing. Matrices are standardized in place.
 #' 
@@ -99,13 +101,13 @@ NULL
 #' 
 #' The output `LogLikInfo` is used for model fitting.
 #' 
-#' @inheritParams X cor_phylo_
-#' @inheritParams U cor_phylo_
-#' @inheritParams M cor_phylo_
-#' @inheritParams Vphy_ cor_phylo_
-#' @inheritParams REML_ cor_phylo_
-#' @inheritParams constrain_d_ cor_phylo_
-#' @inheritParams verbose_ cor_phylo_
+#' @inheritParams X cor_phylo_cpp
+#' @inheritParams U cor_phylo_cpp
+#' @inheritParams M cor_phylo_cpp
+#' @inheritParams Vphy_ cor_phylo_cpp
+#' @inheritParams REML_ cor_phylo_cpp
+#' @inheritParams constrain_d_ cor_phylo_cpp
+#' @inheritParams verbose_ cor_phylo_cpp
 #' 
 #' @return a LogLikInfo that contains info necessary for model fitting
 #' 
@@ -127,9 +129,9 @@ NULL
 #' This is confusing, so I'm trying to avoid that.
 #' 
 #' 
-#' @inheritParams X cor_phylo_
-#' @inheritParams U cor_phylo_
-#' @inheritParams M cor_phylo_
+#' @inheritParams X cor_phylo_cpp
+#' @inheritParams U cor_phylo_cpp
+#' @inheritParams M cor_phylo_cpp
 #' @param other Another LogLikInfo object from which to derive much of the information.
 #' 
 #' @return a LogLikInfo that contains info necessary for model fitting
@@ -141,8 +143,8 @@ NULL
 
 #' Retrieve objects for output `cor_phylo` object.
 #' 
-#' @inheritParams X cor_phylo_
-#' @inheritParams U cor_phylo_
+#' @inheritParams X cor_phylo_cpp
+#' @inheritParams U cor_phylo_cpp
 #' @param ll_info an LogLikInfo object that contains info necessary to fit the model.
 #'   After optimization, it contains info from the model fit.
 #' 
@@ -201,10 +203,10 @@ cor_phylo_LL <- function(par, XX, UU, MM, Vphy, tau, REML, constrain_d, lower_d,
 #' @return a list containing output information, to later be coerced to a `cor_phylo`
 #'   object by the `cor_phylo` function.
 #' @noRd
-#' @name cor_phylo_
+#' @name cor_phylo_cpp
 #' 
-cor_phylo_ <- function(X, U, M, Vphy_, REML, constrain_d, lower_d, verbose, rcond_threshold, rel_tol, max_iter, method, boot, keep_boots, sann) {
-    .Call(`_phyr_cor_phylo_`, X, U, M, Vphy_, REML, constrain_d, lower_d, verbose, rcond_threshold, rel_tol, max_iter, method, boot, keep_boots, sann)
+cor_phylo_cpp <- function(X, U, M, Vphy_, REML, constrain_d, lower_d, verbose, rcond_threshold, rel_tol, max_iter, method, no_corr, boot, keep_boots, sann) {
+    .Call(`_phyr_cor_phylo_cpp`, X, U, M, Vphy_, REML, constrain_d, lower_d, verbose, rcond_threshold, rel_tol, max_iter, method, no_corr, boot, keep_boots, sann)
 }
 
 set_seed <- function(seed) {

@@ -188,7 +188,6 @@ double pglmm_LL_cpp(NumericVector par, const arma::vec& H,
                           const arma::sp_mat& St, const arma::vec& mu, 
                           const List& nested, bool REML, bool verbose,
                           const std::string family, arma::vec totalSize){
-  Rcpp::checkUserInterrupt();
   par = abs(par);
   // unsigned int n = H.n_rows;
   List iVdet = pglmm_iV_logdetV_cpp(par, mu, Zt, St, nested, true, family, totalSize);
@@ -218,6 +217,7 @@ List pglmm_internal_cpp(const arma::mat& X, const arma::vec& Y,
                                const double reltol, const double tol_pql, const double maxit_pql,
                                const std::string optimizer, arma::mat B_init, arma::vec ss,
                                const std::string family, arma::vec totalSize){
+  Rcpp::checkUserInterrupt();
   mat B = B_init;
   mat b(n, 1, fill::zeros);
   mat beta = join_vert(B, b);
@@ -262,7 +262,7 @@ List pglmm_internal_cpp(const arma::mat& X, const arma::vec& Y,
     // mean component
     while(as_scalar(trans(est_B_m - oldest_B_m) * (est_B_m - oldest_B_m)) > tol_pql2 &&
           iteration_m <= maxit_pql){
-      Rcpp::checkUserInterrupt();
+      // Rcpp::checkUserInterrupt();
       oldest_B_m = est_B_m;
       List iv = pglmm_iV_logdetV_cpp(ss0, mu, Zt, St, nested, false, family, totalSize);
       sp_mat iV0 = iv["iV"];

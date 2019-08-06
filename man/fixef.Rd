@@ -7,10 +7,12 @@
 \alias{fixed.effects}
 \title{Extract fixed-effects estimates}
 \usage{
-\method{fixef}{communityPGLMM}(object)
+\method{fixef}{communityPGLMM}(object, ...)
 }
 \arguments{
 \item{object}{A fitted model with class communityPGLMM.}
+
+\item{...}{Ignored.}
 }
 \value{
 A dataframe of fixed-effects estimates.

@@ -2,9 +2,13 @@
 % Please edit documentation in R/cor_phylo.R
 \name{refit_boots}
 \alias{refit_boots}
+\alias{print.cp_refits}
 \title{Refit bootstrap replicates that failed to converge in a call to \code{cor_phylo}.}
 \usage{
 refit_boots(cp_obj, inds = NULL, ...)
+
+\method{print}{cp_refits}(x, digits = max(3, getOption("digits") - 3),
+  ...)
 }
 \arguments{
 \item{cp_obj}{The original \code{cor_phylo} object that was bootstrapped.}
@@ -21,6 +25,10 @@ Defaults to \code{NULL}.}
 \item{...}{Arguments that should be changed from the original call to \code{cor_phylo}.
 The \code{boot} argument is always set to \code{0} for refits because you don't want
 to bootstrap your bootstraps.}
+
+\item{x}{an object of class \code{cp_refits}.}
+
+\item{digits}{the number of digits to be printed.}
 }
 \value{
 A \code{cp_refits} object, which is a list of \code{cor_phylo} objects
@@ -34,3 +42,8 @@ One or more of the resulting \code{cp_refits} object(s) can be supplied to
 \code{boot_ci} along with the original \code{cor_phylo} object to calculate confidence
 intervals from only bootstrap replicates that converged.
 }
+\section{Methods (by generic)}{
+\itemize{
+\item \code{print}: prints \code{cp_refits} objects
+}}
+

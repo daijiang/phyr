@@ -4,20 +4,21 @@
 \alias{cor_phylo}
 \alias{boot_ci.cor_phylo}
 \alias{print.cor_phylo}
-\title{Correlations among multiple traits with phylogenetic signal}
+\title{Correlations among multiple variates with phylogenetic signal}
 \usage{
-cor_phylo(traits, species, phy,
-          covariates = list(),
-          meas_errors = list(),
+cor_phylo(variates, species, phy,
+          covariates = NULL, 
+          meas_errors = NULL,
           data = sys.frame(sys.parent()),
           REML = TRUE, 
-          method = c("nelder-mead-nlopt", "bobyqa",
-              "subplex", "nelder-mead-r", "sann"),
+          method = c("nelder-mead-r", "bobyqa",
+              "subplex", "nelder-mead-nlopt", "sann"),
+          no_corr = FALSE,
           constrain_d = FALSE,
           lower_d = 1e-7,
           rel_tol = 1e-6,
           max_iter = 1000,
-          sann_options = list(),
+          sann_options = NULL,
           verbose = FALSE,
           rcond_threshold = 1e-10,
           boot = 0,
@@ -29,50 +30,42 @@ cor_phylo(traits, species, phy,
   ...)
 }
 \arguments{
-\item{traits}{A list of object names or a matrix that contains trait values.
-In the former case, the list must be of length \code{p}, one name for each trait,
-and each name must must refer to an object in \code{data}.
-See "Using names" in the Details for more info on using names.
-In the latter case, the matrix must have \code{n} rows and \code{p} columns;
+\item{variates}{A formula or a matrix specifying variates between which correlations
+are being calculated.
+The formula should be one-sided of the form \code{~ A + B + C} for variate vectors
+\code{A}, \code{B}, and \code{C} that are present in \code{data}.
+In the matrix case, the matrix must have \code{n} rows and \code{p} columns (for \code{p} variates);
 if the matrix columns aren't named, \code{cor_phylo} will name them \code{par_1 ... par_p}.}
 
-\item{species}{An object-name or a vector that indicates the species.
-In the former case, see "Using names" in the Details for more info on using names.
-In the latter case, the vector must be of the same type as the input
-phylogeny's tip labels.}
+\item{species}{A one-sided formula implicating the variable inside \code{data}
+representing species, or a vector directly specifying the species.
+If a formula, it must be of the form \code{~ spp} for the \code{spp} object containing
+the species information inside \code{data}.
+If a vector, it must be the same length as that of the tip labels in \code{phy},
+and it will be coerced to a character vector like \code{phy}'s tip labels.}
 
-\item{phy}{A \code{phylo} object giving the phylogenetic tree.}
+\item{phy}{Either a phylogeny of class \code{phylo} or a prepared variance-covariance
+matrix.
+If it is a phylogeny, we will coerce tip labels to a character vector, and
+convert it to a variance-covariance matrix assuming brownian motion evolution.
+We will also standardize all var-cov matrices to have determinant of one.}
 
-\item{covariates}{A list containing covariate(s) for each trait.
-The list can contain only names (see "Using names" in Details),
-matrices, or \code{NULL} and can be assembled in one of two ways:
-\enumerate{
-\item Named items. Each name in the list should correspond to a name
-in the traits matrix that is built from the \code{traits} argument.
-So if you use a list of names in the \code{traits} argument, these names should
-be used here.
-If you use a matrix in the \code{traits} argument, column names should be used here.
-You can simply omit names with no covariates instead of using \code{NULL} items.
-\item Ordered items. The list must be of length \code{p}, each item referring to the
-trait at that location in the matrix built from the \code{traits} argument.
-The trait order is same as in either the list or matrix input to the \code{traits}
-argument.
-To indicate that a trait doesn't have a covariate, the corresponding
-item in this list should be \code{NULL}.
-}
-If specifying more than one covariate, use \code{cbind()} rather than \code{c()};
-the latter concatenates them into a too-long vector (see Examples).
-If these aren't named, \code{cor_phylo} will name them \code{cov_1 ... cov_q}, where
-\code{q} is the total number of covariates.
-Defaults to \code{list()}, which indicates no covariates.}
+\item{covariates}{A list specifying covariate(s) for each variate.
+The list can contain only two-sided formulas or matrices.
+Formulas should be of the typical form: \code{y ~ x1 + x2} or \code{y ~ x1 * x2}.
+If using a list of matrices, each item must be named (e.g.,
+\code{list(y = matrix(...))} specifying variate \code{y}'s covariates).
+If the matrix columns aren't named, \code{cor_phylo} will name them \code{cov_1 ... cov_q},
+where \code{q} is the total number of covariates for all variates.
+Having factor covariates is not supported.
+Defaults to \code{NULL}, which indicates no covariates.}
 
-\item{meas_errors}{A list containing measurement error for each trait.
-This argument can be built in the same way as for the \code{covariates} argument
-(except that you can't have multiple measurement errors for a single trait).
-You can additionally pass an \code{n} x \code{p} matrix with each column associated
-with the trait in the same position; if using a matrix, you can make a trait
-not have measurement error by making its associated column contain only zeros.
-Defaults to \code{list()}, which indicates no measurement errors.}
+\item{meas_errors}{A list or matrix containing standard errors for each variate.
+If a list, it must contain only two-sided formulas like those for \code{covariates}
+(except that you can't have multiple measurement errors for a single variate).
+You can additionally pass an \code{n}-row matrix with column names
+corresponding to the associated variate names.
+Defaults to \code{NULL}, which indicates no measurement errors.}
 
 \item{data}{An optional data frame, list, or environment that contains the
 variables in the model. By default, variables are taken from the environment
@@ -88,7 +81,12 @@ The first three are carried out by \code{nlopt}, and the latter two by
 \code{\link[stats]{optim}}.
 See \url{https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/} for information
 on the \code{nlopt} algorithms.
-Defaults to \code{"nelder-mead-nlopt"}.}
+Defaults to \code{"nelder-mead-r"}.}
+
+\item{no_corr}{A single logical for whether to make all correlations zero.
+Running \code{cor_phylo} with \code{no_corr = TRUE} is useful for comparing it to the same
+model run with correlations != 0.
+Defaults to \code{FALSE}.}
 
 \item{constrain_d}{If \code{constrain_d} is \code{TRUE}, the estimates of \code{d} are
 constrained to be between zero and 1. This can make estimation more stable and
@@ -114,7 +112,7 @@ This list can only contain the names \code{"maxit"}, \code{"temp"}, and/or \code
 which will control the maximum number of iterations,
 starting temperature, and number of function evaluations at each temperature,
 respectively.
-Defaults to \code{list()}, which results in \code{maxit = 1000}, \code{temp = 1}, and \code{tmax = 1}.
+Defaults to \code{NULL}, which results in \code{maxit = 1000}, \code{temp = 1}, and \code{tmax = 1}.
 Note that these are different from the defaults for \code{\link[stats]{optim}}.}
 
 \item{verbose}{If \code{TRUE}, the model \code{logLik} and running estimates of the
@@ -131,7 +129,7 @@ Defaults to \code{1e-10}.}
 \item{boot}{Number of parametric bootstrap replicates. Defaults to \code{0}.}
 
 \item{keep_boots}{Character specifying when to output data (indices, convergence codes,
-and simulated trait data) from bootstrap replicates.
+and simulated variate data) from bootstrap replicates.
 This is useful for troubleshooting when one or more bootstrap replicates
 fails to converge or outputs ridiculous results.
 Setting this to \code{"all"} keeps all \code{boot} parameter sets,
@@ -163,7 +161,7 @@ Defaults to \code{NULL}.}
 \code{cor_phylo} returns an object of class \code{cor_phylo}:
 \item{\code{call}}{The matched call.}
 \item{\code{corrs}}{The \code{p} x \code{p} matrix of correlation coefficients.}
-\item{\code{d}}{Values of \code{d} from the OU process for each trait.}
+\item{\code{d}}{Values of \code{d} from the OU process for each variate.}
 \item{\code{B}}{A matrix of regression-coefficient estimates, SE, Z-scores, and P-values,
 respectively. Rownames indicate which coefficient it refers to.}
 \item{\code{B_cov}}{Covariance matrix for regression coefficients.}
@@ -216,16 +214,16 @@ upper limits and values below being the lower limits.}
 }
 \description{
 This function calculates Pearson correlation coefficients for multiple continuous
-traits that may have phylogenetic signal, allowing users to specify measurement
-error as the standard error of trait values at the tips of the phylogenetic tree.
-Phylogenetic signal for each trait is estimated from the data assuming that trait
+variates that may have phylogenetic signal, allowing users to specify measurement
+error as the standard error of variate values at the tips of the phylogenetic tree.
+Phylogenetic signal for each variate is estimated from the data assuming that variate
 evolution is given by a Ornstein-Uhlenbeck process.  Thus, the function allows the
-estimation of phylogenetic signal in multiple traits while incorporating
-correlations among traits. It is also possible to include independent variables
-(covariates) for each trait to remove possible confounding effects.
-\code{cor_phylo} returns the correlation matrix for trait values, estimates
-of phylogenetic signal for each trait, and regression coefficients for
-independent variables affecting each trait.
+estimation of phylogenetic signal in multiple variates while incorporating
+correlations among variates. It is also possible to include independent variables
+(covariates) for each variate to remove possible confounding effects.
+\code{cor_phylo} returns the correlation matrix for variate values, estimates
+of phylogenetic signal for each variate, and regression coefficients for
+independent variables affecting each variate.
 }
 \section{Methods (by generic)}{
 \itemize{
@@ -233,21 +231,6 @@ independent variables affecting each trait.
 
 \item \code{print}: prints \code{cor_phylo} objects
 }}
-
-\section{Using names}{
-
-The arguments \code{traits}, \code{species}, \code{covariates}, and \code{meas_errors} can use names
-that exist inside the \code{data} argument instead of using objects directly.
-For instance, if \code{data} is a data frame with column names \code{x} and \code{y}, but
-you have not defined any objects named \code{x} or \code{y} anywhere else, you can still
-use \code{cor_phylo(traits = list(x, y), ...)} without quotes (quotes work, too).
-
-It's also important to note that you should use names for all of these arguments
-or none of them. That's because if a name isn't present in the \code{data} environment,
-you may get errors.
-Sometimes it works anyway, but I don't recommend it.
-See \code{\link[base]{eval}} for more info.
-}
 
 \section{Walkthrough}{
 
@@ -270,8 +253,8 @@ matrices \eqn{M1} and \eqn{M2} of measurement standard errors for \eqn{X[1]} and
 \deqn{V[2,2] = C[2,2](d2) + M2}
 
 where \eqn{C[i,j](d1,d2)} are derived from \code{phy} under the assumption of joint
-OU evolutionary processes for each trait (see Zheng et al. 2009). This formulation
-extends in the obvious way to more than two traits.
+OU evolutionary processes for each variate (see Zheng et al. 2009). This formulation
+extends in the obvious way to more than two variates.
 }
 
 \examples{
@@ -283,7 +266,7 @@ set.seed(10)
 phy <- ape::rcoal(10, tip.label = 1:10)
 data_df <- data.frame(
     species = phy$tip.label,
-    # traits:
+    # variates:
     par1 = rnorm(10),
     par2 = rnorm(10),
     par3 = rnorm(10),
@@ -295,42 +278,25 @@ data_df <- data.frame(
 )
 data_df$par2 <- data_df$par2 + 0.5 * data_df$cov2
 
-# `cor_phylo` allows for data to be input in multiple ways
 
-# Using names and named lists:
-cor_phylo(traits = list(par1, par2, par3),
-          species = species, phy = phy,
-          covariates = list(par2 = cov2),
-          meas_errors = list(par1 = se1, par2 = se2),
-          data = data_df)
-# Instead using strings and non-named lists:
-cor_phylo(traits = list("par1", "par2", "par3"),
-          species = "species", phy = phy,
-          covariates = list(NULL, "cov2", NULL),
-          meas_errors = list("se1", "se2", NULL),
-          data = data_df)
-# Combine the methods above:
-cor_phylo(traits = list(par1, "par2", par3),
-          species = "species", phy = phy,
-          covariates = list(par2 = cov2),
-          meas_errors = list("se1", se2, NULL),
+cor_phylo(variates = ~ par1 + par2 + par3,
+          covariates = list(par2 ~ cov2),
+          meas_errors = list(par1 ~ se1, par2 ~ se2),
+          species = ~ species,
+          phy = phy,
           data = data_df)
 
-# If you've already created matrices...
+# If you've already created matrices/lists...
 X <- as.matrix(data_df[,c("par1", "par2", "par3")])
-U <- list(NULL,
-          as.matrix(data_df[, "cov2", drop = FALSE]),
-          NULL)
-M <- cbind(data_df$se1, data_df$se2, rep(0, 10))
+U <- list(par2 = cbind(cov2 = data_df$cov2))
+M <- cbind(par1 = data_df$se1, par2 = data_df$se2)
 
 # ... you can also use those directly
 # (notice that I'm inputting an object for `species`
 # bc I ommitted `data`):
-cor_phylo(traits = X, species = data_df$species,
+cor_phylo(variates = X, species = data_df$species,
           phy = phy, covariates = U,
           meas_errors = M)
-
-# I do not recommend mixing matrix and list input methods.
 
 
 
@@ -351,6 +317,7 @@ set.seed(1)
 # Set up parameter values for simulating data
 n <- 50
 phy <- rcoal(n, tip.label = 1:n)
+trt_names <- paste0("par", 1:2)
 
 R <- matrix(c(1, 0.7, 0.7, 1), nrow = 2, ncol = 2)
 d <- c(0.3, 0.95)
@@ -358,6 +325,7 @@ B2 <- 1
 
 Se <- c(0.2, 1)
 M <- matrix(Se, nrow = n, ncol = 2, byrow = TRUE)
+colnames(M) <- trt_names
 
 # Set up needed matrices for the simulations
 p <- length(d)
@@ -397,44 +365,47 @@ B.list <- matrix(0, nrow = Nrep, ncol = 3)
 B.noM.list <- matrix(0, nrow = Nrep, ncol = 3)
 B.noP.list <- matrix(0, nrow = Nrep, ncol = 3)
 
+
 set.seed(2)
 for (rep in 1:Nrep) {
-  
+
   XX <- iD \%*\% rnorm(2 * n)
   X <- matrix(XX, n, p)
-  
-  U <- list(NULL, cbind(rnorm(n, mean = 2, sd = 10)))
-  
-  X[,2] <- X[,2] + B2[1] * U[[2]][,1] - B2[1] * mean(U[[2]][,1])
-  
+  colnames(X) <- trt_names
+
+  U <- list(cbind(rnorm(n, mean = 2, sd = 10)))
+  names(U) <- trt_names[2]
+
+  X[,2] <- X[,2] + B2[1] * U[[1]][,1] - B2[1] * mean(U[[1]][,1])
+
   # Call cor_phylo with (i) phylogeny and measurement error,
   # (ii) just phylogeny,
   # and (iii) just measurement error
-  z <- cor_phylo(traits = X,
+  z <- cor_phylo(variates = X,
                  covariates = U,
                  meas_errors = M,
                  phy = phy,
                  species = phy$tip.label)
-  z.noM <- cor_phylo(traits = X,
+  z.noM <- cor_phylo(variates = X,
                      covariates = U,
                      phy = phy,
                      species = phy$tip.label)
-  z.noP <- cor_phylo(traits = X,
+  z.noP <- cor_phylo(variates = X,
                      covariates = U,
                      meas_errors = M,
                      phy = star,
                      species = phy$tip.label)
-  
+
   cor.list[rep] <- z$corrs[1, 2]
   cor.noM.list[rep] <- z.noM$corrs[1, 2]
   cor.noP.list[rep] <- z.noP$corrs[1, 2]
   cor.noMP.list[rep] <- cor(cbind(
     lm(X[,1] ~ 1)$residuals,
-    lm(X[,2] ~ U[[2]])$residuals))[1,2]
-  
+    lm(X[,2] ~ U[[1]])$residuals))[1,2]
+
   d.list[rep, ] <- z$d
   d.noM.list[rep, ] <- z.noM$d
-  
+
   B.list[rep, ] <- z$B[,1]
   B.noM.list[rep, ] <- z.noM$B[,1]
   B.noP.list[rep, ] <- z.noP$B[,1]
@@ -459,24 +430,24 @@ colnames(est.B) <- rownames(z$B)
 correlation
 #                       [,1]
 # True             0.7000000
-# With M and Phy   0.6981450
-# Without M        0.2975294
-# Without Phy      0.3715866
+# With M and Phy   0.6943712
+# Without M        0.2974162
+# Without Phy      0.3715406
 # Without Phy or M 0.3291473
 
 signal.d
 #                     [,1]      [,2]
 # True           0.3000000 0.9500000
-# With M and Phy 0.3061470 0.9418049
-# Without M      0.2406226 0.4013869
+# With M and Phy 0.3025853 0.9422067
+# Without M      0.2304527 0.4180208
 
 est.B
-#                     par_1_0   par_2_0 par_2_cov_1
-# True            0.000000000 0.0000000   1.0000000
-# With M and Phy -0.008688085 0.1093656   0.9996199
-# Without M      -0.008542294 0.1146948   0.9982382
-# Without Phy     0.002933341 0.1096578   1.0028482
-    
+#                      par1_0    par2_0 par2_cov_1
+# True            0.000000000 0.0000000  1.0000000
+# With M and Phy -0.008838245 0.1093819  0.9995058
+# Without M      -0.008240453 0.1142330  0.9995625
+# Without Phy     0.002933341 0.1096578  1.0028474
+
 }
 
 
