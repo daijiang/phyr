@@ -1175,24 +1175,44 @@ refit_boots <- function(cp_obj, inds = NULL, ...) {
   new_call$boot <- NULL
   new_call$keep_boots <- NULL
   
-  data <- eval(new_call$data)
-  Vphy <- get_Vphy(eval(new_call$phy))
+  # This is a roundabout way of doing it, but it's necessary for when matrices
+  # are input directly:
+  arg_names <- names(new_call)[names(new_call) != ""]
+  # The inner for loop and tryCatch is to iterate through the parent environments
+  # until you find the object
+  call_objs <- lapply(arg_names, function(x) {
+    for (i in 2:5) {
+      result = tryCatch(
+        { eval(new_call[[x]], envir = parent.frame(n = i)) },
+        error = function(e) {
+          if (grepl("not found", e)) {
+            return(NA_complex_)
+          } else stop(e)
+        })
+      if (!identical(result, NA_complex_)) break
+    }
+    return(result)
+  })
+  names(call_objs) <- arg_names
   
-  spp_vec <- cp_get_species(new_call$species, data, Vphy)
+  data <- call_objs$data
+  Vphy <- get_Vphy(call_objs$phy)
+  
+  spp_vec <- cp_get_species(call_objs$species, data, Vphy)
   
   phy_order <- match(rownames(Vphy), spp_vec)
-  X <- extract_variates(new_call$variates, phy_order, data)
+  X <- extract_variates(call_objs$variates, phy_order, data)
   variate_names <- colnames(X)
-  U <- call_arg(new_call, "covariates")
-  U <- extract_covariates(U, phy_order, variate_names, data)
-  M <- call_arg(new_call, "meas_errors")
+  U <- call_objs$covariates
+  U <- extract_covariates(eval(U), phy_order, variate_names, data)
+  M <- call_objs$meas_errors
   M <- extract_meas_errors(M, phy_order, variate_names, data)
   
   species <- rownames(Vphy)
   
   new_call$variates <- quote(X)
   new_call$species <- quote(species)
-  new_call$phy <- quote(phy)
+  new_call$phy <- quote(Vphy)
   new_call$covariates <- quote(U)
   new_call$meas_errors <- quote(M)
   new_call$data <- NULL
