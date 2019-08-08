@@ -456,7 +456,7 @@ pglmm_gaussian_LL_calc = function(par, X, Y, Zt, St, nested = NULL,
     for (j in 1:q.Nested) {
       A <- A + sn[j]^2 * nested[[j]]
     }
-    iA <- chol2inv(chol(A))
+    iA <- solve(A)
     if (q.nonNested > 0) {
       Ishort <- as(diag(nrow(Ut)), "dsCMatrix")
       Ut.iA.U <- Ut %*% iA %*% U
@@ -585,7 +585,7 @@ pglmm.iV.logdetV <- function(par, Zt, St, mu, nested, logdet = TRUE, family, siz
     for (j in 1:q.Nested) {
       A <- A + sn[j]^2 * nested[[j]]
     }
-    iA <- chol2inv(chol(A))
+    iA <- solve(A)
     
     if (q.nonNested > 0) {
       Ishort <- as(diag(nrow(Ut)), "dsCMatrix")
