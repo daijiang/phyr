@@ -189,7 +189,7 @@ communityPGLMM.plot.re <- function(
     pl_re_all = do.call(gridExtra::arrangeGrob, c(pl, ncol = n_col, nrow = n_row))
   }
   
-  if(is.na(cov_ranef_update)){# model with user provided random effects
+  if(is.na(cov_ranef_update[1])){# model with user provided random effects
     add.tree.sp = FALSE
     add.tree.site = FALSE
   }
@@ -239,7 +239,7 @@ communityPGLMM.plot.re <- function(
     names(Y.mat) = gsub(pattern = "^Y", replacement = "", names(Y.mat))
     sim[[i]] <- as(as.matrix(Y.mat), "denseMatrix")
     # reorder data to match cov matrix
-    if(!is.na(cov_ranef_update)){
+    if(!is.na(cov_ranef_update[1])){
       spll = if(inherits(cov_ranef_update[[sp.var]], "phylo")){
         cov_ranef_update[[sp.var]]$tip.label
       } else {
