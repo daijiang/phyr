@@ -97,9 +97,9 @@ plot.communityPGLMM <- function(x, sp.var = "sp", site.var = "site",
 #'  \code{show.sim.image} is TRUE, the corresponding final plot (\code{plt_re_all_in_one} or 
 #'  \code{plt_sim_all_in_one}) can be saved as external file using \code{ggplot2::ggsave} as 
 #'  it is a grid object.
-#' @aliases communityPGLMM.show.re
+#' @aliases pglmm.plot.re
 #' @export
-communityPGLMM.plot.re <- function(
+pglmm.plot.ranef <- function(
   formula = NULL, data = NULL, family = "gaussian", 
   sp.var = "sp", site.var = "site",
   tree = NULL, tree_site = NULL, repulsion = FALSE, x = NULL, 
@@ -357,10 +357,15 @@ communityPGLMM.plot.re <- function(
 
 #' @export
 #' @rdname pglmm-plot-re
-#' @aliases communityPGLMM.plot.re
-communityPGLMM.show.re <- communityPGLMM.plot.re
+#' @aliases pglmm.plot.ranef
+communityPGLMM.show.re <- pglmm.plot.ranef
 
 #' @export
 #' @rdname pglmm-plot-re
-#' @aliases communityPGLMM.plot.re
-pglmm.plot.re <- communityPGLMM.plot.re
+#' @aliases pglmm.plot.ranef
+pglmm.plot.re <- pglmm.plot.ranef
+
+#' @export
+#' @rdname pglmm-plot-re
+#' @aliases pglmm.plot.ranef
+communityPGLMM.plot.re <- pglmm.plot.ranef
