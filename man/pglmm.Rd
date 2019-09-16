@@ -266,8 +266,8 @@ if \code{bayes = TRUE}}
 }
 \description{
 This function performs Generalized Linear Mixed Models for binary
-and continuous phylogenetic data, estimating regression
-coefficients with approximate standard errors. It is modeled after
+and continuous data, estimating regression coefficients with
+approximate standard errors. It is modeled after
 \code{\link[lme4:lmer]{lmer}} but is more general by allowing
 correlation structure within random effects; these correlations can
 be phylogenetic among species, or any other correlation structure,
