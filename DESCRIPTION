@@ -8,9 +8,10 @@ Authors@R: c(
     person(c("Lucas", "A."), "Nell", , "lucas@lucasnell.com", role = c("aut"), comment = c(ORCID = "0000-0003-3209-0517")),
     person("Daijiang", "Li", , "daijianglee@gmail.com", role = c("aut", "cre"), comment = c(ORCID = "0000-0002-0925-3421")))
 Description: A collection of functions to do model-based phylogenetic analysis. 
-    It is easier to update and modify functions in one place than 
-    submitting changes to several packages. Core parts of functions were written
-    in c++ to speed things up.
+    It includes functions to calculate community phylogenetic diveristy,
+    to estimate correlations among functional traits while accouting for 
+    phylogenetic relationships, and to fit phylogenetic generalized linear
+    mixed models.
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
@@ -42,6 +43,7 @@ Suggests:
     rmarkdown,
     covr,
     picante,
+    rbenchmark,
     INLA
 VignetteBuilder: knitr
 URL: https://github.com/daijiang/phyr/

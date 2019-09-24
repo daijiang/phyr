@@ -2,7 +2,9 @@
 title: "Plot random terms of communityPGLMM"
 author: "Daijiang Li"
 date: "`r Sys.Date()`"
-output: rmarkdown::html_vignette
+output: 
+  rmarkdown::html_vignette:
+    self_contained: yes
 vignette: >
   %\VignetteIndexEntry{Plot random terms of communityPGLMM}
   %\VignetteEngine{knitr::rmarkdown}

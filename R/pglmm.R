@@ -1,7 +1,7 @@
 # doc ----
 #' Phylogenetic Generalised Linear Mixed Model for Community Data
 #'
-#' This function performs Generalized Linear Mixed Models for binary
+#' This function performs Generalized Linear Mixed Models for binary, count, 
 #' and continuous data, estimating regression coefficients with
 #' approximate standard errors. It is modeled after
 #' \code{\link[lme4:lmer]{lmer}} but is more general by allowing
@@ -10,7 +10,7 @@
 #' such as geographical correlations among sites. It is, however, much
 #' more specific than \code{\link[lme4:lmer]{lmer}} in that it can
 #' only analyze a subset of the types of model designed handled by
-#' \code{\link[lme4:lmer]{lmer}}. It is also much slower than
+#' \code{\link[lme4:lmer]{lmer}}. It is also slower than
 #' \code{\link[lme4:lmer]{lmer}}. \code{pglmm} can analyze models in Ives and
 #' Helmus (2011). It can also analyze bipartite phylogenetic data,
 #' such as that analyzed in Rafferty and Ives (2011), by giving sites
@@ -21,8 +21,8 @@
 #' you must first install \code{INLA} from \url{http://www.r-inla.org/} by running
 #' \code{install.packages('INLA', repos='https://www.math.ntnu.no/inla/R/stable')} in R.
 #' Note that while \code{bayes = TRUE} currently only supports \code{family} arguments of
-#'  \code{"gaussian"}, \code{"binomial"}, and \code{"poisson"}, 
-#'  other families will shortly be added. 
+#'  \code{"gaussian"}, \code{"binomial"}, \code{"poisson"}, 
+#'  \code{"zeroinflated.binomial"}, and \code{"zeroinflated.poisson"}. 
 #'  
 #'
 #' \deqn{Y = \beta_0 + \beta_1x + b_0 + b_1x}{Y = beta_0 + beta_1x + b_0 + b_1x}
@@ -43,7 +43,7 @@
 #' their specific responses to \eqn{x}{x} will be similar. This
 #' particular model would be specified as
 #' 
-#' \code{z <- communityPGLMM(Y ~ X + (1|sp__), data = data, family = "gaussian", tree = phy)}
+#' \code{z <- pglmm(Y ~ X + (1|sp__), data = data, family = "gaussian", cov_ranef = list(sp = phy))}
 #' 
 #' Or you can prepare the random terms manually (not recommended for simple models but may be necessary for complex models):
 #' 
@@ -51,7 +51,7 @@
 #' 
 #' \code{re.2 <- list(dat$X, sp = dat$sp, covar = Vsp)}
 #' 
-#' \code{z <- communityPGLMM(Y ~ X, data = data, family = "gaussian", random.effects = list(re.1, re.2))}
+#' \code{z <- pglmm(Y ~ X, data = data, family = "gaussian", random.effects = list(re.1, re.2))}
 #' 
 #' The covariance matrix covar is standardized to have its determinant
 #' equal to 1. This in effect standardizes the interpretation of the
@@ -77,7 +77,7 @@
 #' derived from a phylogeny (typically under the assumption of
 #' Brownian motion evolution).
 #' 
-#' \code{z <- communityPGLMM(Y ~ X + (1|sp__), data = data, family = "binomial", tree = phy)}
+#' \code{z <- pglmm(Y ~ X + (1|sp__), data = data, family = "binomial", cov_ranef = list(sp = phy))}
 #' 
 #' As with the linear mixed model, it is a very good idea to
 #' standardize the predictor (independent) variables to have mean 0
@@ -95,13 +95,15 @@
 #'   However, \code{__} in the nested terms (below) will only create a phlylogenetic cov-matrix. 
 #'   Therefore, nested random term has four forms: 
 #'   1. \code{(1|sp__@site)} represents correlated species are nested within independent sites 
-#'   (i.e. kronecker(I_sites, V_sp)). This should be the most common one for community analysis.
+#'   (i.e. kronecker(I_sites, V_sp)). This should be the most common one for community analysis (to test for overdispersion or underdispersion).
 #'   2. \code{(1|sp@site__)} represents independent species are nested within correlated sites 
 #'   (i.e. kron(V_sites, I_sp)). This one can be used for bipartite questions. 
-#'   You can, for example, treat sp as insects and site as plants. 
-#'   Remember to set the argument \code{tree_site} to a phylogeny.
+#'   You can, for example, treat sp as insects and site as plants with `(1|insects@plants__)`. 
+#'   Remember to add the phylogeny of plants in the argument `cov_ranef = list(plants = plant_phylo)`.
 #'   3. \code{(1|sp__@site__)} represents correlated species are nested within correlated sites 
-#'   (i.e. kron(V_sites, V_sp)). This one can also be used for bipartite questions.
+#'   (i.e. kron(V_sites, V_sp)). This one can also be used for bipartite questions such as
+#'   pollinators and plants (e.g. `(1|pollinators__@plants__)`). Remember to add their phylogenies
+#'   in the argument `cov_ranef = list(pollinators = pollinator_phylo, plants = plant_phylo)`.
 #'   4. \code{(1|sp@site)} will generate a identity matrix, which will be the same as
 #'   an observation level random term or the residual of LMM. So not very meaningful for gaussian models;
 #'   observation-level random term will be automatically added for binomial and poisson models.
@@ -199,9 +201,9 @@
 #' @param marginal.summ Summary statistic to use for the estimate of coefficients when
 #'   doing a Bayesian PGLMM (when \code{bayes = TRUE}). Options are: "mean",
 #'   "median", or "mode", referring to different characterizations of the central
-#'   tendency of the bayesian posterior marginal distributions. Ignored if \code{bayes = FALSE}
+#'   tendency of the bayesian posterior marginal distributions. Ignored if \code{bayes = FALSE}.
 #' @param calc.DIC Should the Deviance Informatiob Criterion be calculated and returned,
-#'   when doing a bayesian PGLMM? Ignored if \code{bayes = FALSE}
+#'   when doing a bayesian PGLMM? Ignored if \code{bayes = FALSE}.
 #' @param prior Which type of default prior should be used by \code{pglmm}?
 #'   Only used if \code{bayes = TRUE}, ignored otherwise. There are currently four options:
 #'   "inla.default", which uses the default \code{INLA} priors; "pc.prior.auto", which uses a
@@ -236,7 +238,7 @@
 #'   site column contains species instead of sites. This can be used for bipartitie 
 #'   questions. tree_site can also be a var-cov matrix, make sure to have all sites 
 #'   in the matrix; if the matrix is not standarized, i.e. det(tree_site) != 1, 
-#'   we will try to standarize for you. No longer used, keep here for compatibility
+#'   we will try to standarize for you. No longer used, keep here for compatibility.
 #' @param sp No longer used, keep here for compatibility.
 #' @param site No longer used, keep here for compatibility.
 #' @return An object (list) of class \code{communityPGLMM} with the following elements:
@@ -322,27 +324,27 @@
 #' # repulsion = to test phylogenetic repulsion or not
 #'
 #' # Model 1 (Eq. 1)
-#' z <- communityPGLMM(freq ~ sp + (1|site) + (1|sp__@site), data = dat, family = "binomial", 
-#'                    cov_ranef = list(sp = phy), REML = TRUE, verbose = TRUE, s2.init=.1)
+#' z <- pglmm(freq ~ sp + (1|site) + (1|sp__@site), data = dat, family = "binomial", 
+#'            cov_ranef = list(sp = phy), REML = TRUE, verbose = TRUE, s2.init=.1)
 #' 
 #' # Model 2 (Eq. 2)
-#' z <- communityPGLMM(freq ~ sp + X + (1|site) + (X|sp__), data = dat, family = "binomial",
-#'                     cov_ranef = list(sp = phy), REML = TRUE, verbose = TRUE, s2.init=.1)
+#' z <- pglmm(freq ~ sp + X + (1|site) + (X|sp__), data = dat, family = "binomial",
+#'            cov_ranef = list(sp = phy), REML = TRUE, verbose = TRUE, s2.init=.1)
 #' 
 #' # Model 3 (Eq. 3)
-#' z <- communityPGLMM(freq ~ sp*X + (1|site) + (1|sp__@site), data = dat, family = "binomial",
-#'                     cov_ranef = list(sp = phy), REML = TRUE, verbose = TRUE, s2.init=.1)
+#' z <- pglmm(freq ~ sp*X + (1|site) + (1|sp__@site), data = dat, family = "binomial",
+#'            cov_ranef = list(sp = phy), REML = TRUE, verbose = TRUE, s2.init=.1)
 #' 
 #' ## Model structure from Rafferty & Ives (2013) (Eq. 3)
 #' # dat = data set
 #' # phyPol = phylogeny for pollinators (pol)
 #' # phyPlt = phylogeny for plants (plt)
 #' 
-#' z <- communityPGLMM(freq ~ sp * X + (1|sp__) + (1|site__) + (1|sp__@site) +
-#'                     (1|sp@site__) + (1|sp__@site__), 
-#'                     data = dat, family = "binomial", 
-#'                     cov_ranef = list(pol = phyPol, plt = phyPlt), 
-#'                     REML = TRUE, verbose = TRUE, s2.init=.1)
+#' z <- pglmm(freq ~ pol * X + (1|pol__) + (1|plt__) + (1|pol__@plt) +
+#'            (1|pol@plt__) + (1|pol__@plt__), 
+#'            data = dat, family = "binomial", 
+#'            cov_ranef = list(pol = phyPol, plt = phyPlt), 
+#'            REML = TRUE, verbose = TRUE, s2.init=.1)
 #' }
 #' 
 #' #########################################################
@@ -451,9 +453,9 @@
 #' # The rest of these tests are not run to save CRAN server time;
 #' # - please take a look at them because they're *very* useful!
 #' \dontrun{ 
-#'   z.binary <- communityPGLMM(Y ~ X + (1|sp__) + (X|sp__), data = dat, family = "binomial",
-#'                              cov_ranef = list(sp = phy), REML = TRUE, verbose = FALSE, 
-#'                              optimizer = "Nelder-Mead")
+#'   z.binary <- pglmm(Y ~ X + (1|sp__) + (X|sp__), data = dat, family = "binomial",
+#'                     cov_ranef = list(sp = phy), REML = TRUE, verbose = FALSE, 
+#'                     optimizer = "Nelder-Mead")
 #'   
 #'   # output results
 #'   z.binary
@@ -470,8 +472,8 @@
 #'   
 #'   # examine the structure of the first covariance matrix
 #'   ar1 = pglmm.matrix.structure(Y ~ X + (1|sp__) + (X|sp__), data = dat, 
-#'                                         family = "binomial", 
-#'                                         cov_ranef = list(sp = phy))
+#'                                family = "binomial", 
+#'                                cov_ranef = list(sp = phy))
 #'   Matrix::image(ar1)
 #'   
 #'   # plot random terms' var-cov matrix
