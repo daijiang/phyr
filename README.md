@@ -1,29 +1,10 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-[![Travis build status](https://travis-ci.org/daijiang/phyr.svg?branch=master)](https://travis-ci.org/daijiang/phyr) [![Coverage status](https://codecov.io/gh/daijiang/phyr/branch/master/graph/badge.svg)](https://codecov.io/gh/daijiang/phyr)
-
-# phyr
-
-The goal of phyr is to collect and update (with c++ for core parts)
-functions that:
-
-  - calculate alpha phylogenetic diversity (`psv`, `psr`, `pse`, etc.)
-    and beta phylogenetic diversity (`pcd`) from the picante package
-  - fitting phylogenetic logistic regressions (`binaryPGLMM`) from the
-    ape package
-  - fitting models to estimate correlation between functional traits
-    while accounting for phylogenetic relationships (`corphylo`) from
-    the ape package; now named as `cor_phylo`
-  - fitting phylogenetic generalized linear mixed models
-    (`communityPGLMM`) from the pez package; now named as `pglmm`
-  - and more.
-
-These functions share some similarities and it makes more sense to put
-them in one package to reduce redundancy in codes and to facilitate
-updates. Furthermore, we upgraded these functions with new and more
-user-friendly interfaces and features. Key parts are written with c++ to
-improve performance.
+[![Travis build
+status](https://travis-ci.org/daijiang/phyr.svg?branch=master)](https://travis-ci.org/daijiang/phyr)
+[![Coverage
+status](https://codecov.io/gh/daijiang/phyr/branch/master/graph/badge.svg)](https://codecov.io/gh/daijiang/phyr)
 
 # Installation
 
@@ -31,102 +12,55 @@ To install this package:
 
 ``` r
 devtools::install_github("daijiang/phyr")
-# or (may not be the latest version)
+# or install from binary file (may not be the latest version)
 # macOS
 install.packages("https://raw.githubusercontent.com/daijiang/phyr/master/phyr_0.1.6.tgz", repos = NULL)
 # Windows
 install.packages("https://raw.githubusercontent.com/daijiang/phyr/master/phyr_0.1.6.zip", repos = NULL)
 ```
 
+# Main functions
+
+The phyr package has three groups of functions:
+
+1.  community phylogenetic diversity metrics (alpha: `psv`, `psr`,
+    `pse`, etc. and beta: `pcd`), which were included in the `picante`
+    package originally. They were updated with c++ to improve speed.
+2.  models to estimate correlation between functional traits while
+    accounting for phylogenetic relationships (`cor_phylo`), which was
+    included in the `ape` package orginally. It has new syntax, much
+    improved performance (c++), and bootstrapping option.
+3.  phylogenetic generalized linear mixed models (`pglmm`), which was
+    originally included in the `pez` package. It has new model formula
+    syntax that allows straightforward model set up, a faster version of
+    maximum likelihood implementation via c++, and a Bayesian model
+    fitting framework based on INLA.
+      - We hope the model formula proposed here can be used to
+        standardize PGLMMs set up across different tools (e.g. `brms`
+        for Stan).
+
+# Usage examples of `pglmm()`
+
+`pglmm` use similar syntax as `lme4::lmer` to specify random terms: add
+`__` (two underscores) at the end of grouping variable (e.g. `sp`) to
+specify both phylogenetic and non-phylogenetic random terms; use
+`(1|sp__@site)` to specify nested term (i.e. species phylogenetic matrix
+`V_sp` nested within the diagnoal of site matrix `I_site`) to test
+phylogenetic overdispersion or underdispersion. This should be the most
+commonly used one and is equal to `kronecker(I_site, V_sp)`.
+
+We can also use a second phylogeny for bipartite questions. For example,
+`(1|parasite@host__)` will be converted to `kronecker(V_host,
+I_parasite)`; `(1|parasite__@host__)` will be converted to
+`kronecker(V_host, V_parasite)`.
+
+For details about model formula, see documentation `?phyr::pglmm`. More
+application examples can be found in [Ives 2018
+Chapter 4](https://leanpub.com/correlateddata).
+
 ``` r
 library(phyr)
 ```
-
-# Benchmark for PSV family functions
-
-## `psv`
-
-``` r
-nspp = 500
-nsite = 100
-tree_sim = ape::rtree(n = nspp)
-comm_sim = matrix(rbinom(nspp * nsite, size = 1, prob = 0.6), 
-                  nrow = nsite, ncol = nspp)
-row.names(comm_sim) = paste0("site_", 1:nsite)
-colnames(comm_sim) = paste0("t", 1:nspp)
-comm_sim = comm_sim[, tree_sim$tip.label]
-# about 40 times faster
-microbenchmark::microbenchmark(
-  picante::psv(comm_sim, tree_sim),
-  psv(comm_sim, tree_sim, cpp = FALSE),
-  psv(comm_sim, tree_sim, cpp = TRUE),
-  times = 10)
-## Unit: milliseconds
-##                                  expr        min        lq       mean
-##      picante::psv(comm_sim, tree_sim) 1366.43494 1413.8936 1502.77237
-##  psv(comm_sim, tree_sim, cpp = FALSE)  280.21145  291.9378  319.99998
-##   psv(comm_sim, tree_sim, cpp = TRUE)   21.08783   24.0448   31.74482
-##      median         uq        max neval cld
-##  1516.19401 1564.39479 1675.17522    10   c
-##   295.69013  309.41737  422.04093    10  b 
-##    29.55054   38.24901   53.86338    10 a
-```
-
-## `pse`
-
-``` r
-comm_sim = matrix(rpois(nspp * nsite, 3), nrow = nsite, ncol = nspp)
-row.names(comm_sim) = paste0("site_", 1:nsite)
-colnames(comm_sim) = paste0("t", 1:nspp)
-comm_sim = comm_sim[, tree_sim$tip.label]
-# about 8 times faster
-microbenchmark::microbenchmark(
-  picante::pse(comm_sim, tree_sim),
-  pse(comm_sim, tree_sim, cpp = FALSE),
-  pse(comm_sim, tree_sim, cpp = TRUE),
-  times = 10)
-## Unit: milliseconds
-##                                  expr       min        lq      mean
-##      picante::pse(comm_sim, tree_sim) 141.11439 153.68856 189.76923
-##  pse(comm_sim, tree_sim, cpp = FALSE) 139.90602 143.68452 179.05743
-##   pse(comm_sim, tree_sim, cpp = TRUE)  55.58668  61.61076  63.93198
-##     median        uq       max neval cld
-##  160.48164 172.29715 456.28399    10   b
-##  153.36849 194.41520 289.53909    10   b
-##   63.95246  64.53126  72.78884    10  a
-```
-
-## `pcd`
-
-``` r
-# pcd is about 20 times faster
-microbenchmark::microbenchmark(
-  phyr::pcd(comm = comm_a, tree = phylotree, reps = 1000, verbose = F),
-  picante::pcd(comm = comm_a, tree = phylotree, reps = 1000),
-  times = 20)
-## Unit: milliseconds
-##                                                                  expr
-##  phyr::pcd(comm = comm_a, tree = phylotree, reps = 1000, verbose = F)
-##            picante::pcd(comm = comm_a, tree = phylotree, reps = 1000)
-##        min        lq      mean    median        uq       max neval cld
-##   14.57415  15.05384  18.15984  17.29391  20.75593  28.37642    20  a 
-##  364.76833 390.97875 432.62194 412.65113 488.24858 560.80210    20   b
-```
-
-# Community PGLMM (`pglmm`)
-
-`pglmm` now can use similar syntax as `lme4::lmer` to specify random
-terms: add `__` (two underscores) at the end of grouping variable (`sp`)
-to specify both phylogenetic and non-phylogenetic random terms; use
-`(1|sp__@site)` to specify nested term. This should be the most commonly
-used one and is equal to `kronecker(I_site, V_sp)`. (`V_sp` is `Vphy`,
-used sp here so it is clearer this is for species.)
-
-For bipartite questions, you should also use a second phylogeny. Then
-use `(1|sp@site__)` and `(1|sp__@site__)` if needed. For bipartite
-questions, `(1|sp@site__)` will be converted to `kronecker(V_site,
-I_sp)`; `(1|sp__@site__)` will be converted to `kronecker(V_site,
-V_sp)`. (V\_site is from the second phylogeny)
 
 ``` r
 library(dplyr)
@@ -187,11 +121,11 @@ test1
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 # phy-GLMM
-test3 = phyr::pglmm(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
+test2 = phyr::pglmm(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
                     data = dat, family = "binomial", REML = F,
                     cov_ranef = list(sp = phylotree))
 ## Warning: Drop species from the phylogeny that are not in the variable sp
-test3
+test2
 ## Generalized linear mixed model for binomial data fit by maximum likelihood
 ## 
 ## Call:pa ~ 1 + shade
@@ -223,106 +157,34 @@ z_bipartite
 ## Call:freq ~ 1 + shade
 ## 
 ## logLik    AIC    BIC 
-## -445.2  910.3  933.0 
+## -459.2  938.3  961.0 
 ## 
 ## Random effects:
-##                Variance   Std.Dev
-## 1|sp          8.519e-07 0.0009230
-## 1|sp__        9.082e-06 0.0030136
-## 1|site        6.911e-07 0.0008313
-## 1|site__      1.052e-06 0.0010258
-## 1|sp__@site   5.470e-07 0.0007396
-## 1|sp@site__   1.543e+00 1.2422596
-## 1|sp__@site__ 1.461e-05 0.0038229
-## residual      1.368e+00 1.1695014
+##                Variance Std.Dev
+## 1|sp          0.0008455 0.02908
+## 1|sp__        0.7612343 0.87249
+## 1|site        0.0022742 0.04769
+## 1|site__      0.0001025 0.01012
+## 1|sp__@site   0.0059565 0.07718
+## 1|sp@site__   0.0077545 0.08806
+## 1|sp__@site__ 0.0006358 0.02521
+## residual      3.2421929 1.80061
 ## 
 ## Fixed effects:
-##                  Value  Std.Error  Zscore   Pvalue   
-## (Intercept) -0.2167634  0.3055539 -0.7094 0.478069   
-## shade        0.0207862  0.0065213  3.1874 0.001436 **
+##                  Value  Std.Error  Zscore    Pvalue    
+## (Intercept) -0.2701083  0.5661798 -0.4771 0.6333111    
+## shade        0.0226084  0.0067941  3.3276 0.0008759 ***
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ```
 
-To compare the cpp version and R version, and the version from the `pez`
-package.
+# Licenses
 
-``` r
-# data prep for pez::communityPGLMM, not necessary for phyr::pglmm
-dat = arrange(dat, site, sp)
-nspp = n_distinct(dat$sp)
-nsite = n_distinct(dat$site)
+Licensed under the [GPL-3
+license](https://www.gnu.org/licenses/gpl-3.0.en.html).
 
-dat$site = as.factor(dat$site)
-dat$sp = as.factor(dat$sp)
+# Contributing
 
-tree = ape::drop.tip(phylotree, setdiff(phylotree$tip.label, unique(dat$sp)))
-Vphy <- ape::vcv(tree)
-Vphy <- Vphy/max(Vphy)
-Vphy <- Vphy/exp(determinant(Vphy)$modulus[1]/nspp)
-Vphy = Vphy[levels(dat$sp), levels(dat$sp)]
-
-# prepare random effects
-re.site <- list(1, site = dat$site, covar = diag(nsite))
-re.sp <- list(1, sp = dat$sp, covar = diag(nspp))
-re.sp.phy <- list(1, sp = dat$sp, covar = Vphy)
-# sp is nested within site
-re.nested.phy <- list(1, sp = dat$sp, covar = Vphy, site = dat$site)
-re.nested.rep <- list(1, sp = dat$sp, covar = solve(Vphy), site = dat$site) # equal to sp__@site
-# can be named 
-re = list(re.sp = re.sp, re.sp.phy = re.sp.phy, re.nested.phy = re.nested.phy, re.site = re.site)
-
-# about 4-10 times faster for a small dataset
-microbenchmark::microbenchmark(
-  phyr::pglmm(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
-              dat, cov_ranef = list(sp = phylotree), REML = F, 
-              cpp = T, optimizer = "bobyqa"),
-  phyr::pglmm(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
-              dat, cov_ranef = list(sp = phylotree), REML = F, 
-              cpp = T, optimizer = "Nelder-Mead"),
-  phyr::pglmm(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
-              dat, cov_ranef = list(sp = phylotree), REML = F, 
-              cpp = F, optimizer = "Nelder-Mead"),
-  pez::communityPGLMM(freq ~ 1 + shade, data = dat, sp = dat$sp, site = dat$site, 
-                      random.effects = re, REML = F),
-  times = 5
-)
-## Unit: milliseconds
-##                                                                                                                                                                      expr
-##       phyr::pglmm(freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 |      sp__@site), dat, cov_ranef = list(sp = phylotree), REML = F,      cpp = T, optimizer = "bobyqa")
-##  phyr::pglmm(freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 |      sp__@site), dat, cov_ranef = list(sp = phylotree), REML = F,      cpp = T, optimizer = "Nelder-Mead")
-##  phyr::pglmm(freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 |      sp__@site), dat, cov_ranef = list(sp = phylotree), REML = F,      cpp = F, optimizer = "Nelder-Mead")
-##                                                       pez::communityPGLMM(freq ~ 1 + shade, data = dat, sp = dat$sp,      site = dat$site, random.effects = re, REML = F)
-##        min        lq     mean    median       uq       max neval cld
-##   600.5988  603.1372  616.102  608.4641  620.366  647.9441     5 a  
-##  2949.8045 2959.6630 3004.010 2972.8544 2989.029 3148.6988     5  b 
-##  9215.6566 9222.3446 9360.295 9224.3161 9364.429 9774.7267     5   c
-##  9139.6932 9225.8168 9493.050 9455.0765 9705.965 9938.6970     5   c
-
-# about 6 times faster for a small dataset
-microbenchmark::microbenchmark(
-  phyr::pglmm(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), dat, 
-              family = "binomial", cov_ranef = list(sp = phylotree), REML = F, 
-              cpp = T, optimizer = "bobyqa"),
-  phyr::pglmm(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), dat, 
-              family = "binomial", cov_ranef = list(sp = phylotree), REML = F,
-              cpp = T, optimizer = "Nelder-Mead"),
-  phyr::pglmm(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), dat, 
-              family = "binomial", cov_ranef = list(sp = phylotree), REML = F, 
-              cpp = F, optimizer = "Nelder-Mead"),
-  pez::communityPGLMM(pa ~ 1 + shade, data = dat, family = "binomial", sp = dat$sp, 
-                      site = dat$site, random.effects = re, REML = F),
-  times = 5
-)
-## Unit: seconds
-##                                                                                                                                                                                         expr
-##       phyr::pglmm(pa ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site),      dat, family = "binomial", cov_ranef = list(sp = phylotree),      REML = F, cpp = T, optimizer = "bobyqa")
-##  phyr::pglmm(pa ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site),      dat, family = "binomial", cov_ranef = list(sp = phylotree),      REML = F, cpp = T, optimizer = "Nelder-Mead")
-##  phyr::pglmm(pa ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site),      dat, family = "binomial", cov_ranef = list(sp = phylotree),      REML = F, cpp = F, optimizer = "Nelder-Mead")
-##                                                       pez::communityPGLMM(pa ~ 1 + shade, data = dat, family = "binomial",      sp = dat$sp, site = dat$site, random.effects = re, REML = F)
-##        min        lq      mean    median        uq       max neval  cld
-##   2.824661  2.838291  3.027632  2.935054  2.994445  3.545711     5 a   
-##   4.417097  4.449367  4.622600  4.510995  4.533941  5.201602     5  b  
-##  12.847884 13.157249 14.077923 13.559643 14.943601 15.881240     5   c 
-##  22.373933 22.394006 22.943306 22.444635 22.616080 24.887877     5    d
-```
+Contributions are welcome. You can provide comments and feedback or ask
+questions by filing an issue on Github
+[here](https://github.com/daijiang/phyr/issues) or making pull requests.

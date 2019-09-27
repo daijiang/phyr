@@ -48,13 +48,15 @@ However, \code{__} in the nested terms (below) will only create a phlylogenetic 
 Therefore, nested random term has four forms:
 \enumerate{
 \item \code{(1|sp__@site)} represents correlated species are nested within independent sites
-(i.e. kronecker(I_sites, V_sp)). This should be the most common one for community analysis.
+(i.e. kronecker(I_sites, V_sp)). This should be the most common one for community analysis (to test for overdispersion or underdispersion).
 \item \code{(1|sp@site__)} represents independent species are nested within correlated sites
 (i.e. kron(V_sites, I_sp)). This one can be used for bipartite questions.
-You can, for example, treat sp as insects and site as plants.
-Remember to set the argument \code{tree_site} to a phylogeny.
+You can, for example, treat sp as insects and site as plants with \code{(1|insects@plants__)}.
+Remember to add the phylogeny of plants in the argument \code{cov_ranef = list(plants = plant_phylo)}.
 \item \code{(1|sp__@site__)} represents correlated species are nested within correlated sites
-(i.e. kron(V_sites, V_sp)). This one can also be used for bipartite questions.
+(i.e. kron(V_sites, V_sp)). This one can also be used for bipartite questions such as
+pollinators and plants (e.g. \code{(1|pollinators__@plants__)}). Remember to add their phylogenies
+in the argument \code{cov_ranef = list(pollinators = pollinator_phylo, plants = plant_phylo)}.
 \item \code{(1|sp@site)} will generate a identity matrix, which will be the same as
 an observation level random term or the residual of LMM. So not very meaningful for gaussian models;
 observation-level random term will be automatically added for binomial and poisson models.
@@ -93,7 +95,7 @@ No longer used, keep here for compatibility.}
 site column contains species instead of sites. This can be used for bipartitie
 questions. tree_site can also be a var-cov matrix, make sure to have all sites
 in the matrix; if the matrix is not standarized, i.e. det(tree_site) != 1,
-we will try to standarize for you. No longer used, keep here for compatibility}
+we will try to standarize for you. No longer used, keep here for compatibility.}
 
 \item{repulsion}{When nested random term specified, do you want to test repulsion
 (i.e., overdispersion) or underdispersion? Default is \code{FALSE}, i.e. test underdispersion.
