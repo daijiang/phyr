@@ -28,7 +28,6 @@ Imports:
     nloptr,
     gridExtra,
     mvtnorm,
-    lattice,
     latticeExtra
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 6.1.1

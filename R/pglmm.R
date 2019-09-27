@@ -16,7 +16,7 @@
 #' such as that analyzed in Rafferty and Ives (2011), by giving sites
 #' phylogenetic correlations. 
 #' A Bayesian version of PGLMM can be fit by specifying the \code{bayes = TRUE}. 
-#' This uses the package \code{\link[INLA:INLA-package]{INLA}} package, 
+#' This uses the package \code{INLA}, 
 #' which is not available on CRAN yet. If you wish to use this option, 
 #' you must first install \code{INLA} from \url{http://www.r-inla.org/} by running
 #' \code{install.packages('INLA', repos='https://www.math.ntnu.no/inla/R/stable')} in R.
