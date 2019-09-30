@@ -6,10 +6,11 @@ Authors@R: c(
     person("Anthony", "Ives", , "arives@wisc.edu", role = c("aut")),
     person("Russell", "Dinnage", , "r.dinnage@gmail.com", role = c("aut"), comment = c(ORCID = "0000-0003-0846-2819")),
     person(c("Lucas", "A."), "Nell", , "lucas@lucasnell.com", role = c("aut"), comment = c(ORCID = "0000-0003-3209-0517")),
+    person("Matthew", "Helmus", , "mrhelmus@temple.edu", role = c("aut")),
     person("Daijiang", "Li", , "daijianglee@gmail.com", role = c("aut", "cre"), comment = c(ORCID = "0000-0002-0925-3421")))
 Description: A collection of functions to do model-based phylogenetic analysis. 
-    It includes functions to calculate community phylogenetic diveristy,
-    to estimate correlations among functional traits while accouting for 
+    It includes functions to calculate community phylogenetic diversity,
+    to estimate correlations among functional traits while accounting for 
     phylogenetic relationships, and to fit phylogenetic generalized linear
     mixed models.
 License: GPL-3
