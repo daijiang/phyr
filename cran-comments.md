@@ -11,3 +11,4 @@
 
   Suggests or Enhances not in mainstream repositories:
   INLA
+  (INLA is an R package not on CRAN)
