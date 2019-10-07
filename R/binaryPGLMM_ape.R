@@ -167,7 +167,7 @@
 #' detV <- exp(determinant(V)$modulus[1])
 #' V <- V/detV^(1/n)
 #' 
-#' invV <- Matrix(solve(V),sparse=T)
+#' invV <- Matrix(solve(V),sparse = TRUE)
 #' sim.dat$species <- phy$tip.label
 #' rownames(invV) <- sim.dat$species
 #' 
@@ -434,7 +434,7 @@ binaryPGLMM <- function(formula, data = list(), phy, s2.init = 0.1, B.init = NUL
   lnlike.cond.reml <- -0.5 * (n - p) * log(2 * pi) + 0.5 * determinant(t(X) %*% X)$modulus[1] - 0.5 * LL
   LL0 <- pglmm.reml(par = 0, tinvW = invW, tH = H, tVphy = Vphy, tX = X)
   lnlike.cond.reml0 <- -0.5 * (n - p) * log(2 * pi) + 0.5 * determinant(t(X) %*% X)$modulus[1] - 0.5 * LL0
-  P.H0.s2 <- pchisq(2 * (lnlike.cond.reml - lnlike.cond.reml0), df = 1, lower.tail = F)/2
+  P.H0.s2 <- pchisq(2 * (lnlike.cond.reml - lnlike.cond.reml0), df = 1, lower.tail = FALSE)/2
   
   results <- list(formula = formula, B = B, B.se = B.se, B.cov = B.cov, 
                   B.zscore = B.zscore, B.pvalue = B.pvalue, s2 = s2, P.H0.s2 = P.H0.s2, 

@@ -188,7 +188,7 @@ V <- V/max(V)
 detV <- exp(determinant(V)$modulus[1])
 V <- V/detV^(1/n)
 
-invV <- Matrix(solve(V),sparse=T)
+invV <- Matrix(solve(V),sparse = TRUE)
 sim.dat$species <- phy$tip.label
 rownames(invV) <- sim.dat$species
 

@@ -61,7 +61,7 @@ For example, \code{sp__@site} will take one length as well as \code{sp@site__}.
 \code{(1|sp__@site) + (1|sp@site__) + (1|sp__@site__)}
 in the formula, then you should set the repulsion to be something like
 \code{c(TRUE, FALSE, TURE, TURE)} (length of 4).
-The T/F combinations depend on your questions.}
+The TRUE/FALSE combinations depend on your questions.}
 
 \item{prep.re.effects}{Whether to prepare random effects for users.}
 

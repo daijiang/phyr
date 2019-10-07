@@ -11,7 +11,7 @@ vignette: >
 
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(
-  collapse = TRUE,
+  collapse = TRUERUE,
   comment = "##"
 )
 ```
@@ -19,10 +19,10 @@ knitr::opts_chunk$set(
 This is a temporal Rmd file to facilitate develoement. 
 
 ```{r data_prep, eval = F}
-library(dplyr, quietly = T)
+library(dplyr, quietly = TRUE)
 comm = phyr::comm_a
 comm$site = row.names(comm)
-dat = tidyr::gather(comm, key = "sp", value = "freq", -site) %>% 
+dat = TRUEidyr::gather(comm, key = "sp", value = "freq", -site) %>% 
   left_join(phyr::envi, by = "site") %>% 
   left_join(phyr::traits, by = "sp")
 dat$pa = as.numeric(dat$freq > 0)
@@ -46,8 +46,8 @@ random.effects = NULL
 optimizer = "bobyqa"
 optimizer = "Nelder-Mead"
 prep.s2.lme4 = FALSE
-cpp = T
-prep_re = TRUE
+cpp = TRUE
+prep_re = TRUERUE
 family = "gaussian"
 family = "binomial"
 tol.pql = 10^-6
@@ -83,7 +83,7 @@ library(phyr)
 library(dplyr)
 comm = comm_a
 comm$site = row.names(comm)
-dat = tidyr::gather(comm, key = "sp", value = "freq", -site) %>% 
+dat = TRUEidyr::gather(comm, key = "sp", value = "freq", -site) %>% 
   left_join(envi, by = "site") %>% 
   left_join(traits, by = "sp")
 dat$pa = as.numeric(dat$freq > 0)
@@ -92,13 +92,13 @@ data = dat
 tree = phylotree
 family = "gaussian"
 random.effects = NULL
-add.tree = TRUE
+add.tree = TRUERUE
 tree_site = NULL
 repulsion = FALSE
 library(Matrix)
 
 test = communityPGLMM.plot.random.effects(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
-                                   dat, tree = phylotree, show.image = F, show.sim.image = T, tree.panel.space = 0)
+                                   dat, tree = phylotree, show.image = FALSE, show.sim.image = TRUE, tree.panel.space = 0)
 ```
 
 
@@ -110,14 +110,14 @@ if(optimizer == "bobyqa"){
                "xtol_rel" = 0.00001, "maxeval" = maxit)
   S0 <- nloptr::nloptr(x0 = s, eval_f = phyr:::pglmm_gaussian_LL_calc, opts = opts, 
                        X = X, Y = Y, Zt = Zt, St = St, nested = nested, 
-                       REML = REML, verbose = verbose, optim_ll = T)
+                       REML = REML, verbose = verbose, optim_ll = TRUE)
   opt <- list(par = S0$solution, value = S0$objective, counts = S0$iterations,
              convergence = S0$status, message = S0$message)
   })
   
   system.time(opt1 <- nloptr::bobyqa(x0 = s, fn = phyr:::pglmm_gaussian_LL_calc, X = X, 
                  Y = Y, Zt = Zt, St = St, nested = nested, REML = REML, 
-                 verbose = verbose, optim_ll = T, 
+                 verbose = verbose, optim_ll = TRUE, 
                  control = list("ftol_rel" = reltol, "xtol_rel" = 0.0001, "maxeval" = maxit)))
   
   testthat::expect_equivalent(opt, opt1)
@@ -128,25 +128,25 @@ system.time({
                "xtol_rel" = 0.0001, "maxeval" = maxit)
   S0 <- nloptr::nloptr(x0 = s, eval_f = phyr:::pglmm_gaussian_LL_calc, opts = opts, 
                        X = X, Y = Y, Zt = Zt, St = St, nested = nested, 
-                       REML = REML, verbose = verbose, optim_ll = T)
+                       REML = REML, verbose = verbose, optim_ll = TRUE)
   opt3 <- list(par = S0$solution, value = S0$objective, counts = S0$iterations,
              convergence = S0$status, message = S0$message)
   }) # 4.472
 
 system.time(opt33 <- nloptr::neldermead(x0 = s, fn = phyr:::pglmm_gaussian_LL_calc, X = X, 
                  Y = Y, Zt = Zt, St = St, nested = nested, REML = REML, 
-                 verbose = verbose, optim_ll = T, 
+                 verbose = verbose, optim_ll = TRUE, 
                  control = list("ftol_rel" = reltol, "xtol_rel" = 0.0001, "maxeval" = maxit)))
 system.time(opt4 <- nloptr::sbplx(x0 = s, fn = phyr:::pglmm_gaussian_LL_calc, X = X, 
                  Y = Y, Zt = Zt, St = St, nested = nested, REML = REML, 
-                 verbose = verbose, optim_ll = T, 
+                 verbose = verbose, optim_ll = TRUE, 
                  control = list("ftol_rel" = reltol, "ftol_abs" = reltol, "xtol_rel" = 0.0001, "maxeval" = maxit)))
 
 if(optimizer == "Nelder-Mead"){
   if (q > 1) {
     system.time(
     opt2 <- optim(fn = phyr:::pglmm_gaussian_LL_calc, par = s, X = X, Y = Y, Zt = Zt, St = St, 
-                 nested = nested, REML = REML, verbose = verbose, optim_ll = T, 
+                 nested = nested, REML = REML, verbose = verbose, optim_ll = TRUE, 
                  method = "Nelder-Mead", control = list(maxit = maxit, reltol = reltol))
     )
   } else {
@@ -161,15 +161,15 @@ opts <- list("ftol_rel" = reltol, "ftol_abs" = reltol,
 microbenchmark::microbenchmark(
     nloptr::bobyqa(x0 = s, fn = phyr:::pglmm_gaussian_LL_calc, X = X, 
                  Y = Y, Zt = Zt, St = St, nested = nested, REML = REML, 
-                 verbose = verbose, optim_ll = T, control = opts),
+                 verbose = verbose, optim_ll = TRUE, control = opts),
     nloptr::sbplx(x0 = s, fn = phyr:::pglmm_gaussian_LL_calc, X = X, 
                  Y = Y, Zt = Zt, St = St, nested = nested, REML = REML, 
-                 verbose = verbose, optim_ll = T, control = opts),
+                 verbose = verbose, optim_ll = TRUE, control = opts),
     nloptr::neldermead(x0 = s, fn = phyr:::pglmm_gaussian_LL_calc, X = X, 
                  Y = Y, Zt = Zt, St = St, nested = nested, REML = REML, 
-                 verbose = verbose, optim_ll = T, control = opts),
+                 verbose = verbose, optim_ll = TRUE, control = opts),
     optim(fn = phyr:::pglmm_gaussian_LL_calc, par = s, X = X, Y = Y, Zt = Zt, St = St, 
-                 nested = nested, REML = REML, verbose = verbose, optim_ll = T, 
+                 nested = nested, REML = REML, verbose = verbose, optim_ll = TRUE, 
                  method = "Nelder-Mead", control = list(maxit = maxit, reltol = reltol)),
     times = 5
 )
@@ -215,7 +215,7 @@ library(Matrix)
 # See edit(phyr::get_design_matrix)
 # edit(phyr::get_design_matrix)
 
-w <- read.table("dt.txt",header = T,row.names = 1)###here,I convert the dt.csv file to tab delimited text file in 
+w <- read.table("dt.txt",header = TRUE,row.names = 1)###here,I convert the dt.csv file to tab delimited text file in 
 w$site <- as.factor(rownames(w))
 w[,1:7] <- w[,1:7]^.5
 rownames(w) <- NULL
@@ -225,7 +225,7 @@ mist_tree <- read.tree("phylomist_19")  ###"phylomist_19"is a phylo file(phyloge
 mist_tree$tip.label <- c("vsp", "sc", "scy", "mb", "dp", "hp", "mc")
 
 # check that the names of hosts and mist are the same
-d = tidyr::gather(w, key = "sp", value = "count", -site)
+d = TRUEidyr::gather(w, key = "sp", value = "count", -site)
 d = dplyr::arrange(d, site, sp)
 d$sp = as.factor(d$sp)
 
@@ -272,8 +272,8 @@ random.effects = NULL
 optimizer = "bobyqa"
 optimizer = "Nelder-Mead"
 prep.s2.lme4 = FALSE
-cpp = T
-prep_re = TRUE
+cpp = TRUE
+prep_re = TRUERUE
 family = "gaussian"
 tol.pql = 10^-6
 maxit.pql = 200
@@ -303,8 +303,8 @@ par = s
 
 ```{r eval=F}
 library(tidyverse)
-sim_dat = function(nspp = 30, nsite = 30, physig.trait1 = TRUE,
-                    physig.trait2 = TRUE,
+sim_dat = function(nspp = 30, nsite = 30, physig.trait1 = TRUERUE,
+                    physig.trait2 = TRUERUE,
                     alpha = 1, beta_1 = 1, beta_2 = 1, beta_3 = 1,
                     beta_4 = 1, beta_5 = 0, beta_6 = 1){
   # simulate the phylogeny
@@ -325,8 +325,8 @@ sim_dat = function(nspp = 30, nsite = 30, physig.trait1 = TRUE,
     trait2 = rnorm(nspp, 0, 1)
   }
   trait = data.frame(sp = paste0("sp", 1:nspp),
-                     trait1 = trait1,
-                     trait2 = trait2, stringsAsFactors = FALSE)
+                     trait1 = TRUErait1,
+                     trait2 = TRUErait2, stringsAsFactors = FALSE)
   
   # simulate two envi variables
   envi = data.frame(site = paste0("site", 1:nsite),
@@ -360,8 +360,8 @@ z.phy$ss
 z.no.interaction = phyr::communityPGLMM(abund ~ 1 + envi1 + trait1 + (1|sp__) + (envi1|sp__) + (1|site),
                                          data = d$dat, tree = d$phy, family = "gaussian", REML = FALSE)
 
-microbenchmark::microbenchmark(communityPGLMM.predicted.values(x, cpp = T),
-                               communityPGLMM.predicted.values(x, cpp = F), times = 20)
+microbenchmark::microbenchmark(communityPGLMM.predicted.values(x, cpp = TRUE),
+                               communityPGLMM.predicted.values(x, cpp = FALSE), times = 20)
 ```
 
 ```{r eval=F}
@@ -388,7 +388,7 @@ d$p <- d$y > 0
 fm = as.formula("p ~ x1 + (1 | sp)")
 # fm = as.formula("p ~ x1 + (1 | sp) + (1|site)")
 z_lmer_bi <- glmer(fm, data=d, family="binomial")
-z_phyr_bi <- communityPGLMM(fm, data=d, REML=F, family="binomial")
+z_phyr_bi <- communityPGLMM(fm, data=d, REML = FALSE, family="binomial")
 summary(z_lmer_bi)
 z_phyr_bi
 

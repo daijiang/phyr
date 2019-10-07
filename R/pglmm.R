@@ -159,7 +159,7 @@
 #'   \code{(1|sp__@site) + (1|sp@site__) + (1|sp__@site__)}
 #'   in the formula, then you should set the repulsion to be something like 
 #'   \code{c(TRUE, FALSE, TURE, TURE)} (length of 4). 
-#'   The T/F combinations depend on your questions.
+#'   The TRUE/FALSE combinations depend on your questions.
 #' @param add.obs.re Wether add observation-level random term for poisson and binomial
 #'   distributions? Normally it would be a good idea to add this to account for overdispersions.
 #'   Thus, we set it to \code{TRUE} by default.
@@ -701,7 +701,7 @@ communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian",
                    "xtol_rel" = 0.0001, "maxeval" = maxit)
       S0 <- nloptr::nloptr(x0 = s, eval_f = pglmm_gaussian_LL_calc, opts = opts, 
                            X = X, Y = Y, Zt = Zt, St = St, nested = nested, 
-                           REML = REML, verbose = verbose, optim_ll = T)
+                           REML = REML, verbose = verbose, optim_ll = TRUE)
       opt = list(par = S0$solution, value = S0$objective, counts = S0$iterations,
                  convergence = S0$status, message = S0$message)
     }

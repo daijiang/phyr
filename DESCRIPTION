@@ -1,6 +1,6 @@
 Package: phyr
 Type: Package
-Title: Phylogenetic Analysis with R
+Title: Model Based Phylogenetic Analysis
 Version: 1.0.0
 Authors@R: c(
     person("Anthony", "Ives", , "arives@wisc.edu", role = c("aut")),
@@ -13,7 +13,7 @@ Description: A collection of functions to do model-based phylogenetic analysis.
     to estimate correlations among functional traits while accounting for 
     phylogenetic relationships, and to fit phylogenetic generalized linear
     mixed models. The Bayesian hylogenetic generalized linear mixed models
-    are fitted with the INLA package (<http://www.r-inla.org>).
+    are fitted with the 'INLA' package (<http://www.r-inla.org>).
 License: GPL-3
 Encoding: UTF-8
 LazyData: true

@@ -60,12 +60,12 @@ dat$pa = as.numeric(dat$freq > 0)
 head(dat)
 # phy-LMM
 test1 = phyr::pglmm(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
-                    data = dat, family = "gaussian", REML = F,
+                    data = dat, family = "gaussian", REML = FALSE,
                     cov_ranef = list(sp = phylotree))
 test1
 # phy-GLMM
 test2 = phyr::pglmm(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
-                    data = dat, family = "binomial", REML = F,
+                    data = dat, family = "binomial", REML = FALSE,
                     cov_ranef = list(sp = phylotree))
 test2
 # bipartite

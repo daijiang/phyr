@@ -265,7 +265,7 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
         return(c(x4, x3)) # 1|sp  1|sp__
       }
       x3
-    }), recursive = T)
+    }), recursive = TRUE)
     
     # Add observation-level variances for families binomial (size > 1) and poisson
     if(family == 'poisson' | 
@@ -484,7 +484,7 @@ pglmm_gaussian_LL_calc = function(par, X, Y, Zt, St, nested = NULL,
   } else {
     logdetV <- -determinant(iV)$modulus[1]
     if (is.infinite(logdetV)) 
-      logdetV <- -2 * sum(log(diag(chol(iV, pivot = T))))
+      logdetV <- -2 * sum(log(diag(chol(iV, pivot = TRUE))))
     if (is.infinite(logdetV)) 
       return(10^10)
   }    
@@ -508,7 +508,7 @@ pglmm_gaussian_LL_calc = function(par, X, Y, Zt, St, nested = NULL,
     } else {
       LL <- 0.5 * (n * log(s2resid) + logdetV + n)
     }
-    if (verbose == T) show(c(as.numeric(LL), par))
+    if (verbose == TRUE) show(c(as.numeric(LL), par))
     return(as.numeric(LL))
   }
   
@@ -540,7 +540,7 @@ pglmm.LL <- function(par, H, X, Zt, St, mu, nested, REML = TRUE,
     # ML likelihood function
     LL <- 0.5 * (logdetV + t(H) %*% iV %*% H)
   }
-  if (verbose == T) show(c(as.numeric(LL), par))
+  if (verbose == TRUE) show(c(as.numeric(LL), par))
   
   return(as.numeric(LL))
 }
@@ -598,7 +598,7 @@ pglmm.iV.logdetV <- function(par, Zt, St, mu, nested, logdet = TRUE, family, siz
       # logdetV
       logdetV <- -determinant(iV)$modulus[1]
       if (is.infinite(logdetV)) 
-        logdetV <- -2 * sum(log(diag(chol(iV, pivot = T))))
+        logdetV <- -2 * sum(log(diag(chol(iV, pivot = TRUE))))
     }
   }
   if(logdet){
@@ -704,7 +704,7 @@ communityPGLMM.profile.LRT <- function(x, re.number = 0, cpp = TRUE) {
     logLik0 <- -0.5 * n * log(2 * pi) - LL0
   }
   
-  P.H0.s2 <- pchisq(2 * (logLik - logLik0), df = df, lower.tail = F)/2
+  P.H0.s2 <- pchisq(2 * (logLik - logLik0), df = df, lower.tail = FALSE)/2
   if (P.H0.s2 > 0.499) P.H0.s2 <- 1
   
   list(LR = logLik - logLik0, df = df, Pr = P.H0.s2)

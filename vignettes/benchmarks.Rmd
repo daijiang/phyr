@@ -72,7 +72,7 @@ rbenchmark::benchmark(
 ```{r, message=FALSE}
 # pcd is about 20 times faster
 rbenchmark::benchmark(
-  "phyr" = {phyr::pcd(comm = comm_a, tree = phylotree, reps = 1000, verbose = F)},
+  "phyr" = {phyr::pcd(comm = comm_a, tree = phylotree, reps = 1000, verbose = FALSE)},
   "picante" = {picante::pcd(comm = comm_a, tree = phylotree, reps = 1000)},
   replications = 10,
   columns = c("test", "replications", "elapsed",
@@ -123,16 +123,16 @@ re = list(re.sp = re.sp, re.sp.phy = re.sp.phy, re.nested.phy = re.nested.phy, r
 # about 4-10 times faster for a small dataset
 rbenchmark::benchmark(
   "phyr c++ bobyqa" = {phyr::pglmm(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
-              dat, cov_ranef = list(sp = phylotree), REML = F, 
-              cpp = T, optimizer = "bobyqa")},
+              dat, cov_ranef = list(sp = phylotree), REML = FALSE, 
+              cpp = TRUE, optimizer = "bobyqa")},
   "phyr c++ Nelder-Mead" = {phyr::pglmm(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
-              dat, cov_ranef = list(sp = phylotree), REML = F, 
-              cpp = T, optimizer = "Nelder-Mead")},
+              dat, cov_ranef = list(sp = phylotree), REML = FALSE, 
+              cpp = TRUE, optimizer = "Nelder-Mead")},
   "phyr R Nelder-Mead" = {phyr::pglmm(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
-              dat, cov_ranef = list(sp = phylotree), REML = F, 
-              cpp = F, optimizer = "Nelder-Mead")},
+              dat, cov_ranef = list(sp = phylotree), REML = FALSE, 
+              cpp = FALSE, optimizer = "Nelder-Mead")},
   "pez R Nelder-Mead" = {pez::communityPGLMM(freq ~ 1 + shade, data = dat, sp = dat$sp, site = dat$site, 
-                      random.effects = re, REML = F)},
+                      random.effects = re, REML = FALSE)},
   replications = 5,
   columns = c("test", "replications", "elapsed",
               "relative", "user.self", "sys.self")
@@ -146,17 +146,17 @@ rbenchmark::benchmark(
 # about 6 times faster for a small dataset
 rbenchmark::benchmark(
   "phyr c++ bobyqa" = {phyr::pglmm(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
-              dat, family = "binomial", cov_ranef = list(sp = phylotree), REML = F, 
-              cpp = T, optimizer = "bobyqa")},
+              dat, family = "binomial", cov_ranef = list(sp = phylotree), REML = FALSE, 
+              cpp = TRUE, optimizer = "bobyqa")},
   "phyr c++ Nelder-Mead" = {phyr::pglmm(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
-              dat, family = "binomial", cov_ranef = list(sp = phylotree), REML = F, 
-              cpp = T, optimizer = "Nelder-Mead")},
+              dat, family = "binomial", cov_ranef = list(sp = phylotree), REML = FALSE, 
+              cpp = TRUE, optimizer = "Nelder-Mead")},
   "phyr R Nelder-Mead" = {phyr::pglmm(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
-              dat, family = "binomial", cov_ranef = list(sp = phylotree), REML = F, 
-              cpp = F, optimizer = "Nelder-Mead")},
+              dat, family = "binomial", cov_ranef = list(sp = phylotree), REML = FALSE, 
+              cpp = FALSE, optimizer = "Nelder-Mead")},
   "pez R Nelder-Mead" = {pez::communityPGLMM(pa ~ 1 + shade, data = dat, sp = dat$sp, 
                                              family = "binomial", site = dat$site, 
-                      random.effects = re, REML = F)},
+                      random.effects = re, REML = FALSE)},
   replications = 5,
   columns = c("test", "replications", "elapsed",
               "relative", "user.self", "sys.self")

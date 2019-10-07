@@ -95,7 +95,7 @@ head(dat)
 ## 6      Wind  1
 # phy-LMM
 test1 = phyr::pglmm(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
-                    data = dat, family = "gaussian", REML = F,
+                    data = dat, family = "gaussian", REML = FALSE,
                     cov_ranef = list(sp = phylotree))
 ## Warning: Drop species from the phylogeny that are not in the variable sp
 test1
@@ -122,7 +122,7 @@ test1
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 # phy-GLMM
 test2 = phyr::pglmm(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site), 
-                    data = dat, family = "binomial", REML = F,
+                    data = dat, family = "binomial", REML = FALSE,
                     cov_ranef = list(sp = phylotree))
 ## Warning: Drop species from the phylogeny that are not in the variable sp
 test2
@@ -157,25 +157,23 @@ z_bipartite
 ## Call:freq ~ 1 + shade
 ## 
 ## logLik    AIC    BIC 
-## -459.2  938.3  961.0 
+## -466.0  952.1  974.8 
 ## 
 ## Random effects:
-##                Variance Std.Dev
-## 1|sp          0.0008455 0.02908
-## 1|sp__        0.7612343 0.87249
-## 1|site        0.0022742 0.04769
-## 1|site__      0.0001025 0.01012
-## 1|sp__@site   0.0059565 0.07718
-## 1|sp@site__   0.0077545 0.08806
-## 1|sp__@site__ 0.0006358 0.02521
-## residual      3.2421929 1.80061
+##                Variance  Std.Dev
+## 1|sp          1.648e-02 0.128377
+## 1|sp__        1.173e+00 1.082923
+## 1|site        2.792e-02 0.167098
+## 1|site__      8.659e-03 0.093052
+## 1|sp__@site   1.965e+00 1.401671
+## 1|sp@site__   7.968e-02 0.282273
+## 1|sp__@site__ 8.041e-05 0.008967
+## residual      9.625e-01 0.981064
 ## 
 ## Fixed effects:
-##                  Value  Std.Error  Zscore    Pvalue    
-## (Intercept) -0.2701083  0.5661798 -0.4771 0.6333111    
-## shade        0.0226084  0.0067941  3.3276 0.0008759 ***
-## ---
-## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+##                 Value Std.Error  Zscore Pvalue
+## (Intercept) -0.127328  0.815075 -0.1562 0.8759
+## shade        0.019393  0.011889  1.6311 0.1029
 ```
 
 # Licenses

@@ -25,7 +25,7 @@ First, let's prepare some toy data.
 
 ```{r data_prep}
 library(profvis)
-library(dplyr, quietly = T)
+library(dplyr, quietly = TRUE)
 library(phyr)
 comm = comm_a
 comm$site = row.names(comm)
@@ -45,7 +45,7 @@ Then, we start the profvis.
 ```{r prof1}
 profvis({
   phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), dat, 
-                       cov_ranef = list(sp = phylotree), REML = T, cpp = F, optimizer = "bobyqa")
+                       cov_ranef = list(sp = phylotree), REML = TRUE, cpp = FALSE, optimizer = "bobyqa")
 })
 ```
 
@@ -54,7 +54,7 @@ profvis({
 ```{r prof2}
 profvis({
   phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), dat, 
-                       cov_ranef = list(sp = phylotree), REML = T, cpp = T, optimizer = "bobyqa")
+                       cov_ranef = list(sp = phylotree), REML = TRUE, cpp = TRUE, optimizer = "bobyqa")
 })
 ```
 
@@ -63,7 +63,7 @@ profvis({
 ```{r prof3}
 profvis({
   phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), dat, 
-                       cov_ranef = list(sp = phylotree), REML = T, cpp = F, optimizer = "Nelder-Mead")
+                       cov_ranef = list(sp = phylotree), REML = TRUE, cpp = FALSE, optimizer = "Nelder-Mead")
 })
 ```
 
@@ -72,7 +72,7 @@ profvis({
 ```{r prof4}
 profvis({
   phyr::communityPGLMM(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), dat, 
-                       cov_ranef = list(sp = phylotree), REML = T, cpp = T, optimizer = "Nelder-Mead")
+                       cov_ranef = list(sp = phylotree), REML = TRUE, cpp = TRUE, optimizer = "Nelder-Mead")
 })
 ```
 
@@ -83,7 +83,7 @@ profvis({
 ```{r prof5}
 profvis({
   phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), dat, 
-                       family = "binomial", cov_ranef = list(sp = phylotree), REML = T, cpp = F, 
+                       family = "binomial", cov_ranef = list(sp = phylotree), REML = TRUE, cpp = FALSE, 
                        optimizer = "bobyqa")
 })
 ```
@@ -93,7 +93,7 @@ profvis({
 ```{r prof6}
 profvis({
   phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), dat, 
-                       family = "binomial", cov_ranef = list(sp = phylotree), REML = T, cpp = T, 
+                       family = "binomial", cov_ranef = list(sp = phylotree), REML = TRUE, cpp = TRUE, 
                        optimizer = "bobyqa")
 })
 ```
@@ -103,7 +103,7 @@ profvis({
 ```{r prof7}
 profvis({
   phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), dat, 
-                       family = "binomial", cov_ranef = list(sp = phylotree), REML = T, cpp = F, 
+                       family = "binomial", cov_ranef = list(sp = phylotree), REML = TRUE, cpp = FALSE, 
                        optimizer = "Nelder-Mead")
 })
 ```
@@ -113,7 +113,7 @@ profvis({
 ```{r prof8}
 profvis({
   phyr::communityPGLMM(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp@site), dat, 
-                       family = "binomial", cov_ranef = list(sp = phylotree), REML = T, cpp = T, 
+                       family = "binomial", cov_ranef = list(sp = phylotree), REML = TRUE, cpp = TRUE, 
                        optimizer = "Nelder-Mead")
 })
 ```
@@ -145,10 +145,10 @@ microbenchmark::microbenchmark(pse(comm, tree, cpp = FALSE),
 ```{r prof11}
 phy = ape::rtree(n = 10000)
 profvis({
-  ape::vcv(phy, corr = T)
+  ape::vcv(phy, corr = TRUE)
 })
 profvis({
-  vcv2(phy, corr = T)
+  vcv2(phy, corr = TRUE)
 })
 ```
 

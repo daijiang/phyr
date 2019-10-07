@@ -17,15 +17,15 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   
   x1 = phyr::communityPGLMM(
     pa ~ 1 + shade + (1 | Species__) + (1 | site) + (1 | Species__@site), 
-    dat, cov_ranef = list(Species = phylotree), REML = F, family = "binomial",
-    cpp = T, optimizer = "Nelder-Mead")
+    dat, cov_ranef = list(Species = phylotree), REML = FALSE, family = "binomial",
+    cpp = TRUE, optimizer = "Nelder-Mead")
   x2 = phyr::communityPGLMM(
     freq ~ 1 + shade + (1 | Species__) + (1 | site) + (1 | Species__@site), 
-    dat, cov_ranef = list(Species = phylotree), REML = F,
-    cpp = T, optimizer = "Nelder-Mead")
+    dat, cov_ranef = list(Species = phylotree), REML = FALSE,
+    cpp = TRUE, optimizer = "Nelder-Mead")
   x3 = phyr::communityPGLMM(
     freq ~ 1 + shade + (1 | Species__) + (1 | site) + (1 | Species__@site), 
-    dat, cov_ranef = list(Species = phylotree), bayes = T)
+    dat, cov_ranef = list(Species = phylotree), bayes = TRUE)
   
   # test significance of random term
   communityPGLMM.profile.LRT(x1, 1)
