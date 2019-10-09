@@ -160,7 +160,7 @@
 #'   in the formula, then you should set the repulsion to be something like 
 #'   \code{c(TRUE, FALSE, TURE, TURE)} (length of 4). 
 #'   The TRUE/FALSE combinations depend on your questions.
-#' @param add.obs.re Wether add observation-level random term for poisson and binomial
+#' @param add.obs.re Whether add observation-level random term for poisson and binomial
 #'   distributions? Normally it would be a good idea to add this to account for overdispersions.
 #'   Thus, we set it to \code{TRUE} by default.
 #' @param verbose If \code{TRUE}, the model deviance and running
@@ -421,7 +421,7 @@
 #' rownames(Y) <- 1:nspp
 #' colnames(Y) <- 1:nsite
 #' 
-#' par(mfrow = c(3, 1), las = 1, mar = c(2, 4, 2, 2) - 0.1)
+#' opar <- par(mfrow = c(3, 1), las = 1, mar = c(2, 4, 2, 2) - 0.1)
 #' matplot(t(X), type = "l", ylab = "X", main = "X among sites")
 #' hist(b0, xlab = "b0", main = "b0 among species")
 #' hist(b1, xlab = "b1", main = "b1 among species")
@@ -429,6 +429,7 @@
 #' #Plot out; you get essentially this from plot(your.pglmm.model)
 #' image(t(Y), ylab = "species", xlab = "sites", main = "abundance",
 #'       col=c("black","white"))
+#' par(opar)
 #' 
 #' # Transform data matrices into "long" form, and generate a data frame
 #' YY <- matrix(Y, nrow = nspp * nsite, ncol = 1)

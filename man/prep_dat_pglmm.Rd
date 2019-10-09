@@ -79,7 +79,7 @@ a zero. The rest of the parameters of the model then reflect the "non-zero" part
 of the model. Note that "zeroinflated.binomial" only makes sense as a using successes /
 fail type of response data.}
 
-\item{add.obs.re}{Wether add observation-level random term for poisson and binomial
+\item{add.obs.re}{Whether add observation-level random term for poisson and binomial
 distributions? Normally it would be a good idea to add this to account for overdispersions.
 Thus, we set it to \code{TRUE} by default.}
 }

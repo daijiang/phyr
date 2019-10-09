@@ -11,6 +11,9 @@ boot_ci(mod, ...)
 
 \item{...}{Additional arguments.}
 }
+\value{
+A list of confidence intervals.
+}
 \description{
 Implemented only for \code{cor_phylo} objects thus far.
 }

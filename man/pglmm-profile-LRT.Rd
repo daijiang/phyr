@@ -18,6 +18,9 @@ pglmm.profile.LRT(x, re.number = 0, cpp = TRUE)
 
 \item{cpp}{Whether to use c++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE}.}
 }
+\value{
+A list of likelihood, df, and p-value.
+}
 \description{
 \code{communityPGLMM.profile.LRT} tests statistical significance of the
 phylogenetic random effect of binomial models on

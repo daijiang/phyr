@@ -18,6 +18,9 @@
 
 \item{\dots}{Additional arguments, ignored for method compatibility.}
 }
+\value{
+A vector of residuals.
+}
 \description{
 Getting different types of residuals for communityPGLMM objects.
 }

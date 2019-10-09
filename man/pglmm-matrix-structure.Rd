@@ -87,6 +87,9 @@ The TRUE/FALSE combinations depend on your questions.}
 
 \item{cpp}{Whether to use c++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE}.}
 }
+\value{
+A design matrix.
+}
 \description{
 \code{pglmm.matrix.structure} produces the entire
 covariance matrix structure (V) when you specify random effects.

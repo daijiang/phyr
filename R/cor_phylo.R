@@ -1288,6 +1288,7 @@ print.cp_refits <- function(x, digits = max(3, getOption("digits") - 3), ...) {
 #' @param mod A `cor_phylo` object.
 #' @param ... Additional arguments.
 #' @export
+#' @return A list of confidence intervals.
 #'
 boot_ci <- function(mod, ...) {
   UseMethod("boot_ci")

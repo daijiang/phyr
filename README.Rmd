@@ -39,7 +39,7 @@ The phyr package has three groups of functions:
 
 # Usage examples of `pglmm()`
 
-`pglmm` use similar syntax as `lme4::lmer` to specify random terms: add `__` (two underscores) at the end of grouping variable (e.g. `sp`) to specify both phylogenetic and non-phylogenetic random terms; use `(1|sp__@site)` to specify nested term (i.e. species phylogenetic matrix `V_sp` nested within the diagnoal of site matrix `I_site`) to test phylogenetic overdispersion or underdispersion. This should be the most commonly used one and is equal to `kronecker(I_site, V_sp)`. 
+`pglmm` use similar syntax as `lme4::lmer` to specify random terms: add `__` (two underscores) at the end of grouping variable (e.g. `sp`) to specify both phylogenetic and non-phylogenetic random terms; use `(1|sp__@site)` to specify nested term (i.e. species phylogenetic matrix `V_sp` nested within the diagonal of site matrix `I_site`) to test phylogenetic overdispersion or underdispersion. This should be the most commonly used one and is equal to `kronecker(I_site, V_sp)`. 
 
 We can also use a second phylogeny for bipartite questions. For example, `(1|parasite@host__)` will be converted to `kronecker(V_host, I_parasite)`; `(1|parasite__@host__)` will be converted to `kronecker(V_host, V_parasite)`.
 

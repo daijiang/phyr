@@ -13,9 +13,18 @@
   INLA
   (INLA is an R package not on CRAN)
   
-* We have unwrapped examples that took ~5 seconds out of \dontrun.
+* We have removed \dontrun{} for examples that took ~5 seconds.
   Examples took >> 5 seconds to finish (phylogeneic generalized linear 
   mixed models, bootstrapping) are still wrapped within \dontrun{}.
   
 * We have removed 'with R' out of the title. We have also corrected all
-  T/F to TRUE/FALSE.
+  T/F to TRUE/FALSE. 
+  
+* We have put packgae name INLA in single quotes and added its source in DESCRIPTION.
+  
+* Added `opar <- par()` and `par(opar)` in the examples.
+
+* Added `@return` in the documentation of several functions.
+
+
+  
