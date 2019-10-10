@@ -30,6 +30,7 @@ test_that("testing pcd, without provide expectation", {
 })
 
 test_that("testing pcd, expectation based on one community", {
+    skip_if_not_installed("picante")
     x1 = pcd_pred(comm_a, tree = phylotree, reps = 100)
     x7 = pcd(comm = comm_a, tree = phylotree, expectation = x1)
     x8 = pcd(comm = comm_a, tree = phylotree, expectation = x1, cpp = FALSE)
