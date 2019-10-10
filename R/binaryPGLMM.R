@@ -54,10 +54,10 @@
 #' are statistically significantly different from zero).
 #' 
 #' It is a good idea to confirm statistical inferences using parametric
-#' bootstrapping, and the companion function binaryPGLMM.sim gives a simply
+#' bootstrapping, and the companion function \code{\link{binaryPGLMM.sim}} gives a simple
 #' tool for this. See Examples below.
 #' 
-#' @aliases binaryPGLMM binaryPGLMM.sim print.binaryPGLMM
+#' 
 #' @param formula A two-sided linear formula object describing the
 #' fixed-effects of the model; for example, Y ~ X.
 #' @param data A data frame containing the variables named in formula.
@@ -77,14 +77,7 @@
 #' iterations for the PQL optimization.
 #' @param maxit.reml A control parameter dictating the maximum number of
 #' iterations for the REML optimization.
-#' @param x An object of class "binaryPGLMM".
-#' @param s2 In binaryPGLMM.sim, value of s2. See s2.init.
-#' @param B In binaryPGLMM.sim, value of B, the matrix containing regression
-#' coefficients in the model. See B.init.
-#' @param nrep In binaryPGLMM.sim, number of compete data sets produced.
-#' @param digits The number of digits to print.
-#' @param cpp Whether to use cpp version of likelihood function? Default is TRUE.
-#' @param \dots Further arguments passed to \code{print}.
+#' 
 #' @return An object of class "binaryPGLMM".
 #' 
 #' \item{formula}{formula specifying the regression model.} \item{B}{estimates
@@ -112,10 +105,12 @@
 #' \item{converge.test.B}{final tolerance for B.} \item{converge.test.s2}{final
 #' tolerance for s2.} \item{rcondflag}{number of times B is reset to 0.01. This
 #' is done when rcond(V) < 10^(-10), which implies that V cannot be inverted.}
-#' \item{Y}{in binaryPGLMM.sim, the simulated values of Y.}
+#' 
 #' @author Anthony R. Ives
+#' 
 #' @seealso package \pkg{pez} and its function \code{communityPGLMM}; package
 #' \pkg{phylolm} and its function \code{phyloglm}; package \pkg{MCMCglmm}
+#' 
 #' @references Ives, A. R. and Helmus, M. R. (2011) Generalized linear mixed
 #' models for phylogenetic analyses of community structure. \emph{Ecological
 #' Monographs}, \bold{81}, 511--525.
@@ -124,6 +119,7 @@
 #' dependent variables. Pages 231--261 \emph{in} L. Z. Garamszegi, editor.
 #' \emph{Modern Phylogenetic Comparative Methods and Their Application in
 #' Evolutionary Biology}. Springer-Verlag, Berlin Heidelberg.
+#' 
 #' @keywords regression
 #' @rdname binaryPGLMM_ape
 #' @export
@@ -458,6 +454,32 @@ binaryPGLMM <- function(formula, data = list(), phy, s2.init = 0.1, B.init = NUL
   results
 }
 
+
+
+#' Parametric bootstrapping for binaryPGLMM models.
+#'
+#' @inheritParams binaryPGLMM
+#' @param s2 In binaryPGLMM.sim, value of s2. See description of `s2.init` argument 
+#'   in \code{\link{binaryPGLMM}}.
+#' @param B Value of B, the matrix containing regression coefficients in the model. 
+#'   See description of `B.init` argument in  \code{\link{binaryPGLMM}}.
+#' @param nrep Number of compete data sets produced.
+#'
+#' @return List with the following items:
+#' \describe{
+#' \item{B}{estimates of the regression coefficients.}
+#' \item{s2}{phylogenetic signal measured as the scalar magnitude of the
+#'   phylogenetic variance-covariance matrix s2 * V.}
+#' \item{X}{the predictor (independent) variables returned in matrix form
+#'   (including 1s in the first column).} 
+#' \item{V}{estimate of the covariance matrix of H.}
+#' \item{Y}{The simulated values of Y.}
+#' }
+#' 
+#' @rdname binaryPGLMM_ape
+#'
+#' @export
+#'
 binaryPGLMM.sim <- function (formula, data = list(), phy, s2 = NULL, B = NULL, nrep = 1) 
 {
   if (!inherits(phy, "phylo")) 
@@ -516,8 +538,22 @@ binaryPGLMM.sim <- function (formula, data = list(), phy, s2 = NULL, B = NULL, n
   return(results)
 }
 
-print.binaryPGLMM <- function (x, digits = max(4, getOption("digits") - 4), ...) 
-{
+
+
+
+
+#' Print summary information of fitted `binaryPGLMM`` model
+#' 
+#' @method print binaryPGLMM
+#' @param x An object of class "binaryPGLMM".
+#' @param digits The number of digits to print.
+#' @param ... Additional arguments; currently ignored.
+#' 
+#' @export
+#' 
+#' @rdname binaryPGLMM_ape
+#' 
+print.binaryPGLMM <- function (x, digits = max(4, getOption("digits") - 4), ...) {
   cat("\n\nCall:")
   print(x$formula)
   cat("\n")

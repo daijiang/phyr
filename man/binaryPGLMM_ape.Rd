@@ -9,6 +9,12 @@
 binaryPGLMM(formula, data = list(), phy, s2.init = 0.1,
   B.init = NULL, tol.pql = 10^-6, maxit.pql = 200,
   maxit.reml = 100)
+
+binaryPGLMM.sim(formula, data = list(), phy, s2 = NULL, B = NULL,
+  nrep = 1)
+
+\method{print}{binaryPGLMM}(x, digits = max(4, getOption("digits") - 4),
+  ...)
 }
 \arguments{
 \item{formula}{A two-sided linear formula object describing the
@@ -38,20 +44,19 @@ iterations for the PQL optimization.}
 \item{maxit.reml}{A control parameter dictating the maximum number of
 iterations for the REML optimization.}
 
+\item{s2}{In binaryPGLMM.sim, value of s2. See description of \code{s2.init} argument
+in \code{\link{binaryPGLMM}}.}
+
+\item{B}{Value of B, the matrix containing regression coefficients in the model.
+See description of \code{B.init} argument in  \code{\link{binaryPGLMM}}.}
+
+\item{nrep}{Number of compete data sets produced.}
+
 \item{x}{An object of class "binaryPGLMM".}
-
-\item{s2}{In binaryPGLMM.sim, value of s2. See s2.init.}
-
-\item{B}{In binaryPGLMM.sim, value of B, the matrix containing regression
-coefficients in the model. See B.init.}
-
-\item{nrep}{In binaryPGLMM.sim, number of compete data sets produced.}
 
 \item{digits}{The number of digits to print.}
 
-\item{cpp}{Whether to use cpp version of likelihood function? Default is TRUE.}
-
-\item{\dots}{Further arguments passed to \code{print}.}
+\item{...}{Additional arguments; currently ignored.}
 }
 \value{
 An object of class "binaryPGLMM".
@@ -81,7 +86,17 @@ matrix.} \item{V}{estimate of the covariance matrix of H.}
 \item{converge.test.B}{final tolerance for B.} \item{converge.test.s2}{final
 tolerance for s2.} \item{rcondflag}{number of times B is reset to 0.01. This
 is done when rcond(V) < 10^(-10), which implies that V cannot be inverted.}
-\item{Y}{in binaryPGLMM.sim, the simulated values of Y.}
+
+List with the following items:
+\describe{
+\item{B}{estimates of the regression coefficients.}
+\item{s2}{phylogenetic signal measured as the scalar magnitude of the
+phylogenetic variance-covariance matrix s2 * V.}
+\item{X}{the predictor (independent) variables returned in matrix form
+(including 1s in the first column).}
+\item{V}{estimate of the covariance matrix of H.}
+\item{Y}{The simulated values of Y.}
+}
 }
 \description{
 \code{binaryPGLMM} performs linear regression for binary phylogenetic data,
@@ -139,7 +154,7 @@ be high (giving type II errors: failing to identify variances that in fact
 are statistically significantly different from zero).
 
 It is a good idea to confirm statistical inferences using parametric
-bootstrapping, and the companion function binaryPGLMM.sim gives a simply
+bootstrapping, and the companion function \code{\link{binaryPGLMM.sim}} gives a simple
 tool for this. See Examples below.
 }
 \examples{
