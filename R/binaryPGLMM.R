@@ -1,6 +1,6 @@
 #' Phylogenetic Generalized Linear Mixed Model for Binary Data
 #' 
-#' binaryPGLMM performs linear regression for binary phylogenetic data,
+#' `binaryPGLMM` performs linear regression for binary phylogenetic data,
 #' estimating regression coefficients with approximate standard errors. It
 #' simultaneously estimates the strength of phylogenetic signal in the
 #' residuals and gives an approximate conditional likelihood ratio test for the
@@ -11,12 +11,14 @@
 #' restricted maximum likelihood (REML) to estimate the "variance components"
 #' of the model.
 #' 
-#' binaryPGLMM.sim is a companion function that simulates binary phylogenetic
-#' data of the same structure analyzed by binaryPGLMM.
+#' `binaryPGLMM` in the package `phyr` is largely the same as `binaryPGLMM` in 
+#' the package `ape`, although the present version will compute the 
+#' log likelihood and also return the necessary information for computing
+#'  a phylogenetic R2 in the package `rr2`.
 #' 
 #' The function estimates parameters for the model
 #' 
-#' \deqn{Pr(Y = 1) = q } \deqn{q = inverse.logit(b0 + b1 * x1 + b2 * x2 + \dots
+#' \deqn{Pr(Y = 1) = \theta } \deqn{\theta = inverse.logit(b0 + b1 * x1 + b2 * x2 + \dots
 #' + \epsilon)} \deqn{\epsilon ~ Gaussian(0, s2 * V) }
 #' 
 #' where \eqn{V} is a variance-covariance matrix derived from a phylogeny
@@ -278,24 +280,54 @@
 #' }
 #'
 binaryPGLMM <- function(formula, data = list(), phy, s2.init = 0.1, B.init = NULL, 
-                        tol.pql = 10^-6, maxit.pql = 200, maxit.reml = 100, cpp = TRUE) {
-  if (!inherits(phy, "phylo")) stop("Object \"phy\" is not of class \"phylo\".")
-  if (is.null(phy$edge.length)) stop("The tree has no branch lengths.")
-  if (is.null(phy$tip.label)) stop("The tree has no tip labels.")
+                        tol.pql = 10^-6, maxit.pql = 200, maxit.reml = 100) {
+  
+  # Helper function for \code{binaryPGLMM}
+  
+  # par = s2, tinvW = invW, tH = H, tVphy = Vphy, tX = X save(s2, invW, H, Vphy, X,
+  # file = 'pglmm.reml.RData')
+  
+  pglmm.reml <- function(par, tinvW, tH, tVphy, tX) {
+    n <- dim(tX)[1]
+    p <- dim(tX)[2]
+    ss2 <- abs(Re(par))
+    Cd <- ss2 * tVphy
+    V <- tinvW + Cd
+    LL <- 10^10
+    if (sum(is.infinite(V)) == 0) {
+      if (all(eigen(V)$values > 0)) {
+        invV <- solve(V)
+        logdetV <- determinant(V)$modulus[1]
+        if (is.infinite(logdetV)) {
+          cholV <- chol(V)
+          logdetV <- 2 * sum(log(diag(chol(V))))
+        }
+        LL <- logdetV + t(tH) %*% invV %*% tH + determinant(t(tX) %*% invV %*% tX)$modulus[1]
+      }
+    }
+    return(LL)
+  }
+  
+  
+  if (!inherits(phy, "phylo")) 
+    stop("Object 'phy' is not of class 'phylo'.")
+  if (is.null(phy$edge.length)) 
+    stop("The tree has no branch lengths.")
+  if (is.null(phy$tip.label)) 
+    stop("The tree has no tip labels.")
   phy <- reorder(phy, "postorder")
   n <- length(phy$tip.label)
   mf <- model.frame(formula = formula, data = data)
-  if (nrow(mf) != length(phy$tip.label)){
+  if (nrow(mf) != length(phy$tip.label)) 
     stop("Number of rows of the design matrix does not match with length of the tree.")
-  } 
   if (is.null(rownames(mf))) {
     warning("No tip labels, order assumed to be the same as in the tree.\n")
-    data.names = phy$tip.label
+    data.names <- phy$tip.label
   } else {
-    data.names = rownames(mf)
+    data.names <- rownames(mf)
   }
   .order <- match(data.names, phy$tip.label)  # do not name an object as a base function
-  if (any(is.na(.order))) {
+  if (sum(is.na(.order)) > 0) {
     warning("Data names do not match with the tip labels.\n")
     rownames(mf) <- data.names
   } else {
@@ -305,7 +337,7 @@ binaryPGLMM <- function(formula, data = list(), phy, s2.init = 0.1, B.init = NUL
   }
   X <- model.matrix(attr(mf, "terms"), data = mf)
   y <- model.response(mf)
-  if (any(y %nin% c(0, 1))) {
+  if (sum(!(y %in% c(0, 1)))) {
     stop("PGLMM.binary requires a binary response (dependent variable).")
   }
   if (var(y) == 0) {
@@ -320,7 +352,8 @@ binaryPGLMM <- function(formula, data = list(), phy, s2.init = 0.1, B.init = NUL
     warning("B.init not correct length, so computed B.init using glm()")
   }
   if (is.null(B.init) | (!is.null(B.init) & length(B.init) != p)) {
-    B.init <- t(matrix(glm(formula = formula, data = data, family = "binomial")$coefficients, ncol = p))
+    B.init <- t(matrix(glm(formula = formula, data = data, family = "binomial")$coefficients, 
+                       ncol = p))
   }
   B <- B.init
   s2 <- s2.init
@@ -329,7 +362,6 @@ binaryPGLMM <- function(formula, data = list(), phy, s2.init = 0.1, B.init = NUL
   mu <- exp(X %*% B)/(1 + exp(X %*% B))
   XX <- cbind(X, diag(1, nrow = n, ncol = n))
   C <- s2 * Vphy
-  # C = as(C, "dsCMatrix")
   est.s2 <- s2
   est.B <- B
   oldest.s2 <- 10^6
@@ -337,7 +369,8 @@ binaryPGLMM <- function(formula, data = list(), phy, s2.init = 0.1, B.init = NUL
   iteration <- 0
   exitflag <- 0
   rcondflag <- 0
-  while (((crossprod(est.s2 - oldest.s2) > tol.pql^2) | (crossprod(est.B - oldest.B)/length(B) > tol.pql^2)) & 
+  while (((crossprod(est.s2 - oldest.s2) > tol.pql^2) | 
+          (crossprod(est.B - oldest.B)/length(B) > tol.pql^2)) & 
          (iteration <= maxit.pql)) {
     iteration <- iteration + 1
     oldest.s2 <- est.s2
@@ -345,65 +378,35 @@ binaryPGLMM <- function(formula, data = list(), phy, s2.init = 0.1, B.init = NUL
     est.B.m <- B
     oldest.B.m <- matrix(10^6, nrow = length(est.B))
     iteration.m <- 0
-    # # if(cpp){
-    # #   while_1 = binpglmm_inter_while_cpp(est.B.m, oldest.B.m, B, tol.pql, iteration.m,
-    # #                                  maxit.pql, mu, C, rcondflag, B.init, X, XX, est.B, y, n, b)
-    # # } else {
-    #   while_1 = binpglmm_inter_while(est.B.m, oldest.B.m, B, tol.pql, iteration.m,
-    #                                  maxit.pql, mu, C, rcondflag, B.init, X, XX, est.B, y, n, b)
-    # # }
-    # Z = while_1$Z
-    # B = while_1$B
-    # b = while_1$b
-    # mu = while_1$mu
-    # invW = while_1$invW
-    # est.B.m = while_1$est.B.m
-    # rcondflag = while_1$rcondflag
-    
-    while ((crossprod(est.B.m - oldest.B.m)/length(B) > tol.pql^2) &
+    while ((crossprod(est.B.m - oldest.B.m)/length(B) > tol.pql^2) & 
            (iteration.m <= maxit.pql)) {
       iteration.m <- iteration.m + 1
       oldest.B.m <- est.B.m
-      ##### 
-      # if(cpp){
-      #  wh1 = binpglmm_inter_while_cpp2(est.B.m, B, mu, C, rcondflag, B.init, X, XX, est.B, y, n, b)
-      #  Z = wh1$Z; B = wh1$B; b = wh1$b; mu = wh1$mu; invW = wh1$invW
-      #  est.B.m = wh1$est.B.m; rcondflag = wh1$rcondflag
-      # } else {
-        invW <- diag(as.vector((mu * (1 - mu))^-1))
-        # invW = as(invW, "dsCMatrix")
-        V <- invW + C
-        if (sum(is.infinite(V)) > 0 | rcond(V) < 10^-10) {
-          rcondflag <- rcondflag + 1
-          B <- 0 * B.init + 0.001
-          b <- matrix(0, nrow = n)
-          beta <- rbind(B, b)
-          mu <- exp(X %*% B)/(1 + exp(X %*% B))
-          oldest.B.m <- matrix(10^6, nrow = length(est.B))
-          invW <- diag(as.vector((mu * (1 - mu))^-1))
-          V <- invW + C
-        }
-        invV <- solve(V)
-        Z <- X %*% B + b + (y - mu)/(mu * (1 - mu))
-        denom <- t(X) %*% invV %*% X
-        num <- t(X) %*% invV %*% Z
-        B <- as.matrix(solve(denom, num))
-        b <- C %*% invV %*% (Z - X %*% B)
+      invW <- diag(as.vector((mu * (1 - mu))^-1))
+      V <- invW + C
+      if (sum(is.infinite(V)) > 0 | rcond(V) < 10^-10) {
+        rcondflag <- rcondflag + 1
+        B <- 0 * B.init + 0.001
+        b <- matrix(0, nrow = n)
         beta <- rbind(B, b)
-        mu <- exp(XX %*% beta)/(1 + exp(XX %*% beta))
-        est.B.m <- B
-      # }
-      ######
+        mu <- exp(X %*% B)/(1 + exp(X %*% B))
+        oldest.B.m <- matrix(10^6, nrow = length(est.B))
+        invW <- diag(as.vector((mu * (1 - mu))^-1))
+        V <- invW + C
+      }
+      invV <- solve(V)
+      Z <- X %*% B + b + (y - mu)/(mu * (1 - mu))
+      denom <- t(X) %*% invV %*% X
+      num <- t(X) %*% invV %*% Z
+      B <- as.matrix(solve(denom, num))
+      b <- C %*% invV %*% (Z - X %*% B)
+      beta <- rbind(B, b)
+      mu <- exp(XX %*% beta)/(1 + exp(XX %*% beta))
+      est.B.m <- B
     }
     H <- Z - X %*% B
-    if(cpp){
-      opt <- optim(fn = pglmm_reml_cpp, par = s2, tinvW = invW, tH = H, tVphy = Vphy, 
-                   tX = X, method = "BFGS", control = list(factr = 1e+12, maxit = maxit.reml))
-    } else {
-      opt <- optim(fn = pglmm.reml, par = s2, tinvW = invW, tH = H, tVphy = Vphy, 
-                   tX = X, method = "BFGS", control = list(factr = 1e+12, maxit = maxit.reml))
-    }
-
+    opt <- optim(fn = pglmm.reml, par = s2, tinvW = invW, tH = H, tVphy = Vphy, 
+                 tX = X, method = "BFGS", control = list(factr = 1e+12, maxit = maxit.reml))
     s2 <- abs(opt$par)
     C <- s2 * Vphy
     est.s2 <- s2
@@ -425,87 +428,38 @@ binaryPGLMM <- function(formula, data = list(), phy, s2.init = 0.1, B.init = NUL
   b <- C %*% invV %*% (Z - X %*% B)
   beta <- rbind(B, b)
   mu <- exp(XX %*% beta)/(1 + exp(XX %*% beta))
+  mu_hat <- exp(X %*% B)/(1 + exp(X %*% B))
   H <- Z - X %*% B
   B.cov <- solve(t(X) %*% invV %*% X)
   B.se <- as.matrix(diag(B.cov))^0.5
   B.zscore <- B/B.se
   B.pvalue <- 2 * pnorm(abs(B/B.se), lower.tail = FALSE)
   LL <- opt$value
-  lnlike.cond.reml <- -0.5 * (n - p) * log(2 * pi) + 0.5 * determinant(t(X) %*% X)$modulus[1] - 0.5 * LL
+  logLik.glm <- sum(y * log(mu_hat) + (1 - y) * log(1 - mu_hat))
+  logLik <- logLik.glm + 
+    as.numeric(-LL + pglmm.reml(0 * s2,  tinvW = invW, tH = H, tVphy = Vphy, tX = X))
+  k <- p + 1
+  AIC <- -2 * logLik + 2 * k
+  BIC <- -2 * logLik + k * (log(n) - log(pi))
+
+  logLik.cond.reml <- -0.5 * (n - p) * log(2 * pi) + 
+    0.5 * determinant(t(X) %*% X)$modulus[1] - 0.5 * LL
   LL0 <- pglmm.reml(par = 0, tinvW = invW, tH = H, tVphy = Vphy, tX = X)
-  lnlike.cond.reml0 <- -0.5 * (n - p) * log(2 * pi) + 0.5 * determinant(t(X) %*% X)$modulus[1] - 0.5 * LL0
-  P.H0.s2 <- pchisq(2 * (lnlike.cond.reml - lnlike.cond.reml0), df = 1, lower.tail = FALSE)/2
+  logLik.cond.reml0 <- -0.5 * (n - p) * log(2 * pi) + 0.5 * determinant(t(X) %*% X)$modulus[1] - 0.5 * LL0
+  P.H0.s2 <- pchisq(2 * (logLik.cond.reml - logLik.cond.reml0), df = 1, lower.tail = F)/2
   
-  results <- list(formula = formula, B = B, B.se = B.se, B.cov = B.cov, 
-                  B.zscore = B.zscore, B.pvalue = B.pvalue, s2 = s2, P.H0.s2 = P.H0.s2, 
-                  mu = mu, b = b, B.init = B.init, X = X, y = y, phy = phy, data = data, 
-                  H = H, VCV = Vphy, V = V, convergeflag = convergeflag, 
-                  iteration = iteration, converge.test.s2 = converge.test.s2, 
-                  converge.test.B = converge.test.B, rcondflag = rcondflag)
+  results <- list(formula = formula, B = B, B.se = B.se, B.cov = B.cov, B.zscore = B.zscore, 
+                  B.pvalue = B.pvalue, logLik = logLik, AIC = AIC, BIC = BIC, s2 = s2, P.H0.s2 = P.H0.s2, mu = mu, b = b, B.init = B.init, 
+                  X = X, y = y, phy = phy, data = data, H = H, VCV = Vphy, V = V, convergeflag = convergeflag, 
+                  iteration = iteration, converge.test.s2 = converge.test.s2, converge.test.B = converge.test.B, 
+                  rcondflag = rcondflag)
   class(results) <- "binaryPGLMM"
+  
   results
 }
 
-binpglmm_inter_while = function(est.B.m, oldest.B.m, B, tol.pql, iteration.m, maxit.pql, 
-                                mu, C, rcondflag, B.init, X, XX, est.B, y, n, b){
-  while ((crossprod(est.B.m - oldest.B.m)/length(B) > tol.pql^2) &
-         (iteration.m <= maxit.pql)) {
-    iteration.m <- iteration.m + 1
-    oldest.B.m <- est.B.m
-    ##### 
-    invW <- diag(as.vector((mu * (1 - mu))^-1))
-    # invW = as(invW, "dsCMatrix")
-    V <- invW + C
-    if (sum(is.infinite(V)) > 0 | rcond(V) < 10^-10) {
-      rcondflag <- rcondflag + 1
-      B <- 0 * B.init + 0.001
-      b <- matrix(0, nrow = n)
-      beta <- rbind(B, b)
-      mu <- exp(X %*% B)/(1 + exp(X %*% B))
-      oldest.B.m <- matrix(10^6, nrow = length(est.B))
-      invW <- diag(as.vector((mu * (1 - mu))^-1))
-      V <- invW + C
-    }
-    invV <- solve(V)
-    Z <- X %*% B + b + (y - mu)/(mu * (1 - mu))
-    denom <- t(X) %*% invV %*% X
-    num <- t(X) %*% invV %*% Z
-    B <- as.matrix(solve(denom, num))
-    b <- C %*% invV %*% (Z - X %*% B)
-    beta <- rbind(B, b)
-    mu <- exp(XX %*% beta)/(1 + exp(XX %*% beta))
-    est.B.m <- B
-    ######
-  }
-  list(Z = Z, B = B, b = b, mu = mu, invW = invW, est.B.m = est.B.m, rcondflag = rcondflag)
-}
-
-pglmm.reml <- function(par, tinvW, tH, tVphy, tX) {
-  # n <- dim(tX)[1]
-  # p <- dim(tX)[2]
-  ss2 <- abs(Re(par))
-  Cd <- ss2 * tVphy
-  V <- tinvW + Cd
-  LL <- 10^10
-  if (sum(is.infinite(V)) == 0) {
-    if (all(eigen(V)$values > 0)) {
-      invV <- solve(V)
-      logdetV <- determinant(V)$modulus[1]
-      if (is.infinite(logdetV)) {
-        cholV <- chol(V)
-        logdetV <- 2 * sum(log(diag(chol(V))))
-      }
-      LL <- logdetV + t(tH) %*% invV %*% tH + determinant(t(tX) %*% invV %*% tX)$modulus[1]
-    }
-  }
-  return(LL)
-}
-
-#' @rdname binaryPGLMM_ape
-#' @export
-binaryPGLMM.sim <- function(formula, data = list(), phy, s2 = NULL, B = NULL, 
-                            nrep = 1) {
-  
+binaryPGLMM.sim <- function (formula, data = list(), phy, s2 = NULL, B = NULL, nrep = 1) 
+{
   if (!inherits(phy, "phylo")) 
     stop("Object \"phy\" is not of class \"phylo\".")
   if (is.null(phy$edge.length)) 
@@ -514,30 +468,29 @@ binaryPGLMM.sim <- function(formula, data = list(), phy, s2 = NULL, B = NULL,
     stop("The tree has no tip labels.")
   phy <- reorder(phy, "postorder")
   n <- length(phy$tip.label)
-  
   mf <- model.frame(formula = formula, data = data)
   if (nrow(mf) != length(phy$tip.label)) 
     stop("Number of rows of the design matrix does not match with length of the tree.")
   if (is.null(rownames(mf))) {
     warning("No tip labels, order assumed to be the same as in the tree.\n")
     data.names = phy$tip.label
-  } else data.names = rownames(mf)
+  }
+  else data.names = rownames(mf)
   order <- match(data.names, phy$tip.label)
   if (sum(is.na(order)) > 0) {
     warning("Data names do not match with the tip labels.\n")
     rownames(mf) <- data.names
-  } else {
+  }
+  else {
     tmp <- mf
     rownames(mf) <- phy$tip.label
     mf[order, ] <- tmp[1:nrow(tmp), ]
   }
-  
   if (is.null(s2)) 
     stop("You must specify s2")
   if (is.null(B)) 
     stop("You must specify B")
   X <- model.matrix(attr(mf, "terms"), data = mf)
-  
   n <- nrow(X)
   p <- ncol(X)
   V <- vcv(phy)
@@ -546,10 +499,10 @@ binaryPGLMM.sim <- function(formula, data = list(), phy, s2 = NULL, B = NULL,
   V <- V/max(V)
   V/exp(determinant(V)$modulus[1]/n)
   V <- s2 * V
-  
   if (s2 > 10^-8) {
     iD <- t(chol(V))
-  } else {
+  }
+  else {
     iD <- matrix(0, nrow = n, ncol = n)
   }
   Y <- matrix(0, nrow = n, ncol = nrep)
@@ -563,18 +516,17 @@ binaryPGLMM.sim <- function(formula, data = list(), phy, s2 = NULL, B = NULL,
   return(results)
 }
 
-#' @rdname binaryPGLMM_ape
-#' @export
-print.binaryPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ...) {
-  
+print.binaryPGLMM <- function (x, digits = max(4, getOption("digits") - 4), ...) 
+{
   cat("\n\nCall:")
   print(x$formula)
   cat("\n")
-  
-  cat("Random effect (phylogenetic signal s2):\n")
+  w <- data.frame(logLik = x$logLik, AIC = x$AIC, BIC = x$BIC)
+  print(w, digits+2, row.names = F)
+  cat("\n")
+  cat("\nRandom effect (phylogenetic signal s2):\n")
   w <- data.frame(s2 = x$s2, Pr = x$P.H0.s2)
-  print(w, digits = digits)
-  
+  print(w, digits = digits, row.names = F)
   cat("\nFixed effects:\n")
   coef <- data.frame(Value = x$B, Std.Error = x$B.se, Zscore = x$B.zscore, 
                      Pvalue = x$B.pvalue)

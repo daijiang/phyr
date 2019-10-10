@@ -200,4 +200,3 @@ align_comm_V = function(comm, tree, prune.tree = FALSE, scale.vcv = TRUE){
                       control = list(maxeval = 10))
   invisible()
 }
-
