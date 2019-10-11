@@ -113,7 +113,7 @@
 #' 
 #' @author Anthony R. Ives
 #' 
-#' @seealso package \pkg{pez} and its function \code{communityPGLMM}; package
+#' @seealso \code{\link{pglmm}}; package
 #' \pkg{phylolm} and its function \code{phyloglm}; package \pkg{MCMCglmm}
 #' 
 #' @references Ives, A. R. and Helmus, M. R. (2011) Generalized linear mixed
@@ -450,7 +450,8 @@ binaryPGLMM <- function(formula, data = list(), phy, s2.init = 0.1, B.init = NUL
   P.H0.s2 <- pchisq(2 * (logLik.cond.reml - logLik.cond.reml0), df = 1, lower.tail = F)/2
   
   results <- list(formula = formula, B = B, B.se = B.se, B.cov = B.cov, B.zscore = B.zscore, 
-                  B.pvalue = B.pvalue, logLik = logLik, AIC = AIC, BIC = BIC, s2 = s2, P.H0.s2 = P.H0.s2, mu = mu, mu_hat = mu_hat, b = b, B.init = B.init, 
+                  B.pvalue = B.pvalue, logLik = logLik, AIC = AIC, BIC = BIC, s2 = s2, 
+                  P.H0.s2 = P.H0.s2, mu = mu, mu_hat = mu_hat, b = b, B.init = B.init, 
                   X = X, y = y, phy = phy, data = data, H = H, VCV = Vphy, V = V, convergeflag = convergeflag, 
                   iteration = iteration, converge.test.s2 = converge.test.s2, converge.test.B = converge.test.B, 
                   rcondflag = rcondflag)

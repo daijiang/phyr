@@ -303,7 +303,7 @@ dependent variables. Pages 231--261 \emph{in} L. Z. Garamszegi, editor.
 Evolutionary Biology}. Springer-Verlag, Berlin Heidelberg.
 }
 \seealso{
-package \pkg{pez} and its function \code{communityPGLMM}; package
+\code{\link{pglmm}}; package
 \pkg{phylolm} and its function \code{phyloglm}; package \pkg{MCMCglmm}
 }
 \author{
