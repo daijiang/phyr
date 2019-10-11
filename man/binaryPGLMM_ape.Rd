@@ -61,7 +61,8 @@ See description of \code{B.init} argument in  \code{\link{binaryPGLMM}}.}
 \value{
 An object of class "binaryPGLMM".
 
-\item{formula}{formula specifying the regression model.} \item{B}{estimates
+\item{formula}{formula specifying the regression model.} \item{logLik}
+{log Likelihood.} \item{AIC}{AIC.}  \item{BIC}{BIC.} \item{B}{estimates
 of the regression coefficients.} \item{B.se}{approximate PQL standard errors
 of the regression coefficients.} \item{B.cov}{approximate PQL covariance
 matrix for the regression coefficients.} \item{B.zscore}{approximate PQL Z
@@ -71,9 +72,13 @@ tests for the regression coefficients being different from zero.}
 phylogenetic variance-covariance matrix s2 * V.} \item{P.H0.s2}{approximate
 likelihood ratio test of the hypothesis H0 that s2 = 0. This test is based
 on the conditional REML (keeping the regression coefficients fixed) and is
-prone to inflated type 1 errors.} \item{mu}{for each data point y, the
-estimate of p that y = 1.} \item{b}{for each data point y, the estimate of
-inverse.logit(p).} \item{X}{the predictor (independent) variables returned
+prone to inflated type 1 errors.} \item{mu_hat}{for each data point y, the
+estimate of p that y = 1 given by inverse.logit(X * B).} \item{mu}
+{for each data point y, the estimate of p that y = 1 that includes the
+phylogenetic information. These values will differ from mu_hat.}
+\item{b}{for each data point y, the estimate of inverse.logit(p) that
+includes the phylogenetic information.} \item{y}{the binary response
+variable.} \item{X}{the predictor (independent) variables returned
 in matrix form (including 1s in the first column).} \item{H}{residuals of
 the form b + (Y - mu)/(mu * (1 - mu)).} \item{B.init}{the user-provided
 initial estimates of B. If B.init is not provided, these are estimated using
