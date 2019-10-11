@@ -2,16 +2,12 @@
 % Please edit documentation in R/binaryPGLMM.R
 \name{binaryPGLMM}
 \alias{binaryPGLMM}
-\alias{binaryPGLMM.sim}
 \alias{print.binaryPGLMM}
 \title{Phylogenetic Generalized Linear Mixed Model for Binary Data}
 \usage{
 binaryPGLMM(formula, data = list(), phy, s2.init = 0.1,
   B.init = NULL, tol.pql = 10^-6, maxit.pql = 200,
   maxit.reml = 100)
-
-binaryPGLMM.sim(formula, data = list(), phy, s2 = NULL, B = NULL,
-  nrep = 1)
 
 \method{print}{binaryPGLMM}(x, digits = max(4, getOption("digits") - 4),
   ...)
@@ -44,14 +40,6 @@ iterations for the PQL optimization.}
 \item{maxit.reml}{A control parameter dictating the maximum number of
 iterations for the REML optimization.}
 
-\item{s2}{In binaryPGLMM.sim, value of s2. See description of \code{s2.init} argument
-in \code{\link{binaryPGLMM}}.}
-
-\item{B}{Value of B, the matrix containing regression coefficients in the model.
-See description of \code{B.init} argument in  \code{\link{binaryPGLMM}}.}
-
-\item{nrep}{Number of compete data sets produced.}
-
 \item{x}{An object of class "binaryPGLMM".}
 
 \item{digits}{The number of digits to print.}
@@ -61,8 +49,8 @@ See description of \code{B.init} argument in  \code{\link{binaryPGLMM}}.}
 \value{
 An object of class "binaryPGLMM".
 
-\item{formula}{formula specifying the regression model.} \item{logLik}
-{log Likelihood.} \item{AIC}{AIC.}  \item{BIC}{BIC.} \item{B}{estimates
+\item{formula}{formula specifying the regression model.} \item{logLik}{log
+Likelihood.} \item{AIC}{AIC.}  \item{BIC}{BIC.} \item{B}{estimates
 of the regression coefficients.} \item{B.se}{approximate PQL standard errors
 of the regression coefficients.} \item{B.cov}{approximate PQL covariance
 matrix for the regression coefficients.} \item{B.zscore}{approximate PQL Z
@@ -73,8 +61,8 @@ phylogenetic variance-covariance matrix s2 * V.} \item{P.H0.s2}{approximate
 likelihood ratio test of the hypothesis H0 that s2 = 0. This test is based
 on the conditional REML (keeping the regression coefficients fixed) and is
 prone to inflated type 1 errors.} \item{mu_hat}{for each data point y, the
-estimate of p that y = 1 given by inverse.logit(X * B).} \item{mu}
-{for each data point y, the estimate of p that y = 1 that includes the
+estimate of p that y = 1 given by inverse.logit(X * B).} \item{mu}{for
+each data point y, the estimate of p that y = 1 that includes the
 phylogenetic information. These values will differ from mu_hat.}
 \item{b}{for each data point y, the estimate of inverse.logit(p) that
 includes the phylogenetic information.} \item{y}{the binary response
@@ -91,17 +79,6 @@ matrix.} \item{V}{estimate of the covariance matrix of H.}
 \item{converge.test.B}{final tolerance for B.} \item{converge.test.s2}{final
 tolerance for s2.} \item{rcondflag}{number of times B is reset to 0.01. This
 is done when rcond(V) < 10^(-10), which implies that V cannot be inverted.}
-
-List with the following items:
-\describe{
-\item{B}{estimates of the regression coefficients.}
-\item{s2}{phylogenetic signal measured as the scalar magnitude of the
-phylogenetic variance-covariance matrix s2 * V.}
-\item{X}{the predictor (independent) variables returned in matrix form
-(including 1s in the first column).}
-\item{V}{estimate of the covariance matrix of H.}
-\item{Y}{The simulated values of Y.}
-}
 }
 \description{
 \code{binaryPGLMM} performs linear regression for binary phylogenetic data,

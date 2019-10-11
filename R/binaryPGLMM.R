@@ -14,7 +14,7 @@
 #' `binaryPGLMM` in the package `phyr` is largely the same as `binaryPGLMM` in 
 #' the package `ape`, although the present version will compute the 
 #' log likelihood and also return the necessary information for computing
-#'  a phylogenetic R2 in the package `rr2`.
+#' a phylogenetic R2 in the package `rr2`.
 #' 
 #' The function estimates parameters for the model
 #' 
@@ -80,8 +80,8 @@
 #' 
 #' @return An object of class "binaryPGLMM".
 #' 
-#' \item{formula}{formula specifying the regression model.} \item{logLik}
-#' {log Likelihood.} \item{AIC}{AIC.}  \item{BIC}{BIC.} \item{B}{estimates
+#' \item{formula}{formula specifying the regression model.} \item{logLik}{log 
+#' Likelihood.} \item{AIC}{AIC.}  \item{BIC}{BIC.} \item{B}{estimates
 #' of the regression coefficients.} \item{B.se}{approximate PQL standard errors
 #' of the regression coefficients.} \item{B.cov}{approximate PQL covariance
 #' matrix for the regression coefficients.} \item{B.zscore}{approximate PQL Z
@@ -92,8 +92,8 @@
 #' likelihood ratio test of the hypothesis H0 that s2 = 0. This test is based
 #' on the conditional REML (keeping the regression coefficients fixed) and is
 #' prone to inflated type 1 errors.} \item{mu_hat}{for each data point y, the
-#' estimate of p that y = 1 given by inverse.logit(X * B).} \item{mu}
-#' {for each data point y, the estimate of p that y = 1 that includes the
+#' estimate of p that y = 1 given by inverse.logit(X * B).} \item{mu}{for 
+#' each data point y, the estimate of p that y = 1 that includes the
 #' phylogenetic information. These values will differ from mu_hat.}
 #' \item{b}{for each data point y, the estimate of inverse.logit(p) that 
 #' includes the phylogenetic information.} \item{y}{the binary response 
@@ -461,30 +461,6 @@ binaryPGLMM <- function(formula, data = list(), phy, s2.init = 0.1, B.init = NUL
 
 
 
-#' Parametric bootstrapping for binaryPGLMM models.
-#'
-#' @inheritParams binaryPGLMM
-#' @param s2 In binaryPGLMM.sim, value of s2. See description of `s2.init` argument 
-#'   in \code{\link{binaryPGLMM}}.
-#' @param B Value of B, the matrix containing regression coefficients in the model. 
-#'   See description of `B.init` argument in  \code{\link{binaryPGLMM}}.
-#' @param nrep Number of compete data sets produced.
-#'
-#' @return List with the following items:
-#' \describe{
-#' \item{B}{estimates of the regression coefficients.}
-#' \item{s2}{phylogenetic signal measured as the scalar magnitude of the
-#'   phylogenetic variance-covariance matrix s2 * V.}
-#' \item{X}{the predictor (independent) variables returned in matrix form
-#'   (including 1s in the first column).} 
-#' \item{V}{estimate of the covariance matrix of H.}
-#' \item{Y}{The simulated values of Y.}
-#' }
-#' 
-#' @rdname binaryPGLMM_ape
-#'
-#' @export
-#'
 binaryPGLMM.sim <- function (formula, data = list(), phy, s2 = NULL, B = NULL, nrep = 1) 
 {
   if (!inherits(phy, "phylo")) 
