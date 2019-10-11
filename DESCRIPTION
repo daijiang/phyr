@@ -49,3 +49,4 @@ Suggests:
 VignetteBuilder: knitr
 URL: https://github.com/daijiang/phyr/
 BugReports: https://github.com/daijiang/phyr/issues
+Additional_repositories: https://inla.r-inla-download.org/R/stable/

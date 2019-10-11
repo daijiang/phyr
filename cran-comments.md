@@ -26,5 +26,5 @@
 
 * Added `@return` in the documentation of several functions.
 
-
+* Added `Additional_repositories: https://inla.r-inla-download.org/R/stable/` in DESCRIPTION.
   
