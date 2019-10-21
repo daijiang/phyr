@@ -20,13 +20,15 @@ However, \code{__} in the nested terms (below) will only create a phlylogenetic 
 Therefore, nested random term has four forms:
 \enumerate{
 \item \code{(1|sp__@site)} represents correlated species are nested within independent sites
-(i.e. kronecker(I_sites, V_sp)). This should be the most common one for community analysis.
+(i.e. kronecker(I_sites, V_sp)). This should be the most common one for community analysis (to test for overdispersion or underdispersion).
 \item \code{(1|sp@site__)} represents independent species are nested within correlated sites
 (i.e. kron(V_sites, I_sp)). This one can be used for bipartite questions.
-You can, for example, treat sp as insects and site as plants.
-Remember to set the argument \code{tree_site} to a phylogeny.
+You can, for example, treat sp as insects and site as plants with \code{(1|insects@plants__)}.
+Remember to add the phylogeny of plants in the argument \code{cov_ranef = list(plants = plant_phylo)}.
 \item \code{(1|sp__@site__)} represents correlated species are nested within correlated sites
-(i.e. kron(V_sites, V_sp)). This one can also be used for bipartite questions.
+(i.e. kron(V_sites, V_sp)). This one can also be used for bipartite questions such as
+pollinators and plants (e.g. \code{(1|pollinators__@plants__)}). Remember to add their phylogenies
+in the argument \code{cov_ranef = list(pollinators = pollinator_phylo, plants = plant_phylo)}.
 \item \code{(1|sp@site)} will generate a identity matrix, which will be the same as
 an observation level random term or the residual of LMM. So not very meaningful for gaussian models;
 observation-level random term will be automatically added for binomial and poisson models.
@@ -59,7 +61,7 @@ For example, \code{sp__@site} will take one length as well as \code{sp@site__}.
 \code{(1|sp__@site) + (1|sp@site__) + (1|sp__@site__)}
 in the formula, then you should set the repulsion to be something like
 \code{c(TRUE, FALSE, TURE, TURE)} (length of 4).
-The T/F combinations depend on your questions.}
+The TRUE/FALSE combinations depend on your questions.}
 
 \item{prep.re.effects}{Whether to prepare random effects for users.}
 
@@ -77,7 +79,7 @@ a zero. The rest of the parameters of the model then reflect the "non-zero" part
 of the model. Note that "zeroinflated.binomial" only makes sense as a using successes /
 fail type of response data.}
 
-\item{add.obs.re}{Wether add observation-level random term for poisson and binomial
+\item{add.obs.re}{Whether add observation-level random term for poisson and binomial
 distributions? Normally it would be a good idea to add this to account for overdispersions.
 Thus, we set it to \code{TRUE} by default.}
 }

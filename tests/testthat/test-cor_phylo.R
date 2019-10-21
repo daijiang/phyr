@@ -391,7 +391,7 @@ test_that("having no correlation works", {
 
 phyr_cp <- cor_phylo(variates = ~ par1 + par2,
                      data = data_list$data, phy = data_list$phy,
-                     species = ~ species, constrain_d = T)
+                     species = ~ species, constrain_d = TRUE)
 
 test_that("printing works when using `T` or `F` instead of `TRUE` or `FALSE`", {
   

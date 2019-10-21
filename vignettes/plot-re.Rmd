@@ -2,7 +2,9 @@
 title: "Plot random terms of communityPGLMM"
 author: "Daijiang Li"
 date: "`r Sys.Date()`"
-output: rmarkdown::html_vignette
+output: 
+  rmarkdown::html_vignette:
+    self_contained: yes
 vignette: >
   %\VignetteIndexEntry{Plot random terms of communityPGLMM}
   %\VignetteEngine{knitr::rmarkdown}
@@ -101,7 +103,7 @@ mod1re = pglmm.plot.re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@
                        show.sim.image = FALSE)
 ```
 
-In the above plot, we can see that some of the panels are black-white but some have colors. This is because, by default, if a mtrix has both positive and negative values, then the function will use red-blue color and will draw a key for that (use `colorkey = FALSE` to suppress it). If a matrix does not have negative values, then the function will use black/white color (use `useAbs = FALSE` to use color instead, and use `colorkey = FALSE` to suppress key if wanted). In both cases, value 0 will be white so that the structure of the var-cov matrix can be easier to see.
+In the above plot, we can see that some of the panels are black-white but some have colors. This is because, by default, if a matrix has both positive and negative values, then the function will use red-blue color and will draw a key for that (use `colorkey = FALSE` to suppress it). If a matrix does not have negative values, then the function will use black/white color (use `useAbs = FALSE` to use color instead, and use `colorkey = FALSE` to suppress key if wanted). In both cases, value 0 will be white so that the structure of the var-cov matrix can be easier to see.
 
 ```{r fig.asp=0.6}
 # all use color with useAbs = FALSE
@@ -110,7 +112,7 @@ pglmm.plot.re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
               show.sim.image = FALSE, useAbs = FALSE)
 ```
 
-For the above plot, notice that for `1|sp` and `1|site`, all values are either 1 or 0 even though we have a range in the key. We can supress the key with `colorkey = FALSE`.
+For the above plot, notice that for `1|sp` and `1|site`, all values are either 1 or 0 even though we have a range in the key. We can suppress the key with `colorkey = FALSE`.
 
 ```{r fig.asp=0.6}
 # suppress key with colorkey = FALSE
@@ -170,7 +172,7 @@ We can also pick the ones that we are interested in and put them in one figure. 
 gridExtra::grid.arrange(grobs = mod1re$plt_re_list[c(2, 5, 6)], nrow = 1)
 ```
 
-To save this customed plot, we can wrap the above line of code within `pdf()` and `dev.off()`.
+To save this plot, we can wrap the above line of code within `pdf()` and `dev.off()`.
 
 
 # Simulated site by species matrix for random terms
@@ -227,7 +229,7 @@ gridExtra::grid.arrange(grobs = lapply(mod1sim$plt_sim_list[c(2, 6)],
 
 ## Fitted model as input
 
-If you don't have the model fitted, then the above way with specified formula, data, etc. can save you lots of time. Becuase it won't actually fit the model, instead, it only return and plot the variance-cov matrices of random terms. However, if you already have the model fitted, you can just use the model as the input.
+If you don't have the model fitted, then the above way with specified formula, data, etc. can save you lots of time. Because it won't actually fit the model, instead, it only return and plot the variance-cov matrices of random terms. However, if you already have the model fitted, you can just use the model as the input.
 
 ```{r fig.asp=0.6}
 pglmm.plot.re(x = mod_1, show.image = FALSE, show.sim.image = TRUE, 

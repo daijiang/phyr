@@ -368,7 +368,7 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
         return(c(x4, x3)) # 1|sp  1|sp__
       }
       x3
-    }), recursive = T)
+    }), recursive = TRUE)
     
     # Add observation-level variances for families binomial (size > 1) and poisson
     if(family == 'poisson' | 
@@ -587,7 +587,7 @@ pglmm_gaussian_LL_calc = function(par, X, Y, Zt, St, nested = NULL,
   } else {
     logdetV <- -determinant(iV)$modulus[1]
     if (is.infinite(logdetV)) 
-      logdetV <- -2 * sum(log(diag(chol(iV, pivot = T))))
+      logdetV <- -2 * sum(log(diag(chol(iV, pivot = TRUE))))
     if (is.infinite(logdetV)) 
       return(10^10)
   }    
@@ -611,7 +611,7 @@ pglmm_gaussian_LL_calc = function(par, X, Y, Zt, St, nested = NULL,
     } else {
       LL <- 0.5 * (n * log(s2resid) + logdetV + n)
     }
-    if (verbose == T) show(c(as.numeric(LL), par))
+    if (verbose == TRUE) show(c(as.numeric(LL), par))
     return(as.numeric(LL))
   }
   
@@ -643,7 +643,7 @@ pglmm.LL <- function(par, H, X, Zt, St, mu, nested, REML = TRUE,
     # ML likelihood function
     LL <- 0.5 * (logdetV + t(H) %*% iV %*% H)
   }
-  if (verbose == T) show(c(as.numeric(LL), par))
+  if (verbose == TRUE) show(c(as.numeric(LL), par))
   
   return(as.numeric(LL))
 }
@@ -701,7 +701,7 @@ pglmm.iV.logdetV <- function(par, Zt, St, mu, nested, logdet = TRUE, family, siz
       # logdetV
       logdetV <- -determinant(iV)$modulus[1]
       if (is.infinite(logdetV)) 
-        logdetV <- -2 * sum(log(diag(chol(iV, pivot = T))))
+        logdetV <- -2 * sum(log(diag(chol(iV, pivot = TRUE))))
     }
   }
   if(logdet){
@@ -766,6 +766,7 @@ pglmm.V <- function(par, Zt, St, mu, nested, family, size) {
 #' @param x A fitted model with class communityPGLMM and family "binomial".
 #' @param re.number Which random term to test? Can be a vector with length >1
 #' @inheritParams pglmm
+#' @return A list of likelihood, df, and p-value.
 #' @export
 #' 
 communityPGLMM.profile.LRT <- function(x, re.number = 0, cpp = TRUE) {
@@ -807,7 +808,7 @@ communityPGLMM.profile.LRT <- function(x, re.number = 0, cpp = TRUE) {
     logLik0 <- -0.5 * n * log(2 * pi) - LL0
   }
   
-  P.H0.s2 <- pchisq(2 * (logLik - logLik0), df = df, lower.tail = F)/2
+  P.H0.s2 <- pchisq(2 * (logLik - logLik0), df = df, lower.tail = FALSE)/2
   if (P.H0.s2 > 0.499) P.H0.s2 <- 1
   
   list(LR = logLik - logLik0, df = df, Pr = P.H0.s2)
@@ -823,6 +824,8 @@ pglmm.profile.LRT <- communityPGLMM.profile.LRT
 #' @rdname pglmm-matrix-structure
 #' @inheritParams pglmm
 #' @export
+#' @return A design matrix.
+#' 
 pglmm.matrix.structure <- function(formula, data = list(), family = "binomial", 
                                             cov_ranef, repulsion = FALSE, ss = 1, cpp = TRUE) {
   dat_prepared = prep_dat_pglmm(formula, data, cov_ranef, repulsion, family = family)
@@ -993,13 +996,13 @@ print.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ..
 #' c("binomial","poisson"), these values are in the transformed space.
 #' 
 #' @rdname pglmm-predicted-values
-#' @param x a fitted model with class communityPGLMM.
-#' @param cpp whether to use c++ code. Default is TRUE.
-#' @param gaussian.pred when family is gaussian, which type of prediction to calculate?
+#' @param x A fitted model with class communityPGLMM.
+#' @param cpp Whether to use c++ code. Default is TRUE.
+#' @param gaussian.pred When family is gaussian, which type of prediction to calculate?
 #'   Option nearest_node will predict values to the nearest node, which is same as lme4::predict or
 #'   fitted. Option tip_rm will remove the point then predict the value of this point with remaining ones.
 #' @export
-#' @return a data frame with three columns: Y_hat (predicted values accounting for 
+#' @return A data frame with three columns: Y_hat (predicted values accounting for 
 #'   both fixed and random terms), sp, and site.
 communityPGLMM.predicted.values <- function(x, cpp = TRUE, 
                                             gaussian.pred = c("nearest_node", "tip_rm")) 
@@ -1068,6 +1071,7 @@ pglmm.predicted.values <- communityPGLMM.predicted.values
 #' @param scaled Scale residuals by residual standard deviation for gaussian pglmm.
 #' @param \dots Additional arguments, ignored for method compatibility.
 #' @method residuals communityPGLMM
+#' @return A vector of residuals.
 #' @export
 residuals.communityPGLMM <- function(
   object, 

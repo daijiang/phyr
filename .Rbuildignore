@@ -1,3 +1,5 @@
+^CRAN-RELEASE$
+^cran-comments\.md$
 ^.*\.Rproj$
 ^\.Rproj\.user$
 ^LICENSE\.md$
@@ -6,3 +8,5 @@
 ^codecov\.yml$
 ^phyr_.*.zip$
 ^phyr_.*.tgz$
+^vignettes/dev.Rmd$
+^vignettes/profvis.Rmd$

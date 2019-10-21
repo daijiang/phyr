@@ -1,16 +1,19 @@
 Package: phyr
 Type: Package
-Title: Phylogenetic Analysis with R
-Version: 0.1.6
+Title: Model Based Phylogenetic Analysis
+Version: 1.0.0
 Authors@R: c(
     person("Anthony", "Ives", , "arives@wisc.edu", role = c("aut")),
     person("Russell", "Dinnage", , "r.dinnage@gmail.com", role = c("aut"), comment = c(ORCID = "0000-0003-0846-2819")),
     person(c("Lucas", "A."), "Nell", , "lucas@lucasnell.com", role = c("aut"), comment = c(ORCID = "0000-0003-3209-0517")),
+    person("Matthew", "Helmus", , "mrhelmus@temple.edu", role = c("aut")),
     person("Daijiang", "Li", , "daijianglee@gmail.com", role = c("aut", "cre"), comment = c(ORCID = "0000-0002-0925-3421")))
 Description: A collection of functions to do model-based phylogenetic analysis. 
-    It is easier to update and modify functions in one place than 
-    submitting changes to several packages. Core parts of functions were written
-    in c++ to speed things up.
+    It includes functions to calculate community phylogenetic diversity,
+    to estimate correlations among functional traits while accounting for 
+    phylogenetic relationships, and to fit phylogenetic generalized linear
+    mixed models. The Bayesian phylogenetic generalized linear mixed models
+    are fitted with the 'INLA' package (<http://www.r-inla.org>).
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
@@ -28,7 +31,6 @@ Imports:
     nloptr,
     gridExtra,
     mvtnorm,
-    lattice,
     latticeExtra
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 6.1.1
@@ -42,7 +44,9 @@ Suggests:
     rmarkdown,
     covr,
     picante,
+    rbenchmark,
     INLA
 VignetteBuilder: knitr
 URL: https://github.com/daijiang/phyr/
 BugReports: https://github.com/daijiang/phyr/issues
+Additional_repositories: https://inla.r-inla-download.org/R/stable/

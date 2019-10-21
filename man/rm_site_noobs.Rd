@@ -2,7 +2,7 @@
 % Please edit documentation in R/utils.R
 \name{rm_site_noobs}
 \alias{rm_site_noobs}
-\title{Remove site that has no obsrevations of any species.}
+\title{Remove site that has no observations of any species.}
 \usage{
 rm_site_noobs(df)
 }

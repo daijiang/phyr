@@ -97,9 +97,9 @@ plot.communityPGLMM <- function(x, sp.var = "sp", site.var = "site",
 #'  \code{show.sim.image} is TRUE, the corresponding final plot (\code{plt_re_all_in_one} or 
 #'  \code{plt_sim_all_in_one}) can be saved as external file using \code{ggplot2::ggsave} as 
 #'  it is a grid object.
-#' @aliases communityPGLMM.show.re
+#' @aliases pglmm.plot.re
 #' @export
-communityPGLMM.plot.re <- function(
+pglmm.plot.ranef <- function(
   formula = NULL, data = NULL, family = "gaussian", 
   sp.var = "sp", site.var = "site",
   tree = NULL, tree_site = NULL, repulsion = FALSE, x = NULL, 
@@ -189,7 +189,7 @@ communityPGLMM.plot.re <- function(
     pl_re_all = do.call(gridExtra::arrangeGrob, c(pl, ncol = n_col, nrow = n_row))
   }
   
-  if(is.na(cov_ranef_update)){# model with user provided random effects
+  if(is.na(cov_ranef_update[1])){# model with user provided random effects
     add.tree.sp = FALSE
     add.tree.site = FALSE
   }
@@ -239,7 +239,7 @@ communityPGLMM.plot.re <- function(
     names(Y.mat) = gsub(pattern = "^Y", replacement = "", names(Y.mat))
     sim[[i]] <- as(as.matrix(Y.mat), "denseMatrix")
     # reorder data to match cov matrix
-    if(!is.na(cov_ranef_update)){
+    if(!is.na(cov_ranef_update[1])){
       spll = if(inherits(cov_ranef_update[[sp.var]], "phylo")){
         cov_ranef_update[[sp.var]]$tip.label
       } else {
@@ -357,10 +357,15 @@ communityPGLMM.plot.re <- function(
 
 #' @export
 #' @rdname pglmm-plot-re
-#' @aliases communityPGLMM.plot.re
-communityPGLMM.show.re <- communityPGLMM.plot.re
+#' @aliases pglmm.plot.ranef
+communityPGLMM.show.re <- pglmm.plot.ranef
 
 #' @export
 #' @rdname pglmm-plot-re
-#' @aliases communityPGLMM.plot.re
-pglmm.plot.re <- communityPGLMM.plot.re
+#' @aliases pglmm.plot.ranef
+pglmm.plot.re <- pglmm.plot.ranef
+
+#' @export
+#' @rdname pglmm-plot-re
+#' @aliases pglmm.plot.ranef
+communityPGLMM.plot.re <- pglmm.plot.ranef

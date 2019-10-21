@@ -33,7 +33,7 @@ rm_sp_noobs = function(df) {
   df
 }
 
-#' Remove site that has no obsrevations of any species.
+#' Remove site that has no observations of any species.
 #'
 #' This function will remove site that has no observations in a site by species data frame.
 #'
@@ -200,4 +200,3 @@ align_comm_V = function(comm, tree, prune.tree = FALSE, scale.vcv = TRUE){
                       control = list(maxeval = 10))
   invisible()
 }
-
