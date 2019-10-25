@@ -28,3 +28,4 @@
 
 * Added `Additional_repositories: https://inla.r-inla-download.org/R/stable/` in DESCRIPTION.
   
+* Replaced `\dontrun{}` with `\donttest{}`.

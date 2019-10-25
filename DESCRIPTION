@@ -45,7 +45,10 @@ Suggests:
     covr,
     picante,
     rbenchmark,
-    INLA
+    INLA,
+    MCMCglmm,
+    logistf,
+    phylolm
 VignetteBuilder: knitr
 URL: https://github.com/daijiang/phyr/
 BugReports: https://github.com/daijiang/phyr/issues

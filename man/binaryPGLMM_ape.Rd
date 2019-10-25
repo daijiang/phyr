@@ -141,7 +141,7 @@ tool for this. See Examples below.
 }
 \examples{
 
-\dontrun{
+\donttest{
 ## Illustration of binaryPGLMM() with simulated data
 
 # Generate random phylogeny

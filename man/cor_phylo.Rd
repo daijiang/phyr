@@ -300,7 +300,7 @@ cor_phylo(variates = X, species = data_df$species,
 
 
 
-\dontrun{
+\donttest{
 
 ## Simulation example for the correlation between two variables. The example
 ## compares the estimates of the correlation coefficients from cor_phylo when

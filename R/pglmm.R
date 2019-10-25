@@ -314,7 +314,7 @@
 #' # Second, a run-through of how to simulate, and then analyse, data
 #' # - these *are* to be run 'as-is'; they show how to format and work with data
 #'
-#' \dontrun{
+#' \donttest{
 #' #########################################################
 #' #First section; brief summary of models and their use####
 #' #########################################################
@@ -453,7 +453,7 @@
 #' pglmm(Y ~ X + (1|site), data = dat, family = "binomial", REML = TRUE)
 #' # The rest of these tests are not run to save CRAN server time;
 #' # - please take a look at them because they're *very* useful!
-#' \dontrun{ 
+#' \donttest{ 
 #'   z.binary <- pglmm(Y ~ X + (1|sp__) + (X|sp__), data = dat, family = "binomial",
 #'                     cov_ranef = list(sp = phy), REML = TRUE, verbose = FALSE, 
 #'                     optimizer = "Nelder-Mead")

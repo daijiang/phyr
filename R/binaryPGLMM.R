@@ -130,7 +130,7 @@
 #' @export
 #' @examples
 #' 
-#' \dontrun{
+#' \donttest{
 #' ## Illustration of binaryPGLMM() with simulated data
 #' 
 #' # Generate random phylogeny
