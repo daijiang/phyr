@@ -17,7 +17,7 @@ double pglmm_reml_cpp(arma::vec par, const arma::mat& tinvW,
                       const arma::mat& tX){
   vec ss2 = abs(real(par));
   arma::mat Cd = as_scalar(ss2) * tVphy;
-  double LL = pow(10, 10);
+  double LL = pow(static_cast<double>(10), static_cast<double>(10));
   arma::mat V = tinvW + Cd;
   if(!V.has_inf()){
     cx_vec eigval = eig_gen(V);
@@ -70,7 +70,7 @@ List binpglmm_inter_while_cpp(
     arma::vec pq = 1 / (mu % (1 - mu));
     invW = mat(diagmat(pq));
     arma::mat V = invW + C;
-    if(V.has_inf() || (rcond(V) < pow(10, -10))){
+    if(V.has_inf() || (rcond(V) < pow(static_cast<double>(10), static_cast<double>(-10)))){
       // Rcout << rcondflag << " " ;
       rcondflag = rcondflag + 1;
       B = mat(size(B_init));
@@ -120,7 +120,7 @@ List binpglmm_inter_while_cpp2(
     arma::vec pq = 1 / (mu % (1 - mu));
     arma::mat invW = mat(diagmat(pq));
     arma::mat V = invW + C;
-    if(V.has_inf() || (rcond(V) < pow(10, -10))){
+    if(V.has_inf() || (rcond(V) < pow(static_cast<double>(10), static_cast<double>(-10)))){
       // Rcout << rcondflag << " " ;
       rcondflag = rcondflag + 1;
       B = mat(size(B_init));
