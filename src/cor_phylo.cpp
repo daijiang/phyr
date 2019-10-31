@@ -34,30 +34,31 @@ using namespace Rcpp;
 
 
 
-//' Inline C++ that does most of the work related to the log-likelihood function.
-//' 
-//' See below for the wrapper around this function that replaces the many
-//' arguments required here with one input `XPtr<LL_obj>` object.
+
+//' `cor_phylo` log likelihood function.
 //' 
 //' 
-//' @name cor_phylo_LL_
-//' 
+//' @param par Initial values for the parameters to be optimized over.
+//' @param ll_info_xptr `Rcpp::Xptr` object that points to a C++ `LogLikInfo` object.
+//'     This object stores all the other information needed for the log likelihood
+//'     function.
 //' 
 //' @noRd
 //' 
+//' @name cor_phylo_LL
 //' 
-inline double cor_phylo_LL_(const arma::vec& par,
-                            const arma::mat& XX,
-                            const arma::mat& UU,
-                            const arma::mat& MM,
-                            const arma::mat& Vphy,
-                            const arma::mat& tau,
-                            const bool& REML,
-                            const bool& constrain_d,
-                            const double& lower_d,
-                            const bool& verbose,
-                            const double& rcond_threshold) {
-  
+//[[Rcpp::export]]
+double cor_phylo_LL(const arma::vec& par,
+                     const arma::mat& XX,
+                     const arma::mat& UU,
+                     const arma::mat& MM,
+                     const arma::mat& Vphy,
+                     const arma::mat& tau,
+                     const bool& REML,
+                     const bool& constrain_d,
+                     const double& lower_d,
+                     const bool& verbose,
+                     const double& rcond_threshold) {
   
   uint_t n = Vphy.n_rows;
   uint_t p = XX.n_rows / n;
@@ -73,7 +74,7 @@ inline double cor_phylo_LL_(const arma::vec& par,
   arma::mat C = make_C(n, p, tau, d, Vphy, R);
   
   arma::mat V = make_V(C, MM);
-  double rcond_dbl = arma::rcond(V);
+  double rcond_dbl = arma::rcond(V); // <<<<<<<<<<<<<<  VALGRIND ERROR  >>>>>>>>>>>>>>
   if (!arma::is_finite(rcond_dbl) || rcond_dbl < rcond_threshold) return MAX_RETURN;
   
   arma::mat iV = arma::inv(V);
@@ -107,39 +108,6 @@ inline double cor_phylo_LL_(const arma::vec& par,
     Rcout << std::endl;
   }
   
-  return LL;
-}
-
-
-
-
-//' `cor_phylo` log likelihood function.
-//' 
-//' 
-//' @param par Initial values for the parameters to be optimized over.
-//' @param ll_info_xptr `Rcpp::Xptr` object that points to a C++ `LogLikInfo` object.
-//'     This object stores all the other information needed for the log likelihood
-//'     function.
-//' 
-//' @noRd
-//' 
-//' @name cor_phylo_LL
-//' 
-//[[Rcpp::export]]
-double cor_phylo_LL(const arma::vec& par,
-                     const arma::mat& XX,
-                     const arma::mat& UU,
-                     const arma::mat& MM,
-                     const arma::mat& Vphy,
-                     const arma::mat& tau,
-                     const bool& REML,
-                     const bool& constrain_d,
-                     const double& lower_d,
-                     const bool& verbose,
-                     const double& rcond_threshold) {
-  
-  double LL = cor_phylo_LL_(par, XX, UU, MM, Vphy, tau, REML,
-                            constrain_d, lower_d, verbose, rcond_threshold);
   return LL;
 }
 
