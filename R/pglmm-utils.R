@@ -294,7 +294,7 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
 #' @return A list of design matrices.
 #' @export
 get_design_matrix = function(formula, data, random.effects, na.action = NULL){
-  
+
   mf <- model.frame(formula = formula, data = data, na.action = na.action)
   X <- model.matrix(attr(mf, "terms"), data = mf)
   Y <- model.response(mf)
@@ -1102,4 +1102,124 @@ ranef.communityPGLMM <- function(object, ...) {
   
   row.names(w) <- re.names
   w
+}
+
+
+#' Summary information of fitted pglmm.compare model
+#' 
+#' @method summary pglmm.compare
+#' @param object A fitted model with class pglmm.compare.
+#' @param digits Minimal number of significant digits for printing, as in \code{\link{print.default}}.
+#' @param ... Additional arguments, currently ignored.
+#' @export
+summary.pglmm.compare <- function(object, digits = max(3, getOption("digits") - 3), ...) {
+  x <- object # summary generic function first argument is object, not x.
+  if(is.null(x$bayes)) x$bayes = FALSE # to be compatible with models fitting by pez
+  
+  if(x$bayes) {
+    if (x$family == "gaussian") {
+      cat("Linear mixed model fit by Bayesian INLA")
+    }
+    if (x$family == "binomial") {
+      cat("Generalized linear mixed model for binomial data fit by Bayesian INLA")
+    }
+    if (x$family == "poisson") {
+      cat("Generalized linear mixed model for poisson data fit by Bayesian INLA")
+    }
+    if (x$family == "zeroinflated.binomial") {
+      cat("Generalized linear mixed model for binomial data with zero inflation fit by Bayesian INLA")
+    }
+    if (x$family == "zeroinflated.poisson") {
+      cat("Generalized linear mixed model for poisson data with zero inflation fit by Bayesian INLA")
+    }
+  } else {
+    if (x$family == "gaussian") {
+      if (x$REML == TRUE) {
+        cat("Linear mixed model fit by restricted maximum likelihood")
+      } else {
+        cat("Linear mixed model fit by maximum likelihood")
+      }
+    }
+    if (x$family == "binomial") {
+      if (x$REML == TRUE) {
+        cat("Generalized linear mixed model for binomial data fit by restricted maximum likelihood")
+      } else {
+        cat("Generalized linear mixed model for binomial data fit by maximum likelihood")
+      }
+    }
+    if (x$family == "poisson") {
+      if (x$REML == TRUE) {
+        cat("Generalized linear mixed model for poisson data fit by restricted maximum likelihood")
+      } else {
+        cat("Generalized linear mixed model for poisson data fit by maximum likelihood")
+      }
+    }
+  }
+  
+  cat("\n\nCall:")
+  print(x$formula)
+  cat("\n")
+  
+  if(x$bayes) {
+    logLik <- x$logLik
+    names(logLik) <- "marginal logLik"
+    if(!is.null(x$DIC)) {
+      DIC <- x$DIC
+      names(DIC) <- "DIC"
+      print(c(logLik, DIC), digits = digits)
+    } else {
+      print(logLik, digits = digits)
+    }
+  } else {
+    if (x$family == "gaussian") {
+      logLik = x$logLik
+      AIC = x$AIC
+      BIC = x$BIC
+      
+      names(logLik) = "logLik"
+      names(AIC) = "AIC"
+      names(BIC) = "BIC"
+      print(c(logLik, AIC, BIC), digits = digits)
+    }
+  }
+  
+  if(grepl("zeroinflated", x$family)) {
+    cat("\nZero Inflation Parameter:\n")
+    print(data.frame(Estimate = x$zi, lower.CI = x$zi.ci[1, 1], upper.CI = x$zi.ci[1, 2]), digits = digits)
+  }
+  
+  cat("\nPhylogenetic random effects variance (s2):\n")
+  w <- data.frame(Variance = c(x$s2n, x$s2resid))
+  w$Std.Dev = sqrt(w$Variance)
+  
+  if(x$bayes) {
+    w$lower.CI <- c(x$s2n.ci[ , 1], x$s2resid.ci[ , 1])
+    w$upper.CI <- c(x$s2n.ci[ , 2], x$s2resid.ci[ , 2])
+  }
+  
+  re.names = "s2"
+  if (x$family == "gaussian") re.names <- c(re.names, "residual")
+  
+  row.names(w) <- re.names
+  print(w, digits = digits)
+  
+  cat("\nFixed effects:\n")
+  coef <- fixef.communityPGLMM(x)
+  if(x$bayes) {
+    printCoefmat(coef, P.values = FALSE, has.Pvalue = TRUE)
+  } else {
+    printCoefmat(coef, P.values = TRUE, has.Pvalue = TRUE)
+  }
+  cat("\n")
+}
+
+#' Print summary information of fitted model
+#' 
+#' @method print pglmm.compare
+#' @param x A fitted pglmm.compare.
+#' @param digits Minimal number of significant digits for printing, as in \code{\link{print.default}}.
+#' @param ... Additional arguments, currently ignored.
+#' @export
+print.pglmm.compare <- function(x, digits = max(3, getOption("digits") - 3), ...) {
+  summary.pglmm.compare(x, digits = digits)
 }

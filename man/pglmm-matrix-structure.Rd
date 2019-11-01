@@ -26,7 +26,8 @@ However, \code{__} in the nested terms (below) will only create a phlylogenetic 
 Therefore, nested random term has four forms:
 \enumerate{
 \item \code{(1|sp__@site)} represents correlated species are nested within independent sites
-(i.e. kronecker(I_sites, V_sp)). This should be the most common one for community analysis (to test for overdispersion or underdispersion).
+(i.e. kronecker(I_sites, V_sp)). This should be the most common one for community analysis
+(to test for overdispersion or underdispersion).
 \item \code{(1|sp@site__)} represents independent species are nested within correlated sites
 (i.e. kron(V_sites, I_sp)). This one can be used for bipartite questions.
 You can, for example, treat sp as insects and site as plants with \code{(1|insects@plants__)}.
@@ -40,52 +41,50 @@ an observation level random term or the residual of LMM. So not very meaningful 
 observation-level random term will be automatically added for binomial and poisson models.
 }
 
-Second, note that correlated random terms will not be allowed at this moment. For example,
-\code{(x|g)} will be equal with \code{(0 + x|g)} in the \code{lme4::lmer} syntax;
+Second, note that correlated random terms are allowed. For example,
+\code{(x|g)} will be the same as \code{(0 + x|g)} in the \code{lme4::lmer} syntax;
 also, \code{(x1 + x2|g)} won't work.}
 
 \item{data}{A \code{\link{data.frame}} containing the variables named in formula.}
 
 \item{family}{Either "gaussian" for a Linear Mixed Model, or
-"binomial" for binomial dependent data, or "poisson" for count data.
-It should be specified as a character string (i.e., quoted). At this moment,
-for binomial data, we fixed the link function to logit; for poisson data,
-we fixed the link function to log. Binomial data can be either
-presence/absence, or a two column array of 'success' and 'fail'.
-For both poisson and binomial data, we add an observation-level
+"binomial" or "poisson" for Generized Linear Mixed Models.
+\code{family} should be specified as a character string (i.e., quoted). For binomial and
+Poisson data, we use the canonical logit and log link functions, respectively.
+Binomial data can be either presence/absence, or a two-column array of 'success' and 'fail'.
+For both Poisson and binomial data, we add an observation-level
 random term by default via \code{add.obs.re = TRUE}. If \code{bayes = TRUE} there are
 two additional families available: "zeroinflated.binomial", and "zeroinflated.poisson",
-which add a "zero inflation" parameter, which is the probability that a the response is
+which add a zero inflation parameter; this parameter gives the probability that the response is
 a zero. The rest of the parameters of the model then reflect the "non-zero" part part
-of the model. Note that "zeroinflated.binomial" only makes sense as a using successes /
-fail type of response data.}
+of the model. Note that "zeroinflated.binomial" only makes sense for success/failure
+response data.}
 
-\item{cov_ranef}{A named list of var-cov matrices of random terms. The names should be the
-group variables that are used as random terms with specified var-cov matrices
+\item{cov_ranef}{A named list of covariance matrices of random terms. The names should be the
+group variables that are used as random terms with specified covariance matrices
 (without the two underscores, e.g. \code{list(sp = tree1, site = tree2)}). The actual object
-can be either a phylogeny with class "phylo" or a prepared var-cov matrix. If it is a phylogeny,
-we will prune it and then convert it to a var-cov matrix assuming brownian motion evolution.
-We will also standardize all var-cov matrices to have determinant of one. Group variables
-will be converted to factors and all var-cov matrices will be rearranged so that rows and
+can be either a phylogeny with class "phylo" or a prepared covariance matrix. If it is a phylogeny,
+\code{pglmm} will prune it and then convert it to a covariance matrix assuming Brownian motion evolution.
+\code{pglmm} will also standardize all covariance matrices to have determinant of one. Group variables
+will be converted to factors and all covariance matrices will be rearranged so that rows and
 columns are in the same order as the levels of their corresponding group variables.}
 
-\item{repulsion}{When nested random term specified, do you want to test repulsion
-(i.e., overdispersion) or underdispersion? Default is \code{FALSE}, i.e. test underdispersion.
+\item{repulsion}{When there are nested random terms specified, \code{repulsion = FALSE} tests
+for phylogenetic underdispersion while \code{repulsion = FALSE} tests for overdispersion.
 This argument can be either a logical vector of length 1 or >1.
-If its length is 1, then all cov matrices in nested terms will be either inverted (overdispersion) or not.
-If its length is >1, then this means the users can select which cov matrix in the nested terms to be inverted.
-If so, make sure to get the length right: for all the terms with \code{@},
-count the number of "__" and this will be the length of repulsion.
-For example, \code{sp__@site} will take one length as well as \code{sp@site__}.
-\code{sp__@site__} will take two elements (repulsion for sp and repulsion for site). So, if you nested terms are
-\code{(1|sp__@site) + (1|sp@site__) + (1|sp__@site__)}
-in the formula, then you should set the repulsion to be something like
-\code{c(TRUE, FALSE, TURE, TURE)} (length of 4).
-The TRUE/FALSE combinations depend on your questions.}
+If its length is 1, then all covariance matrices in nested terms will be either
+inverted (overdispersion) or not. If its length is >1, then you can select
+which covariance matrix in the nested terms to be inverted. Make sure to get
+the length right: for all the terms with \code{@}, count the number of "__"
+to determine the length of repulsion. For example, \code{sp__@site} and \code{sp@site__}
+will each require one element of \code{repulsion}, while \code{sp__@site__} will take two
+elements (repulsion for sp and repulsion for site). So, if your nested terms are
+\code{(1|sp__@site) + (1|sp@site__) + (1|sp__@site__)}, then you should set the
+repulsion to be something like \code{c(TRUE, FALSE, TURE, TURE)} (length of 4).}
 
 \item{ss}{Which of the \code{random.effects} to produce.}
 
-\item{cpp}{Whether to use c++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE}.}
+\item{cpp}{Whether to use C++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE}.}
 }
 \value{
 A design matrix.

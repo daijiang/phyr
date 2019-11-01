@@ -19,7 +19,8 @@ However, \code{__} in the nested terms (below) will only create a phlylogenetic 
 Therefore, nested random term has four forms:
 \enumerate{
 \item \code{(1|sp__@site)} represents correlated species are nested within independent sites
-(i.e. kronecker(I_sites, V_sp)). This should be the most common one for community analysis (to test for overdispersion or underdispersion).
+(i.e. kronecker(I_sites, V_sp)). This should be the most common one for community analysis
+(to test for overdispersion or underdispersion).
 \item \code{(1|sp@site__)} represents independent species are nested within correlated sites
 (i.e. kron(V_sites, I_sp)). This one can be used for bipartite questions.
 You can, for example, treat sp as insects and site as plants with \code{(1|insects@plants__)}.
@@ -33,19 +34,20 @@ an observation level random term or the residual of LMM. So not very meaningful 
 observation-level random term will be automatically added for binomial and poisson models.
 }
 
-Second, note that correlated random terms will not be allowed at this moment. For example,
-\code{(x|g)} will be equal with \code{(0 + x|g)} in the \code{lme4::lmer} syntax;
+Second, note that correlated random terms are allowed. For example,
+\code{(x|g)} will be the same as \code{(0 + x|g)} in the \code{lme4::lmer} syntax;
 also, \code{(x1 + x2|g)} won't work.}
 
 \item{data}{A \code{\link{data.frame}} containing the variables named in formula.}
 
 \item{random.effects}{Optional pre-build list of random effects. If \code{NULL} (the default),
-the function \code{\link{prep_dat_pglmm}} will prepare it for you based on the information
-in \code{formula}, \code{data}, and \code{cov_ranef}. A list of pre-generated
-random terms is also accepted (mainly to be compatible with code from previous versions).
-If so, make sure that the orders of rows and columns of var-cov matrices in the generated
-list are the same as their corresponding group variables in the data. This argument can be
-useful if users want to use more complicated random terms.}
+the function \code{\link{prep_dat_pglmm}} will prepare the random effects for you from the information
+in \code{formula}, \code{data}, and \code{cov_ranef}. \code{random.effect} allows a list of
+pre-generated random effects terms to increase flexibility; for example, this makes it
+possible to construct models with both phylogenetic and spatio-temporal autocorrelation.
+In preparing \code{random.effect}, make sure that the orders of rows and columns of
+covariance matrices in the list are the same as their corresponding group variables
+in the data.}
 
 \item{na.action}{What to do with NAs?}
 }

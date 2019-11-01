@@ -1,5 +1,5 @@
 # doc ----
-#' Phylogenetic Generalised Linear Mixed Model for Community Data
+#' Phylogenetic Generalized Linear Mixed Model for Community Data
 #'
 #' This function performs Generalized Linear Mixed Models for binary, count, 
 #' and continuous data, estimating regression coefficients with
@@ -95,7 +95,8 @@
 #'   However, \code{__} in the nested terms (below) will only create a phlylogenetic cov-matrix. 
 #'   Therefore, nested random term has four forms: 
 #'   1. \code{(1|sp__@site)} represents correlated species are nested within independent sites 
-#'   (i.e. kronecker(I_sites, V_sp)). This should be the most common one for community analysis (to test for overdispersion or underdispersion).
+#'   (i.e. kronecker(I_sites, V_sp)). This should be the most common one for community analysis 
+#'   (to test for overdispersion or underdispersion).
 #'   2. \code{(1|sp@site__)} represents independent species are nested within correlated sites 
 #'   (i.e. kron(V_sites, I_sp)). This one can be used for bipartite questions. 
 #'   You can, for example, treat sp as insects and site as plants with `(1|insects@plants__)`. 
@@ -108,72 +109,68 @@
 #'   an observation level random term or the residual of LMM. So not very meaningful for gaussian models;
 #'   observation-level random term will be automatically added for binomial and poisson models.
 #'   
-#'   Second, note that correlated random terms will not be allowed at this moment. For example,
-#'   \code{(x|g)} will be equal with \code{(0 + x|g)} in the \code{lme4::lmer} syntax; 
+#'   Second, note that correlated random terms are allowed. For example,
+#'   \code{(x|g)} will be the same as \code{(0 + x|g)} in the \code{lme4::lmer} syntax; 
 #'   also, \code{(x1 + x2|g)} won't work.
 #' @param data A \code{\link{data.frame}} containing the variables named in formula. 
-#' @param family Either "gaussian" for a Linear Mixed Model, or
-#'   "binomial" for binomial dependent data, or "poisson" for count data.
-#'   It should be specified as a character string (i.e., quoted). At this moment,
-#'   for binomial data, we fixed the link function to logit; for poisson data,
-#'   we fixed the link function to log. Binomial data can be either 
-#'   presence/absence, or a two column array of 'success' and 'fail'. 
-#'   For both poisson and binomial data, we add an observation-level 
+#' @param family Either "gaussian" for a Linear Mixed Model, or 
+#'   "binomial" or "poisson" for Generized Linear Mixed Models.
+#'   `family` should be specified as a character string (i.e., quoted). For binomial and 
+#'   Poisson data, we use the canonical logit and log link functions, respectively. 
+#'   Binomial data can be either presence/absence, or a two-column array of 'success' and 'fail'. 
+#'   For both Poisson and binomial data, we add an observation-level 
 #'   random term by default via \code{add.obs.re = TRUE}. If \code{bayes = TRUE} there are
 #'   two additional families available: "zeroinflated.binomial", and "zeroinflated.poisson",
-#'   which add a "zero inflation" parameter, which is the probability that a the response is
+#'   which add a zero inflation parameter; this parameter gives the probability that the response is
 #'   a zero. The rest of the parameters of the model then reflect the "non-zero" part part
-#'   of the model. Note that "zeroinflated.binomial" only makes sense as a using successes /
-#'   fail type of response data.
-#' @param cov_ranef A named list of var-cov matrices of random terms. The names should be the
-#'   group variables that are used as random terms with specified var-cov matrices 
+#'   of the model. Note that "zeroinflated.binomial" only makes sense for success/failure
+#'   response data.
+#' @param cov_ranef A named list of covariance matrices of random terms. The names should be the
+#'   group variables that are used as random terms with specified covariance matrices 
 #'   (without the two underscores, e.g. \code{list(sp = tree1, site = tree2)}). The actual object 
-#'   can be either a phylogeny with class "phylo" or a prepared var-cov matrix. If it is a phylogeny,
-#'   we will prune it and then convert it to a var-cov matrix assuming brownian motion evolution.
-#'   We will also standardize all var-cov matrices to have determinant of one. Group variables
-#'   will be converted to factors and all var-cov matrices will be rearranged so that rows and
+#'   can be either a phylogeny with class "phylo" or a prepared covariance matrix. If it is a phylogeny,
+#'   `pglmm` will prune it and then convert it to a covariance matrix assuming Brownian motion evolution.
+#'   `pglmm` will also standardize all covariance matrices to have determinant of one. Group variables
+#'   will be converted to factors and all covariance matrices will be rearranged so that rows and
 #'   columns are in the same order as the levels of their corresponding group variables.
 #' @param random.effects Optional pre-build list of random effects. If \code{NULL} (the default), 
-#'   the function \code{\link{prep_dat_pglmm}} will prepare it for you based on the information
-#'   in \code{formula}, \code{data}, and \code{cov_ranef}. A list of pre-generated
-#'   random terms is also accepted (mainly to be compatible with code from previous versions).
-#'   If so, make sure that the orders of rows and columns of var-cov matrices in the generated 
-#'   list are the same as their corresponding group variables in the data. This argument can be 
-#'   useful if users want to use more complicated random terms.
-#' @param REML Whether REML or ML is used for model fitting. For the
-#'   generalized linear mixed model for binary data, these don't have
-#'   standard interpretations, and there is no log likelihood function
-#'   that can be used in likelihood ratio tests. Ignored if \code{bayes = TRUE}
+#'   the function \code{\link{prep_dat_pglmm}} will prepare the random effects for you from the information
+#'   in \code{formula}, \code{data}, and \code{cov_ranef}. \code{random.effect} allows a list of
+#'   pre-generated random effects terms to increase flexibility; for example, this makes it 
+#'   possible to construct models with both phylogenetic and spatio-temporal autocorrelation.
+#'   In preparing \code{random.effect}, make sure that the orders of rows and columns of 
+#'   covariance matrices in the list are the same as their corresponding group variables
+#'   in the data.
+#' @param REML Whether REML or ML is used for model fitting the random effects. Ignored if
+#'  \code{bayes = TRUE}.
 #' @param optimizer nelder-mead-nlopt (default) or bobyqa or Nelder-Mead or subplex. 
-#'   Nelder-Mead is from the stats package and the other ones are from the nloptr package.
+#'   Nelder-Mead is from the stats package and the other optimizers are from the nloptr package.
 #'   Ignored if \code{bayes = TRUE}.
-#' @param repulsion When nested random term specified, do you want to test repulsion 
-#'   (i.e., overdispersion) or underdispersion? Default is \code{FALSE}, i.e. test underdispersion. 
+#' @param repulsion When there are nested random terms specified, \code{repulsion = FALSE} tests
+#'   for phylogenetic underdispersion while \code{repulsion = FALSE} tests for overdispersion.
 #'   This argument can be either a logical vector of length 1 or >1.
-#'   If its length is 1, then all cov matrices in nested terms will be either inverted (overdispersion) or not.
-#'   If its length is >1, then this means the users can select which cov matrix in the nested terms to be inverted.
-#'   If so, make sure to get the length right: for all the terms with \code{@}, 
-#'   count the number of "__" and this will be the length of repulsion. 
-#'   For example, \code{sp__@site} will take one length as well as \code{sp@site__}.
-#'   \code{sp__@site__} will take two elements (repulsion for sp and repulsion for site). So, if you nested terms are 
-#'   \code{(1|sp__@site) + (1|sp@site__) + (1|sp__@site__)}
-#'   in the formula, then you should set the repulsion to be something like 
-#'   \code{c(TRUE, FALSE, TURE, TURE)} (length of 4). 
-#'   The TRUE/FALSE combinations depend on your questions.
-#' @param add.obs.re Whether add observation-level random term for poisson and binomial
-#'   distributions? Normally it would be a good idea to add this to account for overdispersions.
-#'   Thus, we set it to \code{TRUE} by default.
+#'   If its length is 1, then all covariance matrices in nested terms will be either 
+#'   inverted (overdispersion) or not. If its length is >1, then you can select
+#'   which covariance matrix in the nested terms to be inverted. Make sure to get 
+#'   the length right: for all the terms with \code{@}, count the number of "__" 
+#'   to determine the length of repulsion. For example, \code{sp__@site} and \code{sp@site__}
+#'   will each require one element of \code{repulsion}, while \code{sp__@site__} will take two 
+#'   elements (repulsion for sp and repulsion for site). So, if your nested terms are 
+#'   \code{(1|sp__@site) + (1|sp@site__) + (1|sp__@site__)}, then you should set the 
+#'   repulsion to be something like \code{c(TRUE, FALSE, TURE, TURE)} (length of 4). 
+#' @param add.obs.re Whether to add observation-level random term for Poisson and binomial
+#'   distributions. Normally it would be a good idea to add this to account for overdispersion
+#'   so \code{add.obs.re = TRUE} by default.
 #' @param verbose If \code{TRUE}, the model deviance and running
 #'   estimates of \code{s2} and \code{B} are plotted each iteration
 #'   during optimization.
-#' @param cpp Whether to use c++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE}.
+#' @param cpp Whether to use C++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE}.
 #' @param bayes Whether to fit a Bayesian version of the PGLMM using \code{r-inla}.
 #' @param s2.init An array of initial estimates of s2 for each random
 #'   effect that scales the variance. If s2.init is not provided for
-#'   \code{family="gaussian"}, these are estimated using in a clunky way
-#'   using \code{\link{lm}} assuming no phylogenetic signal. A better
-#'   approach is to run \code{link[lme4:lmer]{lmer}} and use the output
-#'   random effects for \code{s2.init}. If \code{s2.init} is not
+#'   \code{family="gaussian"}, these are estimated using \code{\link{lm}} assuming 
+#'   no phylogenetic signal. A better approach might be to run \code{link[lme4:lmer]{lmer}} 
+#'   and use the output random effects for \code{s2.init}. If \code{s2.init} is not
 #'   provided for \code{family = "binomial"}, these are set to 0.25.
 #' @param B.init Initial estimates of \eqn{B}{B}, a matrix containing
 #'   regression coefficients in the model for the fixed effects. This
@@ -182,10 +179,9 @@
 #'   \code{B} corresponds to the intercept, and the remaining elements
 #'   correspond in order to the predictor (independent) variables in the
 #'   formula. If \code{B.init} is not provided, these are estimated
-#'   using in a clunky way using \code{\link{lm}} or \code{\link{glm}}
-#'   assuming no phylogenetic signal. A better approach is to run
-#'   \code{\link[lme4:lmer]{lmer}} and use the output fixed effects for
-#'   \code{B.init}. When \code{bayes = TRUE}, initial values are estimated
+#'   using \code{\link{lm}} or \code{\link{glm}} assuming no phylogenetic signal.
+#'   A better approach might be to run \code{\link[lme4:lmer]{lmer}} and use the 
+#'   output fixed effects for \code{B.init}. When \code{bayes = TRUE}, initial values are estimated
 #'   using the maximum likelihood fit unless \code{ML.init = FALSE}, in
 #'   which case the default \code{INLA} initial values will be used.
 #' @param reltol A control parameter dictating the relative tolerance
@@ -194,10 +190,10 @@
 #'   iterations in the optimization; see \code{\link{optim}}.
 #' @param tol.pql A control parameter dictating the tolerance for
 #'   convergence in the PQL estimates of the mean components of the
-#'   binomial GLMM.
+#'   GLMM. Ignored if \code{family = "gaussian"} or \code{bayes = TRUE}.
 #' @param maxit.pql A control parameter dictating the maximum number
 #'   of iterations in the PQL estimates of the mean components of the
-#'   binomial GLMM.
+#'   GLMM.Ignored if \code{family = "gaussian"} or \code{bayes = TRUE}.
 #' @param marginal.summ Summary statistic to use for the estimate of coefficients when
 #'   doing a Bayesian PGLMM (when \code{bayes = TRUE}). Options are: "mean",
 #'   "median", or "mode", referring to different characterizations of the central
@@ -205,7 +201,7 @@
 #' @param calc.DIC Should the Deviance Informatiob Criterion be calculated and returned,
 #'   when doing a bayesian PGLMM? Ignored if \code{bayes = FALSE}.
 #' @param prior Which type of default prior should be used by \code{pglmm}?
-#'   Only used if \code{bayes = TRUE}, ignored otherwise. There are currently four options:
+#'   Only used if \code{bayes = TRUE}. There are currently four options:
 #'   "inla.default", which uses the default \code{INLA} priors; "pc.prior.auto", which uses a
 #'   complexity penalizing prior (as described in 
 #'   \href{https://arxiv.org/abs/1403.4630v3}{Simpson et al. (2017)}), which tries to automatically 
@@ -297,6 +293,8 @@
 #' @references Ives, A. R. and M. R. Helmus. 2011. Generalized linear
 #' mixed models for phylogenetic analyses of community
 #' structure. Ecological Monographs 81:511-525.
+#' @references Ives A. R. 2018. Mixed and phylogenetic models: a conceptual introduction to correlated data.
+#' https://leanpub.com/correlateddata.
 #' @references Rafferty, N. E., and A. R. Ives. 2013. Phylogenetic
 #' trait-based analyses of ecological networks. Ecology 94:2321-2333.
 #' @references Simpson, Daniel, et al. 2017. Penalising model component complexity: 
@@ -751,8 +749,8 @@ communityPGLMM.glmm <- function(formula, data = list(), family = "binomial",
   p <- ncol(X)
   n <- nrow(X)
   q <- length(random.effects)
-  
-  # Compute initial estimates assuming no phylogeny if not provided
+
+    # Compute initial estimates assuming no phylogeny if not provided
   if (!is.null(B.init) & length(B.init) != p) {
     warning("B.init not correct length, so computed B.init using glm()")
   }
@@ -821,7 +819,7 @@ communityPGLMM.glmm <- function(formula, data = list(), family = "binomial",
         
         denom <- t(X) %*% iV %*% X
         num <- t(X) %*% iV %*% Z
-        B <- solve(denom, num)
+        B <- solve(denom, matrix(num))
         B <- as.matrix(B)
         
         V = pglmm.V(par = ss, Zt = Zt, St = St, mu = mu, nested = nested, family = family, size = size)
@@ -847,8 +845,8 @@ communityPGLMM.glmm <- function(formula, data = list(), family = "binomial",
       # variance component
       if(family == "binomial") Z <- X %*% B + b + (Y/size - mu)/(mu * (1 - mu))
       if(family == "poisson") Z <- X %*% B + b + (Y - mu)/mu
-      H <- Z - X %*% B
-      
+      H <- matrix(Z - X %*% B)
+
       if(optimizer == "Nelder-Mead"){
         if (q > 1) {
           opt <- optim(fn = pglmm.LL, par = ss, H = H, X = X, Zt = Zt, St = St,
