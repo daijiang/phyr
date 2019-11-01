@@ -35,19 +35,8 @@ using namespace Rcpp;
 
 
 
-//' `cor_phylo` log likelihood function.
-//' 
-//' 
-//' @param par Initial values for the parameters to be optimized over.
-//' @param ll_info_xptr `Rcpp::Xptr` object that points to a C++ `LogLikInfo` object.
-//'     This object stores all the other information needed for the log likelihood
-//'     function.
-//' 
-//' @noRd
-//' 
-//' @name cor_phylo_LL
-//' 
-//[[Rcpp::export]]
+// `cor_phylo` log likelihood function.
+// 
 double cor_phylo_LL(const arma::vec& par,
                      const arma::mat& XX,
                      const arma::mat& UU,
@@ -114,22 +103,13 @@ double cor_phylo_LL(const arma::vec& par,
 
 
 
-
-//' Return reciprocal condition numbers for matrices in the log likelihood function.
-//' 
-//' This function is largely a repeat of the first part of the likelihood function.
-//' It is used in the output to guide users wanting to change the `rcond_threshold`
-//' argument.
-//' 
-//' 
-//' @param par Initial values for the parameters to be optimized over.
-//' @param ll_info A C++ `LogLikInfo` object storing all the information needed
-//'     for the log likelihood function.
-//' 
-//' @noRd
-//' 
-//' @name return_rcond_vals
-//' 
+/*
+ Return reciprocal condition numbers for matrices in the log likelihood function.
+ 
+ This function is largely a repeat of the first part of the likelihood function.
+ It is used in the output to guide users wanting to change the `rcond_threshold`
+ argument.
+ */
 std::vector<double> return_rcond_vals(const LogLikInfo& ll_info) {
   
   const arma::vec& par(ll_info.min_par);
@@ -216,20 +196,9 @@ std::vector<double> return_rcond_vals(const LogLikInfo& ll_info) {
  ***************************************************************************************
  */
 
-
-//' Fit cor_phylo model using nlopt.
-//'
-//'
-//' @inheritParams ll_info cp_get_output
-//' @inheritParams max_iter cor_phylo
-//' @inheritParams method cor_phylo
-//' 
-//' @return Nothing. `ll_info` is modified in place to have info from the model fit
-//'   after this function is run.
-//'
-//' @name fit_cor_phylo_nlopt
-//' @noRd
-//' 
+/*
+ Fit cor_phylo model using nlopt.
+ */
 void fit_cor_phylo_nlopt(LogLikInfo& ll_info,
                          const double& rel_tol,
                          const int& max_iter,
@@ -292,22 +261,12 @@ void fit_cor_phylo_nlopt(LogLikInfo& ll_info,
 }
 
 
+/*
+ Fit `cor_phylo` model using R's `stats::optim`.
+ 
+ Make sure this doesn't get run in parallel!
 
-//' Fit `cor_phylo` model using R's `stats::optim`.
-//' 
-//' Make sure this doesn't get run in parallel!
-//'
-//'
-//' @inheritParams ll_info_xptr cor_phylo_LL
-//' @inheritParams max_iter cor_phylo
-//' @inheritParams method cor_phylo
-//' 
-//' @return Nothing. `ll_info_xptr` is modified in place to have info from the model fit
-//'   after this function is run.
-//'
-//' @name fit_cor_phylo_R
-//' @noRd
-//' 
+ */
 void fit_cor_phylo_R(LogLikInfo& ll_info,
                      const double& rel_tol,
                      const int& max_iter,
@@ -389,26 +348,16 @@ void fit_cor_phylo_R(LogLikInfo& ll_info,
  ***************************************************************************************
  */
 
-
-//' Standardize matrices in place.
-//' 
-//' Makes each column of the `X` matrix have mean of zero and standard deviation of 1.
-//' If `U` isn't empty, this function makes each column in each matrix have
-//' mean of zero and standard deviation of 1, unless all values are the same, in which
-//' case it keeps the standard deviation at zero.
-//' Divides each column of `M` by the original standard deviation of that column in 
-//' `X`.
-//' 
-//' 
-//' @inheritParams X cor_phylo_cpp
-//' @inheritParams U cor_phylo_cpp
-//' @inheritParams M cor_phylo_cpp
-//' 
-//' @return Nothing. Matrices are standardized in place.
-//' 
-//' @name standardize_matrices
-//' @noRd
-//' 
+/*-
+ Standardize matrices in place.
+ 
+ Makes each column of the `X` matrix have mean of zero and standard deviation of 1.
+ If `U` isn't empty, this function makes each column in each matrix have
+ mean of zero and standard deviation of 1, unless all values are the same, in which
+ case it keeps the standard deviation at zero.
+ Divides each column of `M` by the original standard deviation of that column in 
+ `X`.
+ */
 void standardize_matrices(arma::mat& X,
                           std::vector<arma::mat>& U,
                           arma::mat& M) {
@@ -438,24 +387,10 @@ void standardize_matrices(arma::mat& X,
 
 
 
-
-//' Make an `LogLikInfo` object based on input matrices.
-//' 
-//' The output `LogLikInfo` is used for model fitting.
-//' 
-//' @inheritParams X cor_phylo_cpp
-//' @inheritParams U cor_phylo_cpp
-//' @inheritParams M cor_phylo_cpp
-//' @inheritParams Vphy_ cor_phylo_cpp
-//' @inheritParams REML_ cor_phylo_cpp
-//' @inheritParams constrain_d_ cor_phylo_cpp
-//' @inheritParams verbose_ cor_phylo_cpp
-//' 
-//' @return a LogLikInfo that contains info necessary for model fitting
-//' 
-//' @name LogLikInfo
-//' @noRd
-//' 
+/*
+ Make an `LogLikInfo` object based on input matrices.
+ The output `LogLikInfo` is used for model fitting.
+ */
 LogLikInfo::LogLikInfo(const arma::mat& X,
                  const std::vector<arma::mat>& U,
                  const arma::mat& M,
@@ -533,30 +468,19 @@ LogLikInfo::LogLikInfo(const arma::mat& X,
 }
 
 
-
-//' Make an `LogLikInfo` object based on input matrices and another LogLikInfo object.
-//' 
-//' The output `LogLikInfo` is used for model fitting.
-//' 
-//' *Note:* This version is used for bootstrapping.
-//' It's different from the one above in that it doesn't re-normalize Vphy, UU, or tau.
-//' If you normalize Vphy and tau twice (which would happen if I used the previous
-//' version of this constructor), it can result in weird behavior.
-//' Notably, the bootstrap replicate will sometimes not converge, but when I output the
-//' same data and re-run cor_phylo on it, it'll converge.
-//' This is confusing, so I'm trying to avoid that.
-//' 
-//' 
-//' @inheritParams X cor_phylo_cpp
-//' @inheritParams U cor_phylo_cpp
-//' @inheritParams M cor_phylo_cpp
-//' @param other Another LogLikInfo object from which to derive much of the information.
-//' 
-//' @return a LogLikInfo that contains info necessary for model fitting
-//' 
-//' @name LogLikInfo
-//' @noRd
-//' 
+/*
+ Make an `LogLikInfo` object based on input matrices and another LogLikInfo object.
+ 
+ The output `LogLikInfo` is used for model fitting.
+ 
+ *Note:* This version is used for bootstrapping.
+ It's different from the one above in that it doesn't re-normalize Vphy, UU, or tau.
+ If you normalize Vphy and tau twice (which would happen if I used the previous
+ version of this constructor), it can result in weird behavior.
+ Notably, the bootstrap replicate will sometimes not converge, but when I output the
+ same data and re-run cor_phylo on it, it'll converge.
+ This is confusing, so I'm trying to avoid that.
+ */
 LogLikInfo::LogLikInfo(const arma::mat& X,
                  const std::vector<arma::mat>& U,
                  const arma::mat& M,
@@ -636,19 +560,12 @@ inline void main_output(arma::mat& corrs, arma::mat& B, arma::mat& B_cov, arma::
 }
 
 
-//' Retrieve objects for output `cor_phylo` object.
-//' 
-//' @inheritParams X cor_phylo_cpp
-//' @inheritParams U cor_phylo_cpp
-//' @param ll_info an LogLikInfo object that contains info necessary to fit the model.
-//'   After optimization, it contains info from the model fit.
-//' 
-//' @return a list containing output information, to later be coerced to a `cor_phylo`
-//'   object by the `cor_phylo` function.
-//' 
-//' @name cp_get_output
-//' @noRd
-//' 
+/*
+ Retrieve objects for output `cor_phylo` object.
+ 
+ Returns a list containing output information, to later be coerced to a `cor_phylo`
+   object by the `cor_phylo` function.
+ */
 List cp_get_output(const arma::mat& X,
                    const std::vector<arma::mat>& U,
                    const arma::mat& M,
@@ -742,10 +659,7 @@ List cp_get_output(const arma::mat& X,
 //' @param M a n x p matrix with p columns containing standard errors of the trait 
 //'   values in `X`. 
 //' @param Vphy_ phylogenetic variance-covariance matrix from the input phylogeny.
-//' @inheritParams REML cor_phylo
-//' @inheritParams constrain_d cor_phylo
-//' @inheritParams verbose cor_phylo
-//' @inheritParams max_iter cor_phylo
+//' @inheritParams cor_phylo
 //' @param method the `method` input to `cor_phylo`.
 //' 
 //' @return a list containing output information, to later be coerced to a `cor_phylo`
@@ -844,18 +758,13 @@ BootMats::BootMats(const arma::mat& X_, const std::vector<arma::mat>& U_,
   return;
 }
 
-//' Iterate from a BootMats object in prep for a bootstrap replicate.
-//' 
-//' This ultimately updates the LogLikInfo object with new XX and MM matrices,
-//' and updates the BootResults object with the mean and sd.
-//' 
-//' @param ll_info An LogLikInfo object that will inform the next call to the
-//'     log-likelihood function.
-//' @param br A BootResults object that stores output from bootstrapping.
-//' 
-//' @name boot_mats_iterate
-//' @noRd
-//' 
+
+/*
+ Iterate from a BootMats object in prep for a bootstrap replicate.
+ 
+ This ultimately updates the LogLikInfo object with new XX and MM matrices,
+ and updates the BootResults object with the mean and sd.
+ */
 LogLikInfo BootMats::iterate(const LogLikInfo& ll_info) {
 
   uint_t n = X.n_rows;
