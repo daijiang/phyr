@@ -37,44 +37,34 @@ communityPGLMM.plot.re(formula = NULL, data = NULL,
 }
 \arguments{
 \item{formula}{A two-sided linear formula object describing the
-mixed-effects of the model; it follows similar syntax with \code{\link[lme4:lmer]{lmer}}.
-There are some differences though.
+mixed effects of the model.
 
-First, to specify that a random term should have phylogenetic cov matrix along
-with non-phylogenetic one, add \code{__} (two underscores) at the end of the group variable,
-e.g. \code{+ (1 | sp__)} will construct two random terms,
-one with phylogenetic cov matrix and another with non-phylogenetic (Identity) matrix;
-However, \code{__} in the nested terms (below) will only create a phlylogenetic cov-matrix.
-Therefore, nested random term has four forms:
-\enumerate{
-\item \code{(1|sp__@site)} represents correlated species are nested within independent sites
-(i.e. kronecker(I_sites, V_sp)). This should be the most common one for community analysis
-(to test for overdispersion or underdispersion).
-\item \code{(1|sp@site__)} represents independent species are nested within correlated sites
-(i.e. kron(V_sites, I_sp)). This one can be used for bipartite questions.
-You can, for example, treat sp as insects and site as plants with \code{(1|insects@plants__)}.
-Remember to add the phylogeny of plants in the argument \code{cov_ranef = list(plants = plant_phylo)}.
-\item \code{(1|sp__@site__)} represents correlated species are nested within correlated sites
-(i.e. kron(V_sites, V_sp)). This one can also be used for bipartite questions such as
-pollinators and plants (e.g. \code{(1|pollinators__@plants__)}). Remember to add their phylogenies
-in the argument \code{cov_ranef = list(pollinators = pollinator_phylo, plants = plant_phylo)}.
-\item \code{(1|sp@site)} will generate a identity matrix, which will be the same as
-an observation level random term or the residual of LMM. So not very meaningful for gaussian models;
-observation-level random term will be automatically added for binomial and poisson models.
-}
+To specify that a random term should have phylogenetic covariance matrix along
+with non-phylogenetic one, add \code{__} (two underscores) at the end of the group variable;
+e.g., \code{+ (1 | sp__)} will construct two random terms,
+one with phylogenetic covariance matrix and another with non-phylogenetic (identity) matrix.
+In contrast, \code{__} in the nested terms (below) will only create a phylogenetic covariance matrix.
+Nested random terms have the general form \code{(1|sp__@site__)} which represents
+phylogenetically related species nested within correlated sites.
+This form can be used for bipartite questions. For example, species could be
+phylogenetically related pollinators and sites could be phylogenetically related plants, leading to
+the random effect \code{(1|insects__@plants__)}. If more than one phylogeny is used, remember to add
+all to the argument \code{cov_ranef = list(insects = insect_phylo, plants = plant_phylo)}. Phylogenetic correlations can
+be dropped by removing the \code{__} underscores. Thus, the form \code{(1|sp@site__)} excludes the phylogenetic
+correlations among species, while the form \code{(1|sp__@site)} excludes the correlations among sites.
 
-Second, note that correlated random terms are allowed. For example,
-\code{(x|g)} will be the same as \code{(0 + x|g)} in the \code{lme4::lmer} syntax;
-also, \code{(x1 + x2|g)} won't work.}
+Note that correlated random terms are not allowed. For example,
+\code{(x|g)} will be the same as \code{(0 + x|g)} in the \code{lme4::lmer} syntax. However,
+\code{(x1 + x2|g)} won't work, so instead use  \code{(x1|g) + (x2|g)}.}
 
 \item{data}{A \code{\link{data.frame}} containing the variables named in formula.}
 
 \item{family}{Either "gaussian" for a Linear Mixed Model, or
-"binomial" or "poisson" for Generized Linear Mixed Models.
-\code{family} should be specified as a character string (i.e., quoted). For binomial and
+"binomial" or "poisson" for Generalized Linear Mixed Models.
+"family" should be specified as a character string (i.e., quoted). For binomial and
 Poisson data, we use the canonical logit and log link functions, respectively.
-Binomial data can be either presence/absence, or a two-column array of 'success' and 'fail'.
-For both Poisson and binomial data, we add an observation-level
+Binomial data can be either presence/absence, or a two-column array of 'successes' and 'failures'.
+For both binomial  and Poisson data, we add an observation-level
 random term by default via \code{add.obs.re = TRUE}. If \code{bayes = TRUE} there are
 two additional families available: "zeroinflated.binomial", and "zeroinflated.poisson",
 which add a zero inflation parameter; this parameter gives the probability that the response is
@@ -86,29 +76,29 @@ response data.}
 
 \item{site.var}{The variable name of "site"; x-axis of the image.}
 
-\item{tree}{A phylogeny for column sp, with "phylo" class. Or a var-cov matrix for sp,
-make sure to have all species in the matrix; if the matrix is not standarized,
-i.e. det(tree) != 1, we will try to standarize it for you.
-No longer used, keep here for compatibility.}
+\item{tree}{A phylogeny for column sp, with "phylo" class, or a covariance matrix for sp.
+Make sure to have all species in the matrix; if the matrix is not standarized,
+(i.e., det(tree) != 1), \code{pglmm} will try to standarize it for you.
+No longer used: keep here for compatibility.}
 
 \item{tree_site}{A second phylogeny for "site". This is required only if the
 site column contains species instead of sites. This can be used for bipartitie
-questions. tree_site can also be a var-cov matrix, make sure to have all sites
-in the matrix; if the matrix is not standarized, i.e. det(tree_site) != 1,
-we will try to standarize for you. No longer used, keep here for compatibility.}
+questions; tree_site can also be a covariance matrix. Make sure to have all sites
+in the matrix; if the matrix is not standarized (i.e., det(tree_site) != 1),
+pglmm` will try to standarize it for you. No longer used: keep here for compatibility.}
 
 \item{repulsion}{When there are nested random terms specified, \code{repulsion = FALSE} tests
 for phylogenetic underdispersion while \code{repulsion = FALSE} tests for overdispersion.
-This argument can be either a logical vector of length 1 or >1.
+This argument is a logical vector of length either 1 or >1.
 If its length is 1, then all covariance matrices in nested terms will be either
 inverted (overdispersion) or not. If its length is >1, then you can select
 which covariance matrix in the nested terms to be inverted. Make sure to get
 the length right: for all the terms with \code{@}, count the number of "__"
 to determine the length of repulsion. For example, \code{sp__@site} and \code{sp@site__}
 will each require one element of \code{repulsion}, while \code{sp__@site__} will take two
-elements (repulsion for sp and repulsion for site). So, if your nested terms are
+elements (repulsion for sp and repulsion for site). Therefore, if your nested terms are
 \code{(1|sp__@site) + (1|sp@site__) + (1|sp__@site__)}, then you should set the
-repulsion to be something like \code{c(TRUE, FALSE, TURE, TURE)} (length of 4).}
+repulsion to be something like \code{c(TRUE, FALSE, TRUE, TRUE)} (length of 4).}
 
 \item{x}{A fitted model with class communityPGLMM.}
 
@@ -121,7 +111,7 @@ This can be useful to see how the phylogenetic information were included.}
 the function \code{\link{prep_dat_pglmm}} will prepare the random effects for you from the information
 in \code{formula}, \code{data}, and \code{cov_ranef}. \code{random.effect} allows a list of
 pre-generated random effects terms to increase flexibility; for example, this makes it
-possible to construct models with both phylogenetic and spatio-temporal autocorrelation.
+possible to construct models with both phylogenetic correlation and spatio-temporal autocorrelation.
 In preparing \code{random.effect}, make sure that the orders of rows and columns of
 covariance matrices in the list are the same as their corresponding group variables
 in the data.}

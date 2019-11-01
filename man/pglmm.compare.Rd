@@ -2,7 +2,6 @@
 % Please edit documentation in R/pglmm.compare.R
 \name{pglmm.compare}
 \alias{pglmm.compare}
-\alias{print.pglmm.compare}
 \title{Phylogenetic Generalized Linear Mixed Model for Comparative Data}
 \usage{
 pglmm.compare(formula, family = "gaussian", data = list(), phy,
@@ -12,27 +11,24 @@ pglmm.compare(formula, family = "gaussian", data = list(), phy,
   tol.pql = 10^-6, maxit.pql = 200, marginal.summ = "mean",
   calc.DIC = FALSE, prior = "inla.default", prior_alpha = 0.1,
   prior_mu = 1, ML.init = FALSE)
-
-\method{print}{pglmm.compare}(x, digits = max(4, getOption("digits") -
-  4), ...)
 }
 \arguments{
 \item{formula}{A two-sided linear formula object describing the
 fixed-effects of the model; for example, Y ~ X. Binomial data can be either
-presence/absence, or a two-column array of 'success' and 'fail'.
-For both poisson and binomial data, we add an observation-level
+presence/absence, or a two-column array of 'successes' and 'failures'.
+For both binomial and Poisson data, we add an observation-level
 random term by default via \code{add.obs.re = TRUE}.}
 
 \item{family}{Either "gaussian" for a Linear Mixed Model, or
-"binomial" or "poisson" for Generized Linear Mixed Models.
-"family" should be specified as a character string (i.e., quoted). For binomial and
+"binomial" or "poisson" for Generalized Linear Mixed Models.
+\code{family} should be specified as a character string (i.e., quoted). For binomial and
 Poisson data, we use the canonical logit and log link functions, respectively.
-Binomial data can be either presence/absence, or a two-column array of 'success' and 'fail'.
+Binomial data can be either presence/absence, or a two-column array of 'successes' and 'failures'.
 For both Poisson and binomial data, we add an observation-level
 random term by default via \code{add.obs.re = TRUE}. If \code{bayes = TRUE} there are
 two additional families available: "zeroinflated.binomial", and "zeroinflated.poisson",
 which add a zero inflation parameter; this parameter gives the probability that the response is
-a zero. The rest of the parameters of the model then reflect the "non-zero" part part
+a zero. The rest of the parameters of the model then reflect the "non-zero" part
 of the model. Note that "zeroinflated.binomial" only makes sense for success/failure
 response data.}
 
@@ -43,12 +39,12 @@ response data.}
 \item{REML}{Whether REML or ML is used for model fitting the random effects. Ignored if
 \code{bayes = TRUE}.}
 
-\item{optimizer}{nelder-mead-nlopt (default) or bobyqa or Nelder-Mead or subplex.
+\item{optimizer}{nelder-mead-nlopt (default), bobyqa, Nelder-Mead, or subplex.
 Nelder-Mead is from the stats package and the other optimizers are from the nloptr package.
 Ignored if \code{bayes = TRUE}.}
 
-\item{add.obs.re}{Whether to add observation-level random term for Poisson and binomial
-distributions. Normally it would be a good idea to add this to account for overdispersion
+\item{add.obs.re}{Whether to add observation-level random term for binomial and  Poisson
+families. Normally it would be a good idea to add this to account for overdispersion,
 so \code{add.obs.re = TRUE} by default.}
 
 \item{verbose}{If \code{TRUE}, the model deviance and running
@@ -71,26 +67,26 @@ GLMM. Ignored if \code{family = "gaussian"} or \code{bayes = TRUE}.}
 
 \item{maxit.pql}{A control parameter dictating the maximum number
 of iterations in the PQL estimates of the mean components of the
-GLMM.Ignored if \code{family = "gaussian"} or \code{bayes = TRUE}.}
+GLMM. Ignored if \code{family = "gaussian"} or \code{bayes = TRUE}.}
 
 \item{marginal.summ}{Summary statistic to use for the estimate of coefficients when
 doing a Bayesian PGLMM (when \code{bayes = TRUE}). Options are: "mean",
 "median", or "mode", referring to different characterizations of the central
-tendency of the bayesian posterior marginal distributions. Ignored if \code{bayes = FALSE}.}
+tendency of the Bayesian posterior marginal distributions. Ignored if \code{bayes = FALSE}.}
 
-\item{calc.DIC}{Should the Deviance Informatiob Criterion be calculated and returned,
-when doing a bayesian PGLMM? Ignored if \code{bayes = FALSE}.}
+\item{calc.DIC}{Should the Deviance Information Criterion be calculated and returned,
+when doing a Bayesian PGLMM? Ignored if \code{bayes = FALSE}.}
 
 \item{prior}{Which type of default prior should be used by \code{pglmm}?
 Only used if \code{bayes = TRUE}. There are currently four options:
 "inla.default", which uses the default \code{INLA} priors; "pc.prior.auto", which uses a
 complexity penalizing prior (as described in
-\href{https://arxiv.org/abs/1403.4630v3}{Simpson et al. (2017)}), which tries to automatically
+\href{https://arxiv.org/abs/1403.4630v3}{Simpson et al. (2017)}) designed to automatically
 choose good parameters (only available for gaussian and binomial responses); "pc.prior", which
 allows the user to set custom parameters on the "pc.prior" prior, using the \code{prior_alpha}
 and \code{prior_mu} parameters (Run \code{INLA::inla.doc("pc.prec")} for details on these
 parameters); and "uninformative", which sets a very uniformative prior
-(nearly uniform) by using a very flat exponential distribution. This last one is generally
+(nearly uniform) by using a very flat exponential distribution. The last option is generally
 not recommended but may in some cases give estimates closer to the maximum likelihood estimates.
 "pc.prior.auto" is only implemented for \code{family = "gaussian"} and \code{family = "binomial"}
 currently.}
@@ -107,21 +103,13 @@ where sd is the standard deviation of the random effect.}
 
 \item{ML.init}{Only relevant if \code{bayes = TRUE}. Should maximum
 likelihood estimates be calculated and used as initial values for
-the bayesian model fit? Sometimes this can be helpful; but most of the
-time it may not help; thus we set the default to \code{FALSE}. Also, it
+the bayesian model fit? Sometimes this can be helpful, but most of the
+time it may not help; thus, we set the default to \code{FALSE}. Also, it
 does not work with the zero-inflated families.}
 
-\item{x}{An object of class "pglmm.compare".}
-
-\item{digits}{The number of digits to print.}
-
-\item{...}{Additional arguments; currently ignored.}
-
-\item{s2.init}{An array of initial estimates of s2 for each random
-effect that scales the variance. If s2.init is not provided for
+\item{s2.init}{An array of initial estimates of s2. If s2.init is not provided for
 \code{family="gaussian"}, these are estimated using \code{\link{lm}} assuming
-no phylogenetic signal. A better approach might be to run \code{link[lme4:lmer]{lmer}}
-and use the output random effects for \code{s2.init}. If \code{s2.init} is not
+no phylogenetic signal. If \code{s2.init} is not
 provided for \code{family = "binomial"}, these are set to 0.25.}
 
 \item{B.init}{Initial estimates of \eqn{B}{B}, a matrix containing
@@ -131,29 +119,10 @@ number of predictor (independent) variables; the first element of
 \code{B} corresponds to the intercept, and the remaining elements
 correspond in order to the predictor (independent) variables in the
 formula. If \code{B.init} is not provided, these are estimated
-using \code{\link{lm}} or \code{\link{glm}} assuming no phylogenetic signal.
-A better approach might be to run \code{\link[lme4:lmer]{lmer}} and use the
-output fixed effects for \code{B.init}. When \code{bayes = TRUE}, initial values are estimated
-using the maximum likelihood fit unless \code{ML.init = FALSE}, in
-which case the default \code{INLA} initial values will be used.}
-
-\item{tree}{A phylogeny for column sp, with "phylo" class. Or a var-cov matrix for sp,
-make sure to have all species in the matrix; if the matrix is not standarized,
-i.e. det(tree) != 1, we will try to standarize it for you.
-No longer used, keep here for compatibility.}
-
-\item{tree_site}{A second phylogeny for "site". This is required only if the
-site column contains species instead of sites. This can be used for bipartitie
-questions. tree_site can also be a var-cov matrix, make sure to have all sites
-in the matrix; if the matrix is not standarized, i.e. det(tree_site) != 1,
-we will try to standarize for you. No longer used, keep here for compatibility.}
-
-\item{sp}{No longer used, keep here for compatibility.}
-
-\item{site}{No longer used, keep here for compatibility.}
+using \code{\link{lm}} or \code{\link{glm}} assuming no phylogenetic signal.}
 }
 \value{
-An object (list) of class \code{communityPGLMM} with the following elements:
+An object (list) of class \code{pglmm.compare} with the following elements:
 \item{formula}{the formula for fixed effects}
 \item{formula_original}{the formula for both fixed effects and random effects}
 \item{data}{the dataset}
@@ -210,7 +179,7 @@ residuals and gives an approximate conditional likelihood ratio test for the
 hypothesis that there is no signal. Therefore, when applied without
 predictor (independent) variables, it gives a test for phylogenetic signal.
 \code{pglmm.compare} is a wrapper for \code{pglmm} tailored for comparative data in
-which each value of the dependent variable corresponds to a single tip
+which each value of the response (dependent) variable corresponds to a single tip
 on a phylogenetic tree.
 }
 \details{
@@ -218,26 +187,33 @@ on a phylogenetic tree.
 the package \code{ape}, although it has much broader functionality, including
 accepting more than just binary data, implementing Bayesian analyses, etc.
 
-The function estimates parameters for the model
+For non-Gaussian data, the function estimates parameters for the model
 
 \deqn{Pr(Y = 1) = \theta } \deqn{\theta = inverse.link(b0 + b1 * x1 + b2 * x2 + \dots
 + \epsilon)} \deqn{\epsilon ~ Gaussian(0, s2 * V) }
 
-where \eqn{V} is a variance-covariance matrix derived from a phylogeny
+where \eqn{V} is a covariance matrix derived from a phylogeny
 (typically under the assumption of Brownian motion evolution). Although
 mathematically there is no requirement for \eqn{V} to be ultrametric,
 forcing \eqn{V} into ultrametric form can aide in the interpretation of the
 model. This is especially true for binary data, because in regression for
 binary dependent variables, only the off-diagonal elements (i.e., covariances)
 of matrix \eqn{V} are biologically meaningful (see Ives & Garland 2014).
-
-The function converts a phylo tree object into a variance-covariance matrix,
+The function converts a phylo tree object into a covariance matrix,
 and further standardizes this matrix to have determinant = 1. This in effect
 standardizes the interpretation of the scalar s2. Although mathematically
 not required, it is a very good idea to standardize the predictor
 (independent) variables to have mean 0 and variance 1. This will make the
 function more robust and improve the interpretation of the regression
 coefficients.
+
+For Gaussian data, the function estimates parameters for the model
+
+\deqn{Y = b0 + b1 * x1 + b2 * x2 + \dots
++ \epsilon)} \deqn{\epsilon ~ Gaussian(0, s2 * V + s2resid * I) }
+
+where \eqn{s2resid * I} gives the non-phylogenetic residual variance. Note that this
+is equivalent to a model with Pagel's lambda transformation.
 }
 \examples{
 
@@ -257,11 +233,14 @@ X1 <- (X1 - mean(X1))/var(X1)
 
 # Simulate binary Y
 sim.dat <- data.frame(Y=array(0, dim=n), X1=X1, row.names=phy$tip.label)
-sim.dat$Y <- ape::binaryPGLMM.sim(Y ~ X1, phy=phy, data=sim.dat, s2=.5,
+sim.dat$Y <- ape::binaryPGLMM.sim(Y ~ X1, phy=phy, data=sim.dat, s2=1,
                              B=matrix(c(0,.25),nrow=2,ncol=1), nrep=1)$Y
 
 # Fit model
 pglmm.compare(Y ~ X1, family="binomial", phy=phy, data=sim.dat)
+
+# Compare with `binaryPGLMM`
+ape::binaryPGLMM(Y ~ X1, phy=phy, data=sim.dat)
 
 # Compare with `phyloglm`
 summary(phylolm::phyloglm(Y ~ X1, phy=phy, data=sim.dat))
@@ -274,17 +253,16 @@ summary(glm(Y ~ X1, data=sim.dat, family="binomial"))
 logistf::logistf(Y ~ X1, data=sim.dat)
 
 # Fit model with bayes = TRUE
-pglmm.compare(Y ~ X1, family="binomial", phy=phy, data=sim.dat, bayes = TRUE)
+pglmm.compare(Y ~ X1, family="binomial", phy=phy, data=sim.dat, bayes = TRUE, calc.DIC = TRUE)
 
 # Compare with `MCMCglmm`
-library(MCMCglmm)
 
 V <- vcv(phy)
 V <- V/max(V)
 detV <- exp(determinant(V)$modulus[1])
 V <- V/detV^(1/n)
 
-invV <- Matrix(solve(V),sparse = TRUE)
+invV <- Matrix::Matrix(solve(V),sparse = TRUE)
 sim.dat$species <- phy$tip.label
 rownames(invV) <- sim.dat$species
 
