@@ -37,7 +37,6 @@ using namespace Rcpp;
 
 // `cor_phylo` log likelihood function.
 // 
-//[[Rcpp::export]]
 double cor_phylo_LL(const arma::vec& par,
                     const arma::mat& XX,
                     const arma::mat& UU,
@@ -64,12 +63,10 @@ double cor_phylo_LL(const arma::vec& par,
   arma::mat C = make_C(n, p, tau, d, Vphy, R);
   
   arma::mat V = make_V(C, MM);
-  
-  double rcond_dbl = arma::rcond(V);
+  double rcond_dbl = arma::rcond(V); // <<<<<<<<<<<<<<  VALGRIND ERROR  >>>>>>>>>>>>>>
   if (!arma::is_finite(rcond_dbl) || rcond_dbl < rcond_threshold) return MAX_RETURN;
   
   arma::mat iV = arma::inv(V);
-  
   arma::mat denom = tp(UU) * iV * UU;
   rcond_dbl = arma::rcond(denom);
   if (!arma::is_finite(rcond_dbl) || rcond_dbl < rcond_threshold) return MAX_RETURN;
@@ -91,9 +88,7 @@ double cor_phylo_LL(const arma::vec& par,
     double lhs = arma::as_scalar(tp(H) * iV * H);
     LL = 0.5 * (logdetV + det_val + lhs);
   } else {
-    // (Doing this in two steps prevents memory-access issue in valgrind.)
-    LL = arma::as_scalar(logdetV + tp(H) * iV * H);
-    LL *= 0.5;
+    LL = 0.5 * arma::as_scalar(logdetV + tp(H) * iV * H);
   }
   
   if (verbose) {
@@ -275,8 +270,7 @@ void fit_cor_phylo_R(LogLikInfo& ll_info,
                 _["lower_d"] = ll_info.lower_d,
                 _["verbose"] = ll_info.verbose,
                 _["rcond_threshold"] = ll_info.rcond_threshold);
-    arma::vec par0 = as<arma::vec>(opt["par"]);
-    ll_info.par0 = par0;
+    ll_info.par0 = as<arma::vec>(opt["par"]);
   }
   
   opt = optim(_["par"] = ll_info.par0,
@@ -528,17 +522,11 @@ inline void main_output(arma::mat& corrs, arma::mat& B, arma::mat& B_cov, arma::
   
   arma::mat iV = arma::inv(V);
   
-  arma::mat denom = ll_info.UU.t();
-  denom *= iV;
-  denom *= ll_info.UU;
+  arma::mat denom = tp(ll_info.UU) * iV * ll_info.UU;
   
-  arma::mat num = ll_info.UU.t();
-  num *= iV;
-  num *= ll_info.XX;
+  arma::mat num = tp(ll_info.UU) * iV * ll_info.XX;
   
-  arma::mat B0_tmp = arma::solve(denom, num);
-  
-  arma::vec B0 = B0_tmp.col(0);
+  arma::vec B0 = arma::solve(denom, num);
   
   make_B_B_cov(B, B_cov, B0, iV, ll_info.UU, X, U);
   
