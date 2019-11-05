@@ -257,19 +257,23 @@ inline arma::vec make_par(const uint_t& p, const arma::mat& L, const bool& no_co
   arma::vec par0;
   if (!no_corr) {
     
-    par0 = arma::vec((static_cast<double>(p) / 2) * (1 + p) + p);
+    uint_t par_size = (static_cast<double>(p) / 2) * (1 + p) + p;
+    par0.set_size(par_size);
     par0.fill(0.5);
     for (uint_t i = 0, j = 0, k = p - 1; i < p; i++) {
-      par0(arma::span(j, k)) = L(arma::span(i, p-1), i);
+      for (uint_t l = 0; l < (k-j); l++) {
+        par0(j+l) = L(i+l,i);
+      }
       j = k + 1;
       k += (p - i - 1);
     }
     
   } else {
     
-    par0 = arma::vec(p * 2);
-    par0.head(p) = L.diag();
-    par0.tail(p).fill(0.5);
+    par0.set_size(p * 2);
+    par0.fill(0.5);
+    arma::vec Ld = L.diag();
+    par0.head(p) = Ld;
     
   }
   
@@ -280,26 +284,28 @@ inline arma::vec make_par(const uint_t& p, const arma::mat& L, const bool& no_co
 
 inline arma::mat make_L(const arma::vec& par, const uint_t& p) {
   
-  arma::mat L(p, p, arma::fill::zeros);
+  arma::mat L = arma::zeros<arma::mat>(p, p);
   
   if (par.n_elem == static_cast<uint_t>((static_cast<double>(p) / 2) * (1 + p) + p)) {
-    
+
     for (uint_t i = 0, j = 0, k = p - 1; i < p; i++) {
-      L(arma::span(i, p-1), i) = par(arma::span(j, k));
+      for (uint_t l = 0; l < (p-1-i); l++) {
+        L(i+l,i) = par(j+l);
+      }
       j = k + 1;
       k += (p - i - 1);
     }
-    
+
   } else if (par.n_elem == (2 * p)) {
-    
+
     for (uint_t i = 0; i < p; i++) {
       L(i, i) = par(i);
     }
-    
+
   } else {
-    
+
     stop("\nINTERNAL ERROR: inappropriate length of `par` inside `make_L`");
-    
+
   }
   
   return L;
@@ -317,9 +323,13 @@ inline arma::vec make_d(const arma::vec& par, const uint_t& p,
     arma::vec logit_d = par.tail(p);
     if (do_checks) {
       // In function `cor_phylo_LL_`, `d.n_elem == 0` indicates to return a huge value
-      if (arma::max(arma::abs(logit_d)) > 10) return d;
+      arma::vec tmp = arma::abs(logit_d);
+      if (arma::max(tmp) > 10) return d;
     }
-    d = 1/(1 + arma::exp(-logit_d));
+    logit_d *= -1;
+    logit_d = arma::exp(logit_d);
+    logit_d += 1;
+    d = 1 / logit_d;
     // If you ever want to allow this to be changed:
     double upper_d = 1.0;
     d *= (upper_d - lower_d);
@@ -338,7 +348,11 @@ inline arma::vec make_d(const arma::vec& par, const uint_t& p,
   arma::vec d;
   if (constrain_d) {
     arma::vec logit_d = par.tail(p);
-    d = 1/(1 + arma::exp(-logit_d));
+    
+    logit_d *= -1;
+    logit_d = arma::exp(logit_d);
+    logit_d += 1;
+    d = 1 / logit_d;
     // If you ever want to allow this to be changed:
     double upper_d = 1.0;
     d *= (upper_d - lower_d);
@@ -355,15 +369,15 @@ inline arma::vec make_d(const arma::vec& par, const uint_t& p,
 inline arma::mat make_C(const uint_t& n, const uint_t& p,
                         const arma::mat& tau, const arma::vec& d, 
                         const arma::mat& Vphy, const arma::mat& R) {
-  arma::mat C(p * n, p * n, arma::fill::zeros);
+  arma::mat C = arma::zeros<arma::mat>(p * n, p * n);
   for (uint_t i = 0; i < p; i++) {
     arma::mat Cd;
     for (uint_t j = 0; j < p; j++) {
       Cd = flex_pow(d(i), tau) % flex_pow(d(j), tp(tau)) % 
         (1 - flex_pow(d(i) * d(j), Vphy));
       Cd /= (1 - d(i) * d(j));
-      C(arma::span(n * i, (i + 1) * n - 1), arma::span(n * j, (j + 1) * n - 1)) =
-        R(i, j) * Cd;
+      Cd *= R(i, j);
+      C(arma::span(n * i, (i + 1) * n - 1), arma::span(n * j, (j + 1) * n - 1)) = Cd;
     }
   }
   return C;
@@ -371,14 +385,17 @@ inline arma::mat make_C(const uint_t& n, const uint_t& p,
 
 inline arma::mat make_V(const arma::mat& C, const arma::mat& MM) {
   arma::mat V = C;
-  V += arma::diagmat(arma::vectorise(MM));
+  arma::vec MMvec = arma::vectorise(MM);
+  arma::mat MMdiagmat = arma::diagmat(MMvec);
+  V += MMdiagmat;
   return V;
 }
 
 // Correlation matrix
 inline arma::mat make_corrs(const arma::mat& R) {
-  arma::mat Rd = arma::diagmat(flex_pow(static_cast<arma::vec>(arma::diagvec(R)), 
-                                        -0.5));
+  arma::vec tmp = arma::diagvec(R);
+  tmp = flex_pow(tmp, -0.5);
+  arma::mat Rd = arma::diagmat(tmp);
   arma::mat corrs = Rd * R * Rd;
   return corrs;
 }
