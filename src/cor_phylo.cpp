@@ -10,7 +10,7 @@
 using namespace Rcpp;
 
 
-#define MAX_RETURN 10000000000
+#define MAX_RETURN 10000000000.0
 
 
 
@@ -38,16 +38,16 @@ using namespace Rcpp;
 // `cor_phylo` log likelihood function.
 // 
 double cor_phylo_LL(const arma::vec& par,
-                     const arma::mat& XX,
-                     const arma::mat& UU,
-                     const arma::mat& MM,
-                     const arma::mat& Vphy,
-                     const arma::mat& tau,
-                     const bool& REML,
-                     const bool& constrain_d,
-                     const double& lower_d,
-                     const bool& verbose,
-                     const double& rcond_threshold) {
+                    const arma::mat& XX,
+                    const arma::mat& UU,
+                    const arma::mat& MM,
+                    const arma::mat& Vphy,
+                    const arma::mat& tau,
+                    const bool& REML,
+                    const bool& constrain_d,
+                    const double& lower_d,
+                    const bool& verbose,
+                    const double& rcond_threshold) {
   
   uint_t n = Vphy.n_rows;
   uint_t p = XX.n_rows / n;
@@ -150,34 +150,8 @@ std::vector<double> return_rcond_vals(const LogLikInfo& ll_info) {
   return rconds_out;
 }
 
-// Another version that uses XPtr; keeping it here in case I want to change back
-// //[[Rcpp::export]]
-// double cor_phylo_LL(const arma::vec& par,
-//                     SEXP ll_info_xptr) {
-//   
-//   XPtr<LogLikInfo> ll_info(ll_info_xptr);
-//   double LL = cor_phylo_LL_(par, ll_info->XX, ll_info->UU, ll_info->MM, 
-//                             ll_info->Vphy, ll_info->tau, ll_info->REML, 
-//                             ll_info->constrain_d, ll_info->verbose);
-//   return LL;
-// }
-// The function below could also be useful to keep if you go back to using XPtr:
-// // Combining standard_matrices with LogLikInfo::LogLikInfo to see what gets produced
-// //[[Rcpp::export]]
-// SEXP make_LL_info(const arma::mat& X,
-//                   const std::vector<arma::mat>& U,
-//                   const arma::mat& M,
-//                   const arma::mat& Vphy_,
-//                   const bool& REML_,
-//                   const bool& constrain_d_,
-//                   const bool& verbose_) {
-//   
-//   XPtr<LogLikInfo> ll_info_xptr(new LogLikInfo(X, U, M, Vphy_, REML_, constrain_d_,
-//                                          verbose_));
-//   
-//   return ll_info_xptr;
-// }
-// 
+
+
 
 
 
@@ -402,7 +376,7 @@ LogLikInfo::LogLikInfo(const arma::mat& X,
                  const bool& verbose_,
                  const double& rcond_threshold_) 
   : REML(REML_), no_corr(no_corr_), constrain_d(constrain_d_), lower_d(lower_d_),
-    verbose(verbose_),rcond_threshold(rcond_threshold_), iters(0) {
+    verbose(verbose_), rcond_threshold(rcond_threshold_), iters(0) {
   
   uint_t n = Vphy_.n_rows;
   uint_t p = X.n_cols;
@@ -687,7 +661,8 @@ List cor_phylo_cpp(const arma::mat& X,
   
 
   // LogLikInfo is C++ class to use for organizing info for optimizing
-  LogLikInfo ll_info(X, U, M, Vphy_, REML, no_corr, constrain_d, lower_d, verbose, rcond_threshold);
+  LogLikInfo ll_info(X, U, M, Vphy_, REML, no_corr, constrain_d, lower_d, verbose, 
+                     rcond_threshold);
 
   /*
    Do the fitting.
