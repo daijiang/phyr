@@ -61,7 +61,7 @@ double cor_phylo_LL(NumericVector par,
   
   arma::mat R = L.t() * L;
   
-  arma::vec d = make_d(par, p, constrain_d, lower_d, true);
+  arma::vec d = make_d(par, p, constrain_d, lower_d);
   if (d.n_elem == 0) return MAX_RETURN;
   
   // OU transform

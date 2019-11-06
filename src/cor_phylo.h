@@ -336,57 +336,33 @@ inline arma::mat make_L(NumericVector par, const uint_t& p) {
 
 
 
-inline arma::vec make_d(const arma::vec& par, const uint_t& p,
-                        const bool& constrain_d, const double& lower_d, 
-                        bool do_checks) {
-  arma::vec d;
-  if (constrain_d) {
-    arma::vec logit_d = par.tail(p);
-    if (do_checks) {
-      // In function `cor_phylo_LL_`, `d.n_elem == 0` indicates to return a huge value
-      if (arma::max(arma::abs(logit_d)) > 10) return d;
-    }
-    d = 1/(1 + arma::exp(-logit_d));
-    // If you ever want to allow this to be changed:
-    double upper_d = 1.0;
-    d *= (upper_d - lower_d);
-    d += lower_d;
-  } else {
-    d = par.tail(p);
-    d += lower_d;
-    if (do_checks) {
-      if (arma::max(d) > 10) d.reset();
-    }
-  }
-  return d;
-}
 inline arma::vec make_d(NumericVector par, const uint_t& p,
-                        const bool& constrain_d, const double& lower_d, 
-                        bool do_checks) {
+                        const bool& constrain_d, const double& lower_d) {
   arma::vec d;
   if (constrain_d) {
-    arma::vec logit_d(p); //as<arma::vec>(wrap(tail(par, p)));
+    arma::vec logit_d(p);
     for (uint_t i = 0, j = (par.size() - p); j < par.size(); i++, j++) {
       logit_d(i) = par[j];
     }
-    if (do_checks) {
-      // In function `cor_phylo_LL_`, `d.n_elem == 0` indicates to return a huge value
-      if (arma::max(arma::abs(logit_d)) > 10) return d;
-    }
+    /*  --------------------------------  */
+    // In function `cor_phylo_LL`, `d.n_elem == 0` indicates to return a huge value
+    if (arma::max(arma::abs(logit_d)) > 10) return d;
+    /*  --------------------------------  */
+    
     d = 1/(1 + arma::exp(-logit_d));
     // If you ever want to allow this to be changed:
     double upper_d = 1.0;
     d *= (upper_d - lower_d);
     d += lower_d;
   } else {
-    d.set_size(p);  // as<arma::vec>(wrap(tail(par, p)));
+    d.set_size(p);
     for (uint_t i = 0, j = (par.size() - p); j < par.size(); i++, j++) {
       d(i) = par[j];
     }
     d += lower_d;
-    if (do_checks) {
-      if (arma::max(d) > 10) d.reset();
-    }
+    /*  --------------------------------  */
+    if (arma::max(d) > 10) d.reset();
+    /*  --------------------------------  */
   }
   return d;
 }
