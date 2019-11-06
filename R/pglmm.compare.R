@@ -73,7 +73,9 @@
 #'   estimates of \code{s2} and \code{B} are plotted each iteration
 #'   during optimization.
 #' @param cpp Whether to use C++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE}.
-#' @param bayes Whether to fit a Bayesian version of the PGLMM using \code{r-inla}.
+#' @param bayes Whether to fit a Bayesian version of the PGLMM using \code{r-inla}. We recomment 
+#' against Bayesian fitting for non-Gaussian data unless sample sizes are large (>1000), because
+#' the phylogenetic variance tends to get trapped near zero.
 #' @param s2.init An array of initial estimates of s2. If s2.init is not provided for
 #'   \code{family="gaussian"}, these are estimated using \code{\link{lm}} assuming 
 #'   no phylogenetic signal. If \code{s2.init} is not
@@ -270,7 +272,7 @@ pglmm.compare <- function(formula, family = "gaussian",
                          reltol = 10^-6, 
                          maxit = 500, tol.pql = 10^-6, maxit.pql = 200,  
                          marginal.summ = "mean", calc.DIC = FALSE, prior = "inla.default", 
-                         prior_alpha = 0.1, prior_mu = 1, ML.init = FALSE) {
+                         prior_alpha = 0.1, prior_mu = 1, ML.init = FALSE, s2.init = 1) {
   
   sp <- rownames(data)
   if(!all(is.element(sp, phy$tip.label)))  stop("\nSorry, but it appears that there are some species in the rownames of data that are not in phy")
@@ -293,7 +295,8 @@ pglmm.compare <- function(formula, family = "gaussian",
                     reltol = reltol, 
                     maxit = maxit, tol.pql = tol.pql, maxit.pql = maxit.pql,  
                     marginal.summ = marginal.summ, calc.DIC = calc.DIC, prior = prior, 
-                    prior_alpha = prior_alpha, prior_mu = prior_mu, ML.init = ML.init)
+                    prior_alpha = prior_alpha, prior_mu = prior_mu, ML.init = ML.init,
+                    s2.init = s2.init)
 
   if(bayes==FALSE){
     results <- list(formula = formula, data = data, family = family, phy = phy, vcv.phy = re.1, 
@@ -398,16 +401,14 @@ summary.pglmm.compare <- function(object, digits = max(3, getOption("digits") - 
       print(logLik, digits = digits)
     }
   } else {
-    if (x$family == "gaussian") {
-      logLik = x$logLik
-      AIC = x$AIC
-      BIC = x$BIC
+    logLik = x$logLik
+    AIC = x$AIC
+    BIC = x$BIC
       
-      names(logLik) = "logLik"
-      names(AIC) = "AIC"
-      names(BIC) = "BIC"
-      print(c(logLik, AIC, BIC), digits = digits)
-    }
+    names(logLik) = "logLik"
+    names(AIC) = "AIC"
+    names(BIC) = "BIC"
+    print(c(logLik, AIC, BIC), digits = digits)
   }
   
   if(grepl("zeroinflated", x$family)) {

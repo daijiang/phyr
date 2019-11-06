@@ -10,7 +10,7 @@ pglmm.compare(formula, family = "gaussian", data = list(), phy,
   cpp = TRUE, bayes = FALSE, reltol = 10^-6, maxit = 500,
   tol.pql = 10^-6, maxit.pql = 200, marginal.summ = "mean",
   calc.DIC = FALSE, prior = "inla.default", prior_alpha = 0.1,
-  prior_mu = 1, ML.init = FALSE)
+  prior_mu = 1, ML.init = FALSE, s2.init = 1)
 }
 \arguments{
 \item{formula}{A two-sided linear formula object describing the
@@ -53,7 +53,9 @@ during optimization.}
 
 \item{cpp}{Whether to use C++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE}.}
 
-\item{bayes}{Whether to fit a Bayesian version of the PGLMM using \code{r-inla}.}
+\item{bayes}{Whether to fit a Bayesian version of the PGLMM using \code{r-inla}. We recomment
+against Bayesian fitting for non-Gaussian data unless sample sizes are large (>1000), because
+the phylogenetic variance tends to get trapped near zero.}
 
 \item{reltol}{A control parameter dictating the relative tolerance
 for convergence in the optimization; see \code{\link{optim}}.}
