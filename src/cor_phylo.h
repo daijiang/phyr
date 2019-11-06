@@ -67,7 +67,7 @@ public:
   LogLikInfo(const arma::mat& X,
           const std::vector<arma::mat>& U,
           const arma::mat& M,
-          const LogLikInfo& other);
+          XPtr<LogLikInfo> other);
   // Copy constructor
   LogLikInfo(const LogLikInfo& ll_info2) {
     par0 = ll_info2.par0;
@@ -143,11 +143,11 @@ public:
   
   BootMats(const arma::mat& X_, const std::vector<arma::mat>& U_,
             const arma::mat& M_,
-            const arma::mat& B_, const arma::vec& d_, const LogLikInfo& ll_info);
+            const arma::mat& B_, const arma::vec& d_, XPtr<LogLikInfo> ll_info);
   
-  LogLikInfo iterate(const LogLikInfo& ll_info);
+  XPtr<LogLikInfo> iterate(XPtr<LogLikInfo> ll_info);
   
-  void one_boot(const LogLikInfo& ll_info, BootResults& br,
+  void one_boot(XPtr<LogLikInfo> ll_info, BootResults& br,
                 const uint_t& i, const double& rel_tol, const int& max_iter,
                 const std::string& method, const std::string& keep_boots,
                 const std::vector<double>& sann);
@@ -158,7 +158,7 @@ private:
   arma::mat X_pred;
 
   // Method for returning bootstrapped data
-  void boot_data(LogLikInfo& ll_info, BootResults& br, const uint_t& i);
+  void boot_data(XPtr<LogLikInfo> ll_info, BootResults& br, const uint_t& i);
 
 };
 
@@ -305,6 +305,33 @@ inline arma::mat make_L(const arma::vec& par, const uint_t& p) {
   return L;
   
 }
+inline arma::mat make_L(NumericVector par, const uint_t& p) {
+  
+  arma::mat L(p, p, arma::fill::zeros);
+  
+  if (par.size() == static_cast<uint_t>((static_cast<double>(p) / 2) * (1 + p) + p)) {
+    
+    for (uint_t i = 0, j = 0, k = p - 1; i < p; i++) {
+      for (uint_t l = 0; l < (k-j+1); l++) L(i+l, i) = par[j+l];
+      j = k + 1;
+      k += (p - i - 1);
+    }
+    
+  } else if (par.size() == (2 * p)) {
+    
+    for (uint_t i = 0; i < p; i++) {
+      L(i, i) = par[i];
+    }
+    
+  } else {
+    
+    stop("\nINTERNAL ERROR: inappropriate length of `par` inside `make_L`");
+    
+  }
+  
+  return L;
+  
+}
 
 
 
@@ -326,6 +353,36 @@ inline arma::vec make_d(const arma::vec& par, const uint_t& p,
     d += lower_d;
   } else {
     d = par.tail(p);
+    d += lower_d;
+    if (do_checks) {
+      if (arma::max(d) > 10) d.reset();
+    }
+  }
+  return d;
+}
+inline arma::vec make_d(NumericVector par, const uint_t& p,
+                        const bool& constrain_d, const double& lower_d, 
+                        bool do_checks) {
+  arma::vec d;
+  if (constrain_d) {
+    arma::vec logit_d(p); //as<arma::vec>(wrap(tail(par, p)));
+    for (uint_t i = 0, j = (par.size() - p); j < par.size(); i++, j++) {
+      logit_d(i) = par[j];
+    }
+    if (do_checks) {
+      // In function `cor_phylo_LL_`, `d.n_elem == 0` indicates to return a huge value
+      if (arma::max(arma::abs(logit_d)) > 10) return d;
+    }
+    d = 1/(1 + arma::exp(-logit_d));
+    // If you ever want to allow this to be changed:
+    double upper_d = 1.0;
+    d *= (upper_d - lower_d);
+    d += lower_d;
+  } else {
+    d.set_size(p);  // as<arma::vec>(wrap(tail(par, p)));
+    for (uint_t i = 0, j = (par.size() - p); j < par.size(); i++, j++) {
+      d(i) = par[j];
+    }
     d += lower_d;
     if (do_checks) {
       if (arma::max(d) > 10) d.reset();
