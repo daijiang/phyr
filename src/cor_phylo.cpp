@@ -54,6 +54,9 @@ double cor_phylo_LL(NumericVector par,
   const bool& verbose(lli->verbose);
   const double& rcond_threshold(lli->rcond_threshold);
   
+  
+  bool return_max = false;
+  
   uint_t n = Vphy.n_rows;
   uint_t p = XX.n_rows / n;
   
@@ -61,8 +64,8 @@ double cor_phylo_LL(NumericVector par,
   
   arma::mat R = L.t() * L;
   
-  arma::vec d = make_d(par, p, constrain_d, lower_d);
-  if (d.n_elem == 0) return MAX_RETURN;
+  arma::vec d = make_d(par, p, constrain_d, lower_d, return_max);
+  if (return_max) return MAX_RETURN;
   
   // OU transform
   arma::mat C = make_C(n, p, tau, d, Vphy, R);
@@ -98,7 +101,7 @@ double cor_phylo_LL(NumericVector par,
   
   if (verbose) {
     Rcout << LL << ' ';
-    for (uint_t i = 0; i < static_cast<uint_t>(par0.size()); i++) Rcout << par[i] << ' ';
+    for (uint_t i = 0; i < static_cast<uint_t>(par.size()); i++) Rcout << par[i] << ' ';
     Rcout << std::endl;
   }
   

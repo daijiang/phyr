@@ -244,24 +244,28 @@ inline arma::vec pnorm_cpp(const arma::vec& values, const bool& lower_tail) {
 
 inline arma::vec make_par(const uint_t& p, const arma::mat& L, const bool& no_corr) {
   
-  arma::vec par0;
+  
+  
   if (!no_corr) {
     
-    par0 = arma::vec((static_cast<double>(p) / 2) * (1 + p) + p);
+    uint_t par_size = (static_cast<double>(p) / 2.0) * (1 + p) + p;
+    arma::vec par0(par_size);
     par0.fill(0.5);
+    
     for (uint_t i = 0, j = 0, k = p - 1; i < p; i++) {
       par0(arma::span(j, k)) = L(arma::span(i, p-1), i);
       j = k + 1;
       k += (p - i - 1);
     }
     
-  } else {
-    
-    par0 = arma::vec(p * 2);
-    par0.head(p) = L.diag();
-    par0.tail(p).fill(0.5);
+    return par0;
     
   }
+  
+  
+  arma::vec par0(p * 2);
+  arma::vec Ldiag = L.diag();
+  for (uint_t i = 0; i < p; i++) par0(i) = Ldiag(i);
   
   return par0;
   
@@ -326,21 +330,28 @@ inline arma::mat make_L(NumericVector par, const uint_t& p) {
 
 
 
-inline arma::vec make_d(NumericVector par, const uint_t& p,
-                        const bool& constrain_d, const double& lower_d) {
-  arma::vec d;
+inline arma::vec make_d(NumericVector par, 
+                        const uint_t& p,
+                        const bool& constrain_d, 
+                        const double& lower_d,
+                        bool& return_max) {
+  arma::vec d(p, arma::fill::zeros);
+  return_max = false;
   uint_t size_ = par.size();
   if (constrain_d) {
-    arma::vec logit_d(p);
+    arma::vec logit_d(p, arma::fill::zeros);
     for (uint_t i = 0, j = (size_ - p); j < size_; i++, j++) {
       logit_d(i) = par[j];
     }
     /*  --------------------------------  */
-    // In function `cor_phylo_LL`, `d.n_elem == 0` indicates to return a huge value
-    if (arma::max(arma::abs(logit_d)) > 10) return d;
+    // In function `cor_phylo_LL`, `return_max = true` indicates to return a huge value
+    if (arma::max(arma::abs(logit_d)) > 10) {
+      return_max = true;
+      return d;
+    }
     /*  --------------------------------  */
     
-    d = 1/(1 + arma::exp(-logit_d));
+    for (uint_t i = 0; i < p; i++) d(i) = 1/(1 + std::exp(-1 * logit_d(i)));
     // If you ever want to allow this to be changed:
     double upper_d = 1.0;
     d *= (upper_d - lower_d);
@@ -352,17 +363,17 @@ inline arma::vec make_d(NumericVector par, const uint_t& p,
     }
     d += lower_d;
     /*  --------------------------------  */
-    if (arma::max(d) > 10) d.reset();
+    if (arma::max(d) > 10) return_max = true;
     /*  --------------------------------  */
   }
   return d;
 }
 inline arma::vec make_d(const arma::vec& par, const uint_t& p,
                         const bool& constrain_d, const double& lower_d) {
-  arma::vec d;
+  arma::vec d(p, arma::fill::zeros);
   if (constrain_d) {
     arma::vec logit_d = par.tail(p);
-    d = 1/(1 + arma::exp(-logit_d));
+    for (uint_t i = 0; i < p; i++) d(i) = 1 / (1 + std::exp(-1 * logit_d(i)));
     // If you ever want to allow this to be changed:
     double upper_d = 1.0;
     d *= (upper_d - lower_d);
