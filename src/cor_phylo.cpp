@@ -72,11 +72,11 @@ double cor_phylo_LL(NumericVector par,
   if (!arma::is_finite(rcond_dbl) || rcond_dbl < rcond_threshold) return MAX_RETURN;
   
   arma::mat iV = arma::inv(V);
-  arma::mat denom = tp(UU) * iV * UU;
+  arma::mat denom = UU.t() * iV * UU;
   rcond_dbl = arma::rcond(denom);
   if (!arma::is_finite(rcond_dbl) || rcond_dbl < rcond_threshold) return MAX_RETURN;
   
-  arma::mat num = tp(UU) * iV * XX;
+  arma::mat num = UU.t() * iV * XX;
   arma::vec B0 = arma::solve(denom, num);
   arma::mat H = XX - UU * B0;
   
@@ -87,18 +87,18 @@ double cor_phylo_LL(NumericVector par,
   
   double LL;
   if (REML) {
-    arma::mat to_det = tp(UU) * iV * UU;
+    arma::mat to_det = UU.t() * iV * UU;
     double det_val;
     arma::log_det(det_val, det_sign, to_det);
-    double lhs = arma::as_scalar(tp(H) * iV * H);
+    double lhs = arma::as_scalar(H.t() * iV * H);
     LL = 0.5 * (logdetV + det_val + lhs);
   } else {
-    LL = 0.5 * arma::as_scalar(logdetV + tp(H) * iV * H);
+    LL = 0.5 * arma::as_scalar(logdetV + H.t() * iV * H);
   }
   
   if (verbose) {
     Rcout << LL << ' ';
-    for (uint_t i = 0; i < par.size(); i++) Rcout << par[i] << ' ';
+    for (uint_t i = 0; i < static_cast<uint_t>(par0.size()); i++) Rcout << par[i] << ' ';
     Rcout << std::endl;
   }
   
@@ -148,7 +148,7 @@ std::vector<double> return_rcond_vals(XPtr<LogLikInfo> ll_info) {
   rconds_out[0] = rcond_dbl;
   
   arma::mat iV = arma::inv(V);
-  arma::mat denom = tp(UU) * iV * UU;
+  arma::mat denom = UU.t() * iV * UU;
   rcond_dbl = arma::rcond(denom);
   rconds_out[1] = rcond_dbl;
   
@@ -422,7 +422,7 @@ LogLikInfo::LogLikInfo(const arma::mat& X,
   }
   L = arma::cov(eps);
   safe_chol(L, "model fitting");
-  L = tp(L);
+  L = L.t();
   
   par0 = make_par(p, L, no_corr);
   min_par = par0;
@@ -478,7 +478,7 @@ LogLikInfo::LogLikInfo(const arma::mat& X,
   }
   L = arma::cov(eps);
   safe_chol(L, "a bootstrap replicate");
-  L = tp(L);
+  L = L.t();
   
   par0 = make_par(p, L, no_corr);
   min_par = par0;
@@ -510,9 +510,9 @@ inline void main_output(arma::mat& corrs, arma::mat& B, arma::mat& B_cov, arma::
   
   arma::mat iV = arma::inv(V);
   
-  arma::mat denom = tp(ll_info->UU) * iV * ll_info->UU;
+  arma::mat denom = ll_info->UU.t() * iV * ll_info->UU;
   
-  arma::mat num = tp(ll_info->UU) * iV * ll_info->XX;
+  arma::mat num = ll_info->UU.t() * iV * ll_info->XX;
   
   arma::vec B0 = arma::solve(denom, num);
   
@@ -557,7 +557,7 @@ List cp_get_output(const arma::mat& X,
   double logLik = -0.5 * std::log(2 * arma::datum::pi);
   if (ll_info->REML) {
     logLik *= (n * p - ll_info->UU.n_cols);
-    arma::mat to_det = tp(ll_info->XX) * ll_info->XX;
+    arma::mat to_det = ll_info->XX.t() * ll_info->XX;
     double det_val, det_sign;
     arma::log_det(det_val, det_sign, to_det);
     logLik += 0.5 * det_val - ll_info->LL;
@@ -717,9 +717,10 @@ BootMats::BootMats(const arma::mat& X_,
   iD = iD.t();
   
   // For predicted X values (i.e., without error)
-  X_pred = ll_info->UU;
-  X_pred = tp(arma::conv_to<arma::vec>::from(B_.col(0))) * tp(X_pred);
-  X_pred = tp(X_pred);
+  X_pred = ll_info->UU.t();
+  arma::rowvec tmp = B_.col(0).t();
+  X_pred = tmp * X_pred;
+  X_pred = X_pred.t();
   X_pred.reshape(n, p);
   
   return;

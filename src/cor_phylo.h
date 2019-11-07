@@ -211,16 +211,6 @@ inline arma::mat flex_pow(const arma::mat& a, const double& b) {
   return x;
 }
 
-// Transpose functions that return what I want them to:
-inline arma::mat tp(const arma::mat& M){
-  return M.t();
-}
-inline arma::rowvec tp(const arma::vec& V){
-  return arma::conv_to<arma::rowvec>::from(V.t());
-}
-inline arma::vec tp(const arma::rowvec& V){
-  return arma::conv_to<arma::vec>::from(V.t());
-}
 
 // pnorm for standard normal (i.e., ~ N(0,1))
 inline arma::vec pnorm_cpp(const arma::vec& values, const bool& lower_tail) {
@@ -309,7 +299,7 @@ inline arma::mat make_L(NumericVector par, const uint_t& p) {
   
   arma::mat L(p, p, arma::fill::zeros);
   
-  if (par.size() == static_cast<uint_t>((static_cast<double>(p) / 2) * (1 + p) + p)) {
+  if (par.size() == static_cast<int>((static_cast<double>(p) / 2) * (1 + p) + p)) {
     
     for (uint_t i = 0, j = 0, k = p - 1; i < p; i++) {
       for (uint_t l = 0; l < (k-j+1); l++) L(i+l, i) = par[j+l];
@@ -317,7 +307,7 @@ inline arma::mat make_L(NumericVector par, const uint_t& p) {
       k += (p - i - 1);
     }
     
-  } else if (par.size() == (2 * p)) {
+  } else if (par.size() == static_cast<int>(2 * p)) {
     
     for (uint_t i = 0; i < p; i++) {
       L(i, i) = par[i];
@@ -339,9 +329,10 @@ inline arma::mat make_L(NumericVector par, const uint_t& p) {
 inline arma::vec make_d(NumericVector par, const uint_t& p,
                         const bool& constrain_d, const double& lower_d) {
   arma::vec d;
+  uint_t size_ = par.size();
   if (constrain_d) {
     arma::vec logit_d(p);
-    for (uint_t i = 0, j = (par.size() - p); j < par.size(); i++, j++) {
+    for (uint_t i = 0, j = (size_ - p); j < size_; i++, j++) {
       logit_d(i) = par[j];
     }
     /*  --------------------------------  */
@@ -356,7 +347,7 @@ inline arma::vec make_d(NumericVector par, const uint_t& p,
     d += lower_d;
   } else {
     d.set_size(p);
-    for (uint_t i = 0, j = (par.size() - p); j < par.size(); i++, j++) {
+    for (uint_t i = 0, j = (size_ - p); j < size_; i++, j++) {
       d(i) = par[j];
     }
     d += lower_d;
@@ -452,12 +443,13 @@ inline void make_B_B_cov(arma::mat& B, arma::mat& B_cov, arma::vec& B0,
     }
   }
   
-  B_cov = arma::inv(tp(UU) * iV * UU);
+  B_cov = arma::inv(UU.t() * iV * UU);
   B_cov = arma::diagmat(sd_vec) * B_cov * arma::diagmat(sd_vec);
   
   B.set_size(B0.n_elem, 4);
   B.col(0) = B0;  // Estimates
-  B.col(1) = flex_pow(static_cast<arma::vec>(arma::diagvec(B_cov)), 0.5);  // SE
+  B.col(1) = arma::diagvec(B_cov);
+  for (uint_t i = 0; i < B.n_rows; i++) B(i,1) = std::sqrt(B(i,1));
   B.col(2) = B0 / B.col(1); // Z-score
   B.col(3) = 2 * pnorm_cpp(arma::abs(B.col(2)), false);  // P-value
   
