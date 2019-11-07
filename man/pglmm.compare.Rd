@@ -10,7 +10,7 @@ pglmm.compare(formula, family = "gaussian", data = list(), phy,
   cpp = TRUE, bayes = FALSE, reltol = 10^-6, maxit = 500,
   tol.pql = 10^-6, maxit.pql = 200, marginal.summ = "mean",
   calc.DIC = FALSE, prior = "inla.default", prior_alpha = 0.1,
-  prior_mu = 1, ML.init = FALSE, s2.init = 1)
+  prior_mu = 1, ML.init = FALSE, s2.init = 1, B.init = NULL)
 }
 \arguments{
 \item{formula}{A two-sided linear formula object describing the
@@ -203,7 +203,7 @@ binary dependent variables, only the off-diagonal elements (i.e., covariances)
 of matrix \eqn{V} are biologically meaningful (see Ives & Garland 2014).
 The function converts a phylo tree object into a covariance matrix,
 and further standardizes this matrix to have determinant = 1. This in effect
-standardizes the interpretation of the scalar s2. Although mathematically
+standardizes the interpretation of the scalar \code{s2}. Although mathematically
 not required, it is a very good idea to standardize the predictor
 (independent) variables to have mean 0 and variance 1. This will make the
 function more robust and improve the interpretation of the regression
@@ -211,15 +211,14 @@ coefficients.
 
 For Gaussian data, the function estimates parameters for the model
 
-\deqn{Y = b0 + b1 * x1 + b2 * x2 + \dots
-+ \epsilon)} \deqn{\epsilon ~ Gaussian(0, s2 * V + s2resid * I) }
+\deqn{Y = b0 + b1 * x1 + b2 * x2 + \dots + \epsilon)}
+\deqn{\epsilon ~ Gaussian(0, s2 * V + s2resid * I) }
 
 where \eqn{s2resid * I} gives the non-phylogenetic residual variance. Note that this
 is equivalent to a model with Pagel's lambda transformation.
 }
 \examples{
 
-\dontrun{
 ## Illustration of `pglmm.compare` with simulated data
 
 # Generate random phylogeny
@@ -273,10 +272,9 @@ thin <- 10
 burnin <- 3000
 
 prior <- list(R=list(V=1, fix=1), G=list(G1=list(V=1, nu=1000, alpha.mu=0, alpha.V=1)))
-summary(MCMCglmm::MCMCglmm(Y ~ X1, random=~species, ginvers=list(species=invV),
-    data=sim.dat, slice=TRUE, nitt=nitt, thin=thin, burnin=burnin,
-    family="categorical", prior=prior, verbose=FALSE))
-}
+# summary(MCMCglmm::MCMCglmm(Y ~ X1, random=~species, ginvers=list(species=invV),
+#     data=sim.dat, slice=TRUE, nitt=nitt, thin=thin, burnin=burnin,
+#    family="categorical", prior=prior, verbose=FALSE))
 
 }
 \references{
@@ -290,10 +288,8 @@ dependent variables. Pages 231--261 \emph{in} L. Z. Garamszegi, editor.
 Evolutionary Biology}. Springer-Verlag, Berlin Heidelberg.
 }
 \seealso{
-\code{\link{pglmm}}; package
-\pkg{ape} and its function \code{binaryPGLMM}
-package
-\pkg{phylolm} and its function \code{phyloglm}; package \pkg{MCMCglmm}
+\code{\link{pglmm}}; package \pkg{ape} and its function \code{binaryPGLMM};
+package \pkg{phylolm} and its function \code{phyloglm}; package \pkg{MCMCglmm}
 }
 \author{
 Anthony R. Ives

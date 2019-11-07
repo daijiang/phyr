@@ -28,7 +28,7 @@
 #' of matrix \eqn{V} are biologically meaningful (see Ives & Garland 2014).
 #' The function converts a phylo tree object into a covariance matrix,
 #' and further standardizes this matrix to have determinant = 1. This in effect
-#' standardizes the interpretation of the scalar s2. Although mathematically
+#' standardizes the interpretation of the scalar `s2`. Although mathematically
 #' not required, it is a very good idea to standardize the predictor
 #' (independent) variables to have mean 0 and variance 1. This will make the
 #' function more robust and improve the interpretation of the regression
@@ -36,8 +36,8 @@
 #' 
 #' For Gaussian data, the function estimates parameters for the model
 #' 
-#' \deqn{Y = b0 + b1 * x1 + b2 * x2 + \dots
-#' + \epsilon)} \deqn{\epsilon ~ Gaussian(0, s2 * V + s2resid * I) }
+#' \deqn{Y = b0 + b1 * x1 + b2 * x2 + \dots + \epsilon)} 
+#' \deqn{\epsilon ~ Gaussian(0, s2 * V + s2resid * I) }
 #' 
 #' where \eqn{s2resid * I} gives the non-phylogenetic residual variance. Note that this
 #' is equivalent to a model with Pagel's lambda transformation.
@@ -182,10 +182,8 @@
 #' 
 #' @author Anthony R. Ives
 #' 
-#' @seealso \code{\link{pglmm}}; package
-#' \pkg{ape} and its function \code{binaryPGLMM}
-#' package
-#' \pkg{phylolm} and its function \code{phyloglm}; package \pkg{MCMCglmm}
+#' @seealso \code{\link{pglmm}}; package \pkg{ape} and its function \code{binaryPGLMM};
+#' package \pkg{phylolm} and its function \code{phyloglm}; package \pkg{MCMCglmm}
 #' 
 #' @references Ives, A. R. and Helmus, M. R. (2011) Generalized linear mixed
 #' models for phylogenetic analyses of community structure. \emph{Ecological
@@ -201,7 +199,6 @@
 #' @export
 #' @examples
 #' 
-#' \dontrun{
 #' ## Illustration of `pglmm.compare` with simulated data
 #' 
 #' # Generate random phylogeny
@@ -255,28 +252,31 @@
 #' burnin <- 3000
 #' 
 #' prior <- list(R=list(V=1, fix=1), G=list(G1=list(V=1, nu=1000, alpha.mu=0, alpha.V=1)))
-#' summary(MCMCglmm::MCMCglmm(Y ~ X1, random=~species, ginvers=list(species=invV),
-#'     data=sim.dat, slice=TRUE, nitt=nitt, thin=thin, burnin=burnin,
-#'     family="categorical", prior=prior, verbose=FALSE))
-#' }
+#' # summary(MCMCglmm::MCMCglmm(Y ~ X1, random=~species, ginvers=list(species=invV),
+#' #     data=sim.dat, slice=TRUE, nitt=nitt, thin=thin, burnin=burnin,
+#' #    family="categorical", prior=prior, verbose=FALSE))
 #'
 pglmm.compare <- function(formula, family = "gaussian", 
-                         data = list(), 
-                         phy, 
-                         REML = TRUE, 
-                         optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"),
-                         add.obs.re = TRUE,
-                         verbose = FALSE,
-                         cpp = TRUE,
-                         bayes=FALSE,
-                         reltol = 10^-6, 
-                         maxit = 500, tol.pql = 10^-6, maxit.pql = 200,  
-                         marginal.summ = "mean", calc.DIC = FALSE, prior = "inla.default", 
-                         prior_alpha = 0.1, prior_mu = 1, ML.init = FALSE, s2.init = 1) {
+                          data = list(), 
+                          phy, 
+                          REML = TRUE, 
+                          optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"),
+                          add.obs.re = TRUE,
+                          verbose = FALSE,
+                          cpp = TRUE,
+                          bayes=FALSE,
+                          reltol = 10^-6, 
+                          maxit = 500, tol.pql = 10^-6, maxit.pql = 200,  
+                          marginal.summ = "mean", calc.DIC = FALSE, prior = "inla.default", 
+                          prior_alpha = 0.1, prior_mu = 1, ML.init = FALSE, s2.init = 1, B.init = NULL) {
   
   sp <- rownames(data)
   if(!all(is.element(sp, phy$tip.label)))  stop("\nSorry, but it appears that there are some species in the rownames of data that are not in phy")
-  if(!all(is.element(phy$tip.label, sp)))  stop("\nSorry, but it appears that there are some species in phy are not contained in the rownames of data")
+  if(!all(is.element(phy$tip.label, sp)))  {
+    warning("\nIt appears that there are some species in phy are not contained in the rownames of data; 
+            we will drop these species")
+    phy = ape::keep.tip(phy, sp)
+  }
   
   if(any(sp != phy$tip.label)){
     warning("\nThe data rows are resorted to match phy$tip.label")
@@ -286,23 +286,24 @@ pglmm.compare <- function(formula, family = "gaussian",
   re.1 <- list(covar = vcv(phy))
   
   z <- pglmm(formula = formula, data = data, family = family, 
-                    random.effects = list(re.1), REML = REML,
-                    optimizer = optimizer,
-                    add.obs.re = add.obs.re,
-                    verbose = verbose,
-                    cpp = cpp,
-                    bayes = bayes,
-                    reltol = reltol, 
-                    maxit = maxit, tol.pql = tol.pql, maxit.pql = maxit.pql,  
-                    marginal.summ = marginal.summ, calc.DIC = calc.DIC, prior = prior, 
-                    prior_alpha = prior_alpha, prior_mu = prior_mu, ML.init = ML.init,
-                    s2.init = s2.init)
-
+             random.effects = list(re.1), REML = REML,
+             optimizer = optimizer,
+             add.obs.re = add.obs.re,
+             verbose = verbose,
+             cpp = cpp,
+             bayes = bayes,
+             reltol = reltol, 
+             maxit = maxit, tol.pql = tol.pql, maxit.pql = maxit.pql,  
+             marginal.summ = marginal.summ, calc.DIC = calc.DIC, prior = prior, 
+             prior_alpha = prior_alpha, prior_mu = prior_mu, ML.init = ML.init,
+             s2.init = s2.init, B.init = B.init)
+  
   if(bayes==FALSE){
     results <- list(formula = formula, data = data, family = family, phy = phy, vcv.phy = re.1, 
                     B = z$B, B.se = z$B.se, B.cov = z$B.cov, B.zscore = z$B.zscore, B.pvalue = z$B.pvalue, 
                     ss = z$ss, s2n = z$s2n, s2resid = z$s2resid, logLik = z$logLik, AIC = z$AIC, 
-                    BIC = z$BIC, REML = z$REML, bayes = FALSE, s2.init =z$s2.init, B.init = z$B.init, Y = z$Y, size = z$size, X = z$X, 
+                    BIC = z$BIC, REML = z$REML, bayes = FALSE, s2.init =z$s2.init, B.init = z$B.init, 
+                    Y = z$Y, size = z$size, X = z$X, 
                     H = as.matrix(z$H), iV = z$iV, mu = z$mu, nested = z$nested, Zt = z$Zt, St = z$St, 
                     convcode = z$convcode, niter = z$niter)
     
@@ -404,7 +405,7 @@ summary.pglmm.compare <- function(object, digits = max(3, getOption("digits") - 
     logLik = x$logLik
     AIC = x$AIC
     BIC = x$BIC
-      
+    
     names(logLik) = "logLik"
     names(AIC) = "AIC"
     names(BIC) = "BIC"

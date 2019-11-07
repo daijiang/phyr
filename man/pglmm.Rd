@@ -342,15 +342,15 @@ the interpretation of the regression coefficients.
 
 # Model 1 (Eq. 1)
 z <- pglmm(freq ~ sp + (1|site) + (1|sp__@site), data = dat, family = "binomial", 
-           cov_ranef = list(sp = phy), REML = TRUE, verbose = TRUE, s2.init=.1)
+           cov_ranef = list(sp = phy), REML = TRUE, verbose = TRUE, s2.init = .1)
 
 # Model 2 (Eq. 2)
 z <- pglmm(freq ~ sp + X + (1|site) + (X|sp__), data = dat, family = "binomial",
-           cov_ranef = list(sp = phy), REML = TRUE, verbose = TRUE, s2.init=.1)
+           cov_ranef = list(sp = phy), REML = TRUE, verbose = TRUE, s2.init = .1)
 
 # Model 3 (Eq. 3)
 z <- pglmm(freq ~ sp*X + (1|site) + (1|sp__@site), data = dat, family = "binomial",
-           cov_ranef = list(sp = phy), REML = TRUE, verbose = TRUE, s2.init=.1)
+           cov_ranef = list(sp = phy), REML = TRUE, verbose = TRUE, s2.init = .1)
 
 ## Model structure from Rafferty & Ives (2013) (Eq. 3)
 # dat = data set
@@ -361,7 +361,7 @@ z <- pglmm(freq ~ pol * X + (1|pol__) + (1|plt__) + (1|pol__@plt) +
            (1|pol@plt__) + (1|pol__@plt__), 
            data = dat, family = "binomial", 
            cov_ranef = list(pol = phyPol, plt = phyPlt), 
-           REML = TRUE, verbose = TRUE, s2.init=.1)
+           REML = TRUE, verbose = TRUE, s2.init = .1)
 
 #####################################################
 ### Detailed analysis showing covariance matrices ###
@@ -398,71 +398,35 @@ Y.site <- rep(mean.site, each=nspp)
 sd.attract <- 1
 Vphy <- vcv(phy)
 
-# Standardize the phylogenetic covariance matrix to have determinant = 1. (For an explanation of this standardization, see subsection 4.3.1 in Ives (2018))
+# Standardize the phylogenetic covariance matrix to have determinant = 1. 
+# (For an explanation of this standardization, see subsection 4.3.1 in Ives (2018))
 Vphy <- Vphy/(det(Vphy)^(1/nspp))
 
-# Construct the overall covariance matrix for phylogenetic attraction. (For an explanation of Kronecker products, see subsection 4.3.1 in the book)
-V <- kronecker(diag(nrow=nsite, ncol=nsite), Vphy)
-Y.attract <- array(t(rmvnorm(n=1, sigma=sd.attract^2*V)))
+# Construct the overall covariance matrix for phylogenetic attraction. 
+# (For an explanation of Kronecker products, see subsection 4.3.1 in the book)
+V <- kronecker(diag(nrow = nsite, ncol = nsite), Vphy)
+Y.attract <- array(t(rmvnorm(n = 1, sigma = sd.attract^2*V)))
 
 # Simulate residual errors
 sd.e <- 1
-Y.e <- rnorm(nspp*nsite, sd=sd.e)
+Y.e <- rnorm(nspp*nsite, sd = sd.e)
 
 # Construct the dataset
-d <- data.frame(sp=rep(phy$tip.label, times=nsite), site=rep(1:nsite, each=nspp))
+d <- data.frame(sp = rep(phy$tip.label, times = nsite), 
+                site = rep(1:nsite, each = nspp))
 
 # Simulate abundance data
 d$Y <- Y.sp + Y.site + Y.attract + Y.e
 
 # Analyze the model
-pglmm(Y ~ 1 + (1|sp__) + (1|site) + (1|sp__@site), data=d, cov_ranef = list(sp=phy))
+pglmm(Y ~ 1 + (1|sp__) + (1|site) + (1|sp__@site), data = d, cov_ranef = list(sp = phy))
 
-# Display random effects: the function communityPGLMM.plot.re() does what the name implies. You can set show.image=T and show.sim.image=T to see the matrices and simulations, although below I have plotted them using the output from communityPGLMM.plot.re() to make figures appropriate for the book.
-re <- pglmm.plot.re(Y ~ 1 + (1|sp__) + (1|site) + (1|sp__@site), data=d, cov_ranef = list(sp=phy), show.image=F, show.sim.image=F)
-
-# The plots below are in black and white.
-# Plot simulations of (1|site) and (1|sp) from communityPGLMM.plot.re()
-layout(matrix(c(1,2), nrow=1))
-par(mai=c(1,1,1,.1))
-image(t(re$sim$"1|site"[nsite:1,]), xaxt="n", yaxt="n", ylab = "", xlab = "", main = "(1|site)", col=gray(.01*(1:99)))
-mtext(side=1, "sp", padj = .5, cex=1)
-mtext(side=2, "site", padj = -.5, cex=1)
-image(t(re$sim$"1|sp"[nsite:1,]), xaxt="n", yaxt="n", ylab = "", xlab = "", main = "(1|sp)", col=gray(.01*(1:100)))
-mtext(side=1, "sp", padj = .5, cex=1)
-mtext(side=2, "site", padj = -.5, cex=1)
-
-# Plot the covariance matrices of (1|site) and (1|sp) from communityPGLMM.plot.re()
-layout(matrix(c(1,2), nrow=1))
-par(mai=c(.5,.5,.5,.1))
-V <- re$vcv$'1|site'[(nspp*nsite):1,]
-image(t(V), xaxt="n", yaxt="n", ylab = "", xlab = "", main = "(1|site)", col=gray(.01*(1:100)))
-V <- re$vcv$'1|sp'[(nspp*nsite):1,]
-image(t(V), xaxt="n", yaxt="n", ylab = "", xlab = "", main = "(1|sp)", col=gray(.01*(1:100)))
-
-# Plot simulations of (1|sp__@site) and (1|sp) with phylogeny
-layout(matrix(c(1,2,2,3,4,4), ncol=2))
-par(mai=c(0,.7,.5,.3))
-plot(phy, direction="downwards", cex=.01, main="(1|sp__)",cex.main=1.5)
-par(mai=c(1,.5,0,.1))
-image(t(re$sim$'1|sp__'), xaxt="n", yaxt="n", ylab = "", xlab = "", main = "", col=gray(.01*(1:100)))
-mtext(side=1, "sp", padj = .5, cex=1)
-mtext(side=2, "site", padj = -.5, cex=1)
-
-par(mai=c(0,.7,.5,.3))
-plot(phy, direction="downwards", cex=.01, main="(1|sp__@site)",cex.main=1.5)
-par(mai=c(1,.5,0,.1))
-image(t(re$sim$'1|sp__@site'), xaxt="n", yaxt="n", ylab = "", xlab = "", main = "", col=gray(.01*(1:100)))
-mtext(side=1, "sp", padj = .5, cex=1)
-mtext(side=2, "site", padj = -.5, cex=1)
-
-# Plot the covariance matrices of (1|sp__) and (1|sp__@site) from communityPGLMM.plot.re()
-layout(matrix(c(1,2), nrow=1))
-par(mai=c(.5,.5,.5,.1))
-V <- re$vcv$'1|sp__'[(nspp*nsite):1,]
-image(t(V), xaxt="n", yaxt="n", ylab = "", xlab = "", main = "(1|sp__)", col=gray(.01*(1:100)))
-V <- re$vcv$'1|sp__@site'[(nspp*nsite):1,]
-image(t(V), xaxt="n", yaxt="n", ylab = "", xlab = "", main = "(1|sp__@site)", col=gray(.01*(1:100)))
+# Display random effects: the function `pglmm.plot.re()` does what 
+# the name implies. You can set `show.image = TRUE` and `show.sim.image = TRUE` 
+# to see the matrices and simulations.
+re <- pglmm.plot.re(Y ~ 1 + (1|sp__) + (1|site) + (1|sp__@site), data = d, 
+                    cov_ranef = list(sp = phy), show.image = FALSE, 
+                    show.sim.image = FALSE)
 
 #################################################
 ### Example of a bipartite phylogenetic model ###
@@ -477,74 +441,83 @@ phy.sp <- compute.brlen(rtree(n = nspp), method = "Grafen", power = 1.3)
 phy.site <- compute.brlen(rtree(n = nsite), method = "Grafen", power = 1.3)
 
 # Simulate species means
-mean.sp <- rTraitCont(phy.sp, model = "BM", sigma=1)
+mean.sp <- rTraitCont(phy.sp, model = "BM", sigma = 1)
 
 # Replicate values of mean.sp over sites
-Y.sp <- rep(mean.sp, times=nsite)
+Y.sp <- rep(mean.sp, times = nsite)
 
 # Simulate site means
-mean.site <- rTraitCont(phy.site, model = "BM", sigma=1)
+mean.site <- rTraitCont(phy.site, model = "BM", sigma = 1)
 
 # Replicate values of mean.site over sp
-Y.site <- rep(mean.site, each=nspp)
+Y.site <- rep(mean.site, each = nspp)
 
 # Generate covariance matrix for phylogenetic attraction among species
 sd.sp.attract <- 1
 Vphy.sp <- vcv(phy.sp)
 Vphy.sp <- Vphy.sp/(det(Vphy.sp)^(1/nspp))
-V.sp <- kronecker(diag(nrow=nsite, ncol=nsite), Vphy.sp)
-Y.sp.attract <- array(t(rmvnorm(n=1, sigma=sd.sp.attract^2*V.sp)))
+V.sp <- kronecker(diag(nrow = nsite, ncol = nsite), Vphy.sp)
+Y.sp.attract <- array(t(rmvnorm(n = 1, sigma = sd.sp.attract^2*V.sp)))
 # Generate covariance matrix for phylogenetic attraction among sites
 sd.site.attract <- 1
 Vphy.site <- vcv(phy.site)
 Vphy.site <- Vphy.site/(det(Vphy.site)^(1/nsite))
-V.site <- kronecker(Vphy.site, diag(nrow=nspp, ncol=nspp))
-Y.site.attract <- array(t(rmvnorm(n=1, sigma=sd.site.attract^2*V.site)))
+V.site <- kronecker(Vphy.site, diag(nrow = nspp, ncol = nspp))
+Y.site.attract <- array(t(rmvnorm(n = 1, sigma = sd.site.attract^2*V.site)))
 
 # Generate covariance matrix for phylogenetic attraction of species:site interaction
 sd.sp.site.attract <- 1
 V.sp.site <- kronecker(Vphy.site, Vphy.sp)
-Y.sp.site.attract <- array(t(rmvnorm(n=1, sigma=sd.sp.site.attract^2*V.sp.site)))
+Y.sp.site.attract <- array(t(rmvnorm(n = 1, sigma = sd.sp.site.attract^2*V.sp.site)))
 
 # Simulate residual error
 sd.e <- 0.5
-Y.e <- rnorm(nspp*nsite, sd=sd.e)
+Y.e <- rnorm(nspp*nsite, sd = sd.e)
 
 # Construct the dataset
-d <- data.frame(sp=rep(phy.sp$tip.label, times=nsite), site=rep(phy.site$tip.label, each=nspp))
+d <- data.frame(sp = rep(phy.sp$tip.label, times = nsite), 
+                site = rep(phy.site$tip.label, each = nspp))
 
 # Simulate abundance data
 d$Y <- Y.sp + Y.site + Y.sp.attract + Y.site.attract + Y.sp.site.attract + Y.e
 
 # Plot random effects covariance matrices and then add phylogenies
-# Note that, if show.image and show.sim are not specified, pglmm.plot.re() shows the covariance matrices if nspp * nsite < 200 and shows simulations #' if nspp * nsite > 100
-re <- pglmm.plot.re(Y ~ 1 + (1|sp__) + (1|site__) + (1|sp__@site) + (1|sp@site__) + (1|sp__@site__),  
-data=d, cov_ranef = list(sp=phy.sp, site=phy.site))
+# Note that, if show.image and show.sim are not specified, pglmm.plot.re() shows
+# the covariance matrices if nspp * nsite < 200 and shows simulations 
+# if nspp * nsite > 100
+re <- pglmm.plot.re(Y ~ 1 + (1|sp__) + (1|site__) + (1|sp__@site) + 
+                    (1|sp@site__) + (1|sp__@site__),
+                    data=d, cov_ranef = list(sp = phy.sp, site = phy.site))
 
 # This flips the phylogeny to match to covariance matrices
 rot.phy.site <- phy.site
-for(i in (nsite+1):(nsite+Nnode(phy.site))) rot.phy.site <- rotate(rot.phy.site, node=i)
+for(i in (nsite+1):(nsite+Nnode(phy.site))) 
+   rot.phy.site <- rotate(rot.phy.site, node = i)
 
-plot(phy.sp, main="Species", direction="upward")
-plot(rot.phy.site, main="Site")
+plot(phy.sp, main = "Species", direction = "upward")
+plot(rot.phy.site, main = "Site")
 
-mod.r <- pglmm(Y ~ 1 
-                        + (1|sp__) 
-                        + (1|site__) 
-                        + (1|sp__@site) 
-                        + (1|sp@site__), 
-                        data=d, cov_ranef=list(sp=phy.sp, site=phy.site))
-mod.f <- pglmm(Y ~ 1 
-                        + (1|sp__) 
-                        + (1|site__) 
-                        + (1|sp__@site) 
-                        + (1|sp@site__) 
-                        + (1|sp__@site__), 
-                        data=d, cov_ranef=list(sp=phy.sp, site=phy.site), s2.init=c(mod.r$ss, 0.01)^2)
+# Analyze the simulated data and compute a P-value for the (1|sp__@site__) 
+# random effect using a LRT. It is often better to fit the reduced model before
+# the full model, because it s numerically easier to fit the reduced model, 
+# and then the parameter estimates from the reduced model can be given to the
+# full model. In this case, I have used the estimates of the random effects 
+# from the reduce model, mod.r$ss, as the initial estimates for the same 
+# parameters in the full model in the statement s2.init=c(mod.r$ss, 0.01)^2. 
+# The final 0.01 is for the last random effect in the full model, (1|sp__@site__). 
+# Note also that the output of the random effects from communityPGLMM(), mod.r$ss, 
+# are the standard deviations, so they have to be squared for use as initial 
+# values of variances in mod.f.
+
+mod.r <- pglmm(Y ~ 1 + (1|sp__) + (1|site__) + (1|sp__@site) + (1|sp@site__), 
+                        data = d, cov_ranef = list(sp = phy.sp, site = phy.site))
+mod.f <- pglmm(Y ~ 1 + (1|sp__) + (1|site__) + (1|sp__@site) + (1|sp@site__) + 
+               (1|sp__@site__), data = d, 
+               cov_ranef = list(sp = phy.sp, site = phy.site), 
+               s2.init = c(mod.r$ss, 0.01)^2)
 mod.f
-pvalue <- pchisq(2*(mod.f$logLik - mod.r$logLik), df=1, lower.tail=F)
+pvalue <- pchisq(2*(mod.f$logLik - mod.r$logLik), df = 1, lower.tail = F)
 pvalue
-
 } 
 }
 \references{
