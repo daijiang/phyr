@@ -390,17 +390,23 @@ inline arma::vec make_d(const arma::vec& par, const uint_t& p,
 inline arma::mat make_C(const uint_t& n, const uint_t& p,
                         const arma::mat& tau, const arma::vec& d, 
                         const arma::mat& Vphy, const arma::mat& R) {
+  
+  
   arma::mat C(p * n, p * n, arma::fill::zeros);
+  arma::mat Cd, w, x, y, z;
   for (uint_t i = 0; i < p; i++) {
-    arma::mat Cd;
     for (uint_t j = 0; j < p; j++) {
-      Cd = flex_pow(d(i), tau) % flex_pow(d(j), tp(tau)) % 
-        (1 - flex_pow(d(i) * d(j), Vphy));
+      x = flex_pow(d(i), tau);
+      y = flex_pow(d(j), tau.t());
+      w = flex_pow(d(i) * d(j), Vphy);
+      z = 1 - w;
+      Cd = x % y % z;
       Cd /= (1 - d(i) * d(j));
-      C(arma::span(n * i, (i + 1) * n - 1), arma::span(n * j, (j + 1) * n - 1)) =
-        R(i, j) * Cd;
+      Cd *= R(i,j);
+      C(arma::span(n * i, (i + 1) * n - 1), arma::span(n * j, (j + 1) * n - 1)) = Cd;
     }
   }
+  
   return C;
 }
 
