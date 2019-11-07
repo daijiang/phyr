@@ -233,8 +233,8 @@
 #' # for phylogeny but is less biased than glm()
 #' logistf::logistf(Y ~ X1, data=sim.dat)
 #' 
-#' # Fit model with bayes = TRUE
-#' pglmm.compare(Y ~ X1, family="binomial", phy=phy, data=sim.dat, bayes = TRUE, calc.DIC = TRUE)
+#' ## Fit model with bayes = TRUE
+#' # pglmm.compare(Y ~ X1, family="binomial", phy=phy, data=sim.dat, bayes = TRUE, calc.DIC = TRUE)
 #' 
 #' # Compare with `MCMCglmm`
 #' 

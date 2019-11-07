@@ -192,4 +192,4 @@ questions by filing an issue on Github
 
 # Code of conduct
 
-See the [`CODE_OF_CONDUCT.md`](https://github.com/daijiang/phyr/blob/master/CODE_OF_CONDUCT.md) file for details.
+Please note that the 'phyr' project is released with a [Contributor Code of Conduct](CODE_OF_CONDUCT.md). By contributing to this project, you agree to abide by its terms.
