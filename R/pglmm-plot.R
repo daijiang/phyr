@@ -82,7 +82,7 @@ plot.communityPGLMM <- function(x, sp.var = "sp", site.var = "site",
 #'   simulated site by sp matrix plot, default is TRUE.
 #' @param add.tree.site Whether to add a phylogeny of sites at the right of the 
 #'   simulated site by sp matrix plot, default is FALSE.
-#' @param tree.panel.space The number of lines between the phylogeney and 
+#' @param tree.panel.space The number of lines between the phylogeny and 
 #'   the matrix plot, if add.tree is TRUE.
 #' @param title.space The number of lines between the title and the matrix plot, if add.tree is TRUE.
 #' @param tree.size The height of the phylogeney to be plotted (number of lines), if add.tree is TRUE.

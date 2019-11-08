@@ -73,7 +73,7 @@
 #'   estimates of \code{s2} and \code{B} are plotted each iteration
 #'   during optimization.
 #' @param cpp Whether to use C++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE}.
-#' @param bayes Whether to fit a Bayesian version of the PGLMM using \code{r-inla}. We recomment 
+#' @param bayes Whether to fit a Bayesian version of the PGLMM using \code{r-inla}. We recommend 
 #' against Bayesian fitting for non-Gaussian data unless sample sizes are large (>1000), because
 #' the phylogenetic variance tends to get trapped near zero.
 #' @param s2.init An array of initial estimates of s2. If s2.init is not provided for
@@ -112,7 +112,7 @@
 #'   choose good parameters (only available for gaussian and binomial responses); "pc.prior", which 
 #'   allows the user to set custom parameters on the "pc.prior" prior, using the \code{prior_alpha} 
 #'   and \code{prior_mu} parameters (Run \code{INLA::inla.doc("pc.prec")} for details on these 
-#'   parameters); and "uninformative", which sets a very uniformative prior 
+#'   parameters); and "uninformative", which sets a very uninformative prior 
 #'   (nearly uniform) by using a very flat exponential distribution. The last option is generally
 #'   not recommended but may in some cases give estimates closer to the maximum likelihood estimates.
 #'   "pc.prior.auto" is only implemented for \code{family = "gaussian"} and \code{family = "binomial"} 

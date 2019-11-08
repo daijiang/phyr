@@ -162,7 +162,7 @@ complexity penalizing prior (as described in
 choose good parameters (only available for gaussian and binomial responses); "pc.prior", which
 allows the user to set custom parameters on the "pc.prior" prior, using the \code{prior_alpha}
 and \code{prior_mu} parameters (Run \code{INLA::inla.doc("pc.prec")} for details on these
-parameters); and "uninformative", which sets a very uniformative prior
+parameters); and "uninformative", which sets a very uninformative prior
 (nearly uniform) by using a very flat exponential distribution. The last option is generally
 not recommended but may in some cases give estimates closer to the maximum likelihood estimates.
 "pc.prior.auto" is only implemented for \code{family = "gaussian"} and \code{family = "binomial"}
@@ -185,15 +185,15 @@ we set the default to \code{FALSE}. Also, it
 does not work with the zero-inflated families.}
 
 \item{tree}{A phylogeny for column sp, with "phylo" class, or a covariance matrix for sp.
-Make sure to have all species in the matrix; if the matrix is not standarized,
-(i.e., det(tree) != 1), \code{pglmm} will try to standarize it for you.
+Make sure to have all species in the matrix; if the matrix is not standardized,
+(i.e., det(tree) != 1), \code{pglmm} will try to standardize it for you.
 No longer used: keep here for compatibility.}
 
 \item{tree_site}{A second phylogeny for "site". This is required only if the
 site column contains species instead of sites. This can be used for bipartitie
 questions; tree_site can also be a covariance matrix. Make sure to have all sites
-in the matrix; if the matrix is not standarized (i.e., det(tree_site) != 1),
-pglmm` will try to standarize it for you. No longer used: keep here for compatibility.}
+in the matrix; if the matrix is not standardized (i.e., det(tree_site) != 1),
+pglmm` will try to standardize it for you. No longer used: keep here for compatibility.}
 
 \item{sp}{No longer used: keep here for compatibility.}
 

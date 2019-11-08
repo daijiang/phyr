@@ -33,7 +33,7 @@ install.packages("https://raw.githubusercontent.com/daijiang/phyr/master/phyr_0.
 The phyr package has three groups of functions:
 
 1. community phylogenetic diversity metrics (alpha: `psv`, `psr`, `pse`, etc. and beta: `pcd`), which were included in the `picante` package originally. They were updated with c++ to improve speed.
-2. models to estimate correlation between functional traits while accounting for phylogenetic relationships (`cor_phylo`), which was included in the `ape` package orginally. It has new syntax, much improved performance (c++), and bootstrapping option.
+2. models to estimate correlation between functional traits while accounting for phylogenetic relationships (`cor_phylo`), which was included in the `ape` package originally. It has new syntax, much improved performance (c++), and bootstrapping option.
 3. phylogenetic generalized linear mixed models (`pglmm`), which was originally included in the `pez` package. It has new model formula syntax that allows straightforward model set up, a faster version of maximum likelihood implementation via c++, and a Bayesian model fitting framework based on INLA. 
     + We hope the model formula proposed here can be used to standardize PGLMMs set up across different tools (e.g. `brms` for Stan).
     + PGLMM for comparative data (`pglmm.compare`), which was originally from `ape::binaryPGLMM()` but has more features.

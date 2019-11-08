@@ -28,7 +28,7 @@ The phyr package has three groups of functions:
     package originally. They were updated with c++ to improve speed.
 2.  models to estimate correlation between functional traits while
     accounting for phylogenetic relationships (`cor_phylo`), which was
-    included in the `ape` package orginally. It has new syntax, much
+    included in the `ape` package originally. It has new syntax, much
     improved performance (c++), and bootstrapping option.
 3.  phylogenetic generalized linear mixed models (`pglmm`), which was
     originally included in the `pez` package. It has new model formula
@@ -47,7 +47,7 @@ The phyr package has three groups of functions:
 `__` (two underscores) at the end of grouping variable (e.g. `sp`) to
 specify both phylogenetic and non-phylogenetic random terms; use
 `(1|sp__@site)` to specify nested term (i.e. species phylogenetic matrix
-`V_sp` nested within the diagnoal of site matrix `I_site`) to test
+`V_sp` nested within the diagonal of site matrix `I_site`) to test
 phylogenetic overdispersion or underdispersion. This should be the most
 commonly used one and is equal to `kronecker(I_site, V_sp)`.
 

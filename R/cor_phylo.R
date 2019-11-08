@@ -1307,7 +1307,7 @@ boot_ci <- function(mod, ...) {
 #'     For a given bootstrap replicate, the original fit's estimates will be used
 #'     when the fit converged.
 #'     If multiple `cp_refits` objects are input and more than one converged for a given
-#'     replicate, the estimates from the first `cp_refits` object containg a converged
+#'     replicate, the estimates from the first `cp_refits` object contain a converged
 #'     fit for that replicate will be used.
 #'     Defaults to `NULL`.
 #' @param alpha Alpha used for the confidence intervals. Defaults to `0.05`.

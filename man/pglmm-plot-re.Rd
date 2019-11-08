@@ -77,15 +77,15 @@ response data.}
 \item{site.var}{The variable name of "site"; x-axis of the image.}
 
 \item{tree}{A phylogeny for column sp, with "phylo" class, or a covariance matrix for sp.
-Make sure to have all species in the matrix; if the matrix is not standarized,
-(i.e., det(tree) != 1), \code{pglmm} will try to standarize it for you.
+Make sure to have all species in the matrix; if the matrix is not standardized,
+(i.e., det(tree) != 1), \code{pglmm} will try to standardize it for you.
 No longer used: keep here for compatibility.}
 
 \item{tree_site}{A second phylogeny for "site". This is required only if the
 site column contains species instead of sites. This can be used for bipartitie
 questions; tree_site can also be a covariance matrix. Make sure to have all sites
-in the matrix; if the matrix is not standarized (i.e., det(tree_site) != 1),
-pglmm` will try to standarize it for you. No longer used: keep here for compatibility.}
+in the matrix; if the matrix is not standardized (i.e., det(tree_site) != 1),
+pglmm` will try to standardize it for you. No longer used: keep here for compatibility.}
 
 \item{repulsion}{When there are nested random terms specified, \code{repulsion = FALSE} tests
 for phylogenetic underdispersion while \code{repulsion = FALSE} tests for overdispersion.
@@ -131,7 +131,7 @@ can be either a phylogeny with class "phylo" or a prepared covariance matrix. If
 will be converted to factors and all covariance matrices will be rearranged so that rows and
 columns are in the same order as the levels of their corresponding group variables.}
 
-\item{tree.panel.space}{The number of lines between the phylogeney and
+\item{tree.panel.space}{The number of lines between the phylogeny and
 the matrix plot, if add.tree is TRUE.}
 
 \item{title.space}{The number of lines between the title and the matrix plot, if add.tree is TRUE.}
