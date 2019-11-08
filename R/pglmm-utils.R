@@ -294,7 +294,7 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
 #' @return A list of design matrices.
 #' @export
 get_design_matrix = function(formula, data, random.effects, na.action = NULL){
-  
+
   mf <- model.frame(formula = formula, data = data, na.action = na.action)
   X <- model.matrix(attr(mf, "terms"), data = mf)
   Y <- model.response(mf)

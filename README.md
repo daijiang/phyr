@@ -38,6 +38,8 @@ The phyr package has three groups of functions:
       - We hope the model formula proposed here can be used to
         standardize PGLMMs set up across different tools (e.g. `brms`
         for Stan).
+      - PGLMM for comparative data (`pglmm.compare`), which was originally 
+        from `ape::binaryPGLMM()` but has more features.
 
 # Usage examples of `pglmm()`
 
@@ -186,3 +188,8 @@ license](https://www.gnu.org/licenses/gpl-3.0.en.html).
 Contributions are welcome. You can provide comments and feedback or ask
 questions by filing an issue on Github
 [here](https://github.com/daijiang/phyr/issues) or making pull requests.
+
+
+# Code of conduct
+
+Please note that the 'phyr' project is released with a [Contributor Code of Conduct](CODE_OF_CONDUCT.md). By contributing to this project, you agree to abide by its terms.
