@@ -404,7 +404,11 @@ inline arma::mat make_C(const uint_t& n, const uint_t& p,
       Cd = x % y % z;
       Cd /= (1 - d(i) * d(j));
       Cd *= R(i,j);
-      C(arma::span(n * i, (i + 1) * n - 1), arma::span(n * j, (j + 1) * n - 1)) = Cd;
+      for (uint_t ii = n * i, kk = 0; ii < (i + 1) * n; ii++, kk++) {
+        for (uint_t jj = n * j, ll = 0; jj < (j + 1) * n; jj++, ll++) {
+          C(ii,jj) = Cd(kk,ll);
+        }
+      }
     }
   }
   
@@ -412,8 +416,14 @@ inline arma::mat make_C(const uint_t& n, const uint_t& p,
 }
 
 inline arma::mat make_V(const arma::mat& C, const arma::mat& MM) {
-  arma::mat V = C;
-  V += arma::diagmat(arma::vectorise(MM));
+  arma::vec MMvec = arma::vectorise(MM);
+  arma::mat MMdiagmat = arma::diagmat(MMvec);
+  arma::mat V(C.n_rows, C.n_cols, arma::fill::zeros);
+  for (uint_t i = 0; i < C.n_rows; i++) {
+    for (uint_t j = 0; j < C.n_cols; j++) {
+      V(i,j) = C(i,j) + MMdiagmat(i,j);
+    }
+  }
   return V;
 }
 

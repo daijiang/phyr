@@ -71,7 +71,8 @@ double cor_phylo_LL(NumericVector par,
   arma::mat C = make_C(n, p, tau, d, Vphy, R);
   
   arma::mat V = make_V(C, MM);
-  double rcond_dbl = arma::rcond(V);
+  double rcond_dbl = 0;
+  rcond_dbl = arma::rcond(V);
   if (!arma::is_finite(rcond_dbl) || rcond_dbl < rcond_threshold) return MAX_RETURN;
   
   arma::mat iV = arma::inv(V);
@@ -147,7 +148,8 @@ std::vector<double> return_rcond_vals(XPtr<LogLikInfo> ll_info) {
   arma::mat C = make_C(n, p, tau, d, Vphy, R);
   
   arma::mat V = make_V(C, MM);
-  double rcond_dbl = arma::rcond(V);
+  double rcond_dbl = 0;
+  rcond_dbl = arma::rcond(V);
   rconds_out[0] = rcond_dbl;
   
   arma::mat iV = arma::inv(V);
