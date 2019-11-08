@@ -319,9 +319,6 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_phyr_pglmm_reml_cpp", (DL_FUNC) &_phyr_pglmm_reml_cpp, 5},
-    {"_phyr_binpglmm_inter_while_cpp", (DL_FUNC) &_phyr_binpglmm_inter_while_cpp, 16},
-    {"_phyr_binpglmm_inter_while_cpp2", (DL_FUNC) &_phyr_binpglmm_inter_while_cpp2, 12},
     {"_phyr_cor_phylo_LL", (DL_FUNC) &_phyr_cor_phylo_LL, 2},
     {"_phyr_cor_phylo_cpp", (DL_FUNC) &_phyr_cor_phylo_cpp, 16},
     {"_phyr_set_seed", (DL_FUNC) &_phyr_set_seed, 1},
