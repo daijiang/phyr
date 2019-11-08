@@ -264,6 +264,7 @@ inline arma::vec make_par(const uint_t& p, const arma::mat& L, const bool& no_co
   
   
   arma::vec par0(p * 2);
+  par0.fill(0.5);
   arma::vec Ldiag = L.diag();
   for (uint_t i = 0; i < p; i++) par0(i) = Ldiag(i);
   
