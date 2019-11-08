@@ -69,6 +69,18 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cor_phylo_LL
+double cor_phylo_LL(NumericVector par, SEXP xptr);
+RcppExport SEXP _phyr_cor_phylo_LL(SEXP parSEXP, SEXP xptrSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type par(parSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type xptr(xptrSEXP);
+    rcpp_result_gen = Rcpp::wrap(cor_phylo_LL(par, xptr));
+    return rcpp_result_gen;
+END_RCPP
+}
 // cor_phylo_cpp
 List cor_phylo_cpp(const arma::mat& X, const std::vector<arma::mat>& U, const arma::mat& M, const arma::mat& Vphy_, const bool& REML, const bool& constrain_d, const double& lower_d, const bool& verbose, const double& rcond_threshold, const double& rel_tol, const int& max_iter, const std::string& method, const bool& no_corr, const uint_fast32_t& boot, const std::string& keep_boots, const std::vector<double>& sann);
 RcppExport SEXP _phyr_cor_phylo_cpp(SEXP XSEXP, SEXP USEXP, SEXP MSEXP, SEXP Vphy_SEXP, SEXP REMLSEXP, SEXP constrain_dSEXP, SEXP lower_dSEXP, SEXP verboseSEXP, SEXP rcond_thresholdSEXP, SEXP rel_tolSEXP, SEXP max_iterSEXP, SEXP methodSEXP, SEXP no_corrSEXP, SEXP bootSEXP, SEXP keep_bootsSEXP, SEXP sannSEXP) {
@@ -373,6 +385,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_phyr_pglmm_reml_cpp", (DL_FUNC) &_phyr_pglmm_reml_cpp, 5},
     {"_phyr_binpglmm_inter_while_cpp", (DL_FUNC) &_phyr_binpglmm_inter_while_cpp, 16},
     {"_phyr_binpglmm_inter_while_cpp2", (DL_FUNC) &_phyr_binpglmm_inter_while_cpp2, 12},
+    {"_phyr_cor_phylo_LL", (DL_FUNC) &_phyr_cor_phylo_LL, 2},
     {"_phyr_cor_phylo_cpp", (DL_FUNC) &_phyr_cor_phylo_cpp, 16},
     {"_phyr_set_seed", (DL_FUNC) &_phyr_set_seed, 1},
     {"_phyr_predict_cpp", (DL_FUNC) &_phyr_predict_cpp, 4},

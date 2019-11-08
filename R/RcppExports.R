@@ -13,6 +13,10 @@ binpglmm_inter_while_cpp2 <- function(est_B_m, B, mu, C, rcondflag, B_init, X, X
     .Call(`_phyr_binpglmm_inter_while_cpp2`, est_B_m, B, mu, C, rcondflag, B_init, X, XX, est_B, y, n, b)
 }
 
+cor_phylo_LL <- function(par, xptr) {
+    .Call(`_phyr_cor_phylo_LL`, par, xptr)
+}
+
 #' Inner function to create necessary matrices and do model fitting.
 #' 
 #' @param X a n x p matrix with p columns containing the values for the n taxa.
