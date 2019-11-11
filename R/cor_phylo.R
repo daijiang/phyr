@@ -791,6 +791,8 @@ sim_cor_phylo_variates <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, 
 #'
 #' @examples
 #' 
+#' \dontrun{
+#' 
 #' ## Simple example using data without correlations or phylogenetic
 #' ## signal. This illustrates the structure of the input data.
 #' 
@@ -832,7 +834,6 @@ sim_cor_phylo_variates <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, 
 #' 
 #' 
 #' 
-#' \donttest{
 #' 
 #' ## Simulation example for the correlation between two variables. The example
 #' ## compares the estimates of the correlation coefficients from cor_phylo when
