@@ -791,48 +791,49 @@ sim_cor_phylo_variates <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, 
 #'
 #' @examples
 #' 
-#' ## Simple example using data without correlations or phylogenetic
-#' ## signal. This illustrates the structure of the input data.
-#' 
-#' set.seed(10)
-#' phy <- ape::rcoal(10, tip.label = 1:10)
-#' data_df <- data.frame(
-#'     species = phy$tip.label,
-#'     # variates:
-#'     par1 = rnorm(10),
-#'     par2 = rnorm(10),
-#'     par3 = rnorm(10),
-#'     # covariate for par2:
-#'     cov2 = rnorm(10, mean = 10, sd = 4),
-#'     # measurement error for par1 and par2, respectively:
-#'     se1 = 0.2,
-#'     se2 = 0.4
-#' )
-#' data_df$par2 <- data_df$par2 + 0.5 * data_df$cov2
-#' 
-#' 
-#' cor_phylo(variates = ~ par1 + par2 + par3,
-#'           covariates = list(par2 ~ cov2),
-#'           meas_errors = list(par1 ~ se1, par2 ~ se2),
-#'           species = ~ species,
-#'           phy = phy,
-#'           data = data_df)
-#' 
-#' # If you've already created matrices/lists...
-#' X <- as.matrix(data_df[,c("par1", "par2", "par3")])
-#' U <- list(par2 = cbind(cov2 = data_df$cov2))
-#' M <- cbind(par1 = data_df$se1, par2 = data_df$se2)
-#' 
-#' # ... you can also use those directly
-#' # (notice that I'm inputting an object for `species`
-#' # bc I ommitted `data`):
-#' cor_phylo(variates = X, species = data_df$species,
-#'           phy = phy, covariates = U,
-#'           meas_errors = M)
-#' 
-#' 
-#' 
 #' \donttest{
+#' 
+#' # ## Simple example using data without correlations or phylogenetic
+#' # ## signal. This illustrates the structure of the input data.
+#' # 
+#' # set.seed(10)
+#' # phy <- ape::rcoal(10, tip.label = 1:10)
+#' # data_df <- data.frame(
+#' #     species = phy$tip.label,
+#' #     # variates:
+#' #     par1 = rnorm(10),
+#' #     par2 = rnorm(10),
+#' #     par3 = rnorm(10),
+#' #     # covariate for par2:
+#' #     cov2 = rnorm(10, mean = 10, sd = 4),
+#' #     # measurement error for par1 and par2, respectively:
+#' #     se1 = 0.2,
+#' #     se2 = 0.4
+#' # )
+#' # data_df$par2 <- data_df$par2 + 0.5 * data_df$cov2
+#' # 
+#' # 
+#' # cor_phylo(variates = ~ par1 + par2 + par3,
+#' #           covariates = list(par2 ~ cov2),
+#' #           meas_errors = list(par1 ~ se1, par2 ~ se2),
+#' #           species = ~ species,
+#' #           phy = phy,
+#' #           data = data_df)
+#' # 
+#' # # If you've already created matrices/lists...
+#' # X <- as.matrix(data_df[,c("par1", "par2", "par3")])
+#' # U <- list(par2 = cbind(cov2 = data_df$cov2))
+#' # M <- cbind(par1 = data_df$se1, par2 = data_df$se2)
+#' # 
+#' # # ... you can also use those directly
+#' # # (notice that I'm inputting an object for `species`
+#' # # bc I ommitted `data`):
+#' # cor_phylo(variates = X, species = data_df$species,
+#' #           phy = phy, covariates = U,
+#' #           meas_errors = M)
+#' 
+#' 
+#' 
 #' 
 #' ## Simulation example for the correlation between two variables. The example
 #' ## compares the estimates of the correlation coefficients from cor_phylo when
