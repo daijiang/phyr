@@ -282,12 +282,14 @@ Rcpp::List pglmm_gaussian_internal_cpp(NumericVector par,
   Rcpp::Function optim = stats["optim"]; 
   Rcpp::Environment nloptr_pkg = Rcpp::Environment::namespace_env("nloptr");
   Rcpp::Function nloptr = nloptr_pkg["nloptr"];
+  Rcpp::Environment phyr_pkg = Rcpp::Environment::namespace_env("phyr");
+  Rcpp::Function pglmm_gaussian_LL_cpp_fxn = phyr_pkg["pglmm_gaussian_LL_cpp"];
   
   Rcpp::List opt;
   if(optimizer == "Nelder-Mead"){
     if(q > 1){
       opt = optim(_["par"]    = par,
-                  _["fn"]     = Rcpp::InternalFunction(&pglmm_gaussian_LL_cpp),
+                  _["fn"]     = pglmm_gaussian_LL_cpp_fxn,
                   _["X"] = X, _["Y"] = Y, _["Zt"] = Zt,
                   _["St"] = St, _["nested"] = nested,
                   _["REML"] = REML, _["verbose"] = verbose,
@@ -295,7 +297,7 @@ Rcpp::List pglmm_gaussian_internal_cpp(NumericVector par,
                   _["control"] = List::create(_["maxit"] = maxit, _["reltol"] = reltol));
     } else {
       opt = optim(_["par"]    = par,
-                  _["fn"]     = Rcpp::InternalFunction(&pglmm_gaussian_LL_cpp),
+                  _["fn"]     = pglmm_gaussian_LL_cpp_fxn,
                   _["X"] = X, _["Y"] = Y, _["Zt"] = Zt,
                   _["St"] = St, _["nested"] = nested,
                   _["REML"] = REML, _["verbose"] = verbose,
@@ -312,7 +314,7 @@ Rcpp::List pglmm_gaussian_internal_cpp(NumericVector par,
                              _["xtol_rel"] = 0.0001,
                              _["maxeval"] = maxit);
     List S0 = nloptr(_["x0"] = par,
-                     _["eval_f"] = Rcpp::InternalFunction(&pglmm_gaussian_LL_cpp),
+                     _["eval_f"] = pglmm_gaussian_LL_cpp_fxn,
                      _["opts"] = opts, _["X"] = X, _["Y"] = Y, _["Zt"] = Zt,
                      _["St"] = St, _["nested"] = nested,
                      _["REML"] = REML, _["verbose"] = verbose);
