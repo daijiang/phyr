@@ -6,12 +6,25 @@
 \title{\code{pglmm.matrix.structure} produces the entire
 covariance matrix structure (V) when you specify random effects.}
 \usage{
-pglmm.matrix.structure(formula, data = list(), family = "binomial",
-  cov_ranef, repulsion = FALSE, ss = 1, cpp = TRUE)
+pglmm.matrix.structure(
+  formula,
+  data = list(),
+  family = "binomial",
+  cov_ranef,
+  repulsion = FALSE,
+  ss = 1,
+  cpp = TRUE
+)
 
-communityPGLMM.matrix.structure(formula, data = list(),
-  family = "binomial", cov_ranef, repulsion = FALSE, ss = 1,
-  cpp = TRUE)
+communityPGLMM.matrix.structure(
+  formula,
+  data = list(),
+  family = "binomial",
+  cov_ranef,
+  repulsion = FALSE,
+  ss = 1,
+  cpp = TRUE
+)
 }
 \arguments{
 \item{formula}{A two-sided linear formula object describing the

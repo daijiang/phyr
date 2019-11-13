@@ -252,6 +252,7 @@
 #' burnin <- 3000
 #' 
 #' prior <- list(R=list(V=1, fix=1), G=list(G1=list(V=1, nu=1000, alpha.mu=0, alpha.V=1)))
+#' # commented out to save time
 #' # summary(MCMCglmm::MCMCglmm(Y ~ X1, random=~species, ginvers=list(species=invV),
 #' #     data=sim.dat, slice=TRUE, nitt=nitt, thin=thin, burnin=burnin,
 #' #    family="categorical", prior=prior, verbose=FALSE))

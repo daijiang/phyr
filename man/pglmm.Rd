@@ -5,25 +5,67 @@
 \alias{communityPGLMM}
 \title{Phylogenetic Generalized Linear Mixed Model for Community Data}
 \usage{
-pglmm(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
-  random.effects = NULL, REML = TRUE,
+pglmm(
+  formula,
+  data = NULL,
+  family = "gaussian",
+  cov_ranef = NULL,
+  random.effects = NULL,
+  REML = TRUE,
   optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"),
-  repulsion = FALSE, add.obs.re = TRUE, verbose = FALSE,
-  cpp = TRUE, bayes = FALSE, s2.init = NULL, B.init = NULL,
-  reltol = 10^-6, maxit = 500, tol.pql = 10^-6, maxit.pql = 200,
-  marginal.summ = "mean", calc.DIC = FALSE, prior = "inla.default",
-  prior_alpha = 0.1, prior_mu = 1, ML.init = FALSE, tree = NULL,
-  tree_site = NULL, sp = NULL, site = NULL)
+  repulsion = FALSE,
+  add.obs.re = TRUE,
+  verbose = FALSE,
+  cpp = TRUE,
+  bayes = FALSE,
+  s2.init = NULL,
+  B.init = NULL,
+  reltol = 10^-6,
+  maxit = 500,
+  tol.pql = 10^-6,
+  maxit.pql = 200,
+  marginal.summ = "mean",
+  calc.DIC = FALSE,
+  prior = "inla.default",
+  prior_alpha = 0.1,
+  prior_mu = 1,
+  ML.init = FALSE,
+  tree = NULL,
+  tree_site = NULL,
+  sp = NULL,
+  site = NULL
+)
 
-communityPGLMM(formula, data = NULL, family = "gaussian",
-  cov_ranef = NULL, random.effects = NULL, REML = TRUE,
+communityPGLMM(
+  formula,
+  data = NULL,
+  family = "gaussian",
+  cov_ranef = NULL,
+  random.effects = NULL,
+  REML = TRUE,
   optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"),
-  repulsion = FALSE, add.obs.re = TRUE, verbose = FALSE,
-  cpp = TRUE, bayes = FALSE, s2.init = NULL, B.init = NULL,
-  reltol = 10^-6, maxit = 500, tol.pql = 10^-6, maxit.pql = 200,
-  marginal.summ = "mean", calc.DIC = FALSE, prior = "inla.default",
-  prior_alpha = 0.1, prior_mu = 1, ML.init = FALSE, tree = NULL,
-  tree_site = NULL, sp = NULL, site = NULL)
+  repulsion = FALSE,
+  add.obs.re = TRUE,
+  verbose = FALSE,
+  cpp = TRUE,
+  bayes = FALSE,
+  s2.init = NULL,
+  B.init = NULL,
+  reltol = 10^-6,
+  maxit = 500,
+  tol.pql = 10^-6,
+  maxit.pql = 200,
+  marginal.summ = "mean",
+  calc.DIC = FALSE,
+  prior = "inla.default",
+  prior_alpha = 0.1,
+  prior_mu = 1,
+  ML.init = FALSE,
+  tree = NULL,
+  tree_site = NULL,
+  sp = NULL,
+  site = NULL
+)
 }
 \arguments{
 \item{formula}{A two-sided linear formula object describing the

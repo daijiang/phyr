@@ -4,8 +4,7 @@
 \alias{summary.pglmm.compare}
 \title{Summary information of fitted pglmm.compare model}
 \usage{
-\method{summary}{pglmm.compare}(object, digits = max(3,
-  getOption("digits") - 3), ...)
+\method{summary}{pglmm.compare}(object, digits = max(3, getOption("digits") - 3), ...)
 }
 \arguments{
 \item{object}{A fitted model with class pglmm.compare.}

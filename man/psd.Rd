@@ -9,11 +9,23 @@
 \alias{psd}
 \title{Phylogenetic Species Diversity Metrics}
 \usage{
-psv(comm, tree, compute.var = TRUE, scale.vcv = TRUE,
-  prune.tree = FALSE, cpp = TRUE)
+psv(
+  comm,
+  tree,
+  compute.var = TRUE,
+  scale.vcv = TRUE,
+  prune.tree = FALSE,
+  cpp = TRUE
+)
 
-psr(comm, tree, compute.var = TRUE, scale.vcv = TRUE,
-  prune.tree = FALSE, cpp = TRUE)
+psr(
+  comm,
+  tree,
+  compute.var = TRUE,
+  scale.vcv = TRUE,
+  prune.tree = FALSE,
+  cpp = TRUE
+)
 
 pse(comm, tree, scale.vcv = TRUE, prune.tree = FALSE, cpp = TRUE)
 
@@ -21,8 +33,14 @@ psc(comm, tree, scale.vcv = TRUE, prune.tree = FALSE)
 
 psv.spp(comm, tree, scale.vcv = TRUE, prune.tree = FALSE, cpp = TRUE)
 
-psd(comm, tree, compute.var = TRUE, scale.vcv = TRUE,
-  prune.tree = FALSE, cpp = TRUE)
+psd(
+  comm,
+  tree,
+  compute.var = TRUE,
+  scale.vcv = TRUE,
+  prune.tree = FALSE,
+  cpp = TRUE
+)
 }
 \arguments{
 \item{comm}{Community data matrix, site as rows and species as columns, site names as row names.}

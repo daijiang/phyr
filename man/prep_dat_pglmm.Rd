@@ -4,8 +4,15 @@
 \alias{prep_dat_pglmm}
 \title{Prepare data for \code{pglmm}}
 \usage{
-prep_dat_pglmm(formula, data, cov_ranef = NULL, repulsion = FALSE,
-  prep.re.effects = TRUE, family = "gaussian", add.obs.re = TRUE)
+prep_dat_pglmm(
+  formula,
+  data,
+  cov_ranef = NULL,
+  repulsion = FALSE,
+  prep.re.effects = TRUE,
+  family = "gaussian",
+  add.obs.re = TRUE
+)
 }
 \arguments{
 \item{formula}{A two-sided linear formula object describing the

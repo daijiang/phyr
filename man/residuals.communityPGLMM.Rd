@@ -4,9 +4,12 @@
 \alias{residuals.communityPGLMM}
 \title{Residuals of communityPGLMM objects}
 \usage{
-\method{residuals}{communityPGLMM}(object, type = if (object$family
-  \%in\% c("binomial", "poisson")) "deviance" else "response",
-  scaled = FALSE, ...)
+\method{residuals}{communityPGLMM}(
+  object,
+  type = if (object$family \%in\% c("binomial", "poisson")) "deviance" else "response",
+  scaled = FALSE,
+  ...
+)
 }
 \arguments{
 \item{object}{A fitted model with class communityPGLMM.}

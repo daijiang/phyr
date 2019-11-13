@@ -7,33 +7,93 @@
 \alias{communityPGLMM.plot.re}
 \title{Visualize random terms of communityPGLMMs}
 \usage{
-pglmm.plot.ranef(formula = NULL, data = NULL, family = "gaussian",
-  sp.var = "sp", site.var = "site", tree = NULL, tree_site = NULL,
-  repulsion = FALSE, x = NULL, show.image = TRUE,
-  show.sim.image = FALSE, random.effects = NULL, add.tree.sp = TRUE,
-  add.tree.site = FALSE, cov_ranef = NULL, tree.panel.space = 0.5,
-  title.space = 5, tree.size = 3, ...)
+pglmm.plot.ranef(
+  formula = NULL,
+  data = NULL,
+  family = "gaussian",
+  sp.var = "sp",
+  site.var = "site",
+  tree = NULL,
+  tree_site = NULL,
+  repulsion = FALSE,
+  x = NULL,
+  show.image = TRUE,
+  show.sim.image = FALSE,
+  random.effects = NULL,
+  add.tree.sp = TRUE,
+  add.tree.site = FALSE,
+  cov_ranef = NULL,
+  tree.panel.space = 0.5,
+  title.space = 5,
+  tree.size = 3,
+  ...
+)
 
-communityPGLMM.show.re(formula = NULL, data = NULL,
-  family = "gaussian", sp.var = "sp", site.var = "site",
-  tree = NULL, tree_site = NULL, repulsion = FALSE, x = NULL,
-  show.image = TRUE, show.sim.image = FALSE, random.effects = NULL,
-  add.tree.sp = TRUE, add.tree.site = FALSE, cov_ranef = NULL,
-  tree.panel.space = 0.5, title.space = 5, tree.size = 3, ...)
+communityPGLMM.show.re(
+  formula = NULL,
+  data = NULL,
+  family = "gaussian",
+  sp.var = "sp",
+  site.var = "site",
+  tree = NULL,
+  tree_site = NULL,
+  repulsion = FALSE,
+  x = NULL,
+  show.image = TRUE,
+  show.sim.image = FALSE,
+  random.effects = NULL,
+  add.tree.sp = TRUE,
+  add.tree.site = FALSE,
+  cov_ranef = NULL,
+  tree.panel.space = 0.5,
+  title.space = 5,
+  tree.size = 3,
+  ...
+)
 
-pglmm.plot.re(formula = NULL, data = NULL, family = "gaussian",
-  sp.var = "sp", site.var = "site", tree = NULL, tree_site = NULL,
-  repulsion = FALSE, x = NULL, show.image = TRUE,
-  show.sim.image = FALSE, random.effects = NULL, add.tree.sp = TRUE,
-  add.tree.site = FALSE, cov_ranef = NULL, tree.panel.space = 0.5,
-  title.space = 5, tree.size = 3, ...)
+pglmm.plot.re(
+  formula = NULL,
+  data = NULL,
+  family = "gaussian",
+  sp.var = "sp",
+  site.var = "site",
+  tree = NULL,
+  tree_site = NULL,
+  repulsion = FALSE,
+  x = NULL,
+  show.image = TRUE,
+  show.sim.image = FALSE,
+  random.effects = NULL,
+  add.tree.sp = TRUE,
+  add.tree.site = FALSE,
+  cov_ranef = NULL,
+  tree.panel.space = 0.5,
+  title.space = 5,
+  tree.size = 3,
+  ...
+)
 
-communityPGLMM.plot.re(formula = NULL, data = NULL,
-  family = "gaussian", sp.var = "sp", site.var = "site",
-  tree = NULL, tree_site = NULL, repulsion = FALSE, x = NULL,
-  show.image = TRUE, show.sim.image = FALSE, random.effects = NULL,
-  add.tree.sp = TRUE, add.tree.site = FALSE, cov_ranef = NULL,
-  tree.panel.space = 0.5, title.space = 5, tree.size = 3, ...)
+communityPGLMM.plot.re(
+  formula = NULL,
+  data = NULL,
+  family = "gaussian",
+  sp.var = "sp",
+  site.var = "site",
+  tree = NULL,
+  tree_site = NULL,
+  repulsion = FALSE,
+  x = NULL,
+  show.image = TRUE,
+  show.sim.image = FALSE,
+  random.effects = NULL,
+  add.tree.sp = TRUE,
+  add.tree.site = FALSE,
+  cov_ranef = NULL,
+  tree.panel.space = 0.5,
+  title.space = 5,
+  tree.size = 3,
+  ...
+)
 }
 \arguments{
 \item{formula}{A two-sided linear formula object describing the

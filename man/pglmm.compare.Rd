@@ -4,13 +4,30 @@
 \alias{pglmm.compare}
 \title{Phylogenetic Generalized Linear Mixed Model for Comparative Data}
 \usage{
-pglmm.compare(formula, family = "gaussian", data = list(), phy,
-  REML = TRUE, optimizer = c("nelder-mead-nlopt", "bobyqa",
-  "Nelder-Mead", "subplex"), add.obs.re = TRUE, verbose = FALSE,
-  cpp = TRUE, bayes = FALSE, reltol = 10^-6, maxit = 500,
-  tol.pql = 10^-6, maxit.pql = 200, marginal.summ = "mean",
-  calc.DIC = FALSE, prior = "inla.default", prior_alpha = 0.1,
-  prior_mu = 1, ML.init = FALSE, s2.init = 1, B.init = NULL)
+pglmm.compare(
+  formula,
+  family = "gaussian",
+  data = list(),
+  phy,
+  REML = TRUE,
+  optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"),
+  add.obs.re = TRUE,
+  verbose = FALSE,
+  cpp = TRUE,
+  bayes = FALSE,
+  reltol = 10^-6,
+  maxit = 500,
+  tol.pql = 10^-6,
+  maxit.pql = 200,
+  marginal.summ = "mean",
+  calc.DIC = FALSE,
+  prior = "inla.default",
+  prior_alpha = 0.1,
+  prior_mu = 1,
+  ML.init = FALSE,
+  s2.init = 1,
+  B.init = NULL
+)
 }
 \arguments{
 \item{formula}{A two-sided linear formula object describing the
@@ -272,6 +289,7 @@ thin <- 10
 burnin <- 3000
 
 prior <- list(R=list(V=1, fix=1), G=list(G1=list(V=1, nu=1000, alpha.mu=0, alpha.V=1)))
+# commented out to save time
 # summary(MCMCglmm::MCMCglmm(Y ~ X1, random=~species, ginvers=list(species=invV),
 #     data=sim.dat, slice=TRUE, nitt=nitt, thin=thin, burnin=burnin,
 #    family="categorical", prior=prior, verbose=FALSE))

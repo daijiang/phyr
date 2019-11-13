@@ -7,8 +7,7 @@
 \usage{
 refit_boots(cp_obj, inds = NULL, ...)
 
-\method{print}{cp_refits}(x, digits = max(3, getOption("digits") - 3),
-  ...)
+\method{print}{cp_refits}(x, digits = max(3, getOption("digits") - 3), ...)
 }
 \arguments{
 \item{cp_obj}{The original \code{cor_phylo} object that was bootstrapped.}
@@ -32,7 +31,7 @@ to bootstrap your bootstraps.}
 }
 \value{
 A \code{cp_refits} object, which is a list of \code{cor_phylo} objects
-corresponding to each matrix in \code{<original cor_phylo object>$bootstrap$mats}.
+corresponding to each matrix in \verb{<original cor_phylo object>$bootstrap$mats}.
 }
 \description{
 This function is to be called on a \code{cor_phylo} object if when one or more bootstrap
