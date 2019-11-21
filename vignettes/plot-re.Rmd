@@ -23,10 +23,10 @@ This vignette will show how to visualize the var-covariance matrix of random ter
 
 # Main function
 
-The main function to use is `phyr::pglmm.plot.re()` (alias: `phyr::communityPGLMM.show.re()`, `phyr::communityPGLMM.plot.re()`). Here are the arguments of this function:
+The main function to use is `phyr::pglmm_plot_re()` (alias: `phyr::pglmm_plot_ranef()`, `phyr::communityPGLMM.show.re()`, `phyr::communityPGLMM.plot.re()`). Here are the arguments of this function:
 
 ```{r args-pglmm}
-args(phyr::pglmm.plot.re)
+args(phyr::pglmm_plot_re)
 ```
 
 Some brief explanation of arguments:
@@ -87,8 +87,8 @@ d$Y <- Y.sp + Y.attract + trait * d$env + Y.e
 head(d)
 
 # fit a model
-mod_1 = communityPGLMM(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
-                       data = d, cov_ranef = list(sp = phy))
+mod_1 = pglmm(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
+              data = d, cov_ranef = list(sp = phy))
 summary(mod_1)
 ```
 
@@ -98,7 +98,7 @@ summary(mod_1)
 
 ```{r fig.asp=0.6}
 # plot var-cov matrices of random terms
-mod1re = pglmm.plot.re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
+mod1re = pglmm_plot_re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
                        data = d, cov_ranef = list(sp = phy), show.image = TRUE, 
                        show.sim.image = FALSE)
 ```
@@ -107,7 +107,7 @@ In the above plot, we can see that some of the panels are black-white but some h
 
 ```{r fig.asp=0.6}
 # all use color with useAbs = FALSE
-pglmm.plot.re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
+pglmm_plot_re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
               data = d, cov_ranef = list(sp = phy), show.image = TRUE, 
               show.sim.image = FALSE, useAbs = FALSE)
 ```
@@ -116,7 +116,7 @@ For the above plot, notice that for `1|sp` and `1|site`, all values are either 1
 
 ```{r fig.asp=0.6}
 # suppress key with colorkey = FALSE
-pglmm.plot.re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
+pglmm_plot_re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
               data = d, cov_ranef = list(sp = phy), show.image = TRUE, 
               show.sim.image = FALSE, useAbs = FALSE, colorkey = FALSE)
 ```
@@ -125,7 +125,7 @@ We can also just use `colorkey = FALSE` and still use black/white color for matr
 
 ```{r fig.asp=0.6}
 # suppress colorkey, let the function decide whether use color or not
-pglmm.plot.re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
+pglmm_plot_re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
               data = d, cov_ranef = list(sp = phy), show.image = TRUE, 
               show.sim.image = FALSE, colorkey = FALSE)
 ```
@@ -134,7 +134,7 @@ To make all plots black or white, use `useAbs = TRUE`.
 
 ```{r fig.asp=0.6}
 # all black and white
-pglmm.plot.re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
+pglmm_plot_re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
               data = d, cov_ranef = list(sp = phy), show.image = TRUE, 
               show.sim.image = FALSE, useAbs = TRUE)
 ```
@@ -183,7 +183,7 @@ For each random term, we can simulate some values for all data points. We can re
 
 ```{r fig.asp=0.6}
 # plot simulated matrices of random terms
-mod1sim = pglmm.plot.re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
+mod1sim = pglmm_plot_re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
                         data = d, cov_ranef = list(sp = phy), show.image = FALSE, 
                         show.sim.image = TRUE)
 ```
@@ -193,7 +193,7 @@ For the `1|sp__` panel, we can see that closely related species have similar val
 By default, we added a phylogeny for species at the top of each panel when we show the simulated site by species matrices. This can be suppressed with `add.tree.sp = FALSE`.
 
 ```{r fig.asp=0.6}
-pglmm.plot.re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
+pglmm_plot_re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
               data = d, cov_ranef = list(sp = phy), show.image = FALSE, 
               show.sim.image = TRUE, add.tree.sp = FALSE)
 ```
@@ -201,7 +201,7 @@ pglmm.plot.re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
 Again, we can remove the keys with `colorkey = FALSE`. We can also use `useAbs` to force using color for all panels.
 
 ```{r fig.asp=0.6}
-pglmm.plot.re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
+pglmm_plot_re(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
               data = d, cov_ranef = list(sp = phy), show.image = FALSE,
               show.sim.image = TRUE, add.tree.sp = TRUE,
               colorkey = FALSE, useAbs = FALSE)
@@ -232,7 +232,7 @@ gridExtra::grid.arrange(grobs = lapply(mod1sim$plt_sim_list[c(2, 6)],
 If you don't have the model fitted, then the above way with specified formula, data, etc. can save you lots of time. Because it won't actually fit the model, instead, it only return and plot the variance-cov matrices of random terms. However, if you already have the model fitted, you can just use the model as the input.
 
 ```{r fig.asp=0.6}
-pglmm.plot.re(x = mod_1, show.image = FALSE, show.sim.image = TRUE, 
+pglmm_plot_re(x = mod_1, show.image = FALSE, show.sim.image = TRUE, 
               add.tree.sp = TRUE, colorkey = FALSE, useAbs = FALSE)
 communityPGLMM.show.re(x = mod_1, show.image = TRUE, show.sim.image = FALSE, useAbs = TRUE)
 ```

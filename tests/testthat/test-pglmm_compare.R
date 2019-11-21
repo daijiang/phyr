@@ -12,5 +12,5 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   sim.dat$Y <- ape::binaryPGLMM.sim(Y ~ X1, phy = phy, data = sim.dat, s2 = 1,
       B = matrix(c(0, .25), nrow = 2, ncol = 1), nrep = 1)$Y
   # Fit model success
-  expect_error(pglmm.compare(Y ~ X1, family = "binomial", phy = phy, data = sim.dat), NA)
+  expect_error(pglmm_compare(Y ~ X1, family = "binomial", phy = phy, data = sim.dat), NA)
 })
