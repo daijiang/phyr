@@ -4,8 +4,7 @@
 \alias{summary.communityPGLMM}
 \title{Summary information of fitted model}
 \usage{
-\method{summary}{communityPGLMM}(object, digits = max(3,
-  getOption("digits") - 3), ...)
+\method{summary}{communityPGLMM}(object, digits = max(3, getOption("digits") - 3), ...)
 }
 \arguments{
 \item{object}{A fitted model with class communityPGLMM.}

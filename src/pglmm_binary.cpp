@@ -247,6 +247,8 @@ List pglmm_internal_cpp(const arma::mat& X, const arma::vec& Y,
   Rcpp::Function optim = stats["optim"];
   Rcpp::Environment nloptr_pkg = Rcpp::Environment::namespace_env("nloptr");
   Rcpp::Function nloptr = nloptr_pkg["nloptr"];
+  Rcpp::Environment phyr_pkg = Rcpp::Environment::namespace_env("phyr");
+  Rcpp::Function pglmm_LL_cpp2 = phyr_pkg["pglmm_LL_cpp"];
   
   while((as_scalar(trans(est_ss - oldest_ss) * (est_ss - oldest_ss)) > tol_pql2 ||
         as_scalar(trans(est_B - oldest_B) * (est_B - oldest_B)) > tol_pql2) &&
@@ -303,7 +305,7 @@ List pglmm_internal_cpp(const arma::mat& X, const arma::vec& Y,
     if(optimizer == "Nelder-Mead"){
       if(q > 1){
         opt = optim(_["par"] = ss0,
-                    _["fn"] = Rcpp::InternalFunction(&pglmm_LL_cpp),
+                    _["fn"] = pglmm_LL_cpp2,
                     _["H"] = H, _["X"] = X, _["Zt"] = Zt,
                     _["St"] = St, _["mu"] = mu, _["nested"] = nested,
                       _["REML"] = REML, _["verbose"] = verbose,
@@ -332,7 +334,7 @@ List pglmm_internal_cpp(const arma::mat& X, const arma::vec& Y,
                                _["xtol_rel"] = 0.0001,
                                _["maxeval"] = maxit);
       List S0 = nloptr(_["x0"] = ss0,
-                       _["eval_f"] = Rcpp::InternalFunction(&pglmm_LL_cpp),
+                       _["eval_f"] = pglmm_LL_cpp2,
                        _["opts"] = opts, _["H"] = H, _["X"] = X, _["Zt"] = Zt,
                        _["St"] = St, _["mu"] = mu, _["nested"] = nested,
                          _["REML"] = REML, _["verbose"] = verbose,

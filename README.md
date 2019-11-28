@@ -28,7 +28,7 @@ The phyr package has three groups of functions:
     package originally. They were updated with c++ to improve speed.
 2.  models to estimate correlation between functional traits while
     accounting for phylogenetic relationships (`cor_phylo`), which was
-    included in the `ape` package orginally. It has new syntax, much
+    included in the `ape` package originally. It has new syntax, much
     improved performance (c++), and bootstrapping option.
 3.  phylogenetic generalized linear mixed models (`pglmm`), which was
     originally included in the `pez` package. It has new model formula
@@ -38,6 +38,8 @@ The phyr package has three groups of functions:
       - We hope the model formula proposed here can be used to
         standardize PGLMMs set up across different tools (e.g. `brms`
         for Stan).
+      - PGLMM for comparative data (`pglmm.compare`), which was originally 
+        from `ape::binaryPGLMM()` but has more features.
 
 # Usage examples of `pglmm()`
 
@@ -45,7 +47,7 @@ The phyr package has three groups of functions:
 `__` (two underscores) at the end of grouping variable (e.g. `sp`) to
 specify both phylogenetic and non-phylogenetic random terms; use
 `(1|sp__@site)` to specify nested term (i.e. species phylogenetic matrix
-`V_sp` nested within the diagnoal of site matrix `I_site`) to test
+`V_sp` nested within the diagonal of site matrix `I_site`) to test
 phylogenetic overdispersion or underdispersion. This should be the most
 commonly used one and is equal to `kronecker(I_site, V_sp)`.
 
@@ -186,3 +188,8 @@ license](https://www.gnu.org/licenses/gpl-3.0.en.html).
 Contributions are welcome. You can provide comments and feedback or ask
 questions by filing an issue on Github
 [here](https://github.com/daijiang/phyr/issues) or making pull requests.
+
+
+# Code of conduct
+
+Please note that the 'phyr' project is released with a [Contributor Code of Conduct](https://github.com/daijiang/phyr/blob/master/CODE_OF_CONDUCT.md). By contributing to this project, you agree to abide by its terms.

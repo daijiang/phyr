@@ -9,11 +9,23 @@
 \alias{psd}
 \title{Phylogenetic Species Diversity Metrics}
 \usage{
-psv(comm, tree, compute.var = TRUE, scale.vcv = TRUE,
-  prune.tree = FALSE, cpp = TRUE)
+psv(
+  comm,
+  tree,
+  compute.var = TRUE,
+  scale.vcv = TRUE,
+  prune.tree = FALSE,
+  cpp = TRUE
+)
 
-psr(comm, tree, compute.var = TRUE, scale.vcv = TRUE,
-  prune.tree = FALSE, cpp = TRUE)
+psr(
+  comm,
+  tree,
+  compute.var = TRUE,
+  scale.vcv = TRUE,
+  prune.tree = FALSE,
+  cpp = TRUE
+)
 
 pse(comm, tree, scale.vcv = TRUE, prune.tree = FALSE, cpp = TRUE)
 
@@ -21,8 +33,14 @@ psc(comm, tree, scale.vcv = TRUE, prune.tree = FALSE)
 
 psv.spp(comm, tree, scale.vcv = TRUE, prune.tree = FALSE, cpp = TRUE)
 
-psd(comm, tree, compute.var = TRUE, scale.vcv = TRUE,
-  prune.tree = FALSE, cpp = TRUE)
+psd(
+  comm,
+  tree,
+  compute.var = TRUE,
+  scale.vcv = TRUE,
+  prune.tree = FALSE,
+  cpp = TRUE
+)
 }
 \arguments{
 \item{comm}{Community data matrix, site as rows and species as columns, site names as row names.}
@@ -46,17 +64,17 @@ Returns a dataframe of the respective phylogenetic species diversity metric valu
 }
 \description{
 Calculate the bounded phylogenetic biodiversity metrics:
-phylogenetic species variability, richness, evenness and clustering for one or multiple commles.
+phylogenetic species variability, richness, evenness and clustering for one or multiple communities.
 }
 \details{
 \emph{Phylogenetic species variability (PSV)} quantifies how
 phylogenetic relatedness decreases the variance of a hypothetical
 unselected/neutral trait shared by all species in a community.
 The expected value of PSV is statistically independent of species richness,
-is one when all species in a commle are unrelated (i.e., a star phylogeny)
+is one when all species in a community are unrelated (i.e., a star phylogeny)
 and approaches zero as species become more related. PSV is directly related
 to mean phylogenetic distance, except except calculated on a scaled phylogenetic
-covariance matrix. The expected variance around PSV for any commle of a particular
+covariance matrix. The expected variance around PSV for any community of a particular
 species richness can be approximated. To address how individual species
 contribute to the mean PSV of a data set, the function \code{psv.spp} gives
 signed proportions of the total deviation from the mean PSV that occurs when
@@ -69,7 +87,7 @@ or zero and species richness (PSR); but the metrics asymptotically approach
 zero as relatedness increases. Zero can be assigned to communities with less
 than two species, but conclusions drawn from assigning communities zero values
 need be carefully explored for any data set. The data sets need not be
-species-community data sets but may be any commle data set with an associated phylogeny.
+species-community data sets but may be any community data set with an associated phylogeny.
 }
 \examples{
 psv(comm = comm_a, tree = phylotree) 

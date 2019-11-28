@@ -16,7 +16,7 @@ pglmm.profile.LRT(x, re.number = 0, cpp = TRUE)
 
 \item{re.number}{Which random term to test? Can be a vector with length >1}
 
-\item{cpp}{Whether to use c++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE}.}
+\item{cpp}{Whether to use C++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE}.}
 }
 \value{
 A list of likelihood, df, and p-value.

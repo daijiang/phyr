@@ -67,7 +67,7 @@ public:
   LogLikInfo(const arma::mat& X,
           const std::vector<arma::mat>& U,
           const arma::mat& M,
-          const LogLikInfo& other);
+          XPtr<LogLikInfo> other);
   // Copy constructor
   LogLikInfo(const LogLikInfo& ll_info2) {
     par0 = ll_info2.par0;
@@ -143,11 +143,11 @@ public:
   
   BootMats(const arma::mat& X_, const std::vector<arma::mat>& U_,
             const arma::mat& M_,
-            const arma::mat& B_, const arma::vec& d_, const LogLikInfo& ll_info);
+            const arma::mat& B_, const arma::vec& d_, XPtr<LogLikInfo> ll_info);
   
-  LogLikInfo iterate(const LogLikInfo& ll_info);
+  XPtr<LogLikInfo> iterate(XPtr<LogLikInfo> ll_info);
   
-  void one_boot(const LogLikInfo& ll_info, BootResults& br,
+  void one_boot(XPtr<LogLikInfo> ll_info, BootResults& br,
                 const uint_t& i, const double& rel_tol, const int& max_iter,
                 const std::string& method, const std::string& keep_boots,
                 const std::vector<double>& sann);
@@ -158,7 +158,7 @@ private:
   arma::mat X_pred;
 
   // Method for returning bootstrapped data
-  void boot_data(LogLikInfo& ll_info, BootResults& br, const uint_t& i);
+  void boot_data(XPtr<LogLikInfo> ll_info, BootResults& br, const uint_t& i);
 
 };
 
@@ -211,16 +211,6 @@ inline arma::mat flex_pow(const arma::mat& a, const double& b) {
   return x;
 }
 
-// Transpose functions that return what I want them to:
-inline arma::mat tp(const arma::mat& M){
-  return M.t();
-}
-inline arma::rowvec tp(const arma::vec& V){
-  return arma::conv_to<arma::rowvec>::from(V.t());
-}
-inline arma::vec tp(const arma::rowvec& V){
-  return arma::conv_to<arma::vec>::from(V.t());
-}
 
 // pnorm for standard normal (i.e., ~ N(0,1))
 inline arma::vec pnorm_cpp(const arma::vec& values, const bool& lower_tail) {
@@ -254,24 +244,29 @@ inline arma::vec pnorm_cpp(const arma::vec& values, const bool& lower_tail) {
 
 inline arma::vec make_par(const uint_t& p, const arma::mat& L, const bool& no_corr) {
   
-  arma::vec par0;
+  
+  
   if (!no_corr) {
     
-    par0 = arma::vec((static_cast<double>(p) / 2) * (1 + p) + p);
+    uint_t par_size = (static_cast<double>(p) / 2.0) * (1 + p) + p;
+    arma::vec par0(par_size);
     par0.fill(0.5);
+    
     for (uint_t i = 0, j = 0, k = p - 1; i < p; i++) {
       par0(arma::span(j, k)) = L(arma::span(i, p-1), i);
       j = k + 1;
       k += (p - i - 1);
     }
     
-  } else {
-    
-    par0 = arma::vec(p * 2);
-    par0.head(p) = L.diag();
-    par0.tail(p).fill(0.5);
+    return par0;
     
   }
+  
+  
+  arma::vec par0(p * 2);
+  par0.fill(0.5);
+  arma::vec Ldiag = L.diag();
+  for (uint_t i = 0; i < p; i++) par0(i) = Ldiag(i);
   
   return par0;
   
@@ -305,40 +300,81 @@ inline arma::mat make_L(const arma::vec& par, const uint_t& p) {
   return L;
   
 }
-
-
-
-
-inline arma::vec make_d(const arma::vec& par, const uint_t& p,
-                        const bool& constrain_d, const double& lower_d, 
-                        bool do_checks) {
-  arma::vec d;
-  if (constrain_d) {
-    arma::vec logit_d = par.tail(p);
-    if (do_checks) {
-      // In function `cor_phylo_LL_`, `d.n_elem == 0` indicates to return a huge value
-      if (arma::max(arma::abs(logit_d)) > 10) return d;
+inline arma::mat make_L(NumericVector par, const uint_t& p) {
+  
+  arma::mat L(p, p, arma::fill::zeros);
+  
+  if (par.size() == static_cast<int>((static_cast<double>(p) / 2) * (1 + p) + p)) {
+    
+    for (uint_t i = 0, j = 0, k = p - 1; i < p; i++) {
+      for (uint_t l = 0; l < (k-j+1); l++) L(i+l, i) = par[j+l];
+      j = k + 1;
+      k += (p - i - 1);
     }
-    d = 1/(1 + arma::exp(-logit_d));
+    
+  } else if (par.size() == static_cast<int>(2 * p)) {
+    
+    for (uint_t i = 0; i < p; i++) {
+      L(i, i) = par[i];
+    }
+    
+  } else {
+    
+    stop("\nINTERNAL ERROR: inappropriate length of `par` inside `make_L`");
+    
+  }
+  
+  return L;
+  
+}
+
+
+
+
+inline arma::vec make_d(NumericVector par, 
+                        const uint_t& p,
+                        const bool& constrain_d, 
+                        const double& lower_d,
+                        bool& return_max) {
+  arma::vec d(p, arma::fill::zeros);
+  return_max = false;
+  uint_t size_ = par.size();
+  if (constrain_d) {
+    arma::vec logit_d(p, arma::fill::zeros);
+    for (uint_t i = 0, j = (size_ - p); j < size_; i++, j++) {
+      logit_d(i) = par[j];
+    }
+    /*  --------------------------------  */
+    // In function `cor_phylo_LL`, `return_max = true` indicates to return a huge value
+    if (arma::max(arma::abs(logit_d)) > 10) {
+      return_max = true;
+      return d;
+    }
+    /*  --------------------------------  */
+    
+    for (uint_t i = 0; i < p; i++) d(i) = 1/(1 + std::exp(-1 * logit_d(i)));
     // If you ever want to allow this to be changed:
     double upper_d = 1.0;
     d *= (upper_d - lower_d);
     d += lower_d;
   } else {
-    d = par.tail(p);
-    d += lower_d;
-    if (do_checks) {
-      if (arma::max(d) > 10) d.reset();
+    d.set_size(p);
+    for (uint_t i = 0, j = (size_ - p); j < size_; i++, j++) {
+      d(i) = par[j];
     }
+    d += lower_d;
+    /*  --------------------------------  */
+    if (arma::max(d) > 10) return_max = true;
+    /*  --------------------------------  */
   }
   return d;
 }
 inline arma::vec make_d(const arma::vec& par, const uint_t& p,
                         const bool& constrain_d, const double& lower_d) {
-  arma::vec d;
+  arma::vec d(p, arma::fill::zeros);
   if (constrain_d) {
     arma::vec logit_d = par.tail(p);
-    d = 1/(1 + arma::exp(-logit_d));
+    for (uint_t i = 0; i < p; i++) d(i) = 1 / (1 + std::exp(-1 * logit_d(i)));
     // If you ever want to allow this to be changed:
     double upper_d = 1.0;
     d *= (upper_d - lower_d);
@@ -355,23 +391,39 @@ inline arma::vec make_d(const arma::vec& par, const uint_t& p,
 inline arma::mat make_C(const uint_t& n, const uint_t& p,
                         const arma::mat& tau, const arma::vec& d, 
                         const arma::mat& Vphy, const arma::mat& R) {
+  
+  
   arma::mat C(p * n, p * n, arma::fill::zeros);
+  arma::mat Cd, w, x, y, z;
   for (uint_t i = 0; i < p; i++) {
-    arma::mat Cd;
     for (uint_t j = 0; j < p; j++) {
-      Cd = flex_pow(d(i), tau) % flex_pow(d(j), tp(tau)) % 
-        (1 - flex_pow(d(i) * d(j), Vphy));
+      x = flex_pow(d(i), tau);
+      y = flex_pow(d(j), tau.t());
+      w = flex_pow(d(i) * d(j), Vphy);
+      z = 1 - w;
+      Cd = x % y % z;
       Cd /= (1 - d(i) * d(j));
-      C(arma::span(n * i, (i + 1) * n - 1), arma::span(n * j, (j + 1) * n - 1)) =
-        R(i, j) * Cd;
+      Cd *= R(i,j);
+      for (uint_t ii = n * i, kk = 0; ii < (i + 1) * n; ii++, kk++) {
+        for (uint_t jj = n * j, ll = 0; jj < (j + 1) * n; jj++, ll++) {
+          C(ii,jj) = Cd(kk,ll);
+        }
+      }
     }
   }
+  
   return C;
 }
 
 inline arma::mat make_V(const arma::mat& C, const arma::mat& MM) {
-  arma::mat V = C;
-  V += arma::diagmat(arma::vectorise(MM));
+  arma::vec MMvec = arma::vectorise(MM);
+  arma::mat MMdiagmat = arma::diagmat(MMvec);
+  arma::mat V(C.n_rows, C.n_cols, arma::fill::zeros);
+  for (uint_t i = 0; i < C.n_rows; i++) {
+    for (uint_t j = 0; j < C.n_cols; j++) {
+      V(i,j) = C(i,j) + MMdiagmat(i,j);
+    }
+  }
   return V;
 }
 
@@ -419,12 +471,13 @@ inline void make_B_B_cov(arma::mat& B, arma::mat& B_cov, arma::vec& B0,
     }
   }
   
-  B_cov = arma::inv(tp(UU) * iV * UU);
+  B_cov = arma::inv(UU.t() * iV * UU);
   B_cov = arma::diagmat(sd_vec) * B_cov * arma::diagmat(sd_vec);
   
   B.set_size(B0.n_elem, 4);
   B.col(0) = B0;  // Estimates
-  B.col(1) = flex_pow(static_cast<arma::vec>(arma::diagvec(B_cov)), 0.5);  // SE
+  B.col(1) = arma::diagvec(B_cov);
+  for (uint_t i = 0; i < B.n_rows; i++) B(i,1) = std::sqrt(B(i,1));
   B.col(2) = B0 / B.col(1); // Z-score
   B.col(3) = 2 * pnorm_cpp(arma::abs(B.col(2)), false);  // P-value
   

@@ -35,7 +35,7 @@ Some brief explanation of arguments:
 - `show.image` (`TRUE` or `FALSE`): whether to plot the var-cov matrix of random terms?
 - `show.sim.image` (`TRUE` or `FALSE`): whether to plot simulated site by species matrix for all random terms?
 - `add.tree.sp` (`TRUE` or `FALSE`): when `show.sim.image = TRUE`, whether to add a phylogeny of species at the top of each matrix plot?
-- `add.tree.site` (`TRUE` or `FALSE`): when `show.sim.image = TRUE`, whether to add a phylogeny of sites at the right of each matrix plot? This can be usefull for bipartite problems (e.g. pollinators (species) and plants (sites)).
+- `add.tree.site` (`TRUE` or `FALSE`): when `show.sim.image = TRUE`, whether to add a phylogeny of sites at the right of each matrix plot? This can be useful for bipartite problems (e.g. pollinators (species) and plants (sites)).
 - `tree.size` (default is 3): the height of the phylogenies to plot, unit is number of lines.
 
 This function will return a hidden list, which includes all the var-cov matrices of random terms, simulated site by species matrices, individual plots, and all plots in one figure for both var-cov matrices and simulated ones. Therefore, we can extract specific plots and then update them or generate new figure with `gridExtra::grid.arrange()`. This is because all generated plots are based on `lattice` package and are all `grid` object. Therefore, we can also use `gridExtra::arrangeGrob()` to put multiple plots in one figure and then use `ggplot2::ggsave()` to save it as external file (e.g. PDF). Of course, `pdf()` and `dev.off()` will also work.
