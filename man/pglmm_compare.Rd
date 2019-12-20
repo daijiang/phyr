@@ -4,13 +4,30 @@
 \alias{pglmm_compare}
 \title{Phylogenetic Generalized Linear Mixed Model for Comparative Data}
 \usage{
-pglmm_compare(formula, family = "gaussian", data = list(), phy,
-  REML = TRUE, optimizer = c("nelder-mead-nlopt", "bobyqa",
-  "Nelder-Mead", "subplex"), add.obs.re = TRUE, verbose = FALSE,
-  cpp = TRUE, bayes = FALSE, reltol = 10^-6, maxit = 500,
-  tol.pql = 10^-6, maxit.pql = 200, marginal.summ = "mean",
-  calc.DIC = FALSE, prior = "inla.default", prior_alpha = 0.1,
-  prior_mu = 1, ML.init = FALSE, s2.init = 1, B.init = NULL)
+pglmm_compare(
+  formula,
+  family = "gaussian",
+  data = list(),
+  phy,
+  REML = TRUE,
+  optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"),
+  add.obs.re = TRUE,
+  verbose = FALSE,
+  cpp = TRUE,
+  bayes = FALSE,
+  reltol = 10^-6,
+  maxit = 500,
+  tol.pql = 10^-6,
+  maxit.pql = 200,
+  marginal.summ = "mean",
+  calc.DIC = FALSE,
+  prior = "inla.default",
+  prior_alpha = 0.1,
+  prior_mu = 1,
+  ML.init = FALSE,
+  s2.init = 1,
+  B.init = NULL
+)
 }
 \arguments{
 \item{formula}{A two-sided linear formula object describing the

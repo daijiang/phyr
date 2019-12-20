@@ -721,7 +721,7 @@ communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian",
                   REML = REML, bayes = FALSE, s2.init = s2.init, B.init = B.init, Y = Y, X = X, H = out$H, 
                   iV = as.matrix(out$iV), mu = NULL, nested = nested, Zt = Zt, St = St, 
                   convcode = convcode, niter = niter)
-  class(results) <- "communityPGLMM"
+  class(results) <- c("communityPGLMM", "pglmm")
   results
 }
 
@@ -918,7 +918,7 @@ communityPGLMM.glmm <- function(formula, data = list(), family = "binomial",
                   BIC = BIC, REML = REML, bayes = FALSE, s2.init = s2.init, B.init = B.init, Y = Y, size = size, X = X, 
                   H = as.matrix(H), iV = iV, mu = mu, nested = nested, Zt = Zt, St = St, 
                   convcode = convcode, niter = niter)
-  class(results) <- "communityPGLMM"
+  class(results) <- c("communityPGLMM", "pglmm")
   return(results)
 }
 
@@ -1163,7 +1163,7 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
                   s2.init = s2.init, B.init = B.init, Y = Y, X = X, H = H, 
                   iV = NULL, mu = NULL, nested = nested, Zt = NULL, St = NULL, 
                   convcode = NULL, niter = NULL, inla.model = out)
-  class(results) <- "communityPGLMM"
+  class(results) <- c("communityPGLMM", "pglmm")
   results
 }
 
