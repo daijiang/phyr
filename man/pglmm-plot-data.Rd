@@ -4,16 +4,9 @@
 \alias{plot.communityPGLMM}
 \title{Plot the original dataset and predicted values (optional)}
 \usage{
-\method{plot}{communityPGLMM}(
-  x,
-  sp.var = "sp",
-  site.var = "site",
-  show.sp.names = FALSE,
-  show.site.names = FALSE,
-  digits = max(3, getOption("digits") - 3),
-  predicted = FALSE,
-  ...
-)
+\method{plot}{communityPGLMM}(x, sp.var = "sp", site.var = "site",
+  show.sp.names = FALSE, show.site.names = FALSE, digits = max(3,
+  getOption("digits") - 3), predicted = FALSE, ...)
 }
 \arguments{
 \item{x}{A fitted model with class communityPGLMM and family "binomial".}

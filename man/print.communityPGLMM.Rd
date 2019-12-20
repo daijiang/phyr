@@ -4,7 +4,8 @@
 \alias{print.communityPGLMM}
 \title{Print summary information of fitted model}
 \usage{
-\method{print}{communityPGLMM}(x, digits = max(3, getOption("digits") - 3), ...)
+\method{print}{communityPGLMM}(x, digits = max(3, getOption("digits") -
+  3), ...)
 }
 \arguments{
 \item{x}{A fitted communityPGLMM model.}
