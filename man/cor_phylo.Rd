@@ -26,7 +26,8 @@ cor_phylo(variates, species, phy,
 
 \method{boot_ci}{cor_phylo}(mod, refits = NULL, alpha = 0.05, ...)
 
-\method{print}{cor_phylo}(x, digits = max(3, getOption("digits") - 3), ...)
+\method{print}{cor_phylo}(x, digits = max(3, getOption("digits") - 3),
+  ...)
 }
 \arguments{
 \item{variates}{A formula or a matrix specifying variates between which correlations
@@ -34,7 +35,7 @@ are being calculated.
 The formula should be one-sided of the form \code{~ A + B + C} for variate vectors
 \code{A}, \code{B}, and \code{C} that are present in \code{data}.
 In the matrix case, the matrix must have \code{n} rows and \code{p} columns (for \code{p} variates);
-if the matrix columns aren't named, \code{cor_phylo} will name them \verb{par_1 ... par_p}.}
+if the matrix columns aren't named, \code{cor_phylo} will name them \code{par_1 ... par_p}.}
 
 \item{species}{A one-sided formula implicating the variable inside \code{data}
 representing species, or a vector directly specifying the species.
@@ -54,7 +55,7 @@ The list can contain only two-sided formulas or matrices.
 Formulas should be of the typical form: \code{y ~ x1 + x2} or \code{y ~ x1 * x2}.
 If using a list of matrices, each item must be named (e.g.,
 \code{list(y = matrix(...))} specifying variate \code{y}'s covariates).
-If the matrix columns aren't named, \code{cor_phylo} will name them \verb{cov_1 ... cov_q},
+If the matrix columns aren't named, \code{cor_phylo} will name them \code{cov_1 ... cov_q},
 where \code{q} is the total number of covariates for all variates.
 Having factor covariates is not supported.
 Defaults to \code{NULL}, which indicates no covariates.}
@@ -338,7 +339,7 @@ extends in the obvious way to more than two variates.
 # Vphy <- Vphy/max(Vphy)
 # Vphy <- Vphy/exp(determinant(Vphy)$modulus[1]/n)
 # 
-# tau <- matrix(1, nrow = n, ncol = 1) %*% diag(Vphy) - Vphy
+# tau <- matrix(1, nrow = n, ncol = 1) \%*\% diag(Vphy) - Vphy
 # C <- matrix(0, nrow = p * n, ncol = p * n)
 # for (i in 1:p) for (j in 1:p) {
 #   Cd <- (d[i]^tau * (d[j]^t(tau)) * (1 - (d[i] * d[j])^Vphy))/(1 - d[i] * d[j])
@@ -369,7 +370,7 @@ extends in the obvious way to more than two variates.
 # set.seed(2)
 # for (rep in 1:Nrep) {
 # 
-#   XX <- iD %*% rnorm(2 * n)
+#   XX <- iD \%*\% rnorm(2 * n)
 #   X <- matrix(XX, n, p)
 #   colnames(X) <- trt_names
 # 

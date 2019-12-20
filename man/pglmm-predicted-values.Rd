@@ -5,11 +5,8 @@
 \alias{pglmm_predicted_values}
 \title{Predicted values of PGLMM}
 \usage{
-communityPGLMM.predicted.values(
-  x,
-  cpp = TRUE,
-  gaussian.pred = c("nearest_node", "tip_rm")
-)
+communityPGLMM.predicted.values(x, cpp = TRUE,
+  gaussian.pred = c("nearest_node", "tip_rm"))
 
 pglmm_predicted_values(
   x,
@@ -32,6 +29,6 @@ both fixed and random terms), sp, and site.
 }
 \description{
 \code{communityPGLMM.predicted.values} calculates the predicted
-values of Y; for the generalized linear mixed model (family \%in\%
+values of Y; for the generalized linear mixed model (family %in%
 c("binomial","poisson"), these values are in the transformed space.
 }
