@@ -915,7 +915,7 @@ communityPGLMM.predicted.values <- function(x, cpp = TRUE,
       fit <- x$X %*% x$B
       V <- solve(x$iV)
       if(ptype == "nearest_node"){
-        R <- x$Y - fit # similar as lme4. predict(merMod, re.form = NA); no random effects
+        R <- matrix(x$Y, ncol = 1) - fit # similar as lme4. predict(merMod, re.form = NA); no random effects
         v <- V
         for(i in 1:n) {
           v[i, i] <- max(V[i, -i])
