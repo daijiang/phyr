@@ -758,7 +758,7 @@ pglmm.V <- function(par, Zt, St, mu, nested, family, size) {
 }
 # End pglmm.V
 
-#' \code{communityPGLMM.profile.LRT} tests statistical significance of the 
+#' \code{pglmm_profile_LRT} tests statistical significance of the 
 #' phylogenetic random effect of binomial models on 
 #' species slopes using a likelihood ratio test.
 #' 
@@ -769,7 +769,7 @@ pglmm.V <- function(par, Zt, St, mu, nested, family, size) {
 #' @return A list of likelihood, df, and p-value.
 #' @export
 #' 
-communityPGLMM.profile.LRT <- function(x, re.number = 0, cpp = TRUE) {
+pglmm_profile_LRT <- function(x, re.number = 0, cpp = TRUE) {
   n <- dim(x$X)[1]
   p <- dim(x$X)[2]
   par <- x$ss
@@ -816,9 +816,9 @@ communityPGLMM.profile.LRT <- function(x, re.number = 0, cpp = TRUE) {
 
 #' @export
 #' @rdname pglmm-profile-LRT
-pglmm.profile.LRT <- communityPGLMM.profile.LRT
+communityPGLMM.profile.LRT <- pglmm_profile_LRT
 
-#' \code{pglmm.matrix.structure} produces the entire
+#' \code{pglmm_matrix_structure} produces the entire
 #' covariance matrix structure (V) when you specify random effects.
 #' @param ss Which of the \code{random.effects} to produce.
 #' @rdname pglmm-matrix-structure
@@ -826,7 +826,7 @@ pglmm.profile.LRT <- communityPGLMM.profile.LRT
 #' @export
 #' @return A design matrix.
 #' 
-pglmm.matrix.structure <- function(formula, data = list(), family = "binomial", 
+pglmm_matrix_structure <- function(formula, data = list(), family = "binomial", 
                                             cov_ranef, repulsion = FALSE, ss = 1, cpp = TRUE) {
   dat_prepared = prep_dat_pglmm(formula, data, cov_ranef, repulsion, family = family)
   formula = dat_prepared$formula
@@ -852,7 +852,7 @@ pglmm.matrix.structure <- function(formula, data = list(), family = "binomial",
 
 #' @rdname pglmm-matrix-structure
 #' @export
-communityPGLMM.matrix.structure <- pglmm.matrix.structure
+communityPGLMM.matrix.structure <- pglmm_matrix_structure
 
 #' Summary information of fitted model
 #' 
@@ -1018,7 +1018,7 @@ communityPGLMM.predicted.values <- function(x, cpp = TRUE,
       fit <- x$X %*% x$B
       V <- solve(x$iV)
       if(ptype == "nearest_node"){
-        R <- x$Y - fit # similar as lme4. predict(merMod, re.form = NA); no random effects
+        R <- matrix(x$Y, ncol = 1) - fit # similar as lme4. predict(merMod, re.form = NA); no random effects
         v <- V
         for(i in 1:n) {
           v[i, i] <- max(V[i, -i])
@@ -1059,7 +1059,7 @@ communityPGLMM.predicted.values <- function(x, cpp = TRUE,
 
 #' @rdname pglmm-predicted-values
 #' @export
-pglmm.predicted.values <- communityPGLMM.predicted.values
+pglmm_predicted_values <- communityPGLMM.predicted.values
 
 #' Residuals of communityPGLMM objects
 #' 
