@@ -217,6 +217,11 @@
 #'   pglmm` will try to standardize it for you. No longer used: keep here for compatibility.
 #' @param sp No longer used: keep here for compatibility.
 #' @param site No longer used: keep here for compatibility.
+#' @param bayes_options Additional options to pass to INLA for if \code{bayes = TRUE}. A named list where the names
+#' correspond to parameters in the \code{inla} function. One special option is \code{diagonal}: if an element in
+#' the options list is names \code{diagonal} this tells \code{INLA} to add its value to the diagonal of the random effects
+#' precision matrices. This can help with numerical stability if the model is ill-conditioned (if you get a lot of warnings,
+#' try setting this to \code{list(diagonal = 1e-4)}).
 #' @return An object (list) of class \code{communityPGLMM} with the following elements:
 #' \item{formula}{the formula for fixed effects}
 #' \item{formula_original}{the formula for both fixed effects and random effects}
@@ -489,9 +494,9 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
                            cpp = TRUE, bayes = FALSE, 
                            s2.init = NULL, B.init = NULL, reltol = 10^-6, 
                            maxit = 500, tol.pql = 10^-6, maxit.pql = 200,  
-                           marginal.summ = "mean", calc.DIC = FALSE, prior = "inla.default", 
+                           marginal.summ = "mean", calc.DIC = FALSE, calc.WAIC = FALSE, prior = "inla.default", 
                            prior_alpha = 0.1, prior_mu = 1, ML.init = FALSE,
-                           tree = NULL, tree_site = NULL, sp = NULL, site = NULL
+                           tree = NULL, tree_site = NULL, sp = NULL, site = NULL, bayes_options = NULL
                            ) {
 
   optimizer = match.arg(optimizer)
@@ -586,10 +591,11 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
                               random.effects = random.effects, 
                               s2.init = s2.init, B.init = B.init, 
                               verbose = verbose, 
-                              marginal.summ = marginal.summ, calc.DIC = calc.DIC, 
+                              marginal.summ = marginal.summ, calc.DIC = calc.DIC, calc.WAIC = calc.WAIC, 
                               prior = prior, 
                               prior_alpha = prior_alpha, 
-                              prior_mu = prior_mu)
+                              prior_mu = prior_mu,
+                              bayes_options = bayes_options)
   } else {# max likelihood 
     if (family == "gaussian") {
       z <- communityPGLMM.gaussian(formula = formula, data = data, 
@@ -926,9 +932,9 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
                                  sp = NULL, site = NULL, random.effects = list(), 
                                  s2.init = NULL, B.init = NULL, 
                                  verbose = FALSE, 
-                                 marginal.summ = "mean", calc.DIC = FALSE, 
+                                 marginal.summ = "mean", calc.DIC = FALSE, calc.WAIC = FALSE, 
                                  prior = "inla.default",
-                                 prior_alpha = 1, prior_mu = 0.1) {
+                                 prior_alpha = 1, prior_mu = 0.1, bayes_options = NULL) {
   mf <- model.frame(formula = formula, data = data, na.action = NULL)
   X <- model.matrix(attr(mf, "terms"), data = mf)
   Y <- model.response(mf)
@@ -1050,26 +1056,36 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     }
   }
   
+  if(!is.null(bayes_options$diagonal)) {
+    diagonal <- bayes_options$diagonal
+    bayes_options <- bayes_options[-which(names(bayes_options) == "diagonal")]
+    if(length(bayes_options) == 0) {
+      bayes_options <- NULL
+    }
+  } else {
+    diagonal <- NULL
+  }
+  
   f_form = vector(mode = "character", length = length(random.effects))
   for(i in seq_along(random.effects)) {
     if(length(random.effects[[i]]) == 3) { # non-nested term
       if(length(random.effects[[i]][[1]]) == 1) {
-        f_form[i] <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "])")
+        f_form[i] <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
       } else {
-        f_form[i] <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "])")
+        f_form[i] <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
       }
     } else { # nested term
       if(length(random.effects[[i]]) == 4) { 
         if(length(random.effects[[i]][[1]]) == 1) {
-          f_form[i] <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "])")
+          f_form[i] <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
         } else {
-          f_form[i] <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "])")
+          f_form[i] <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
         }
       } else {
         if(length(random.effects[[i]]) == 1) {
-          f_form[i] <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "])")
+          f_form[i] <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
         } else {
-          f_form[i] <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "])")
+          f_form[i] <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
         }
       }
     }
@@ -1085,27 +1101,85 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   inla_formula <- paste(inla_formula, f_form, sep = " + ")
   
   if(calc.DIC) {
-    control.compute <- list(dic = TRUE)
+    if(calc.WAIC) {
+      control.compute <- list(dic = TRUE, waic = TRUE)
+    } else {
+      control.compute <- list(dic = TRUE)
+    }
   } else {
-    control.compute <- list()
+    if(calc.WAIC) {
+      control.compute <- list(waic = TRUE)
+    } else {
+      control.compute <- list()
+    }
   }
+  
+  argus <- c(list(formula = as.formula(inla_formula),
+               data = data,
+               verbose = verbose,
+               family = family
+               ),
+            bayes_options)
+  if(is.null(argus$control.fixed)) {
+    argus$control.fixed = list(prec.intercept = log(0.0001), correlation.matrix = TRUE)
+  } else {
+    if(is.null(argus$control.fixed$prec.intercept)) {
+      argus$control.fixed$prec.intercept <- log(0.0001)
+    }
+    if(is.null(argus$control.fixed$correlation.matrix)) {
+      argus$control.fixed$correlation.matrix <- TRUE
+    }
+  }
+  
+  if(is.null(argus$control.compute)) {
+    argus$control.compute = control.compute
+  } else {
+    if(is.null(argus$control.compute$dic)) {
+      argus$control.compute$dic <- calc.DIC
+    }
+    if(is.null(argus$control.compute$waic)) {
+      argus$control.compute$waic <- calc.WAIC
+    }
+  }
+  
+  if(is.null(argus$control.predictor)) {
+    argus$control.predictor = list(compute = TRUE)
+  } else {
+    if(is.null(argus$control.predictor$compute)) {
+      argus$control.predictor$compute <- TRUE
+    }
+  }
+  
   if(family == "gaussian") {
-      out <- INLA::inla(as.formula(inla_formula), data = data,
-                        verbose = verbose,
-                        control.family = list(hyper = list(prec = list(initial = resid.init))),
-                        control.fixed = list(prec.intercept = 0.0001, correlation.matrix = TRUE),
-                        control.compute = control.compute,
-                        control.predictor = list(compute = TRUE))
+
+    if(is.null(argus$control.family)) {
+      argus$control.family = list(hyper = list(prec = list(initial = resid.init)))
+    } else {
+      if(is.null(argus$control.family$hyper)) {
+        argus$control.family$hyper <- list(prec = list(initial = resid.init))
+      }
+    }    
+        
+      # out <- INLA::inla(as.formula(inla_formula), data = data,
+      #                   verbose = verbose,
+      #                   control.family = list(hyper = list(prec = list(initial = resid.init))),
+      #                   control.fixed = list(prec.intercept = 0.0001, correlation.matrix = TRUE),
+      #                   control.compute = control.compute,
+      #                   control.predictor = list(compute = TRUE))
    
-  } else { # other families
-      out <- INLA::inla(as.formula(inla_formula), data = data,
-                        verbose = verbose,
-                        family = family,
-                        control.fixed = list(prec.intercept = 0.0001, correlation.matrix = TRUE),
-                        control.compute = control.compute,
-                        control.predictor=list(compute = TRUE),
-                        Ntrials = Ntrials)
+  } else {
+    argus$Ntrials <- Ntrials
   }
+
+  out <- do.call(INLA::inla, argus)
+    
+  # out <- INLA::inla(as.formula(inla_formula), data = data,
+  #                       verbose = verbose,
+  #                       family = family,
+  #                       control.fixed = list(prec.intercept = 0.0001, correlation.matrix = TRUE),
+  #                       control.compute = control.compute,
+  #                       control.predictor=list(compute = TRUE),
+  #                       Ntrials = Ntrials)
   #summary(out)
   #print(out$summary.fitted.values)
   
