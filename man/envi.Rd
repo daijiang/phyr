@@ -4,8 +4,10 @@
 \name{envi}
 \alias{envi}
 \title{Example environmental data}
-\format{A data frame with 15 sites and 4 variables: sand proportion,
-canopy shade proportion, precipitation, and minimum temperature.}
+\format{
+A data frame with 15 sites and 4 variables: sand proportion,
+canopy shade proportion, precipitation, and minimum temperature.
+}
 \usage{
 envi
 }

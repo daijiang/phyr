@@ -4,8 +4,10 @@
 \name{traits}
 \alias{traits}
 \title{Example species traits data}
-\format{A data frame with 18 species and 3 variables: sla,
-height, and seed dispersal mode.}
+\format{
+A data frame with 18 species and 3 variables: sla,
+height, and seed dispersal mode.
+}
 \usage{
 traits
 }

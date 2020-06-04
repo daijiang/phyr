@@ -21,7 +21,13 @@ pcd_pred = function(comm_1, comm_2 = NULL, tree, reps = 10^3, cpp = TRUE) {
   # Make comm matrix a presence-absence matrix
   # Make comm matrix a pa matrix
   comm_1[comm_1 > 0] = 1
-  if (!is.null(comm_2))  comm_2[comm_2 > 0] = 1
+  comm_1 = rm_site_noobs(comm_1)
+  comm_1 = rm_sp_noobs(comm_1)
+  if (!is.null(comm_2)) {
+    comm_2[comm_2 > 0] = 1
+    comm_2 = rm_site_noobs(comm_2)
+    comm_2 = rm_sp_noobs(comm_2)
+  }
 
   if (is.null(comm_2)) {
     sp_pool = colnames(comm_1)
@@ -38,8 +44,12 @@ pcd_pred = function(comm_1, comm_2 = NULL, tree, reps = 10^3, cpp = TRUE) {
     tree = drop.tip(tree, tip = tree$tip.label[tree$tip.label %nin% sp_pool])
     V = vcv2(tree, corr = TRUE)
     comm_1 = comm_1[, tree$tip.label[tree$tip.label %in% colnames(comm_1)]]
+    comm_1 = rm_site_noobs(comm_1)
+    comm_1 = rm_sp_noobs(comm_1)
     if (!is.null(comm_2)) {
       comm_2 = comm_2[, tree$tip.label[tree$tip.label %in% colnames(comm_2)]]
+      comm_2 = rm_site_noobs(comm_2)
+      comm_2 = rm_sp_noobs(comm_2)
     }
     if (is.null(comm_2)) {
       sp_pool = colnames(comm_1)
@@ -141,6 +151,9 @@ pcd = function(comm, tree, expectation = NULL, cpp = TRUE, verbose = TRUE, ...) 
     comm = comm[, colnames(V)]
   }
 
+  comm = rm_site_noobs(comm)
+  comm = rm_sp_noobs(comm)
+  
   if (!is.null(SSii) & length(SSii) < length(unique(rowSums(comm)))) {
     stop("The length of PSVbar is less than the unique number of species richness of the community.")
   }

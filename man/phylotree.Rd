@@ -4,7 +4,9 @@
 \name{phylotree}
 \alias{phylotree}
 \title{Example phylogeny}
-\format{Newick format.}
+\format{
+Newick format.
+}
 \usage{
 phylotree
 }

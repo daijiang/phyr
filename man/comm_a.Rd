@@ -4,7 +4,9 @@
 \name{comm_a}
 \alias{comm_a}
 \title{Example community data}
-\format{A data frame with 15 sites and 15 species.}
+\format{
+A data frame with 15 sites and 15 species.
+}
 \usage{
 comm_a
 }
