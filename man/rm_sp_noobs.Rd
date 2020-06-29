@@ -4,10 +4,12 @@
 \alias{rm_sp_noobs}
 \title{Remove species that not observed in any site.}
 \usage{
-rm_sp_noobs(df)
+rm_sp_noobs(df, warn = FALSE)
 }
 \arguments{
 \item{df}{A data frame in wide form, i.e. site by species data frame, with site names as row name.}
+
+\item{warn}{Whether to warn when any species does not occur in at least one site? Default is \code{FALSE}.}
 }
 \value{
 A site by species data frame.
