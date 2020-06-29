@@ -131,7 +131,9 @@ pcd = function(comm, tree, expectation = NULL, cpp = TRUE, verbose = TRUE, ...) 
 
   # Make comm matrix a pa matrix
   comm[comm > 0] = 1
-
+  comm = rm_site_noobs(comm)
+  comm = rm_sp_noobs(comm)
+  
   # convert trees to VCV format
   if (is(tree)[1] == "phylo") {
     if (is.null(tree$edge.length)) {
@@ -142,6 +144,8 @@ pcd = function(comm, tree, expectation = NULL, cpp = TRUE, verbose = TRUE, ...) 
     tree = dat$tree
     V = vcv2(tree, corr = TRUE)
     comm = dat$comm
+    comm = rm_site_noobs(comm)
+    comm = rm_sp_noobs(comm)
   } else {
     V = tree
     species = colnames(comm)
