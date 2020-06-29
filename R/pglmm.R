@@ -298,7 +298,7 @@
 #' #############################################
 #' ## Model structures from Ives & Helmus (2011)
 #' # dat = data set for regression (note: must have a column "sp" and a column "site")
-#' # phy = phylogeney of class "phylo"
+#' # phy = phylogeny of class "phylo"
 #' # repulsion = to test phylogenetic repulsion or not
 #'
 #' # Model 1 (Eq. 1)

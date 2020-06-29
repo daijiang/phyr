@@ -85,7 +85,7 @@ plot.communityPGLMM <- function(x, sp.var = "sp", site.var = "site",
 #' @param tree.panel.space The number of lines between the phylogeny and 
 #'   the matrix plot, if add.tree is TRUE.
 #' @param title.space The number of lines between the title and the matrix plot, if add.tree is TRUE.
-#' @param tree.size The height of the phylogeney to be plotted (number of lines), if add.tree is TRUE.
+#' @param tree.size The height of the phylogeny to be plotted (number of lines), if add.tree is TRUE.
 #' @param ... Additional arguments for \code{Matrix::image()} or \code{lattice::levelplot()}. 
 #'   Common ones are:
 #'   - \code{useAbs} whether to use absolute values of the matrix; if no negative values, 
