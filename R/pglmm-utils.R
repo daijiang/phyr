@@ -713,7 +713,11 @@ pglmm_profile_LRT <- function(x, re.number = 0, cpp = TRUE) {
 
 #' @export
 #' @rdname pglmm-profile-LRT
-communityPGLMM.profile.LRT <- pglmm_profile_LRT
+#' @inheritParams pglmm_profile_LRT
+communityPGLMM.profile.LRT = function(x, re.number = 0, cpp = TRUE){
+  .Deprecated("pglmm_profile_LRT")
+  pglmm_profile_LRT(x, re.number, cpp)
+}
 
 #' \code{pglmm_matrix_structure} produces the entire
 #' covariance matrix structure (V) when you specify random effects.
@@ -748,8 +752,14 @@ pglmm_matrix_structure <- function(formula, data = list(), family = "binomial",
 }
 
 #' @rdname pglmm-matrix-structure
+#' @inheritParams pglmm_matrix_structure
 #' @export
-communityPGLMM.matrix.structure <- pglmm_matrix_structure
+communityPGLMM.matrix.structure = function(formula, data = list(), family = "binomial", 
+                                           cov_ranef, repulsion = FALSE, ss = 1, cpp = TRUE){
+  
+  .Deprecated("pglmm_matrix_structure")
+  pglmm_matrix_structure(formula, data, family, cov_ranef, repulsion, ss, cpp)
+}
 
 #' Summary information of fitted model
 #' 
@@ -888,7 +898,7 @@ print.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ..
 
 #' Predicted values of PGLMM
 #' 
-#' \code{communityPGLMM.predicted.values} calculates the predicted
+#' \code{pglmm_predicted_values} calculates the predicted
 #' values of Y; for the generalized linear mixed model (family %in% 
 #' c("binomial","poisson"), these values are in the transformed space.
 #' 
@@ -899,11 +909,10 @@ print.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ..
 #'   Option nearest_node will predict values to the nearest node, which is same as lme4::predict or
 #'   fitted. Option tip_rm will remove the point then predict the value of this point with remaining ones.
 #' @export
-#' @return A data frame with three columns: Y_hat (predicted values accounting for 
-#'   both fixed and random terms), sp, and site.
-communityPGLMM.predicted.values <- function(x, cpp = TRUE, 
-                                            gaussian.pred = c("nearest_node", "tip_rm")) 
-  {
+#' @return A data frame with column Y_hat (predicted values accounting for 
+#'   both fixed and random terms).
+pglmm_predicted_values <- function(x, cpp = TRUE, 
+                                   gaussian.pred = c("nearest_node", "tip_rm")) {
   ptype = match.arg(gaussian.pred)
   if(x$bayes) {
     marginal.summ <- x$marginal.summ
@@ -955,8 +964,18 @@ communityPGLMM.predicted.values <- function(x, cpp = TRUE,
 }
 
 #' @rdname pglmm-predicted-values
+#' @param x A fitted model with class communityPGLMM.
+#' @param cpp Whether to use c++ code. Default is TRUE.
+#' @param gaussian.pred When family is gaussian, which type of prediction to calculate?
+#'   Option nearest_node will predict values to the nearest node, which is same as lme4::predict or
+#'   fitted. Option tip_rm will remove the point then predict the value of this point with remaining ones.
 #' @export
-pglmm_predicted_values <- communityPGLMM.predicted.values
+communityPGLMM.predicted.values <- function(x, cpp = TRUE, 
+                                           gaussian.pred = c("nearest_node", "tip_rm")){
+  
+  .Deprecated("pglmm_predicted_values")
+  pglmm_predicted_values(x, cpp, gaussian.pred)
+}
 
 #' Residuals of communityPGLMM objects
 #' 
@@ -976,7 +995,7 @@ residuals.communityPGLMM <- function(
   scaled = FALSE, ...){
   if(object$family == "gaussian"){
     y <- object$Y
-    mu <- communityPGLMM.predicted.values(object)$Y_hat
+    mu <- pglmm_predicted_values(object)$Y_hat
     res <- switch(type,
                   deviance = stop("no deviance residuals for gaussian model", call. = FALSE),
                   response = y - mu
@@ -1013,12 +1032,12 @@ residuals.communityPGLMM <- function(
 #' @export
 fitted.communityPGLMM <- function(object, ...){
   if(object$bayes) {
-    ft = communityPGLMM.predicted.values(object)$Y_hat
+    ft = pglmm_predicted_values(object)$Y_hat
   } else {
     if(object$family %in% c("binomial","poisson")){
       ft = object$mu[, 1]
     } else {
-      ft = communityPGLMM.predicted.values(object)$Y_hat
+      ft = pglmm_predicted_values(object)$Y_hat
     }
   }
   
