@@ -19,6 +19,7 @@ This vignette will show a complete analysis example for `communityPGLMM` on a si
 ```{r setup}
 library(phyr)
 library(ape)
+library(dplyr)
 
 data("oldfield")
 ```
@@ -30,4 +31,52 @@ plot(oldfield$phy)
 
 head(oldfield$data, 40)
 ```
+With this data we are interested in asking whether there is any kind of phylogenetic structure in the distribution of these species as well as whether disturbance has any overall effects. To do this we will specify two different phylogenetic effects in our `phyr`, which uses a syntax similar to the `lme4` package for specifying random effects. We also include site-level random effects to account for the paired design of the experiment. We will start by modeling just presence and absence of species (a binomial model). Note this model will take awhile when using maximum likelihood (the Bayesian method is much faster). This is the full model specification:
+
+```{r gen_raneff}
+mod <- phyr::communityPGLMM(pres ~ disturbance + (1 | sp__) + (1 | sp__@site) + 
+                             (1 | site) + (disturbance | sp__), 
+                            data = oldfield$data, 
+                            cov_ranef = list(sp = oldfield$phy),
+                            family = "binomial")
+
+summary(mod)
+```
+
+Here we specified an overall phylogenetic effect using `sp__`, which also automatically includes an i.i.d. effect of species. `phyr` finds the linked phylogenetic data because we specified the phylogeny in the `cov_ranef` argument, giving it the name `sp` which matches `sp__` but without the underscores. We can include any number of phylogenies or covariance matrices in this way, allowing us to model multiple sources of covariance in one model. In this example, however, we will stick to one phylogeny to cover the basics of how to run `phyr` models. We use the same phylogeny to model a second phylogenetic random effects in this model, which is specified as `sp__@site`. This is a "nested" phylogenetic effect. We've also included a disturbance by phylogenetic species effect (`(disturbance | sp__)`), which estimates the degree to which occurance in disturbed vs. undisturbed habitat has a phylogenetic signal.
+
+The results of the random effects imply that the strongest effect is an overall i.i.d. species effect, followed closely by a disturbance by i.i.d. species effect. This implies that species vary strongly in their occurrence in distrubed or undisturbed sites, that there is a clear community difference between these treatments. the next strongest effect is the nested phylogenetic effect. But how can we know if this effect is strong enough to take seriously? Well one way to get an idea is to run a likelihood ratio test on the random effect. This can be achieved by using the the `communityPGLMM.profile.LRT` function, at least for binomial models.
+
+```{r gen_raneff}
+test_nested <- pglmm_profile_LRT(mod, re.number = 6) ## sp__@site is the 6th random effect
+test_nested
+```
+This result suggests that there is overall a nested phylogenetic effect. What does this mean. Well essentially a model where the within site distributions of species are reasonably explained by the phylogenetic covariance of species implies a 'phylogenetic clustering' effect, that is that closely related species are more likely to be found together in the same community, relative to the total variance in communities across sites. In the original paper I analysed this data using traditional community phylogenetics methods (null model based) and found that generally the disturbed sites were phylogenetically clustered but undisturbed sites were not. If I split the data this way and model each separately, does this result hold up?
+
+```{r split_model}
+mod_disturbed <- phyr::communityPGLMM(pres ~ (1 | sp__) + (1 | sp__@site) + 
+                             (1 | site), 
+                            data = oldfield$data %>%
+                              dplyr::filter(disturbance == 1), 
+                            cov_ranef = list(sp = oldfield$phy),
+                            family = "binomial")
+
+mod_undisturbed <- phyr::communityPGLMM(pres ~ (1 | sp__) + (1 | sp__@site) + 
+                             (1 | site), 
+                            data = oldfield$data %>%
+                              dplyr::filter(disturbance == 0), 
+                            cov_ranef = list(sp = oldfield$phy),
+                            family = "binomial")
+
+cat("Disturbed phylogenetic clustering test:\n")
+pglmm_profile_LRT(mod_disturbed, re.number = 4)
+cat("Undisturbed phylogenetic clustering test:\n")
+pglmm_profile_LRT(mod_undisturbed, re.number = 4)
+
+```
+
+Indeed! My original results hold up to this model-based test of the same question. Whew! (╹◡╹)凸
+
+Another way to explore than random effects is to use the Bayesian version of `communityPGLMM` and then look at the shape of the posterior distribution of our random effect variance terms.
+
 
