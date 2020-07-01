@@ -47,7 +47,7 @@ Here we specified an overall phylogenetic effect using `sp__`, which also automa
 
 The results of the random effects imply that the strongest effect is an overall i.i.d. species effect, followed closely by a disturbance by i.i.d. species effect. This implies that species vary strongly in their occurrence in distrubed or undisturbed sites, that there is a clear community difference between these treatments. the next strongest effect is the nested phylogenetic effect. But how can we know if this effect is strong enough to take seriously? Well one way to get an idea is to run a likelihood ratio test on the random effect. This can be achieved by using the the `communityPGLMM.profile.LRT` function, at least for binomial models.
 
-```{r gen_raneff}
+```{r test_raneff}
 test_nested <- pglmm_profile_LRT(mod, re.number = 6) ## sp__@site is the 6th random effect
 test_nested
 ```
@@ -76,7 +76,12 @@ pglmm_profile_LRT(mod_undisturbed, re.number = 4)
 ```
 
 Indeed! My original results hold up to this model-based test of the same question. Whew! (╹◡╹)凸
+We can also get an idea of how well the models fits by plotting the observed and predicted values of the model side-by-side.
 
-Another way to explore than random effects is to use the Bayesian version of `communityPGLMM` and then look at the shape of the posterior distribution of our random effect variance terms.
+```{r plot_mod}
+plot(mod)
+```
+
+Another way to explore than random effects is to use the Bayesian version of `communityPGLMM` and then look at the shape of the posterior distribution of our random effect variance terms. Let's have a look at that.
 
 
