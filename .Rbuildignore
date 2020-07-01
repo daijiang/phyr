@@ -12,3 +12,4 @@
 ^phyr_.*.tgz$
 ^vignettes/dev.Rmd$
 ^vignettes/profvis.Rmd$
+^data-raw$

@@ -1,0 +1,33 @@
+---
+title: "communityPGLMM Example on Simple Empirical Dataset"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{phyr_example_empirical}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+This vignette will show a complete analysis example for `communityPGLMM` on a simple empirical dataset. The dataset is taken from Dinnage (2009). Here we will demonstrate how to fit a communityPGLMM, including main phylogenetic effects, nested phylogenetic effects, as well as including environmental covariates. First let's load the dataset and take a look at what we have. The data is included in `phyr`, so we can just call `data(oldfield)` to load it.
+
+```{r setup}
+library(phyr)
+library(ape)
+
+data("oldfield")
+```
+
+The data is a list with two elements. The first element is a phylogeny containing 47 species of plants (all herbaceous forbs) that live in old field habitats in Southern Ontario, Canada. Oldfield habitats typically are found in areas that were formerly cultivated but are now abandoned. This is often considered a successional stage between farmland and secondary forest. This data comes from plots that had experience two "treatments", one set of plots had been disturbed by field ploughing within a few years of sampling, the other set had not been disturbed in this way recently. Let's have a look at the phylogeny and data.
+
+```{r init_plots, out.width="80%", fig.width=10, fig.height=14}
+plot(oldfield$phy)
+
+head(oldfield$data, 40)
+```
+
