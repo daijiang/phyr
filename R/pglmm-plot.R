@@ -63,6 +63,107 @@ plot.communityPGLMM <- function(x, sp.var = "sp", site.var = "site",
   return(invisible(p))
 }
 
+#' Plot Bayesian communityPGLMM model results
+#' 
+#' Plots a representation of the marginal posterior distribution of model parameters. Note this
+#' function requires the packages \code{ggplot2} and \code{ggridges} to be installed.
+#' 
+#' @param x a communityPGLMM object fit with \code{bayes = TRUE} 
+#' @param n_samp Number of sample from the marginal posterior to take in order to estimate the posterior density.
+#' @param ... Further arguments to pass to or from other methods
+#'
+#' @return A ggplot object
+#' @export
+#' @rdname pglmm-plot-data
+plot_bayes.communityPGLMM <- function(x, n_samp = 1000, ...) {
+  
+  if(!requireNamespace("ggplot2", quietly = TRUE)) {
+    stop('plot_bayes requires the ggplot2 package but it is unavailable. Use install.packages("ggplot2") to install it.')
+  }
+  
+  if(!x$bayes) {
+    stop("plot_bayes only works on communityPGLMM objects fit with bayes = TRUE")
+  }
+  
+  if(!requireNamespace("ggridges", quietly = TRUE)) {
+    stop('plot_bayes requires the ggridges package but it is unavailable. Use install.packages("ggridges") to install it.')
+  }
+  
+  random_samps <- lapply(x$inla.model$marginals.hyperpar, function(x) inla.rmarginal(n_samp, 
+                                                                                     inla.tmarginal(function(x) sqrt(1 / x), 
+                                                                                                    x))) %>%
+    setNames(names(x$random.effects)) %>%
+    dplyr::as_tibble() %>%
+    tidyr::pivot_longer(cols = dplyr::everything(),
+                        names_to = "var",
+                        values_to = "val") %>%
+    dplyr::mutate(effect_type = "Random Effects")
+ 
+  fixed_samps <- lapply(x$inla.model$marginals.fixed, function(x) inla.rmarginal(n_samp, x)) %>%
+    dplyr::as_tibble() %>%
+    tidyr::pivot_longer(cols = dplyr::everything(),
+                        names_to = "var",
+                        values_to = "val") %>%
+    dplyr::mutate(effect_type = "Fixed Effects")
+  
+  samps <- dplyr::bind_rows(random_samps, fixed_samps) %>%
+    transform(effect_type = factor(effect_type, 
+                                   levels = c("Random Effects", "Fixed Effects")))
+  
+  ci <- samps %>%
+    group_by(var, effect_type) %>%
+    summarise(lower = quantile(val, 0.025),
+              upper = quantile(val, 0.975),
+              mean = mean(val),
+              .groups = "drop_last")
+  
+  sig_vars <- ci %>%
+    dplyr::mutate(sig = ifelse(effect_type == "Random Effects",
+                               "CI no overlap with zero",
+                               ifelse(sign(lower) == sign(upper),
+                                      "CI no overlap with zero",
+                                      "CI overlaps zero"))) %>%
+    dplyr::select(var, sig)
+  
+  samps <- samps %>%
+    dplyr::left_join(sig_vars,
+                     by = "var") %>%
+    dplyr::group_by(var) %>%
+    dplyr::filter(abs(val - mean(val)) < (10 * sd(val)))
+  
+  pal <- c("#fc8d62", "#8da0cb")
+  p <- ggplot2::ggplot(samps, ggplot2::aes(val, var, height = ..density..)) +
+    ggplot2::geom_errorbarh(ggplot2::aes(xmin = lower, xmax = upper, y = var), data = ci,
+                   inherit.aes = FALSE, height = 0.1) +
+    ggridges::geom_density_ridges(ggplot2::aes(alpha = sig,
+                            fill = sig), stat = "density", adjust = 2) +
+    ggplot2::geom_point(ggplot2::aes(x = mean, y = var), data = ci, inherit.aes = FALSE) +
+    ggplot2::geom_vline(xintercept = 0, linetype = 2, colour = "grey40") +
+    ggplot2::scale_alpha_manual(values = c(0.8, 0.2)) +
+    ggplot2::scale_fill_manual(values = rev(pal)) +
+    ggplot2::facet_wrap(~ effect_type, nrow = 2, scales = "free") +
+    ggplot2::ylab("") +
+    ggplot2::xlab("Estimate") +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(legend.position = "none",
+          axis.text = ggplot2::element_text(size = 14),
+          strip.text = ggplot2::element_text(size = 16))
+  
+  p
+  
+}
+
+#' plot_bayes generic
+#'
+#' @param x a communityPGLMM object fit with \code{bayes = TRUE} 
+#' @param ... Further arguments to pass to or from other methods
+#'
+#' @return A ggplot object
+#' @export
+plot_bayes <- function(x, ...) {
+  UseMethod("plot_bayes", x)
+}
+
 #' Visualize random terms of communityPGLMMs
 #' 
 #' Plot variance-cov matrix of random terms; also it is optional to simulate and 

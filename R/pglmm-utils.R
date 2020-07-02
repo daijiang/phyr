@@ -1122,3 +1122,12 @@ ranef.communityPGLMM <- function(object, ...) {
   row.names(w) <- re.names
   w
 }
+
+simulate.communityPGLMM <- function(x, ...) {
+  if(!x$bayes) {
+    stop("simulate is currently only available for models fit with bayes = TRUE. simulate for ML models is coming soon!")
+  }
+  
+  
+  
+}
