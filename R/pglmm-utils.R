@@ -1123,11 +1123,89 @@ ranef.communityPGLMM <- function(object, ...) {
   w
 }
 
-simulate.communityPGLMM <- function(x, ...) {
+#' Family Objects for communityPGLMM objects
+#'
+#' @inheritParams stats::family
+#'
+#' @return
+#' @export
+family.communityPGLMM <- function(object, ...) {
+  fam <- match.fun(object$family)
+  fam()
+}
+  
+#' Number of Observation in a communityPGLMM Model
+#'
+#' @inheritParams stats::nobs
+#'
+#' @return
+#' @export
+nobs.communityPGLMM <- function(object, use.fallback = FALSE, ...) {
+  nrow(object$data)
+}
+
+#' Extracting the Model Frame from a communityPGLMM Model
+#' object
+#'
+#' @inheritParams stats::model.frame
+#'
+#' @return
+#' @export
+model.frame.communityPGLMM <- function(formula, ...) {
+  model.frame(formula$formula, formula$data)
+}
+
+#' Predict Function for communityPGLMM Model Objects
+#'
+#' @inheritParams stats::predict
+#'
+#' @return
+#' @export
+predict.communityPGLMM <- function(object, ...) {
+  if(!is.null(newdata)) {
+    warning("newdata argument is currently not supported by predict.communityPGLMM, it will be ignored, and predictions 
+            returned on original data used to fit the model. newdata will be supported in the future.")
+  }
+  as.matrix(pglmm_predicted_values(object))
+}
+
+#' Simulate from a communityPGLMM object
+#'
+#' Note that this function currently only works for model fit with \code{bayes = TRUE}
+#'
+#' @inheritParams stats::simulate
+#'
+#' @return
+#' @export
+#'
+#' @examples
+simulate.communityPGLMM <- function(x, nsim = 1, seed = NULL, use.u = TRUE, ...) {
   if(!x$bayes) {
     stop("simulate is currently only available for models fit with bayes = TRUE. simulate for ML models is coming soon!")
   }
   
+  if(!use.u) {
+    stop("Sorry, simulate.communityPGLMM currently doesn't support use.u = TRUE, but we are working on it!")
+  }
   
+  #sim <- INLA::inla.posterior.sample(nsim, x$inla.model)
+  
+  mu_sim <- do.call(rbind, lapply(x$inla.model$marginals.fitted.values, INLA::inla.rmarginal, n = nsim)) %>%
+    as.data.frame()
+  
+  if(x$bayes && x$family == "binomial" && !is.null(x$inla.model$Ntrials)) {
+    Ntrials <- x$inla.model$Ntrials
+  } else {
+    Ntrials <- 1
+  }
+  
+  sim <- switch(x$family,
+                binomial = lapply(mu_sim, function(x) rbinom(length(x), Ntrials, x)),
+                poisson = lapply(mu_sim, function(x) rpoislength(x), x)
+                )
+  
+  sim <- do.call(cbind, sim)
+  
+  sim
   
 }

@@ -50,7 +50,8 @@ Suggests:
     logistf,
     phylolm,
     ggplot2,
-    ggridges
+    ggridges,
+    DHARMa
 VignetteBuilder: knitr
 URL: https://github.com/daijiang/phyr/
 BugReports: https://github.com/daijiang/phyr/issues
