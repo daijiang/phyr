@@ -4,7 +4,7 @@
 \alias{predict.communityPGLMM}
 \title{Predict Function for communityPGLMM Model Objects}
 \usage{
-\method{predict}{communityPGLMM}(object, ...)
+\method{predict}{communityPGLMM}(object, newdata = NULL, ...)
 }
 \arguments{
 \item{object}{a model object for which prediction is desired.}
@@ -12,7 +12,9 @@
 \item{...}{additional arguments affecting the predictions produced.}
 }
 \value{
-
+The form of the value returned by \code{predict} depends on the
+  class of its argument.  See the documentation of the
+  particular methods for details of what is produced by that method.
 }
 \description{
 Predict Function for communityPGLMM Model Objects

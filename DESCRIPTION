@@ -51,7 +51,8 @@ Suggests:
     phylolm,
     ggplot2,
     ggridges,
-    DHARMa
+    DHARMa,
+    rr2
 VignetteBuilder: knitr
 URL: https://github.com/daijiang/phyr/
 BugReports: https://github.com/daijiang/phyr/issues

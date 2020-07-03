@@ -1158,12 +1158,11 @@ model.frame.communityPGLMM <- function(formula, ...) {
 #' Predict Function for communityPGLMM Model Objects
 #'
 #' @inheritParams stats::predict
-#'
-#' @return
+#' @inherit stats::predict return
 #' @export
-predict.communityPGLMM <- function(object, ...) {
+predict.communityPGLMM <- function(object, newdata = NULL, ...) {
   if(!is.null(newdata)) {
-    warning("newdata argument is currently not supported by predict.communityPGLMM, it will be ignored, and predictions 
+    warning("newdata argument is currently not supported by predict.communityPGLMM. It will be ignored, and predictions 
             returned on original data used to fit the model. newdata will be supported in the future.")
   }
   as.matrix(pglmm_predicted_values(object))
