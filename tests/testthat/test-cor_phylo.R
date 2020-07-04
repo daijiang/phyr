@@ -76,7 +76,7 @@ ape_cp <- ape::corphylo(X = X, SeM = SeM, U = U, phy = data_list$phy,
                         niter = "numeric", convcode = "integer", rcond_vals = "numeric",
                         bootstrap = "list", call = "call")
   expect_class_equal <- function(par_name) {
-    eval(bquote(expect_equal(class(phyr_cp[[.(par_name)]]), 
+    eval(bquote(expect_equal(class(phyr_cp[[.(par_name)]])[1], 
                              expected_classes[[.(par_name)]])))
   }
   for (n_ in names(phyr_cp)) expect_class_equal(n_)
@@ -129,10 +129,6 @@ ape_cp <- ape::corphylo(X = X, SeM = SeM, U = U, phy = data_list$phy,
                         logLik = "numeric", AIC = "numeric", BIC = "numeric", 
                         niter = "numeric", convcode = "integer", rcond_vals = "numeric",
                         bootstrap = "list", call = "call")
-  expect_class_equal <- function(par_name) {
-    eval(bquote(expect_equal(class(phyr_cp[[.(par_name)]]), 
-                             expected_classes[[.(par_name)]])))
-  }
   for (n_ in names(phyr_cp)) expect_class_equal(n_)
   
   
@@ -319,8 +315,8 @@ cp_bci2 <- boot_ci(cp2)
 
   expect_identical(names(cp_bci), c("corrs", "d", "B0", "B_cov"))
   expect_identical(names(cp_bci2), c("corrs", "d", "B0", "B_cov"))
-  expect_identical(paste(sapply(cp_bci, class)), rep("matrix", 4))
-  expect_identical(paste(sapply(cp_bci2, class)), rep("matrix", 4))
+  expect_identical(paste(sapply(cp_bci, function(i) class(i)[1])), rep("matrix", 4))
+  expect_identical(paste(sapply(cp_bci2, function(i) class(i)[1])), rep("matrix", 4))
   
   expect_output(print(cp), regexp = "Bootstrapped 95\\% CIs \\(.* reps\\):")
   expect_output(print(cp2), regexp = "Bootstrapped 95\\% CIs \\(.* reps\\):")
