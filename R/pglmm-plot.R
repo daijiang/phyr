@@ -5,7 +5,7 @@
 #' @rdname pglmm-plot-data
 #' @method plot communityPGLMM
 #' @importFrom graphics image
-#' @inheritParams communityPGLMM.profile.LRT
+#' @inheritParams pglmm_profile_LRT
 #' @inheritParams communityPGLMM
 #' @param sp.var The variable name of "species"; y-axis of the image.
 #' @param site.var The variable name of "site"; x-axis of the image.
@@ -13,7 +13,7 @@
 #' @param show.site.names Whether to print site names as x-axis labels.
 #' @param digits Not used.
 #' @param predicted Whether to plot predicted values side by side with observed ones.
-#' @inheritParams communityPGLMM.plot.re
+#' @inheritParams pglmm_plot_ranef
 #' @note The underlying plot grid object is returned but invisible. It can be saved for later uses.
 #' @export
 plot.communityPGLMM <- function(x, sp.var = "sp", site.var = "site",
@@ -40,7 +40,7 @@ plot.communityPGLMM <- function(x, sp.var = "sp", site.var = "site",
   
   if(predicted){
     W2 = W
-    W2$Y = communityPGLMM.predicted.values(x)
+    W2$Y = pglmm_predicted_values(x)
     Y2 <- reshape(W2, v.names = "Y", idvar = "sp", timevar = "site", direction = "wide")
     row.names(Y2) = Y2$sp
     Y2 <- Y2[, -1]
