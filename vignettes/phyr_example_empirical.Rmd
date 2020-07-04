@@ -76,16 +76,16 @@ mod_undisturbed <- phyr::communityPGLMM(pres ~ (1 | sp__) + (1 | sp__@site) +
                             family = "binomial")
 
 cat("Disturbed phylogenetic clustering test:\n")
-pglmm_profile_LRT(mod_disturbed, re.number = 4)
+phyr::pglmm_profile_LRT(mod_disturbed, re.number = 4)
 cat("Undisturbed phylogenetic clustering test:\n")
-pglmm_profile_LRT(mod_undisturbed, re.number = 4)
+phyr::pglmm_profile_LRT(mod_undisturbed, re.number = 4)
 
 ```
 
 Indeed! My original results hold up to this model-based test of the same question. Whew! (╹◡╹)凸
 We can also get an idea of how well the models fits by plotting the observed and predicted values of the model side-by-side.
 
-```{r plot_mod}
+```{r plot_mod, fig.width=16, fig.height=9, out.width="90%"}
 plot(mod, predicted = TRUE)
 ```
 
@@ -107,7 +107,7 @@ summary(mod_bayes)
 
 The results of this model are consistent with the ML model, which is good to see. Now we also have lower and upper credible intervals. We can look at the full approximate marginal posterior distributions of the random effects with the `plot_bayes` function.
 
-```{r plot_bayes, plot.height = 16, plot.width = 12, out.width="85%"}
+```{r plot_bayes, fig.height = 16, fig.width = 12, out.width="85%"}
 plot_bayes(mod_bayes)
 ```
 
@@ -115,6 +115,35 @@ What we are looking for is that the posterior distribution mode is well away fro
 
 The next thing we might want to check is whether assumptions of the model are met by the data. The typical way to do this is by plotting and / or analysing the model residuals. In non-Gaussian models such as this one, this can be a little less straightforward. However, `phyr` output supports the `DHARMa` package, which can generated a generalised type of residual known as randomized quantile residuals (or sometimes Dunn-Smyth residuals). These can be calculated and inspected for nearly any error distribution. We can produce standard diagnostic plots for our `phyr` model by simply calling `DHARMa::simulateResiduals` on the model object.
 
-```{r call_dharma}
-resids <- DHARMa::simulateResiduals(mod_bayes, plot = T)
+```{r call_dharma, fig.width=16, fig.height=9, out.width="90%"}
+resids <- DHARMa::simulateResiduals(mod_bayes, plot = FALSE)
+
+plot(resids)
+
 ```
+
+So that looks pretty good to me, though some of the tests failed. Specifically the residual quantiles are not quite as flat with respect to the model predictions as we would like them to be. There is a slight curvature, and the residuals are overall increasing slightly with higher predictions. Visually however, this looks like a weak effect, and are only likely a 'significant' deviation because of the large number of data-points. I am reasonably comfortable that the model assumptions are satisfied fairly well in this case. Given that we are interested in the effect of disturbance, we may also want to check that the residuals do not show any strong patterns with the disturbance treatment. This is simple to do with `DHARMa` as follows:
+
+```{r some_other_plots, fig.width=12, fig.height=10, out.width="85%"}
+
+DHARMa::plotResiduals(resids, mod_bayes$data$disturbance)
+
+
+```
+
+Obviously no problems there.
+
+## Goodness of Fit
+
+Another good question about our model is simply: how well does it fit the data. A metric appealing in its simplicity is the classic R<sup>2</sup> metric, which purports to estimate the proportion of the variance in the response explained by the model predictors. Once again though, when using non-Gaussian errors this can become a bit tricky. An additional complication is created by model with random effects. Given that rrandom effects are very flexible model components (for example, nothing stopping you from fitting a random effect for each observation in your dataset), a straight-up calculation of variance explains isn't too meaningful. That being said, methods that can produce a useful R<sup>2</sup> metric in the complex situation have been developed. The package `rr2` is able to calculate several flavours of R<sup>2</sup>, and supports `phyr`'s `communityPGLMM` model object. Let's try it!
+
+```{r calc_r2}
+
+rr2::R2(mod_bayes)
+
+```
+
+There we go! 0.46! We can think of this as saying roughly 46% of our response's variance has been explained by our model, taking into account the various sources of covariance we modeled, subject to a boatload of assumption and caveats of course. That's handy! See Ives (2018) for the full description of how this R<sup>2</sup> works.
+
+*This section to be filled in once we have AUC, TSS, etc.* 
+

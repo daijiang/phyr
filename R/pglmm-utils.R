@@ -1226,7 +1226,62 @@ ranef.communityPGLMM <- function(object, ...) {
   w
 }
 
-simulate.communityPGLMM <- function(x, ...) {
+#' Family Objects for communityPGLMM objects
+#'
+#' @inheritParams stats::family
+#'
+#' @return
+#' @export
+family.communityPGLMM <- function(object, ...) {
+  fam <- match.fun(object$family)
+  fam()
+}
+  
+#' Number of Observation in a communityPGLMM Model
+#'
+#' @inheritParams stats::nobs
+#'
+#' @return
+#' @export
+nobs.communityPGLMM <- function(object, use.fallback = FALSE, ...) {
+  nrow(object$data)
+}
+
+#' Extracting the Model Frame from a communityPGLMM Model
+#' object
+#'
+#' @inheritParams stats::model.frame
+#'
+#' @return
+#' @export
+model.frame.communityPGLMM <- function(formula, ...) {
+  model.frame(formula$formula, formula$data)
+}
+
+#' Predict Function for communityPGLMM Model Objects
+#'
+#' @inheritParams stats::predict
+#' @inherit stats::predict return
+#' @export
+predict.communityPGLMM <- function(object, newdata = NULL, ...) {
+  if(!is.null(newdata)) {
+    warning("newdata argument is currently not supported by predict.communityPGLMM. It will be ignored, and predictions 
+            returned on original data used to fit the model. newdata will be supported in the future.")
+  }
+  as.matrix(pglmm_predicted_values(object))
+}
+
+#' Simulate from a communityPGLMM object
+#'
+#' Note that this function currently only works for model fit with \code{bayes = TRUE}
+#'
+#' @inheritParams stats::simulate
+#'
+#' @return
+#' @export
+#'
+#' @examples
+simulate.communityPGLMM <- function(x, nsim = 1, seed = NULL, use.u = TRUE, ...) {
   if(!x$bayes) {
     stop("simulate is currently only available for models fit with bayes = TRUE. simulate for ML models is coming soon!")
   }

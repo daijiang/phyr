@@ -19,7 +19,7 @@
 \method{plot_bayes}{communityPGLMM}(x, n_samp = 1000, ...)
 }
 \arguments{
-\item{x}{a communityPGLMM object fit with \code{bayes = TRUE}}
+\item{x}{A communityPGLMM object fit with \code{bayes = TRUE}.}
 
 \item{sp.var}{The variable name of "species"; y-axis of the image.}
 
@@ -33,7 +33,7 @@
 
 \item{predicted}{Whether to plot predicted values side by side with observed ones.}
 
-\item{...}{Further arguments to pass to or from other methods}
+\item{...}{Further arguments to pass to or from other methods.}
 
 \item{n_samp}{Number of sample from the marginal posterior to take in order to estimate the posterior density.}
 }
