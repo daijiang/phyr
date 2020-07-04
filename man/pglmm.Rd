@@ -26,6 +26,7 @@ pglmm(
   maxit.pql = 200,
   marginal.summ = "mean",
   calc.DIC = FALSE,
+  calc.WAIC = FALSE,
   prior = "inla.default",
   prior_alpha = 0.1,
   prior_mu = 1,
@@ -33,7 +34,8 @@ pglmm(
   tree = NULL,
   tree_site = NULL,
   sp = NULL,
-  site = NULL
+  site = NULL,
+  bayes_options = NULL
 )
 
 communityPGLMM(
@@ -57,6 +59,7 @@ communityPGLMM(
   maxit.pql = 200,
   marginal.summ = "mean",
   calc.DIC = FALSE,
+  calc.WAIC = FALSE,
   prior = "inla.default",
   prior_alpha = 0.1,
   prior_mu = 1,
@@ -64,7 +67,8 @@ communityPGLMM(
   tree = NULL,
   tree_site = NULL,
   sp = NULL,
-  site = NULL
+  site = NULL,
+  bayes_options = NULL
 )
 }
 \arguments{
@@ -240,6 +244,12 @@ pglmm` will try to standardize it for you. No longer used: keep here for compati
 \item{sp}{No longer used: keep here for compatibility.}
 
 \item{site}{No longer used: keep here for compatibility.}
+
+\item{bayes_options}{Additional options to pass to INLA for if \code{bayes = TRUE}. A named list where the names
+correspond to parameters in the \code{inla} function. One special option is \code{diagonal}: if an element in
+the options list is names \code{diagonal} this tells \code{INLA} to add its value to the diagonal of the random effects
+precision matrices. This can help with numerical stability if the model is ill-conditioned (if you get a lot of warnings,
+try setting this to \code{list(diagonal = 1e-4)}).}
 }
 \value{
 An object (list) of class \code{communityPGLMM} with the following elements:
@@ -379,7 +389,7 @@ the interpretation of the regression coefficients.
 #############################################
 ## Model structures from Ives & Helmus (2011)
 # dat = data set for regression (note: must have a column "sp" and a column "site")
-# phy = phylogeney of class "phylo"
+# phy = phylogeny of class "phylo"
 # repulsion = to test phylogenetic repulsion or not
 
 # Model 1 (Eq. 1)

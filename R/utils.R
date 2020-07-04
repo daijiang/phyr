@@ -24,10 +24,13 @@ inv.logit <- make.link("logit")$linkinv
 #' This function will remove species that has no observations in any site.
 #'
 #' @param df A data frame in wide form, i.e. site by species data frame, with site names as row name.
+#' @param warn Whether to warn when any species does not occur in at least one site? Default is `FALSE`.
 #' @export
 #' @return  A site by species data frame.
-rm_sp_noobs = function(df) {
+rm_sp_noobs = function(df, warn = FALSE) {
   if (any(colSums(df) == 0)) {
+    if(warn)
+      warning("Removing species that were not appear in any sites", immediate. = TRUE)
     df = df[, -which(colSums(df) == 0), drop = FALSE]
   }
   df
@@ -40,10 +43,13 @@ rm_sp_noobs = function(df) {
 #' @author Daijiang Li
 #'
 #' @param df A data frame in wide form, i.e. site by species data frame, with site names as row name.
+#' @param warn Whether to warn when any site has no species? Default is `FALSE`.
 #' @export
 #' @return  A site by species data frame.
-rm_site_noobs = function(df) {
+rm_site_noobs = function(df, warn = FALSE) {
   if (any(rowSums(df) == 0)) {
+    if(warn)
+      warning("Removing sites that have no species", immediate. = TRUE)
     df = df[-which(rowSums(df) == 0), , drop = FALSE]
   }
   df
@@ -200,3 +206,7 @@ align_comm_V = function(comm, tree, prune.tree = FALSE, scale.vcv = TRUE){
                       control = list(maxeval = 10))
   invisible()
 }
+
+globalVariables(c("val",
+                  "var",
+                  "sig"))

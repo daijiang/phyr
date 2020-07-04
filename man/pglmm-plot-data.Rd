@@ -2,6 +2,7 @@
 % Please edit documentation in R/pglmm-plot.R
 \name{plot.communityPGLMM}
 \alias{plot.communityPGLMM}
+\alias{plot_bayes.communityPGLMM}
 \title{Plot the original dataset and predicted values (optional)}
 \usage{
 \method{plot}{communityPGLMM}(
@@ -14,9 +15,11 @@
   predicted = FALSE,
   ...
 )
+
+\method{plot_bayes}{communityPGLMM}(x, n_samp = 1000, ...)
 }
 \arguments{
-\item{x}{A fitted model with class communityPGLMM and family "binomial".}
+\item{x}{a communityPGLMM object fit with \code{bayes = TRUE}}
 
 \item{sp.var}{The variable name of "species"; y-axis of the image.}
 
@@ -30,17 +33,16 @@
 
 \item{predicted}{Whether to plot predicted values side by side with observed ones.}
 
-\item{...}{Additional arguments for \code{Matrix::image()} or \code{lattice::levelplot()}.
-Common ones are:
-\itemize{
-\item \code{useAbs} whether to use absolute values of the matrix; if no negative values,
-this will be set to TRUE if not specified. When \code{useAbs = TRUE} the color scheme
-will be black-white, otherwise, it will be red/blue.
-\item \code{colorkey} whether to draw the scale legend at the right side of each plot?
-}}
+\item{...}{Further arguments to pass to or from other methods}
+
+\item{n_samp}{Number of sample from the marginal posterior to take in order to estimate the posterior density.}
+}
+\value{
+A ggplot object
 }
 \description{
-Plot the original dataset and predicted values (optional)
+Plots a representation of the marginal posterior distribution of model parameters. Note this
+function requires the packages \code{ggplot2} and \code{ggridges} to be installed.
 }
 \note{
 The underlying plot grid object is returned but invisible. It can be saved for later uses.

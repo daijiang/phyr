@@ -196,7 +196,7 @@ the matrix plot, if add.tree is TRUE.}
 
 \item{title.space}{The number of lines between the title and the matrix plot, if add.tree is TRUE.}
 
-\item{tree.size}{The height of the phylogeney to be plotted (number of lines), if add.tree is TRUE.}
+\item{tree.size}{The height of the phylogeny to be plotted (number of lines), if add.tree is TRUE.}
 
 \item{...}{Additional arguments for \code{Matrix::image()} or \code{lattice::levelplot()}.
 Common ones are:

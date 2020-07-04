@@ -31,7 +31,8 @@ Imports:
     nloptr,
     gridExtra,
     mvtnorm,
-    latticeExtra
+    latticeExtra,
+    tidyr
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.1.0
 LinkingTo:
@@ -39,7 +40,6 @@ LinkingTo:
 Suggests: 
     testthat,
     pez,
-    tidyr,
     knitr,
     rmarkdown,
     covr,
@@ -48,7 +48,11 @@ Suggests:
     INLA,
     MCMCglmm,
     logistf,
-    phylolm
+    phylolm,
+    ggplot2,
+    ggridges,
+    DHARMa,
+    rr2
 VignetteBuilder: knitr
 URL: https://github.com/daijiang/phyr/
 BugReports: https://github.com/daijiang/phyr/issues
