@@ -51,7 +51,6 @@ Suggests:
     phylolm,
     ggplot2,
     ggridges,
-    phylolm,
     DHARMa,
     rr2
 VignetteBuilder: knitr

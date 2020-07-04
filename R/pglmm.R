@@ -936,7 +936,7 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
                                  verbose = FALSE, 
                                  marginal.summ = "mean", calc.DIC = FALSE, calc.WAIC = FALSE, 
                                  prior = "inla.default",
-                                 prior_alpha = 1, prior_mu = 0.1, bayes_options = NULL) {
+                                 prior_alpha = 0.1, prior_mu = 1, bayes_options = NULL) {
   mf <- model.frame(formula = formula, data = data, na.action = NULL)
   X <- model.matrix(attr(mf, "terms"), data = mf)
   Y <- model.response(mf)
@@ -949,7 +949,8 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     Y <- Y[, 1] # success
     # update formula
     left_side = all.vars(update(formula, .~0))[1]
-    formula_bayes = as.formula(gsub(pattern = "^(cbind[(].*[)])", replacement = left_side, x = deparse(formula)))
+    formula_bayes = as.formula(gsub(pattern = "^(cbind[(].*[)])",
+                                    replacement = left_side, x = deparse(formula)))
   } else {
     formula_bayes = formula
     Ntrials = NULL
@@ -1021,7 +1022,7 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
       }
     }
   } 
-    
+  
   if(prior == "pc.prior") {
     pcprior <- list(prec = list(prior = "pc.prec", param = c(prior_mu, prior_alpha)))
   }
@@ -1117,43 +1118,45 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   }
   
   argus <- c(list(formula = as.formula(inla_formula),
-               data = data,
-               verbose = verbose,
-               family = family
-               ),
-            bayes_options)
+                  data = data,
+                  verbose = verbose,
+                  family = family
+  ),
+  bayes_options)
   if(is.null(argus$control.fixed)) {
-    argus$control.fixed = list(prec.intercept = log(0.0001), correlation.matrix = TRUE)
+    argus$control.fixed = list(prec.intercept = 0.0001, correlation.matrix = TRUE)
   } else {
     if(is.null(argus$control.fixed$prec.intercept)) {
-      argus$control.fixed$prec.intercept <- log(0.0001)
+      argus$control.fixed$prec.intercept <- 0.0001
     }
     if(is.null(argus$control.fixed$correlation.matrix)) {
       argus$control.fixed$correlation.matrix <- TRUE
     }
   }
   
-  if(is.null(argus$control.compute)) {
-    argus$control.compute = control.compute
-  } else {
-    if(is.null(argus$control.compute$dic)) {
-      argus$control.compute$dic <- calc.DIC
-    }
-    if(is.null(argus$control.compute$waic)) {
-      argus$control.compute$waic <- calc.WAIC
-    }
+  if(is.null(argus$control.compute$dic)) {
+    argus$control.compute$dic <- calc.DIC
+  }
+  if(is.null(argus$control.compute$waic)) {
+    argus$control.compute$waic <- calc.WAIC
+  }
+  if(is.null(argus$control.compute$config)) {
+    argus$control.compute$config <- TRUE
   }
   
   if(is.null(argus$control.predictor)) {
-    argus$control.predictor = list(compute = TRUE)
+    argus$control.predictor = list(compute = TRUE, link = 1)
   } else {
     if(is.null(argus$control.predictor$compute)) {
       argus$control.predictor$compute <- TRUE
     }
+    if(is.null(argus$control.predictor$link)) {
+      argus$control.predictor$link <- 1
+    }
   }
   
   if(family == "gaussian") {
-
+    
     if(is.null(argus$control.family)) {
       argus$control.family = list(hyper = list(prec = list(initial = resid.init)))
     } else {
@@ -1161,20 +1164,20 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
         argus$control.family$hyper <- list(prec = list(initial = resid.init))
       }
     }    
-        
-      # out <- INLA::inla(as.formula(inla_formula), data = data,
-      #                   verbose = verbose,
-      #                   control.family = list(hyper = list(prec = list(initial = resid.init))),
-      #                   control.fixed = list(prec.intercept = 0.0001, correlation.matrix = TRUE),
-      #                   control.compute = control.compute,
-      #                   control.predictor = list(compute = TRUE))
-   
+    
+    # out <- INLA::inla(as.formula(inla_formula), data = data,
+    #                   verbose = verbose,
+    #                   control.family = list(hyper = list(prec = list(initial = resid.init))),
+    #                   control.fixed = list(prec.intercept = 0.0001, correlation.matrix = TRUE),
+    #                   control.compute = control.compute,
+    #                   control.predictor = list(compute = TRUE))
+    
   } else {
     argus$Ntrials <- Ntrials
   }
-
+  
   out <- do.call(INLA::inla, argus)
-    
+  
   # out <- INLA::inla(as.formula(inla_formula), data = data,
   #                       verbose = verbose,
   #                       family = family,
@@ -1224,6 +1227,7 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   
   B <- out$summary.fixed[ , marginal.summ]
   H <- Y - out$summary.fitted.values[ , marginal.summ, drop = TRUE]
+  mu <- out$summary.fitted.values[ , marginal.summ, drop = FALSE]
   #H <- NULL
   
   results <- list(formula = formula, data = data, family = family, random.effects = random.effects, 
@@ -1237,7 +1241,7 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
                   logLik = out$mlik[1, 1], AIC = NULL, BIC = NULL, DIC = DIC, 
                   REML = NULL, bayes = TRUE, marginal.summ = marginal.summ, 
                   s2.init = s2.init, B.init = B.init, Y = Y, X = X, H = H, 
-                  iV = NULL, mu = NULL, nested = nested, Zt = NULL, St = NULL, 
+                  iV = NULL, mu = mu, nested = nested, Zt = NULL, St = NULL, 
                   convcode = NULL, niter = NULL, inla.model = out)
   class(results) <- c("communityPGLMM", "pglmm")
   results

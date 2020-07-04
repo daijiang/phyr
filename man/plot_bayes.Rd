@@ -7,9 +7,9 @@
 plot_bayes(x, ...)
 }
 \arguments{
-\item{x}{a communityPGLMM object fit with \code{bayes = TRUE}}
+\item{x}{A communityPGLMM object fit with \code{bayes = TRUE}.}
 
-\item{...}{Further arguments to pass to or from other methods}
+\item{...}{Further arguments to pass to or from other methods.}
 }
 \value{
 A ggplot object

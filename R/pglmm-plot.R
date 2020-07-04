@@ -149,13 +149,12 @@ plot_bayes.communityPGLMM <- function(x, n_samp = 1000, ...) {
           strip.text = ggplot2::element_text(size = 16))
   
   p
-  
 }
 
 #' plot_bayes generic
 #'
-#' @param x a communityPGLMM object fit with \code{bayes = TRUE} 
-#' @param ... Further arguments to pass to or from other methods
+#' @param x A communityPGLMM object fit with \code{bayes = TRUE}. 
+#' @param ... Further arguments to pass to or from other methods.
 #'
 #' @return A ggplot object
 #' @export

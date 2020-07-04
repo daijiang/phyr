@@ -26,6 +26,9 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   x3 = phyr::communityPGLMM(
     freq ~ 1 + shade + (1 | Species__) + (1 | site) + (1 | Species__@site), 
     dat, cov_ranef = list(Species = phylotree), bayes = TRUE)
+  x4 = phyr::communityPGLMM(
+    pa ~ 1 + shade + (1 | Species__) + (1 | site) + (1 | Species__@site), 
+    dat, cov_ranef = list(Species = phylotree), family = "binomial", bayes = TRUE)
   
   # test significance of random term
   communityPGLMM.profile.LRT(x1, 1)
@@ -57,16 +60,38 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   residuals(x1)
   residuals(x2)
   residuals(x3)
+  residuals(x4)
   
   fitted(x1)
   fitted(x2)
   fitted(x3)
+  fitted(x4)
   
   fixef(x1)
   fixef(x2)
   fixef(x3)
+  fixef(x4)
   
   ranef(x1)
   ranef(x2)
   ranef(x3)
+  ranef(x4)
+  
+  x1_fam <- family(x1)
+  x2_fam <- family(x2)
+  x3_fam <- family(x3)
+  x4_fam <- family(x4)
+  
+  expect_identical(x1_fam$family, "binomial")
+  expect_identical(x1_fam$family, "gaussian")
+  expect_identical(x1_fam$family, "gaussian")
+  expect_identical(x1_fam$family, "binomial")
+  
+  preds <- predict(x4)
+  expect_s3_class(preds, "matrix")
+  expect_identical(dim(preds), c(225, 1))
+  
+  sims <- simulate(x4, nsim = 5)
+  expect_s3_class(sims, "matrix")
+  expect_identical(dim(sims), c(225, 5))
 })

@@ -1280,12 +1280,32 @@ predict.communityPGLMM <- function(object, newdata = NULL, ...) {
 #' @return
 #' @export
 #'
-#' @examples
 simulate.communityPGLMM <- function(x, nsim = 1, seed = NULL, use.u = TRUE, ...) {
   if(!x$bayes) {
     stop("simulate is currently only available for models fit with bayes = TRUE. simulate for ML models is coming soon!")
   }
   
+  if(!use.u) {
+    stop("Sorry, simulate.communityPGLMM currently doesn't support use.u = TRUE, but we are working on it!")
+  }
   
+  #sim <- INLA::inla.posterior.sample(nsim, x$inla.model)
   
+  mu_sim <- do.call(rbind, lapply(x$inla.model$marginals.fitted.values, INLA::inla.rmarginal, n = nsim)) %>%
+    as.data.frame()
+  
+  if(x$bayes && x$family == "binomial" && !is.null(x$inla.model$Ntrials)) {
+    Ntrials <- x$inla.model$Ntrials
+  } else {
+    Ntrials <- 1
+  }
+  
+  sim <- switch(x$family,
+                binomial = lapply(mu_sim, function(x) rbinom(length(x), Ntrials, x)),
+                poisson = lapply(mu_sim, function(x) rpoislength(x), x)
+                )
+  
+  sim <- do.call(cbind, sim)
+  
+  sim
 }
