@@ -200,6 +200,9 @@ tendency of the Bayesian posterior marginal distributions. Ignored if \code{baye
 \item{calc.DIC}{Should the Deviance Information Criterion be calculated and returned
 when doing a Bayesian PGLMM? Ignored if \code{bayes = FALSE}.}
 
+\item{calc.WAIC}{Should the WAIC be calculated and returned
+when doing a Bayesian PGLMM? Ignored if \code{bayes = FALSE}.}
+
 \item{prior}{Which type of default prior should be used by \code{pglmm}?
 Only used if \code{bayes = TRUE}. There are currently four options:
 "inla.default", which uses the default \code{INLA} priors; "pc.prior.auto", which uses a

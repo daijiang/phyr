@@ -18,7 +18,7 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   group_by(dat, site) %>% 
     summarise(nsp = n_distinct(sp)) # we now have diff sp in diff site
   
-  dat = filter(dat, sp %in% sample(unique(dat$sp), 5), site %in% sample(unique(dat$site), 8))
+  dat = dplyr::filter(dat, sp %in% sample(unique(dat$sp), 5), site %in% sample(unique(dat$site), 8))
   
   test_fit_equal = function(m1, m2) {
     expect_equivalent(m1$B, m2$B)

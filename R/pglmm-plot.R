@@ -5,15 +5,13 @@
 #' @rdname pglmm-plot-data
 #' @method plot communityPGLMM
 #' @importFrom graphics image
-#' @inheritParams pglmm_profile_LRT
-#' @inheritParams communityPGLMM
+#' @param x A fitted model with class communityPGLMM.
 #' @param sp.var The variable name of "species"; y-axis of the image.
 #' @param site.var The variable name of "site"; x-axis of the image.
 #' @param show.sp.names Whether to print species names as y-axis labels.
 #' @param show.site.names Whether to print site names as x-axis labels.
 #' @param digits Not used.
 #' @param predicted Whether to plot predicted values side by side with observed ones.
-#' @inheritParams pglmm_plot_ranef
 #' @note The underlying plot grid object is returned but invisible. It can be saved for later uses.
 #' @export
 plot.communityPGLMM <- function(x, sp.var = "sp", site.var = "site",
@@ -106,12 +104,12 @@ plot_bayes.communityPGLMM <- function(x, n_samp = 1000, ...) {
     dplyr::mutate(effect_type = "Fixed Effects")
   
   samps <- dplyr::bind_rows(random_samps, fixed_samps) %>%
-    transform(effect_type = factor(effect_type, 
+    dplyr::mutate(effect_type = factor(effect_type, 
                                    levels = c("Random Effects", "Fixed Effects")))
   
   ci <- samps %>%
-    group_by(var, effect_type) %>%
-    summarise(lower = quantile(val, 0.025),
+    dplyr::group_by(var, effect_type) %>%
+    dplyr::summarise(lower = quantile(val, 0.025),
               upper = quantile(val, 0.975),
               mean = mean(val),
               .groups = "drop_last")
@@ -125,8 +123,7 @@ plot_bayes.communityPGLMM <- function(x, n_samp = 1000, ...) {
     dplyr::select(var, sig)
   
   samps <- samps %>%
-    dplyr::left_join(sig_vars,
-                     by = "var") %>%
+    dplyr::left_join(sig_vars, by = "var") %>%
     dplyr::group_by(var) %>%
     dplyr::filter(abs(val - mean(val)) < (10 * sd(val)))
   

@@ -13,9 +13,6 @@
 
 \item{...}{further arguments passed to methods.}
 }
-\value{
-
-}
 \description{
 Family Objects for communityPGLMM objects
 }

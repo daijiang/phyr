@@ -4,9 +4,11 @@
 \alias{simulate.communityPGLMM}
 \title{Simulate from a communityPGLMM object}
 \usage{
-\method{simulate}{communityPGLMM}(x, nsim = 1, seed = NULL, use.u = TRUE, ...)
+\method{simulate}{communityPGLMM}(object, nsim = 1, seed = NULL, use.u = FALSE, ...)
 }
 \arguments{
+\item{object}{an object representing a fitted model.}
+
 \item{nsim}{number of response vectors to simulate.  Defaults to \code{1}.}
 
 \item{seed}{an object specifying if and how the random number
@@ -19,10 +21,15 @@
     \code{"seed"} attribute, see \sQuote{Value}.
   }
 
-\item{...}{additional optional arguments.}
-}
-\value{
+\item{use.u}{(logical) if \code{TRUE}, generate a simulation
+    conditional on the current random-effects estimates; if \code{FALSE}
+    generate new Normally distributed random-effects values. (Redundant
+    with \code{re.form}, which is preferred: \code{TRUE} corresponds to
+    \code{re.form = NULL} (condition on all random effects), while
+    \code{FALSE} corresponds to \code{re.form = ~0} (condition on none
+    of the random effects).)}
 
+\item{...}{additional optional arguments.}
 }
 \description{
 Note that this function currently only works for model fit with \code{bayes = TRUE}

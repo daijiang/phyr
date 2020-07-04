@@ -14,9 +14,6 @@
 
 \item{...}{Further arguments to be passed to methods.}
 }
-\value{
-
-}
 \description{
 Number of Observation in a communityPGLMM Model
 }

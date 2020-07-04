@@ -1324,7 +1324,6 @@ boot_ci <- function(mod, ...) {
 #'   }
 #' 
 #' @export
-#' @importFrom stats quantile
 #' 
 boot_ci.cor_phylo <- function(mod, refits = NULL, alpha = 0.05, ...) {
   

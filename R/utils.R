@@ -5,13 +5,16 @@ NULL
 #' @importFrom ape read.tree write.tree drop.tip compute.brlen vcv.phylo vcv is.rooted
 #' @importClassesFrom Matrix RsparseMatrix dsCMatrix dgTMatrix
 #' @importMethodsFrom Matrix t solve %*% determinant diag crossprod tcrossprod image
-#' @importFrom stats as.dendrogram as.dist as.formula binomial dist family fitted 
-#'   formula glm lm model.frame make.link model.matrix model.response na.omit 
-#'   optim pchisq pnorm printCoefmat reorder reshape residuals rnorm runif sd 
-#'   update var poisson
 #' @importFrom methods as show is hasArg
 #' @importFrom graphics par image
+#' @importFrom dplyr "%>%"
+#' @import stats
 NULL
+
+# issues come with dplyr and the pipe...
+if(getRversion() >= "2.15.1") 
+  utils::globalVariables(c("effect_type", "lower", "upper", "..density.."))
+
 
 logit <- make.link("logit")$linkfun
 

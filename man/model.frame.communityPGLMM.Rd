@@ -21,9 +21,6 @@ object}
     For \code{get_all_vars}, further named columns to include
     in the model frame.}
 }
-\value{
-
-}
 \description{
 Extracting the Model Frame from a communityPGLMM Model
 object

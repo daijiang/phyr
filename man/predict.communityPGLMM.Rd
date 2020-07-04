@@ -7,9 +7,12 @@
 \method{predict}{communityPGLMM}(object, newdata = NULL, ...)
 }
 \arguments{
-\item{object}{a model object for which prediction is desired.}
+\item{object}{Object of class inheriting from \code{"lm"}}
 
-\item{...}{additional arguments affecting the predictions produced.}
+\item{newdata}{An optional data frame in which to look for variables with
+    which to predict.  If omitted, the fitted values are used.}
+
+\item{...}{further arguments passed to or from other methods.}
 }
 \value{
 The form of the value returned by \code{predict} depends on the

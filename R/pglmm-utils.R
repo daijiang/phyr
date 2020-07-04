@@ -1229,8 +1229,8 @@ ranef.communityPGLMM <- function(object, ...) {
 #' Family Objects for communityPGLMM objects
 #'
 #' @inheritParams stats::family
-#'
-#' @return
+#' @method family communityPGLMM
+#' 
 #' @export
 family.communityPGLMM <- function(object, ...) {
   fam <- match.fun(object$family)
@@ -1240,8 +1240,7 @@ family.communityPGLMM <- function(object, ...) {
 #' Number of Observation in a communityPGLMM Model
 #'
 #' @inheritParams stats::nobs
-#'
-#' @return
+#' @method nobs communityPGLMM
 #' @export
 nobs.communityPGLMM <- function(object, use.fallback = FALSE, ...) {
   nrow(object$data)
@@ -1251,8 +1250,8 @@ nobs.communityPGLMM <- function(object, use.fallback = FALSE, ...) {
 #' object
 #'
 #' @inheritParams stats::model.frame
+#' @method model.frame communityPGLMM
 #'
-#' @return
 #' @export
 model.frame.communityPGLMM <- function(formula, ...) {
   model.frame(formula$formula, formula$data)
@@ -1260,8 +1259,9 @@ model.frame.communityPGLMM <- function(formula, ...) {
 
 #' Predict Function for communityPGLMM Model Objects
 #'
-#' @inheritParams stats::predict
+#' @inheritParams stats::predict.lm
 #' @inherit stats::predict return
+#' @method predict communityPGLMM
 #' @export
 predict.communityPGLMM <- function(object, newdata = NULL, ...) {
   if(!is.null(newdata)) {
@@ -1276,34 +1276,34 @@ predict.communityPGLMM <- function(object, newdata = NULL, ...) {
 #' Note that this function currently only works for model fit with \code{bayes = TRUE}
 #'
 #' @inheritParams stats::simulate
+#' @inheritParams lme4::simulate.merMod
 #'
-#' @return
 #' @export
 #'
-simulate.communityPGLMM <- function(x, nsim = 1, seed = NULL, use.u = TRUE, ...) {
-  if(!x$bayes) {
+simulate.communityPGLMM <- function(object, nsim = 1, seed = NULL, use.u = FALSE, ...) {
+  if(!object$bayes) {
     stop("simulate is currently only available for models fit with bayes = TRUE. simulate for ML models is coming soon!")
   }
   
-  if(!use.u) {
+  if(use.u) {
     stop("Sorry, simulate.communityPGLMM currently doesn't support use.u = TRUE, but we are working on it!")
   }
   
-  #sim <- INLA::inla.posterior.sample(nsim, x$inla.model)
+  #sim <- INLA::inla.posterior.sample(nsim, object$inla.model)
   
-  mu_sim <- do.call(rbind, lapply(x$inla.model$marginals.fitted.values, INLA::inla.rmarginal, n = nsim)) %>%
+  mu_sim <- do.call(rbind, lapply(object$inla.model$marginals.fitted.values, INLA::inla.rmarginal, n = nsim)) %>%
     as.data.frame()
   
-  if(x$bayes && x$family == "binomial" && !is.null(x$inla.model$Ntrials)) {
-    Ntrials <- x$inla.model$Ntrials
+  if(object$bayes && object$family == "binomial" && !is.null(object$inla.model$Ntrials)) {
+    Ntrials <- object$inla.model$Ntrials
   } else {
     Ntrials <- 1
   }
   
-  sim <- switch(x$family,
+  sim <- switch(object$family,
                 binomial = lapply(mu_sim, function(x) rbinom(length(x), Ntrials, x)),
-                poisson = lapply(mu_sim, function(x) rpoislength(x), x)
-                )
+                poisson = lapply(mu_sim, function(x) rpois(length(x), x))
+  )
   
   sim <- do.call(cbind, sim)
   
