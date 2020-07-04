@@ -13,7 +13,8 @@ NULL
 
 # issues come with dplyr and the pipe...
 if(getRversion() >= "2.15.1") 
-  utils::globalVariables(c("effect_type", "lower", "upper", "..density.."))
+  utils::globalVariables(c("effect_type", "lower", "upper", "..density..",
+                           "val", "var", "sig"))
 
 
 logit <- make.link("logit")$linkfun
@@ -209,7 +210,3 @@ align_comm_V = function(comm, tree, prune.tree = FALSE, scale.vcv = TRUE){
                       control = list(maxeval = 10))
   invisible()
 }
-
-globalVariables(c("val",
-                  "var",
-                  "sig"))
