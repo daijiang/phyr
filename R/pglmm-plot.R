@@ -68,9 +68,9 @@ plot.communityPGLMM <- function(x, sp.var = "sp", site.var = "site",
 #' Plots a representation of the marginal posterior distribution of model parameters. Note this
 #' function requires the packages \code{ggplot2} and \code{ggridges} to be installed.
 #' 
-#' @param x a communityPGLMM object fit with \code{bayes = TRUE} 
+#' @param x A communityPGLMM object fit with \code{bayes = TRUE}.
 #' @param n_samp Number of sample from the marginal posterior to take in order to estimate the posterior density.
-#' @param ... Further arguments to pass to or from other methods
+#' @param ... Further arguments to pass to or from other methods.
 #'
 #' @return A ggplot object
 #' @export
@@ -89,9 +89,8 @@ plot_bayes.communityPGLMM <- function(x, n_samp = 1000, ...) {
     stop('plot_bayes requires the ggridges package but it is unavailable. Use install.packages("ggridges") to install it.')
   }
   
-  random_samps <- lapply(x$inla.model$marginals.hyperpar, function(x) inla.rmarginal(n_samp, 
-                                                                                     inla.tmarginal(function(x) sqrt(1 / x), 
-                                                                                                    x))) %>%
+  random_samps <- lapply(x$inla.model$marginals.hyperpar, 
+                         function(x) inla.rmarginal(n_samp, inla.tmarginal(function(x) sqrt(1 / x), x))) %>%
     setNames(names(x$random.effects)) %>%
     dplyr::as_tibble() %>%
     tidyr::pivot_longer(cols = dplyr::everything(),
