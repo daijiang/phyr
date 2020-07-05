@@ -1275,8 +1275,8 @@ predict.communityPGLMM <- function(object, newdata = NULL, ...) {
 #'
 #' Note that this function currently only works for model fit with \code{bayes = TRUE}
 #'
-#' @inheritParams stats::simulate
 #' @inheritParams lme4::simulate.merMod
+#' @param object A fitted model object with class 'communityPGLMM'.
 #'
 #' @export
 #'

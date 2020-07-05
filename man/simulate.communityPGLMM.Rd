@@ -7,19 +7,12 @@
 \method{simulate}{communityPGLMM}(object, nsim = 1, seed = NULL, use.u = FALSE, ...)
 }
 \arguments{
-\item{object}{an object representing a fitted model.}
+\item{object}{A fitted model object with class 'communityPGLMM'.}
 
-\item{nsim}{number of response vectors to simulate.  Defaults to \code{1}.}
+\item{nsim}{positive integer scalar - the number of responses to simulate.}
 
-\item{seed}{an object specifying if and how the random number
-    generator should be initialized (\sQuote{seeded}).\cr
-    For the "lm" method, either \code{NULL} or an integer that will be
-    used in a call to \code{set.seed} before simulating the response
-    vectors.  If set, the value is saved as the \code{"seed"} attribute
-    of the returned value.  The default, \code{NULL} will not change the
-    random generator state, and return \code{\link{.Random.seed}} as the
-    \code{"seed"} attribute, see \sQuote{Value}.
-  }
+\item{seed}{an optional seed to be used in \code{\link{set.seed}}
+    immediately before the simulation so as to generate a reproducible sample.}
 
 \item{use.u}{(logical) if \code{TRUE}, generate a simulation
     conditional on the current random-effects estimates; if \code{FALSE}
@@ -29,7 +22,7 @@
     \code{FALSE} corresponds to \code{re.form = ~0} (condition on none
     of the random effects).)}
 
-\item{...}{additional optional arguments.}
+\item{...}{optional additional arguments: none are used at present.}
 }
 \description{
 Note that this function currently only works for model fit with \code{bayes = TRUE}
