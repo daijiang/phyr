@@ -88,7 +88,7 @@ plot_bayes.communityPGLMM <- function(x, n_samp = 1000, ...) {
   }
   
   random_samps <- lapply(x$inla.model$marginals.hyperpar, 
-                         function(x) inla.rmarginal(n_samp, inla.tmarginal(function(x) sqrt(1 / x), x))) %>%
+                         function(x) INLA::inla.rmarginal(n_samp, INLA::inla.tmarginal(function(x) sqrt(1 / x), x))) %>%
     setNames(names(x$random.effects)) %>%
     dplyr::as_tibble() %>%
     tidyr::pivot_longer(cols = dplyr::everything(),
@@ -96,7 +96,7 @@ plot_bayes.communityPGLMM <- function(x, n_samp = 1000, ...) {
                         values_to = "val") %>%
     dplyr::mutate(effect_type = "Random Effects")
  
-  fixed_samps <- lapply(x$inla.model$marginals.fixed, function(x) inla.rmarginal(n_samp, x)) %>%
+  fixed_samps <- lapply(x$inla.model$marginals.fixed, function(x) INLA::inla.rmarginal(n_samp, x)) %>%
     dplyr::as_tibble() %>%
     tidyr::pivot_longer(cols = dplyr::everything(),
                         names_to = "var",
