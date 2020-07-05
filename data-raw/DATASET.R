@@ -1,9 +1,9 @@
 ## code to prepare oldfield dataset
 
 library(dplyr)
-library(phyr)
 
-tree <- scan("http://www.plosone.org/article/fetchSingleRepresentation.action?uri=info:doi/10.1371/journal.pone.0007071.s002", what=character(0)) %>% #download data
+tree <- scan("http://www.plosone.org/article/fetchSingleRepresentation.action?uri=info:doi/10.1371/journal.pone.0007071.s002", 
+             what=character(0)) %>% #download data
   ape::read.tree(text=.) ## read tree into ape
 
 plot(tree, cex = 0.5)
