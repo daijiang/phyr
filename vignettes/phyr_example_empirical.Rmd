@@ -13,7 +13,9 @@ vignette: >
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  cache = TRUE
+  cache = TRUE,
+  fig.width = 7,
+  fig.height = 5
 )
 ```
 
@@ -25,26 +27,32 @@ This vignette will show a complete analysis example for `communityPGLMM` on a si
 library(phyr)
 library(ape)
 library(dplyr)
-
 data("oldfield")
 ```
 
 The data is a list with two elements. The first element is a phylogeny containing 47 species of plants (all herbaceous forbs) that live in old field habitats in Southern Ontario, Canada. Oldfield habitats typically are found in areas that were formerly cultivated but are now abandoned. This is often considered a successional stage between farmland and secondary forest. This data comes from plots that had experience two "treatments", one set of plots had been disturbed by field ploughing within a few years of sampling, the other set had not been disturbed in this way recently. Let's have a look at the phylogeny and data.
 
-```{r init_plots, out.width="80%", fig.width=10, fig.height=14}
+```{r init_plots, out.width="80%", fig.width=8, fig.height=12}
 plot(oldfield$phy)
-
 head(oldfield$data, 40)
 ```
+
 With this data we are interested in asking whether there is any kind of phylogenetic structure in the distribution of these species as well as whether disturbance has any overall effects. To do this we will specify two different phylogenetic effects in our `phyr`, which uses a syntax similar to the `lme4` package for specifying random effects. We also include site-level random effects to account for the paired design of the experiment. We will start by modeling just presence and absence of species (a binomial model). Note this model will take awhile when using maximum likelihood (the Bayesian method is much faster). This is the full model specification:
 
-```{r gen_raneff}
-mod <- phyr::communityPGLMM(pres ~ disturbance + (1 | sp__) + (1 | sp__@site) + 
-                             (1 | site) + (disturbance | sp__), 
-                            data = oldfield$data, 
-                            cov_ranef = list(sp = oldfield$phy),
-                            family = "binomial")
+```{r gen_raneff, eval=!file.exists("~/Documents/pglmm_mod_vignette.rds")}
+mod <- phyr::pglmm(pres ~ disturbance + (1 | sp__) + (1 | site) + 
+                     (disturbance | sp__) + (1 | sp__@site), 
+                   data = oldfield$data, 
+                   cov_ranef = list(sp = oldfield$phy),
+                   family = "binomial")
+```
 
+```{r saveMod, eval=!file.exists("~/Documents/pglmm_mod_vignette.rds")}
+saveRDS(mod, "~/Documents/pglmm_mod_vignette.rds")
+```
+
+```{r readMod, echo=FALSE}
+mod <- readRDS("~/Documents/pglmm_mod_vignette.rds")
 ```
 
 Here we specified an overall phylogenetic effect using `sp__`, which also automatically includes an i.i.d. effect of species. `phyr` finds the linked phylogenetic data because we specified the phylogeny in the `cov_ranef` argument, giving it the name `sp` which matches `sp__` but without the underscores. We can include any number of phylogenies or covariance matrices in this way, allowing us to model multiple sources of covariance in one model. In this example, however, we will stick to one phylogeny to cover the basics of how to run `phyr` models. We use the same phylogeny to model a second phylogenetic random effects in this model, which is specified as `sp__@site`. This is a "nested" phylogenetic effect. What this basically means is we are fitting an effect that had covariance proportional to the species phylogeny, but independently for each site (or "nested" in sites). We've also included a disturbance by phylogenetic species effect (`(disturbance | sp__)`), which estimates the degree to which occurrance in disturbed vs. undisturbed habitat has a phylogenetic signal. Like the main `sp__` effect, the disturbance by `sp__` effects also includes and i.i.d. species by disturbance interaction. Let's look at the results:
@@ -53,7 +61,7 @@ Here we specified an overall phylogenetic effect using `sp__`, which also automa
 summary(mod)
 ```
 
-The results of the random effects imply that the strongest effect is an overall i.i.d. species effect, followed closely by a disturbance by i.i.d. species effect. This implies that species vary strongly in their occurrence in disturbed or undisturbed sites, that there is a clear community difference between these treatments. the next strongest effect is the nested phylogenetic effect. But how can we know if this effect is strong enough to take seriously? Well one way to get an idea is to run a likelihood ratio test on the random effect. This can be achieved by using the the `communityPGLMM.profile.LRT` function, at least for binomial models.
+The results of the random effects imply that the strongest effect is an overall i.i.d. species effect, followed closely by a disturbance by i.i.d. species effect. This implies that species vary strongly in their occurrence in disturbed or undisturbed sites, that there is a clear community difference between these treatments. the next strongest effect is the nested phylogenetic effect. But how can we know if this effect is strong enough to take seriously? Well one way to get an idea is to run a likelihood ratio test on the random effect. This can be achieved by using the the `pglmm_profile_LRT()` function, at least for binomial models.
 
 ```{r test_raneff}
 names(mod$ss)
@@ -62,26 +70,39 @@ test_nested
 ```
 This result suggests that there is overall a nested phylogenetic effect. What does this mean? Well essentially a model where the within site distributions of species are reasonably explained by the phylogenetic covariance of species implies a 'phylogenetic clustering' effect, that is that closely related species are more likely to be found together in the same community, relative to the total variance in communities across sites. In the original paper I analysed this data using traditional community phylogenetics methods (null model based) and found that generally the disturbed sites were phylogenetically clustered but undisturbed sites were not. If I split the data this way and model each separately, does this result hold up?
 
-```{r split_model}
-mod_disturbed <- phyr::communityPGLMM(pres ~ (1 | sp__) + (1 | sp__@site) + 
-                             (1 | site), 
-                            data = oldfield$data %>%
-                              dplyr::filter(disturbance == 1), 
-                            cov_ranef = list(sp = oldfield$phy),
-                            family = "binomial")
+```{r split_model, eval=!file.exists("~/Documents/pglmm_mod_disturb_vignette.rds")}
+mod_disturbed <- phyr::pglmm(pres ~ (1 | sp__) + (1 | sp__@site) + 
+                               (1 | site), 
+                             data = oldfield$data %>%
+                               dplyr::filter(disturbance == 1), 
+                             cov_ranef = list(sp = oldfield$phy),
+                             family = "binomial")
 
-mod_undisturbed <- phyr::communityPGLMM(pres ~ (1 | sp__) + (1 | sp__@site) + 
-                             (1 | site), 
-                            data = oldfield$data %>%
-                              dplyr::filter(disturbance == 0), 
-                            cov_ranef = list(sp = oldfield$phy),
-                            family = "binomial")
+mod_undisturbed <- phyr::pglmm(pres ~ (1 | sp__) + (1 | sp__@site) + 
+                                 (1 | site), 
+                               data = oldfield$data %>%
+                                 dplyr::filter(disturbance == 0), 
+                               cov_ranef = list(sp = oldfield$phy),
+                               family = "binomial")
+```
 
+```{r save_disturb_mod, echo=FALSE, eval=!file.exists("~/Documents/pglmm_mod_disturb_vignette.rds")}
+saveRDS(mod_disturbed, "~/Documents/pglmm_mod_disturb_vignette.rds")
+saveRDS(mod_undisturbed, "~/Documents/pglmm_mod_undisturb_vignette.rds")
+```
+
+
+```{r echo=FALSE}
+mod_disturbed <- readRDS("~/Documents/pglmm_mod_disturb_vignette.rds")
+mod_undisturbed <- readRDS("~/Documents/pglmm_mod_undisturb_vignette.rds")
+```
+
+
+```{r split_model2}
 cat("Disturbed phylogenetic clustering test:\n")
 phyr::pglmm_profile_LRT(mod_disturbed, re.number = 4)
 cat("Undisturbed phylogenetic clustering test:\n")
 phyr::pglmm_profile_LRT(mod_undisturbed, re.number = 4)
-
 ```
 
 Indeed! My original results hold up to this model-based test of the same question. Whew! (╹◡╹)凸
@@ -96,23 +117,22 @@ The other result from this model is that there is a strong fixed effect of distu
 Another way to explore than random effects is to use the Bayesian version of `communityPGLMM` and then look at the shape of the posterior distribution of our random effect variance terms. Let's have a look at that.
 
 ```{r gen_raneff_bayes}
-mod_bayes <- phyr::communityPGLMM(pres ~ disturbance + (1 | sp__) + (1 | sp__@site) + 
-                             (1 | site) + (disturbance | sp__), 
-                            data = oldfield$data, 
-                            cov_ranef = list(sp = oldfield$phy),
-                            family = "binomial",
-                            bayes = TRUE,
-                            prior = "pc.prior.auto")
-
+mod_bayes <- phyr::pglmm(pres ~ disturbance + (1 | sp__) + (1 | sp__@site) + 
+                           (1 | site) + (disturbance | sp__), 
+                         data = oldfield$data, 
+                         cov_ranef = list(sp = oldfield$phy),
+                         family = "binomial",
+                         bayes = TRUE,
+                         prior = "pc.prior.auto")
 summary(mod_bayes)
 ```
 
-"pc.prior.auto" is a good choice of prior I find for binomial models. If you are interested in the details of this kind of prior (known as a penalising complexity prior), check out this paper: https://arxiv.org/abs/1403.4630.
+"pc.prior.auto" is a good choice of prior I find for binomial models. If you are interested in the details of this kind of prior (known as a penalising complexity prior), check out this paper: <https://arxiv.org/abs/1403.4630>.
 
 The results of this model are consistent with the ML model, which is good to see. Now we also have lower and upper credible intervals. We can look at the full approximate marginal posterior distributions of the random effects and fixed effects with the `plot_bayes` function.
 
-```{r plot_bayes, fig.height = 16, fig.width = 12, out.width="85%"}
-plot_bayes(mod_bayes)
+```{r plot_bayes, fig.height = 12, fig.width = 9, out.width="85%"}
+plot_bayes(mod_bayes, sort = TRUE)
 ```
 
 What we are looking for is that the posterior distribution mode is well away from zero, and that it looks relatively symmetrical. If it is skewed and crammed up against the left side of the plot, near zero, that is a sign the effect is not especially strong (remembering that variance components cannot be less than or equal zero, so you always will see some positive probability mass). The most obvious effects here are again the species random effect, the species by disturbance random effect, and the nested phylogenetic effect. In this plot, the 95% credible interval is also plotted, along with the posterior mean (the point and bar at the bottom of each density). For the random effects these aren't too meaningful, but they can help distinguish genuine effects in the fixed effects. If these credible intervals overlap zero in the fixed effects, the density will be plotted with a lighter colour to suggest it is not a strong effect (not relevant in this model since both fixed effects are strong). 
@@ -123,33 +143,79 @@ The next thing we might want to check is whether assumptions of the model are me
 
 ```{r call_dharma, fig.width=16, fig.height=9, out.width="90%"}
 resids <- DHARMa::simulateResiduals(mod_bayes, plot = FALSE)
-
 plot(resids)
-
 ```
 
 So that looks pretty good to me, though some of the tests failed. Specifically the residual quantiles are not quite as flat with respect to the model predictions as we would like them to be. There is a slight curvature, and the residuals are overall increasing slightly with higher predictions. Visually however, this looks like a weak effect, and are only likely a 'significant' deviation because of the large number of data-points. I am reasonably comfortable that the model assumptions are satisfied fairly well in this case. Given that we are interested in the effect of disturbance, we may also want to check that the residuals do not show any strong patterns with the disturbance treatment. This is simple to do with `DHARMa` as follows:
 
 ```{r some_other_plots, fig.width=12, fig.height=10, out.width="85%"}
-
 DHARMa::plotResiduals(resids, mod_bayes$data$disturbance)
-
-
 ```
 
 Obviously no problems there.
 
 ## Goodness of Fit
 
-Another good question about our model is simply: how well does it fit the data. A metric appealing in its simplicity is the classic R<sup>2</sup> metric, which purports to estimate the proportion of the variance in the response explained by the model predictors. Once again though, when using non-Gaussian errors this can become a bit tricky. An additional complication is created by model with random effects. Given that rrandom effects are very flexible model components (for example, nothing stopping you from fitting a random effect for each observation in your dataset), a straight-up calculation of variance explains isn't too meaningful. That being said, methods that can produce a useful R<sup>2</sup> metric in the complex situation have been developed. The package `rr2` is able to calculate several flavours of R<sup>2</sup>, and supports `phyr`'s `communityPGLMM` model object. Let's try it!
+Another good question about our model is simply: how well does it fit the data. A metric appealing in its simplicity is the classic R^2^ metric, which purports to estimate the proportion of the variance in the response explained by the model predictors. Once again though, when using non-Gaussian errors this can become a bit tricky. An additional complication is created by model with random effects. Given that rrandom effects are very flexible model components (for example, nothing stopping you from fitting a random effect for each observation in your dataset), a straight-up calculation of variance explains isn't too meaningful. That being said, methods that can produce a useful R^2^ metric in the complex situation have been developed. The package `rr2` is able to calculate several flavours of R^2^, and supports `phyr`'s `communityPGLMM` model object. Let's try it!
 
 ```{r calc_r2}
-
+rr2::R2(mod)
 rr2::R2(mod_bayes)
-
 ```
 
-There we go! 0.46! We can think of this as saying roughly 46% of our response's variance has been explained by our model, taking into account the various sources of covariance we modeled, subject to a boatload of assumption and caveats of course. That's handy! See Ives (2018) for the full description of how this R<sup>2</sup> works.
+There we go! 0.46 for `mod_bayes`! We can think of this as saying roughly 46% of our response's variance has been explained by our model, taking into account the various sources of covariance we modeled, subject to a boatload of assumption and caveats of course. That's handy! See Ives (2018) for the full description of how this R^2^ works.
 
-*This section to be filled in once we have AUC, TSS, etc.* 
+## AUC, Specificity, and True Skill Statistics (TSS)
+
+Assessments of predictive accuracy of Species Distribution Models generally are based on confusion matrices that record the numbers of true positive, false positive, true negative, and false negative. Such matrices are straightforward to construct for models providing presence-absence predictions, which is true for most SDMs. Commonly used measures for SDMs include Specificity (true negative rate), Sensitivity (true positive rate), True Skill Statistic (TSS = Sensitivity + Specificity - 1), and area under the receiver operating characteristic (ROC) curve (AUC) ([Allouche et al. 2006](https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/j.1365-2664.2006.01214.x)). Combining the observed values with the predictions generated by the `pglmm_predicted_values()` function, we can calculate such measures to evaluate the performance of our models.
+
+```{r perfML}
+pred_mod = phyr::pglmm_predicted_values(mod)$Y_hat
+obs_mod = mod$data$pres
+roc_mod <- pROC::roc(obs_mod, pred_mod, percent = T, direction = "<", levels = c(0,1))
+(AUC = pROC::auc(roc_mod))
+(roc_mod_2 <- pROC::coords(roc_mod, "best", ret = c("sens", "spec"), transpose = F) / 100)
+(TSS = roc_mod_2[1, "sensitivity"] + roc_mod_2[1, "specificity"] - 1)
+plot(ROCR::performance(ROCR::prediction(pred_mod, obs_mod), measure = "tpr", 
+                        x.measure = "fpr"), main = "ROC Curve") # ROC curve
+```
+
+We can see that the AUC is pretty high (`r as.numeric(AUC)/100`) with the model fitted with maximum likihood framework (`mod`). True positive rate and true negative rates are also both reasonably high. What about the model fitted with Bayesian framework (`mod_bayes`)? Not surprising, the results are similar to those of `mod`.
+
+```{r perfBayes}
+pred_mod_bayes = phyr::pglmm_predicted_values(mod_bayes)$Y_hat
+obs_mod_bayes = mod_bayes$data$pres
+roc_mod_bayes <- pROC::roc(obs_mod_bayes, pred_mod_bayes, percent = T,
+                           direction = "<", levels = c(0,1))
+(AUC_bayes = pROC::auc(roc_mod_bayes))
+(roc_mod_bayes2 <- pROC::coords(roc_mod_bayes, "best", ret = c("sens", "spec"),
+                           transpose = F) / 100)
+(TSS_bayes = roc_mod_bayes2[1, "sensitivity"] + roc_mod_bayes2[1, "specificity"] - 1)
+plot(ROCR::performance(ROCR::prediction(pred_mod_bayes, obs_mod_bayes), measure = "tpr", 
+                        x.measure = "fpr"), main = "ROC Curve") # ROC curve
+```
+
+Now let's compare the model that does not account for phylogenetic relationships, i.e. the regular joint species distribution models.
+
+```{r perfBayesNoPhy}
+mod_bayes_no_phy <- phyr::pglmm(pres ~ disturbance + (1 | sp) + 
+                                  (1 | site) + (disturbance | sp), 
+                            data = oldfield$data, 
+                            family = "binomial", bayes = T,
+                            prior = "pc.prior.auto")
+
+pred_mod_bayes_no_phy = phyr::pglmm_predicted_values(mod_bayes_no_phy)$Y_hat
+obs_mod_bayes_no_phy = mod_bayes_no_phy$data$pres
+roc_mod_bayes_no_phy <- pROC::roc(obs_mod_bayes_no_phy, pred_mod_bayes_no_phy,
+                                  percent = T, direction = "<", levels = c(0,1))
+(AUC_bayes_no_phy = pROC::auc(roc_mod_bayes_no_phy))
+(roc_mod_bayes_no_phy2 <- pROC::coords(roc_mod_bayes_no_phy, "best", 
+                                       ret = c("sens", "spec"), transpose = F) / 100)
+(TSS_bayes_no_phy = roc_mod_bayes_no_phy2[1, "sensitivity"] + 
+    roc_mod_bayes_no_phy2[1, "specificity"] - 1)
+plot(ROCR::performance(ROCR::prediction(pred_mod_bayes_no_phy, obs_mod_bayes_no_phy), 
+                       measure = "tpr", x.measure = "fpr"), main = "ROC Curve") # ROC curve
+```
+
+Including species' phylogenetic relationships in the model indeed improved the model performance. After dropping the phylogenetic random terms from the model, `AUC` decreased from `r as.numeric(AUC_bayes)/100` to `r as.numeric(AUC_bayes_no_phy)/100` and `TSS` decreased from `r TSS_bayes` to `r TSS_bayes_no_phy`.
 

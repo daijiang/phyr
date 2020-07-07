@@ -34,7 +34,7 @@ plot.communityPGLMM <- function(x, sp.var = "sp", site.var = "site",
   if(show.site.names){
     p = update(p, scales = list(x = list(at = 1:length(colnames(y)), labels = colnames(y))))
   }
-  print(p)
+  # print(p)
   
   if(predicted){
     W2 = W
@@ -68,12 +68,13 @@ plot.communityPGLMM <- function(x, sp.var = "sp", site.var = "site",
 #' 
 #' @param x A communityPGLMM object fit with \code{bayes = TRUE}.
 #' @param n_samp Number of sample from the marginal posterior to take in order to estimate the posterior density.
+#' @param sort Whether to plot different terms in the order of their estimations. Default is 'TRUE'.
 #' @param ... Further arguments to pass to or from other methods.
 #'
 #' @return A ggplot object
 #' @export
 #' @rdname pglmm-plot-data
-plot_bayes.communityPGLMM <- function(x, n_samp = 1000, ...) {
+plot_bayes.communityPGLMM <- function(x, n_samp = 1000, sort = TRUE, ...) {
   
   if(!requireNamespace("ggplot2", quietly = TRUE)) {
     stop('plot_bayes requires the ggplot2 package but it is unavailable. Use install.packages("ggplot2") to install it.')
@@ -114,6 +115,11 @@ plot_bayes.communityPGLMM <- function(x, n_samp = 1000, ...) {
               mean = mean(val),
               .groups = "drop_last")
   
+  if(sort){
+    ci <- dplyr::arrange(ci, mean) %>% ungroup() %>% 
+      dplyr::mutate(var = factor(as.character(var), levels = as.character(var)))
+  }
+  
   sig_vars <- ci %>%
     dplyr::mutate(sig = ifelse(effect_type == "Random Effects",
                                "CI no overlap with zero",
@@ -122,18 +128,23 @@ plot_bayes.communityPGLMM <- function(x, n_samp = 1000, ...) {
                                       "CI overlaps zero"))) %>%
     dplyr::select(var, sig)
   
+  if(sort){
+    samps <- dplyr::mutate(samps, var = factor(var, levels = levels(sig_vars$var)))
+  }
+  
   samps <- samps %>%
     dplyr::left_join(sig_vars, by = "var") %>%
     dplyr::group_by(var) %>%
-    dplyr::filter(abs(val - mean(val)) < (10 * sd(val)))
+    dplyr::filter(abs(val - mean(val)) < (10 * sd(val))) %>% 
+    ungroup()
   
   pal <- c("#fc8d62", "#8da0cb")
   p <- ggplot2::ggplot(samps, ggplot2::aes(val, var, height = ..density..)) +
+    ggridges::geom_density_ridges(ggplot2::aes(alpha = sig, fill = sig), 
+                                  stat = "density", adjust = 2, color = "gray70") +
+    ggplot2::geom_point(ggplot2::aes(x = mean, y = var), data = ci, inherit.aes = FALSE) +
     ggplot2::geom_errorbarh(ggplot2::aes(xmin = lower, xmax = upper, y = var), data = ci,
                    inherit.aes = FALSE, height = 0.1) +
-    ggridges::geom_density_ridges(ggplot2::aes(alpha = sig,
-                            fill = sig), stat = "density", adjust = 2) +
-    ggplot2::geom_point(ggplot2::aes(x = mean, y = var), data = ci, inherit.aes = FALSE) +
     ggplot2::geom_vline(xintercept = 0, linetype = 2, colour = "grey40") +
     ggplot2::scale_alpha_manual(values = c(0.8, 0.2)) +
     ggplot2::scale_fill_manual(values = rev(pal)) +
