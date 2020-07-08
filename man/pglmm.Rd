@@ -26,6 +26,7 @@ pglmm(
   maxit.pql = 200,
   marginal.summ = "mean",
   calc.DIC = FALSE,
+  calc.WAIC = FALSE,
   prior = "inla.default",
   prior_alpha = 0.1,
   prior_mu = 1,
@@ -33,7 +34,8 @@ pglmm(
   tree = NULL,
   tree_site = NULL,
   sp = NULL,
-  site = NULL
+  site = NULL,
+  bayes_options = NULL
 )
 
 communityPGLMM(
@@ -57,6 +59,7 @@ communityPGLMM(
   maxit.pql = 200,
   marginal.summ = "mean",
   calc.DIC = FALSE,
+  calc.WAIC = FALSE,
   prior = "inla.default",
   prior_alpha = 0.1,
   prior_mu = 1,
@@ -64,7 +67,8 @@ communityPGLMM(
   tree = NULL,
   tree_site = NULL,
   sp = NULL,
-  site = NULL
+  site = NULL,
+  bayes_options = NULL
 )
 }
 \arguments{
@@ -196,6 +200,9 @@ tendency of the Bayesian posterior marginal distributions. Ignored if \code{baye
 \item{calc.DIC}{Should the Deviance Information Criterion be calculated and returned
 when doing a Bayesian PGLMM? Ignored if \code{bayes = FALSE}.}
 
+\item{calc.WAIC}{Should the WAIC be calculated and returned
+when doing a Bayesian PGLMM? Ignored if \code{bayes = FALSE}.}
+
 \item{prior}{Which type of default prior should be used by \code{pglmm}?
 Only used if \code{bayes = TRUE}. There are currently four options:
 "inla.default", which uses the default \code{INLA} priors; "pc.prior.auto", which uses a
@@ -240,6 +247,12 @@ pglmm` will try to standardize it for you. No longer used: keep here for compati
 \item{sp}{No longer used: keep here for compatibility.}
 
 \item{site}{No longer used: keep here for compatibility.}
+
+\item{bayes_options}{Additional options to pass to INLA for if \code{bayes = TRUE}. A named list where the names
+correspond to parameters in the \code{inla} function. One special option is \code{diagonal}: if an element in
+the options list is names \code{diagonal} this tells \code{INLA} to add its value to the diagonal of the random effects
+precision matrices. This can help with numerical stability if the model is ill-conditioned (if you get a lot of warnings,
+try setting this to \code{list(diagonal = 1e-4)}).}
 }
 \value{
 An object (list) of class \code{communityPGLMM} with the following elements:
@@ -378,32 +391,34 @@ the interpretation of the regression coefficients.
 ### Brief summary of models and their use ###
 #############################################
 ## Model structures from Ives & Helmus (2011)
-# dat = data set for regression (note: must have a column "sp" and a column "site")
-# phy = phylogeney of class "phylo"
-# repulsion = to test phylogenetic repulsion or not
-
-# Model 1 (Eq. 1)
-z <- pglmm(freq ~ sp + (1|site) + (1|sp__@site), data = dat, family = "binomial", 
-           cov_ranef = list(sp = phy), REML = TRUE, verbose = TRUE, s2.init = .1)
-
-# Model 2 (Eq. 2)
-z <- pglmm(freq ~ sp + X + (1|site) + (X|sp__), data = dat, family = "binomial",
-           cov_ranef = list(sp = phy), REML = TRUE, verbose = TRUE, s2.init = .1)
-
-# Model 3 (Eq. 3)
-z <- pglmm(freq ~ sp*X + (1|site) + (1|sp__@site), data = dat, family = "binomial",
-           cov_ranef = list(sp = phy), REML = TRUE, verbose = TRUE, s2.init = .1)
-
-## Model structure from Rafferty & Ives (2013) (Eq. 3)
-# dat = data set
-# phyPol = phylogeny for pollinators (pol)
-# phyPlt = phylogeny for plants (plt)
-
-z <- pglmm(freq ~ pol * X + (1|pol__) + (1|plt__) + (1|pol__@plt) +
-           (1|pol@plt__) + (1|pol__@plt__), 
-           data = dat, family = "binomial", 
-           cov_ranef = list(pol = phyPol, plt = phyPlt), 
-           REML = TRUE, verbose = TRUE, s2.init = .1)
+if(FALSE){
+  # dat = data set for regression (note: must have a column "sp" and a column "site")
+  # phy = phylogeny of class "phylo"
+  # repulsion = to test phylogenetic repulsion or not
+  
+  # Model 1 (Eq. 1)
+  z <- pglmm(freq ~ sp + (1|site) + (1|sp__@site), data = dat, family = "binomial",
+             cov_ranef = list(sp = phy), REML = TRUE, verbose = TRUE, s2.init = .1)
+  
+  # Model 2 (Eq. 2)
+  z <- pglmm(freq ~ sp + X + (1|site) + (X|sp__), data = dat, family = "binomial",
+             cov_ranef = list(sp = phy), REML = TRUE, verbose = TRUE, s2.init = .1)
+  
+  # Model 3 (Eq. 3)
+  z <- pglmm(freq ~ sp*X + (1|site) + (1|sp__@site), data = dat, family = "binomial",
+             cov_ranef = list(sp = phy), REML = TRUE, verbose = TRUE, s2.init = .1)
+  
+  ## Model structure from Rafferty & Ives (2013) (Eq. 3)
+  # dat = data set
+  # phyPol = phylogeny for pollinators (pol)
+  # phyPlt = phylogeny for plants (plt)
+  
+  z <- pglmm(freq ~ pol * X + (1|pol__) + (1|plt__) + (1|pol__@plt) +
+               (1|pol@plt__) + (1|pol__@plt__),
+             data = dat, family = "binomial",
+             cov_ranef = list(pol = phyPol, plt = phyPlt),
+             REML = TRUE, verbose = TRUE, s2.init = .1)
+}
 
 #####################################################
 ### Detailed analysis showing covariance matrices ###
@@ -463,10 +478,10 @@ d$Y <- Y.sp + Y.site + Y.attract + Y.e
 # Analyze the model
 pglmm(Y ~ 1 + (1|sp__) + (1|site) + (1|sp__@site), data = d, cov_ranef = list(sp = phy))
 
-# Display random effects: the function `pglmm.plot.re()` does what 
+# Display random effects: the function `pglmm_plot_ranef()` does what 
 # the name implies. You can set `show.image = TRUE` and `show.sim.image = TRUE` 
 # to see the matrices and simulations.
-re <- pglmm.plot.re(Y ~ 1 + (1|sp__) + (1|site) + (1|sp__@site), data = d, 
+re <- pglmm_plot_ranef(Y ~ 1 + (1|sp__) + (1|site) + (1|sp__@site), data = d, 
                     cov_ranef = list(sp = phy), show.image = FALSE, 
                     show.sim.image = FALSE)
 
@@ -524,10 +539,10 @@ d <- data.frame(sp = rep(phy.sp$tip.label, times = nsite),
 d$Y <- Y.sp + Y.site + Y.sp.attract + Y.site.attract + Y.sp.site.attract + Y.e
 
 # Plot random effects covariance matrices and then add phylogenies
-# Note that, if show.image and show.sim are not specified, pglmm.plot.re() shows
+# Note that, if show.image and show.sim are not specified, pglmm_plot_ranef() shows
 # the covariance matrices if nspp * nsite < 200 and shows simulations 
 # if nspp * nsite > 100
-re <- pglmm.plot.re(Y ~ 1 + (1|sp__) + (1|site__) + (1|sp__@site) + 
+re <- pglmm_plot_ranef(Y ~ 1 + (1|sp__) + (1|site__) + (1|sp__@site) + 
                     (1|sp@site__) + (1|sp__@site__),
                     data=d, cov_ranef = list(sp = phy.sp, site = phy.site))
 
@@ -558,7 +573,7 @@ mod.f <- pglmm(Y ~ 1 + (1|sp__) + (1|site__) + (1|sp__@site) + (1|sp@site__) +
                cov_ranef = list(sp = phy.sp, site = phy.site), 
                s2.init = c(mod.r$ss, 0.01)^2)
 mod.f
-pvalue <- pchisq(2*(mod.f$logLik - mod.r$logLik), df = 1, lower.tail = F)
+pvalue <- pchisq(2*(mod.f$logLik - mod.r$logLik), df = 1, lower.tail = FALSE)
 pvalue
 } 
 }

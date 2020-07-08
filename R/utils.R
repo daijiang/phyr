@@ -5,13 +5,17 @@ NULL
 #' @importFrom ape read.tree write.tree drop.tip compute.brlen vcv.phylo vcv is.rooted
 #' @importClassesFrom Matrix RsparseMatrix dsCMatrix dgTMatrix
 #' @importMethodsFrom Matrix t solve %*% determinant diag crossprod tcrossprod image
-#' @importFrom stats as.dendrogram as.dist as.formula binomial dist family fitted 
-#'   formula glm lm model.frame make.link model.matrix model.response na.omit 
-#'   optim pchisq pnorm printCoefmat reorder reshape residuals rnorm runif sd 
-#'   update var poisson
 #' @importFrom methods as show is hasArg
 #' @importFrom graphics par image
+#' @importFrom dplyr "%>%"
+#' @import stats
 NULL
+
+# issues come with dplyr and the pipe...
+if(getRversion() >= "2.15.1") 
+  utils::globalVariables(c("effect_type", "lower", "upper", "..density..",
+                           "val", "var", "sig"))
+
 
 logit <- make.link("logit")$linkfun
 
@@ -24,10 +28,13 @@ inv.logit <- make.link("logit")$linkinv
 #' This function will remove species that has no observations in any site.
 #'
 #' @param df A data frame in wide form, i.e. site by species data frame, with site names as row name.
+#' @param warn Whether to warn when any species does not occur in at least one site? Default is `FALSE`.
 #' @export
 #' @return  A site by species data frame.
-rm_sp_noobs = function(df) {
+rm_sp_noobs = function(df, warn = FALSE) {
   if (any(colSums(df) == 0)) {
+    if(warn)
+      warning("Removing species that were not appear in any sites", immediate. = TRUE)
     df = df[, -which(colSums(df) == 0), drop = FALSE]
   }
   df
@@ -40,10 +47,13 @@ rm_sp_noobs = function(df) {
 #' @author Daijiang Li
 #'
 #' @param df A data frame in wide form, i.e. site by species data frame, with site names as row name.
+#' @param warn Whether to warn when any site has no species? Default is `FALSE`.
 #' @export
 #' @return  A site by species data frame.
-rm_site_noobs = function(df) {
+rm_site_noobs = function(df, warn = FALSE) {
   if (any(rowSums(df) == 0)) {
+    if(warn)
+      warning("Removing sites that have no species", immediate. = TRUE)
     df = df[-which(rowSums(df) == 0), , drop = FALSE]
   }
   df

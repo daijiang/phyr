@@ -5,15 +5,13 @@
 #' @rdname pglmm-plot-data
 #' @method plot communityPGLMM
 #' @importFrom graphics image
-#' @inheritParams communityPGLMM.profile.LRT
-#' @inheritParams communityPGLMM
+#' @param x A fitted model with class communityPGLMM.
 #' @param sp.var The variable name of "species"; y-axis of the image.
 #' @param site.var The variable name of "site"; x-axis of the image.
 #' @param show.sp.names Whether to print species names as y-axis labels.
 #' @param show.site.names Whether to print site names as x-axis labels.
 #' @param digits Not used.
 #' @param predicted Whether to plot predicted values side by side with observed ones.
-#' @inheritParams communityPGLMM.plot.re
 #' @note The underlying plot grid object is returned but invisible. It can be saved for later uses.
 #' @export
 plot.communityPGLMM <- function(x, sp.var = "sp", site.var = "site",
@@ -36,11 +34,11 @@ plot.communityPGLMM <- function(x, sp.var = "sp", site.var = "site",
   if(show.site.names){
     p = update(p, scales = list(x = list(at = 1:length(colnames(y)), labels = colnames(y))))
   }
-  print(p)
+  # print(p)
   
   if(predicted){
     W2 = W
-    W2$Y = communityPGLMM.predicted.values(x)
+    W2$Y = pglmm_predicted_values(x)
     Y2 <- reshape(W2, v.names = "Y", idvar = "sp", timevar = "site", direction = "wide")
     row.names(Y2) = Y2$sp
     Y2 <- Y2[, -1]
@@ -61,6 +59,115 @@ plot.communityPGLMM <- function(x, sp.var = "sp", site.var = "site",
   }
   
   return(invisible(p))
+}
+
+#' Plot Bayesian communityPGLMM model results
+#' 
+#' Plots a representation of the marginal posterior distribution of model parameters. Note this
+#' function requires the packages \code{ggplot2} and \code{ggridges} to be installed.
+#' 
+#' @param x A communityPGLMM object fit with \code{bayes = TRUE}.
+#' @param n_samp Number of sample from the marginal posterior to take in order to estimate the posterior density.
+#' @param sort Whether to plot different terms in the order of their estimations. Default is 'TRUE'.
+#' @param ... Further arguments to pass to or from other methods.
+#'
+#' @return A ggplot object
+#' @export
+#' @rdname pglmm-plot-data
+plot_bayes.communityPGLMM <- function(x, n_samp = 1000, sort = TRUE, ...) {
+  
+  if(!requireNamespace("ggplot2", quietly = TRUE)) {
+    stop('plot_bayes requires the ggplot2 package but it is unavailable. Use install.packages("ggplot2") to install it.')
+  }
+  
+  if(!x$bayes) {
+    stop("plot_bayes only works on communityPGLMM objects fit with bayes = TRUE")
+  }
+  
+  if(!requireNamespace("ggridges", quietly = TRUE)) {
+    stop('plot_bayes requires the ggridges package but it is unavailable. Use install.packages("ggridges") to install it.')
+  }
+  
+  random_samps <- lapply(x$inla.model$marginals.hyperpar, 
+                         function(x) INLA::inla.rmarginal(n_samp, INLA::inla.tmarginal(function(x) sqrt(1 / x), x))) %>%
+    setNames(names(x$random.effects)) %>%
+    dplyr::as_tibble() %>%
+    tidyr::pivot_longer(cols = dplyr::everything(),
+                        names_to = "var",
+                        values_to = "val") %>%
+    dplyr::mutate(effect_type = "Random Effects")
+ 
+  fixed_samps <- lapply(x$inla.model$marginals.fixed, function(x) INLA::inla.rmarginal(n_samp, x)) %>%
+    dplyr::as_tibble() %>%
+    tidyr::pivot_longer(cols = dplyr::everything(),
+                        names_to = "var",
+                        values_to = "val") %>%
+    dplyr::mutate(effect_type = "Fixed Effects")
+  
+  samps <- dplyr::bind_rows(random_samps, fixed_samps) %>%
+    dplyr::mutate(effect_type = factor(effect_type, 
+                                   levels = c("Random Effects", "Fixed Effects")))
+  
+  ci <- samps %>%
+    dplyr::group_by(var, effect_type) %>%
+    dplyr::summarise(lower = quantile(val, 0.025),
+              upper = quantile(val, 0.975),
+              mean = mean(val),
+              .groups = "drop_last")
+  
+  if(sort){
+    ci <- dplyr::arrange(ci, mean) %>% dplyr::ungroup() %>% 
+      dplyr::mutate(var = factor(as.character(var), levels = as.character(var)))
+  }
+  
+  sig_vars <- ci %>%
+    dplyr::mutate(sig = ifelse(effect_type == "Random Effects",
+                               "CI no overlap with zero",
+                               ifelse(sign(lower) == sign(upper),
+                                      "CI no overlap with zero",
+                                      "CI overlaps zero"))) %>%
+    dplyr::select(var, sig)
+  
+  if(sort){
+    samps <- dplyr::mutate(samps, var = factor(var, levels = levels(sig_vars$var)))
+  }
+  
+  samps <- samps %>%
+    dplyr::left_join(sig_vars, by = "var") %>%
+    dplyr::group_by(var) %>%
+    dplyr::filter(abs(val - mean(val)) < (10 * sd(val))) %>% 
+    ungroup()
+  
+  pal <- c("#fc8d62", "#8da0cb")
+  p <- ggplot2::ggplot(samps, ggplot2::aes(val, var, height = ..density..)) +
+    ggridges::geom_density_ridges(ggplot2::aes(alpha = sig, fill = sig), 
+                                  stat = "density", adjust = 2, color = "gray70") +
+    ggplot2::geom_point(ggplot2::aes(x = mean, y = var), data = ci, inherit.aes = FALSE) +
+    ggplot2::geom_errorbarh(ggplot2::aes(xmin = lower, xmax = upper, y = var), data = ci,
+                   inherit.aes = FALSE, height = 0.1) +
+    ggplot2::geom_vline(xintercept = 0, linetype = 2, colour = "grey40") +
+    ggplot2::scale_alpha_manual(values = c(0.8, 0.2)) +
+    ggplot2::scale_fill_manual(values = rev(pal)) +
+    ggplot2::facet_wrap(~ effect_type, nrow = 2, scales = "free") +
+    ggplot2::ylab("") +
+    ggplot2::xlab("Estimate") +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(legend.position = "none",
+          axis.text = ggplot2::element_text(size = 14),
+          strip.text = ggplot2::element_text(size = 16))
+  
+  p
+}
+
+#' plot_bayes generic
+#'
+#' @param x A communityPGLMM object fit with \code{bayes = TRUE}. 
+#' @param ... Further arguments to pass to or from other methods.
+#'
+#' @return A ggplot object
+#' @export
+plot_bayes <- function(x, ...) {
+  UseMethod("plot_bayes", x)
 }
 
 #' Visualize random terms of communityPGLMMs
@@ -85,7 +192,7 @@ plot.communityPGLMM <- function(x, sp.var = "sp", site.var = "site",
 #' @param tree.panel.space The number of lines between the phylogeny and 
 #'   the matrix plot, if add.tree is TRUE.
 #' @param title.space The number of lines between the title and the matrix plot, if add.tree is TRUE.
-#' @param tree.size The height of the phylogeney to be plotted (number of lines), if add.tree is TRUE.
+#' @param tree.size The height of the phylogeny to be plotted (number of lines), if add.tree is TRUE.
 #' @param ... Additional arguments for \code{Matrix::image()} or \code{lattice::levelplot()}. 
 #'   Common ones are:
 #'   - \code{useAbs} whether to use absolute values of the matrix; if no negative values, 

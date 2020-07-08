@@ -1,70 +1,65 @@
-
 context("test cor_phylo output")
 
 test_that("cor_phylo produces proper output", {
-
-skip_on_cran()
-
-# ----------------------------*
-
-# Simulating data ----
-
-# ----------------------------*
-
-
-# Set up parameter values for simulating data
-n <- 50
-p <- 2
-Rs <- c(0.8)
-d <- c(0.3, 0.6)
-M <- matrix(c(0.2, 0.6), 
-            nrow = n, ncol = p, byrow = TRUE)
-X_means <- c(1, 2)
-X_sds <- c(1, 0.5)
-U_means <- list(NULL, 2)
-U_sds <- list(NULL, 10)
-B <- list(NULL, 0.1)
-# Simulate them using this internal function
-data_list <- phyr:::sim_cor_phylo_variates(n, Rs, d, M, X_means, X_sds, U_means, U_sds, B)
-
-# Converting to matrices for the call to ape::corphylo
-SeM <- as.matrix(data_list$data[, grepl("^se", colnames(data_list$data))])
-rownames(SeM) <- data_list$data$species
-X <- as.matrix(data_list$data[, grepl("^par", colnames(data_list$data))])
-rownames(X) <- data_list$data$species
-U <- lapply(1:p, function(i) {
-  UM <- as.matrix(data_list$data[,grepl(paste0("^cov", i), colnames(data_list$data))])
-  if (ncol(UM) == 0) return(NULL)
-  rownames(UM) <- data_list$data$species
-  return(UM)
-})
-
-
-
-
-# ----------------------------*
-
-# compare to corphylo ----
-
-# ----------------------------*
-
-
-phyr_cp <- cor_phylo(variates = ~ par1 + par2,
-                     covariates = list(par2 ~ cov2a),
-                     meas_errors = list(par1 ~ se1, par2 ~ se2),
-                     data = data_list$data, phy = data_list$phy,
-                     species = ~ species, method = "nelder-mead-r",
-                     lower_d = 0)
-ape_cp <- ape::corphylo(X = X, SeM = SeM, U = U, phy = data_list$phy, 
-                        method = "Nelder-Mead")
-
-
-# ----------------------------*
-
-# Test output
-
-# ----------------------------*
-
+  
+  skip_on_cran()
+  
+  # ----------------------------*
+  
+  # Simulating data ----
+  
+  # ----------------------------*
+  
+  # Set up parameter values for simulating data
+  n <- 50
+  p <- 2
+  Rs <- c(0.8)
+  d <- c(0.3, 0.6)
+  M <- matrix(c(0.25, 0.6), nrow = n, ncol = p, byrow = TRUE)
+  X_means <- c(1, 2)
+  X_sds <- c(1, 0.5)
+  U_means <- list(NULL, 2)
+  U_sds <- list(NULL, 10)
+  B <- list(NULL, 0.1)
+  # Simulate them using this internal function
+  data_list <- phyr:::sim_cor_phylo_variates(n, Rs, d, M, X_means, X_sds, U_means, U_sds, B)
+  
+  # Converting to matrices for the call to ape::corphylo
+  SeM <- as.matrix(data_list$data[, grepl("^se", colnames(data_list$data))])
+  rownames(SeM) <- data_list$data$species
+  X <- as.matrix(data_list$data[, grepl("^par", colnames(data_list$data))])
+  rownames(X) <- data_list$data$species
+  U <- lapply(1:p, function(i) {
+    UM <- as.matrix(data_list$data[,grepl(paste0("^cov", i), colnames(data_list$data))])
+    if (ncol(UM) == 0) return(NULL)
+    rownames(UM) <- data_list$data$species
+    return(UM)
+  })
+  
+  
+  # ----------------------------*
+  
+  # compare to corphylo ----
+  
+  # ----------------------------*
+  
+  
+  phyr_cp <- cor_phylo(variates = ~ par1 + par2,
+                       covariates = list(par2 ~ cov2a),
+                       meas_errors = list(par1 ~ se1, par2 ~ se2),
+                       data = data_list$data, phy = data_list$phy,
+                       species = ~ species, method = "nelder-mead-r",
+                       lower_d = 0)
+  ape_cp <- ape::corphylo(X = X, SeM = SeM, U = U, phy = data_list$phy, 
+                          method = "Nelder-Mead")
+  
+  
+  # ----------------------------*
+  
+  # Test output
+  
+  # ----------------------------*
+  
   expect_is(phyr_cp, "cor_phylo")
   expect_equivalent(names(phyr_cp), c("corrs", "d", "B", "B_cov", "logLik", "AIC",
                                       "BIC", "niter", "convcode", "rcond_vals",
@@ -76,7 +71,7 @@ ape_cp <- ape::corphylo(X = X, SeM = SeM, U = U, phy = data_list$phy,
                         niter = "numeric", convcode = "integer", rcond_vals = "numeric",
                         bootstrap = "list", call = "call")
   expect_class_equal <- function(par_name) {
-    eval(bquote(expect_equal(class(phyr_cp[[.(par_name)]]), 
+    eval(bquote(expect_equal(class(phyr_cp[[.(par_name)]])[1], 
                              expected_classes[[.(par_name)]])))
   }
   for (n_ in names(phyr_cp)) expect_class_equal(n_)
@@ -102,14 +97,12 @@ ape_cp <- ape::corphylo(X = X, SeM = SeM, U = U, phy = data_list$phy,
   expect_output(print(phyr_cp), regexp = "Warning: convergence in .* not reached")
   
   
-
-
-# ----------------------------*
-
-# different inputs -----
-
-# ----------------------------*
-
+  # ----------------------------*
+  
+  # different inputs -----
+  
+  # ----------------------------*
+  
   Vphy <- ape::vcv(data_list$phy)
   
   
@@ -129,10 +122,6 @@ ape_cp <- ape::corphylo(X = X, SeM = SeM, U = U, phy = data_list$phy,
                         logLik = "numeric", AIC = "numeric", BIC = "numeric", 
                         niter = "numeric", convcode = "integer", rcond_vals = "numeric",
                         bootstrap = "list", call = "call")
-  expect_class_equal <- function(par_name) {
-    eval(bquote(expect_equal(class(phyr_cp[[.(par_name)]]), 
-                             expected_classes[[.(par_name)]])))
-  }
   for (n_ in names(phyr_cp)) expect_class_equal(n_)
   
   
@@ -152,15 +141,11 @@ ape_cp <- ape::corphylo(X = X, SeM = SeM, U = U, phy = data_list$phy,
   cp_out <- unique(sapply(strsplit(cp_out, split = "\\s+"), length))
   expect_identical(cp_out, 6L)
   
-
-
-
-
-# ----------------------------*
-
-# Test for errors
-
-# ----------------------------*
+  # ----------------------------*
+  
+  # Test for errors
+  
+  # ----------------------------*
   
   
   
@@ -238,43 +223,33 @@ ape_cp <- ape::corphylo(X = X, SeM = SeM, U = U, phy = data_list$phy,
   data_list$data$species[10] <- x
   
   
+  # ----------------------------*
   
   
-
-
-
-
-# ----------------------------*
-
-# Making sure different methods of input result in the same output
-
-# ----------------------------*
-
-
-# To store output:
-cp_output_tests <- list(forms = NA,
-                        matrices = NA)
-
-# Using formulas:
-cp_output_tests$forms <- 
-  cor_phylo(variates = ~ par1 + par2,
-            covariates = list(par2 ~ cov2a),
-            meas_errors = list(par1 ~ se1, par2 ~ se2),
-            species = ~ species,
-            phy = data_list$phy, data = data_list$data)
-
-# Using matrices:
-
-X <- as.matrix(data_list$data[,c("par1", "par2")])
-U <- list(par2 = cbind(cov2a = data_list$data$cov2a))
-M <- cbind(par1 = data_list$data$se1, par2 = data_list$data$se2)
-
-cp_output_tests$matrices <- 
-  cor_phylo(variates = X,
-            covariates = U,
-            meas_errors = M,
-            species = data_list$data$species,
-            phy = data_list$phy)
+  # To store output:
+  cp_output_tests <- list(forms = NA,
+                          matrices = NA)
+  
+  # Using formulas:
+  cp_output_tests$forms <- 
+    cor_phylo(variates = ~ par1 + par2,
+              covariates = list(par2 ~ cov2a),
+              meas_errors = list(par1 ~ se1, par2 ~ se2),
+              species = ~ species,
+              phy = data_list$phy, data = data_list$data)
+  
+  # Using matrices:
+  
+  X <- as.matrix(data_list$data[,c("par1", "par2")])
+  U <- list(par2 = cbind(cov2a = data_list$data$cov2a))
+  M <- cbind(par1 = data_list$data$se1, par2 = data_list$data$se2)
+  
+  cp_output_tests$matrices <- 
+    cor_phylo(variates = X,
+              covariates = U,
+              meas_errors = M,
+              species = data_list$data$species,
+              phy = data_list$phy)
   
   for (i in 2:length(cp_output_tests)) {
     # I'm adding `-length(cp_output_tests[[<index>]])` to exclude the `call` field
@@ -285,107 +260,78 @@ cp_output_tests$matrices <-
                  expected.label = names(cp_output_tests)[i])
   }
   
-
-
-
-
-# ==================================================================*
-# ==================================================================*
-
-# bootstrapping -----
-
-# ==================================================================*
-# ==================================================================*
-
-
-cp <- cor_phylo(variates = ~ par1 + par2,
-                covariates = list(par2 ~ cov2a),
-                meas_errors = list(par1 ~ se1, par2 ~ se2),
-                data = data_list$data, phy = data_list$phy,
-                species = ~ species, boot = 1, keep_boots = "all")
-
-# With matrices as input
-cp2 <- 
-  cor_phylo(variates = X,
-            covariates = U,
-            meas_errors = M,
-            species = data_list$data$species,
-            phy = data_list$phy,
-            boot = 1, keep_boots = "all")
-
-cp_bci <- boot_ci(cp)
-cp_bci2 <- boot_ci(cp2)
-
-
+  # ==================================================================*
+  # ==================================================================*
+  
+  # bootstrapping -----
+  
+  # ==================================================================*
+  # ==================================================================*
+  
+  
+  cp <- cor_phylo(variates = ~ par1 + par2,
+                  covariates = list(par2 ~ cov2a),
+                  meas_errors = list(par1 ~ se1, par2 ~ se2),
+                  data = data_list$data, phy = data_list$phy,
+                  species = ~ species, boot = 1, keep_boots = "all")
+  
+  # With matrices as input
+  cp2 <- 
+    cor_phylo(variates = X,
+              covariates = U,
+              meas_errors = M,
+              species = data_list$data$species,
+              phy = data_list$phy,
+              boot = 1, keep_boots = "all")
+  
+  cp_bci <- boot_ci(cp)
+  cp_bci2 <- boot_ci(cp2)
+  
   expect_identical(names(cp_bci), c("corrs", "d", "B0", "B_cov"))
   expect_identical(names(cp_bci2), c("corrs", "d", "B0", "B_cov"))
-  expect_identical(paste(sapply(cp_bci, class)), rep("matrix", 4))
-  expect_identical(paste(sapply(cp_bci2, class)), rep("matrix", 4))
+  expect_identical(paste(sapply(cp_bci, function(i) class(i)[1])), rep("matrix", 4))
+  expect_identical(paste(sapply(cp_bci2, function(i) class(i)[1])), rep("matrix", 4))
   
   expect_output(print(cp), regexp = "Bootstrapped 95\\% CIs \\(.* reps\\):")
   expect_output(print(cp2), regexp = "Bootstrapped 95\\% CIs \\(.* reps\\):")
   
+  cp_refit <- refit_boots(cp)
+  cp_refit2 <- refit_boots(cp2)
   
-
-
-cp_refit <- refit_boots(cp)
-cp_refit2 <- refit_boots(cp2)
-
   
   expect_output(print(cp_refit), "< Refits to cor_phylo bootstraps >")
   expect_output(print(cp_refit2), "< Refits to cor_phylo bootstraps >")
+ 
   
-
-
-
-
-# ----------------------------*
-
-# no correlation -----
-
-# ----------------------------*
-
-
-data_list$data$par3 <- runif(nrow(data_list$data)) * data_list$data$par1
-
-phyr_cp_nc <- cor_phylo(variates = ~ par1 + par2 + par3,
-                        data = data_list$data, phy = data_list$phy,
-                        species = ~ species, method = "nelder-mead-r",
-                        no_corr = TRUE)
-
-
+  # ----------------------------*
+  
+  # no correlation -----
+  
+  # ----------------------------*
+  
+  
+  data_list$data$par3 <- runif(nrow(data_list$data)) * data_list$data$par1
+  
+  phyr_cp_nc <- cor_phylo(variates = ~ par1 + par2 + par3,
+                          data = data_list$data, phy = data_list$phy,
+                          species = ~ species, method = "nelder-mead-r",
+                          no_corr = TRUE)
+  
+  
   expect_equal(sum(phyr_cp_nc$corrs[lower.tri(phyr_cp_nc$corrs)]), 0)
   expect_equal(sum(phyr_cp_nc$corrs[upper.tri(phyr_cp_nc$corrs)]), 0)
+ 
+  # ----------------------------*
   
-
-
-
-
-
-
-# ----------------------------*
-
-# Testing for fix of error in printing when using `T` or `F` instead of `TRUE` or `FALSE`
-
-# ----------------------------*
-
-
-phyr_cp <- cor_phylo(variates = ~ par1 + par2,
-                     data = data_list$data, phy = data_list$phy,
-                     species = ~ species, constrain_d = TRUE)
-
-
+  # Testing for fix of error in printing when using `T` or `F` instead of `TRUE` or `FALSE`
+  
+  # ----------------------------*
+  
+  
+  phyr_cp <- cor_phylo(variates = ~ par1 + par2,
+                       data = data_list$data, phy = data_list$phy,
+                       species = ~ species, constrain_d = TRUE)
+  
+  
   expect_output(print(phyr_cp), "Call to cor_phylo:")
-  
-  
-  
-  
 })
-
-
-
-
-
-
-
-

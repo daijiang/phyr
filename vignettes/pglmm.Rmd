@@ -35,10 +35,10 @@ Sometimes, users may want to prepare their own list of random terms to fit phylo
 
 All models fitted with `pglmm()` have class of `communityPGLMM`. Here is a list of functions that can be used to these models.
 
-- `pglmm.matrix.structure()`: produce the whole covariance matrix 
-- `pglmm.plot.re()`: plot images of random term matrix, see vignettes `plot-re`          
-- `pglmm.predicted.values()` or `fitted()`: extract fitted values
-- `pglmm.profile.LRT()`: to test significance of random terms; only works with binomial models 
+- `pglmm_matrix_structure()`: produce the whole covariance matrix 
+- `pglmm_plot_re()`: plot images of random term matrix, see vignettes `plot-re`          
+- `pglmm_predicted_values()` or `fitted()`: extract fitted values
+- `pglmm_profile_LRT()`: to test significance of random terms; only works with binomial models 
 - `summary()`: summary of model fit
 - `print()`: summary of model fit
 - `residuals()`: residuals values

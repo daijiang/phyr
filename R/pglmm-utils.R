@@ -236,7 +236,110 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
           }
         }
       } else { # slope
-        if(grepl("@", x2[3])) stop("Sorry, random terms for slopes cannot be nested")
+        if(grepl("@", x2[3])) {
+          
+          ############## Working on this #########################
+          
+          sp_or_site = strsplit(x2[3], split = "@")[[1]]
+          colns = gsub("__$", "", sp_or_site)
+          site_sp_c = paste(as.character(data[, colns[2]]), as.character(data[, colns[1]]), sep = "___")
+          
+          if(any(colns[grepl("__", sp_or_site)] %nin% names(cov_ranef_list)))
+            stop(paste0("Cov matrix of variable ", 
+                        paste(colns[grepl("__", sp_or_site)], collapse = " and "), 
+                        " not specified in cov_ranef."))
+          
+          if(!grepl("__", x2[3])){ # no phylogenetic term; e.g. sp@site
+            if(family == 'poisson' | 
+               (family == 'binomial' & 
+                is.array(model.response(model.frame(formula.nobars, data = data, na.action = NULL))))){
+              if(add.obs.re) {
+                message("It seems that you specified an observation-level random term already e.g. (1|sp@site); 
+                       we will set 'add.obs.re' to FALSE.")
+                add.obs.re <<- FALSE
+                no_obs_re <<- FALSE
+              }
+            }
+            # message("Nested term without specify phylogeny, use identity matrix instead")
+            xout = list(as(diag(nrow(data)), "dgCMatrix"))
+            xout = list(xout)
+          } else { # has phylogenetic term; sp__@site; sp__@site__; sp@site__
+            if(grepl("__", sp_or_site[1]) & !grepl("__", sp_or_site[2])){ # sp__@site
+              n_dim = nlevels(data[, colns[2]])
+              if(repulsion[nested_repul_i]){
+                xout = as(kronecker(diag(n_dim), solve(cov_ranef_list[[colns[1]]])), "dgCMatrix")
+              } else {
+                xout = as(kronecker(diag(n_dim), cov_ranef_list[[colns[1]]]), "dgCMatrix")
+              }
+              # put names back
+              rownames(xout) = colnames(xout) = paste(
+                rep(levels(data[, colns[2]]), each = nrow(cov_ranef_list[[colns[1]]])),
+                rep(rownames(cov_ranef_list[[colns[1]]]), nlevels(data[, colns[2]])),
+                sep = "___")
+              # select the actual combination in the data; e.g. not all sp observed in every site.
+              xout = xout[site_sp_c, site_sp_c]
+              xout = list(xout)
+              nested_repul_i <<- nested_repul_i + 1 # update repulsion index
+            }
+            
+            if(!grepl("__", sp_or_site[1]) & grepl("__", sp_or_site[2])){ # sp@site__
+              n_dim = length(unique(data[, colns[1]]))
+              if(repulsion[nested_repul_i]){
+                xout = as(kronecker(solve(cov_ranef_list[[colns[2]]]), diag(n_dim)), "dgCMatrix")
+              } else {
+                xout = as(kronecker(cov_ranef_list[[colns[2]]], diag(n_dim)), "dgCMatrix")
+              }
+              
+              # put names back
+              rownames(xout) = colnames(xout) = paste(
+                rep(rownames(cov_ranef_list[[colns[2]]]), each = nlevels(data[, colns[1]])),
+                rep(levels(data[, colns[1]]), nrow(cov_ranef_list[[colns[2]]])),
+                sep = "___")
+              # select the actual combination in the data; e.g. not all sp observed in every site.
+              xout = xout[site_sp_c, site_sp_c]
+              
+              xout = list(xout)
+              nested_repul_i <<- nested_repul_i + 1
+            }
+            
+            if(grepl("__", sp_or_site[1]) & grepl("__", sp_or_site[2])){ # sp__@site__
+              if(repulsion[nested_repul_i]){
+                Vphy2 = solve(cov_ranef_list[[colns[1]]])
+              } else {
+                Vphy2 = cov_ranef_list[[colns[1]]]
+              }
+              nested_repul_i <<- nested_repul_i + 1
+              
+              if(repulsion[nested_repul_i]){
+                Vphy_site2 = solve(cov_ranef_list[[colns[2]]])
+              } else {
+                Vphy_site2 = cov_ranef_list[[colns[2]]]
+              }
+              nested_repul_i <<- nested_repul_i + 1
+              
+              xout = as(kronecker(Vphy_site2, Vphy2), "dgCMatrix")
+              # put names back
+              rownames(xout) = colnames(xout) = paste(
+                rep(rownames(cov_ranef_list[[colns[2]]]), each = nrow(cov_ranef_list[[colns[1]]])),
+                rep(rownames(cov_ranef_list[[colns[1]]]), nrow(cov_ranef_list[[colns[2]]])),
+                sep = "___")
+              # select the actual combination in the data; e.g. not all sp observed in every site.
+              xout = xout[site_sp_c, site_sp_c]
+              xout = list(xout)
+            }
+            
+            xout = list(xout) # to put the matrix in a list
+          }
+          
+          
+          
+          
+          
+          ###########################################################
+          
+          
+          
+        }
         if(grepl("__$", x2[3])){ # x|sp__
           # also want phylogenetic version, 
           # it makes sense if the phylogenetic version is in, the non-phy part should be there too
@@ -713,7 +816,11 @@ pglmm_profile_LRT <- function(x, re.number = 0, cpp = TRUE) {
 
 #' @export
 #' @rdname pglmm-profile-LRT
-communityPGLMM.profile.LRT <- pglmm_profile_LRT
+#' @inheritParams pglmm_profile_LRT
+communityPGLMM.profile.LRT = function(x, re.number = 0, cpp = TRUE){
+  .Deprecated("pglmm_profile_LRT")
+  pglmm_profile_LRT(x, re.number, cpp)
+}
 
 #' \code{pglmm_matrix_structure} produces the entire
 #' covariance matrix structure (V) when you specify random effects.
@@ -748,8 +855,14 @@ pglmm_matrix_structure <- function(formula, data = list(), family = "binomial",
 }
 
 #' @rdname pglmm-matrix-structure
+#' @inheritParams pglmm_matrix_structure
 #' @export
-communityPGLMM.matrix.structure <- pglmm_matrix_structure
+communityPGLMM.matrix.structure = function(formula, data = list(), family = "binomial", 
+                                           cov_ranef, repulsion = FALSE, ss = 1, cpp = TRUE){
+  
+  .Deprecated("pglmm_matrix_structure")
+  pglmm_matrix_structure(formula, data, family, cov_ranef, repulsion, ss, cpp)
+}
 
 #' Summary information of fitted model
 #' 
@@ -888,7 +1001,7 @@ print.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ..
 
 #' Predicted values of PGLMM
 #' 
-#' \code{communityPGLMM.predicted.values} calculates the predicted
+#' \code{pglmm_predicted_values} calculates the predicted
 #' values of Y; for the generalized linear mixed model (family %in% 
 #' c("binomial","poisson"), these values are in the transformed space.
 #' 
@@ -899,11 +1012,10 @@ print.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ..
 #'   Option nearest_node will predict values to the nearest node, which is same as lme4::predict or
 #'   fitted. Option tip_rm will remove the point then predict the value of this point with remaining ones.
 #' @export
-#' @return A data frame with three columns: Y_hat (predicted values accounting for 
-#'   both fixed and random terms), sp, and site.
-communityPGLMM.predicted.values <- function(x, cpp = TRUE, 
-                                            gaussian.pred = c("nearest_node", "tip_rm")) 
-  {
+#' @return A data frame with column Y_hat (predicted values accounting for 
+#'   both fixed and random terms).
+pglmm_predicted_values <- function(x, cpp = TRUE, 
+                                   gaussian.pred = c("nearest_node", "tip_rm")) {
   ptype = match.arg(gaussian.pred)
   if(x$bayes) {
     marginal.summ <- x$marginal.summ
@@ -955,8 +1067,18 @@ communityPGLMM.predicted.values <- function(x, cpp = TRUE,
 }
 
 #' @rdname pglmm-predicted-values
+#' @param x A fitted model with class communityPGLMM.
+#' @param cpp Whether to use c++ code. Default is TRUE.
+#' @param gaussian.pred When family is gaussian, which type of prediction to calculate?
+#'   Option nearest_node will predict values to the nearest node, which is same as lme4::predict or
+#'   fitted. Option tip_rm will remove the point then predict the value of this point with remaining ones.
 #' @export
-pglmm_predicted_values <- communityPGLMM.predicted.values
+communityPGLMM.predicted.values <- function(x, cpp = TRUE, 
+                                           gaussian.pred = c("nearest_node", "tip_rm")){
+  
+  .Deprecated("pglmm_predicted_values")
+  pglmm_predicted_values(x, cpp, gaussian.pred)
+}
 
 #' Residuals of communityPGLMM objects
 #' 
@@ -976,7 +1098,7 @@ residuals.communityPGLMM <- function(
   scaled = FALSE, ...){
   if(object$family == "gaussian"){
     y <- object$Y
-    mu <- communityPGLMM.predicted.values(object)$Y_hat
+    mu <- pglmm_predicted_values(object)$Y_hat
     res <- switch(type,
                   deviance = stop("no deviance residuals for gaussian model", call. = FALSE),
                   response = y - mu
@@ -1013,12 +1135,12 @@ residuals.communityPGLMM <- function(
 #' @export
 fitted.communityPGLMM <- function(object, ...){
   if(object$bayes) {
-    ft = communityPGLMM.predicted.values(object)$Y_hat
+    ft = pglmm_predicted_values(object)$Y_hat
   } else {
     if(object$family %in% c("binomial","poisson")){
       ft = object$mu[, 1]
     } else {
-      ft = communityPGLMM.predicted.values(object)$Y_hat
+      ft = pglmm_predicted_values(object)$Y_hat
     }
   }
   
@@ -1102,4 +1224,88 @@ ranef.communityPGLMM <- function(object, ...) {
   
   row.names(w) <- re.names
   w
+}
+
+#' Family Objects for communityPGLMM objects
+#'
+#' @inheritParams stats::family
+#' @method family communityPGLMM
+#' 
+#' @export
+family.communityPGLMM <- function(object, ...) {
+  fam <- match.fun(object$family)
+  fam()
+}
+  
+#' Number of Observation in a communityPGLMM Model
+#'
+#' @inheritParams stats::nobs
+#' @method nobs communityPGLMM
+#' @export
+nobs.communityPGLMM <- function(object, use.fallback = FALSE, ...) {
+  nrow(object$data)
+}
+
+#' Extracting the Model Frame from a communityPGLMM Model
+#' object
+#'
+#' @inheritParams stats::model.frame
+#' @method model.frame communityPGLMM
+#'
+#' @export
+model.frame.communityPGLMM <- function(formula, ...) {
+  model.frame(formula$formula, formula$data)
+}
+
+#' Predict Function for communityPGLMM Model Objects
+#'
+#' @inheritParams stats::predict.lm
+#' @inherit stats::predict return
+#' @method predict communityPGLMM
+#' @export
+predict.communityPGLMM <- function(object, newdata = NULL, ...) {
+  if(!is.null(newdata)) {
+    warning("newdata argument is currently not supported by predict.communityPGLMM. It will be ignored, and predictions 
+            returned on original data used to fit the model. newdata will be supported in the future.")
+  }
+  as.matrix(pglmm_predicted_values(object))
+}
+
+#' Simulate from a communityPGLMM object
+#'
+#' Note that this function currently only works for model fit with \code{bayes = TRUE}
+#'
+#' @inheritParams lme4::simulate.merMod
+#' @param object A fitted model object with class 'communityPGLMM'.
+#'
+#' @export
+#'
+simulate.communityPGLMM <- function(object, nsim = 1, seed = NULL, use.u = FALSE, ...) {
+  if(!object$bayes) {
+    stop("simulate is currently only available for models fit with bayes = TRUE. simulate for ML models is coming soon!")
+  }
+  
+  if(use.u) {
+    stop("Sorry, simulate.communityPGLMM currently doesn't support use.u = TRUE, but we are working on it!")
+  }
+  
+  #sim <- INLA::inla.posterior.sample(nsim, object$inla.model)
+  
+  mu_sim <- do.call(rbind, lapply(object$inla.model$marginals.fitted.values, INLA::inla.rmarginal, n = nsim)) %>%
+    as.data.frame()
+  
+  if(object$bayes && object$family == "binomial" && !is.null(object$inla.model$Ntrials)) {
+    Ntrials <- object$inla.model$Ntrials
+  } else {
+    Ntrials <- 1
+  }
+  
+  sim <- switch(object$family,
+                binomial = lapply(mu_sim, function(x) rbinom(length(x), Ntrials, x)),
+                poisson = lapply(mu_sim, function(x) rpois(length(x), x))
+  )
+  
+  sim <- do.call(cbind, sim)
+  
+  sim
 }
