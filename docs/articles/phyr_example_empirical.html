@@ -5,13 +5,13 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>phyr_example_empirical • phyr</title>
+<title>pglmm example with empirical data • phyr</title>
 <!-- jquery --><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script><!-- Bootstrap --><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.4.1/css/bootstrap.min.css" integrity="sha256-bZLfwXAP04zRMK2BjiO8iu9pf4FbLqX6zitd+tIvLhE=" crossorigin="anonymous">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.4.1/js/bootstrap.min.js" integrity="sha256-nuL8/2cJ5NDSSwnKD8VqreErSWHtnEP9E7AySL+1ev4=" crossorigin="anonymous"></script><!-- bootstrap-toc --><link rel="stylesheet" href="../bootstrap-toc.css">
 <script src="../bootstrap-toc.js"></script><!-- Font Awesome icons --><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.1/css/all.min.css" integrity="sha256-mmgLkCYLUQbXn0B1SRqzHar6dCnv9oZFPEC1g1cwlkk=" crossorigin="anonymous">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.1/css/v4-shims.min.css" integrity="sha256-wZjR52fzng1pJHwx4aV2AO3yyTOXrcDW7jBpJtTwVxw=" crossorigin="anonymous">
 <!-- clipboard.js --><script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.6/clipboard.min.js" integrity="sha256-inc5kl9MA1hkeYUt+EC3BhlIgyp/2jDIyBLS6k3UxPI=" crossorigin="anonymous"></script><!-- headroom.js --><script src="https://cdnjs.cloudflare.com/ajax/libs/headroom/0.11.0/headroom.min.js" integrity="sha256-AsUX4SJE1+yuDu5+mAVzJbuYNPHj/WroHuZ8Ir/CkE0=" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/headroom/0.11.0/jQuery.headroom.min.js" integrity="sha256-ZX/yNShbjqsohH1k95liqY9Gd8uOiE1S4vZc+9KQ1K4=" crossorigin="anonymous"></script><!-- pkgdown --><link href="../pkgdown.css" rel="stylesheet">
-<script src="../pkgdown.js"></script><meta property="og:title" content="phyr_example_empirical">
+<script src="../pkgdown.js"></script><meta property="og:title" content="pglmm example with empirical data">
 <meta property="og:description" content="phyr">
 <!-- mathjax --><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js" integrity="sha256-nvJJv9wWKEm88qvoQl9ekL2J+k/RWIsaSScxxlsrv8k=" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/config/TeX-AMS-MML_HTMLorMML.js" integrity="sha256-84DKXVJXs0/F8OTMzX4UR909+jtl4G7SPypPavF+GfA=" crossorigin="anonymous"></script><!--[if lt IE 9]>
 <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
@@ -60,7 +60,7 @@
       <a href="../articles/pglmm.html">Usage of pglmm()</a>
     </li>
     <li>
-      <a href="../articles/phyr_example_empirical.html">phyr_example_empirical</a>
+      <a href="../articles/phyr_example_empirical.html">pglmm example with empirical data</a>
     </li>
     <li>
       <a href="../articles/plot-re.html">Plot random terms of communityPGLMM</a>
@@ -91,7 +91,7 @@
       </header><div class="row">
   <div class="col-md-9 contents">
     <div class="page-header toc-ignore">
-      <h1 data-toc-skip>phyr_example_empirical</h1>
+      <h1 data-toc-skip>pglmm example with empirical data</h1>
             
       
       <small class="dont-index">Source: <a href="https://github.com/daijiang/phyr/blob/master/vignettes/phyr_example_empirical.Rmd"><code>vignettes/phyr_example_empirical.Rmd</code></a></small>
@@ -113,6 +113,14 @@
 <span class="fu"><a href="https://rdrr.io/r/base/library.html">library</a></span>(<span class="kw"><a href="https://github.com/daijiang/phyr">phyr</a></span>)
 <span class="fu"><a href="https://rdrr.io/r/base/library.html">library</a></span>(<span class="kw"><a href="http://ape-package.ird.fr">ape</a></span>)
 <span class="fu"><a href="https://rdrr.io/r/base/library.html">library</a></span>(<span class="kw"><a href="https://dplyr.tidyverse.org">dplyr</a></span>)
+<span class="co">#&gt; </span>
+<span class="co">#&gt; Attaching package: 'dplyr'</span>
+<span class="co">#&gt; The following objects are masked from 'package:stats':</span>
+<span class="co">#&gt; </span>
+<span class="co">#&gt;     filter, lag</span>
+<span class="co">#&gt; The following objects are masked from 'package:base':</span>
+<span class="co">#&gt; </span>
+<span class="co">#&gt;     intersect, setdiff, setequal, union</span>
 <span class="fu"><a href="https://rdrr.io/r/utils/data.html">data</a></span>(<span class="st">"oldfield"</span>)
 </pre></div>
 <p>The data is a list with two elements. The first element is a phylogeny containing 47 species of plants (all herbaceous forbs) that live in old field habitats in Southern Ontario, Canada. Oldfield habitats typically are found in areas that were formerly cultivated but are now abandoned. This is often considered a successional stage between farmland and secondary forest. This data comes from plots that had experience two “treatments”, one set of plots had been disturbed by field ploughing within a few years of sampling, the other set had not been disturbed in this way recently. Let’s have a look at the phylogeny and data.</p>
@@ -253,17 +261,17 @@
 <span class="co">#&gt; </span>
 <span class="co">#&gt; Random effects:</span>
 <span class="co">#&gt;                  Variance Std.Dev lower.CI upper.CI</span>
-<span class="co">#&gt; 1|sp             2.066571 1.43756 1.097755   4.5151</span>
-<span class="co">#&gt; 1|sp__           0.106195 0.32588 0.020672   1.2172</span>
-<span class="co">#&gt; 1|site           0.007038 0.08389 0.001174   0.1937</span>
-<span class="co">#&gt; disturbance|sp   1.902315 1.37924 0.904636   4.9701</span>
-<span class="co">#&gt; disturbance|sp__ 0.036600 0.19131 0.005833   1.1108</span>
-<span class="co">#&gt; 1|sp__@site      0.103666 0.32197 0.043608   0.2873</span>
+<span class="co">#&gt; 1|sp             2.065600 1.43722 1.097168   4.5138</span>
+<span class="co">#&gt; 1|sp__           0.106341 0.32610 0.020707   1.2167</span>
+<span class="co">#&gt; 1|site           0.007018 0.08377 0.001170   0.1936</span>
+<span class="co">#&gt; disturbance|sp   1.900503 1.37859 0.903554   4.9733</span>
+<span class="co">#&gt; disturbance|sp__ 0.036617 0.19136 0.005835   1.1118</span>
+<span class="co">#&gt; 1|sp__@site      0.103652 0.32195 0.043620   0.2873</span>
 <span class="co">#&gt; </span>
 <span class="co">#&gt; Fixed effects:</span>
 <span class="co">#&gt;                Value lower.CI upper.CI</span>
-<span class="co">#&gt; (Intercept) -3.15279 -3.59926  -2.7476</span>
-<span class="co">#&gt; disturbance  0.92866  0.44727   1.4299</span>
+<span class="co">#&gt; (Intercept) -3.15275 -3.59922  -2.7475</span>
+<span class="co">#&gt; disturbance  0.92867  0.44728   1.4299</span>
 </pre></div>
 <p>“pc.prior.auto” is a good choice of prior I find for binomial models. If you are interested in the details of this kind of prior (known as a penalising complexity prior), check out this paper: <a href="https://arxiv.org/abs/1403.4630" class="uri">https://arxiv.org/abs/1403.4630</a>.</p>
 <p>The results of this model are consistent with the ML model, which is good to see. Now we also have lower and upper credible intervals. We can look at the full approximate marginal posterior distributions of the random effects and fixed effects with the <code>plot_bayes</code> function.</p>
@@ -304,7 +312,7 @@
 <span class="co">#&gt; Models of class pglmm do not have a R2_resid method.</span>
 <span class="co">#&gt; Models of class pglmm with bayes = TRUE do not have a R2_lik method.</span>
 <span class="co">#&gt;   R2_pred </span>
-<span class="co">#&gt; 0.4586559</span>
+<span class="co">#&gt; 0.4586484</span>
 </pre></div>
 <p>There we go! 0.46 for <code>mod_bayes</code>! We can think of this as saying roughly 46% of our response’s variance has been explained by our model, taking into account the various sources of covariance we modeled, subject to a boatload of assumption and caveats of course. That’s handy! See Ives (2018) for the full description of how this R<sup>2</sup> works.</p>
 </div>

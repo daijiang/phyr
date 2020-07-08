@@ -102,7 +102,7 @@ function requires the packages ggplot2 and ggridges to be installed." />
       <a href="../articles/pglmm.html">Usage of pglmm()</a>
     </li>
     <li>
-      <a href="../articles/phyr_example_empirical.html">phyr_example_empirical</a>
+      <a href="../articles/phyr_example_empirical.html">pglmm example with empirical data</a>
     </li>
     <li>
       <a href="../articles/plot-re.html">Plot random terms of communityPGLMM</a>
@@ -156,7 +156,7 @@ function requires the packages <code>ggplot2</code> and <code>ggridges</code> to
 )
 
 <span class='co'># S3 method for communityPGLMM</span>
-<span class='fu'><a href='https://rdrr.io/pkg/phyr/man/plot_bayes.html'>plot_bayes</a></span>(<span class='kw'>x</span>, n_samp = <span class='fl'>1000</span>, <span class='kw'>...</span>)</pre>
+<span class='fu'><a href='https://rdrr.io/pkg/phyr/man/plot_bayes.html'>plot_bayes</a></span>(<span class='kw'>x</span>, n_samp = <span class='fl'>1000</span>, sort = <span class='fl'>TRUE</span>, <span class='kw'>...</span>)</pre>
 
     <h2 class="hasAnchor" id="arguments"><a class="anchor" href="#arguments"></a>Arguments</h2>
     <table class="ref-arguments">
@@ -196,6 +196,10 @@ function requires the packages <code>ggplot2</code> and <code>ggridges</code> to
     <tr>
       <th>n_samp</th>
       <td><p>Number of sample from the marginal posterior to take in order to estimate the posterior density.</p></td>
+    </tr>
+    <tr>
+      <th>sort</th>
+      <td><p>Whether to plot different terms in the order of their estimations. Default is 'TRUE'.</p></td>
     </tr>
     </table>
 
