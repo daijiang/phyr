@@ -1,8 +1,8 @@
 ---
-title: "phyr_example_empirical"
+title: "pglmm example with empirical data"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{phyr_example_empirical}
+  %\VignetteIndexEntry{pglmm example with empirical data}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

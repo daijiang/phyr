@@ -10,6 +10,11 @@
 ^codecov\.yml$
 ^phyr_.*.zip$
 ^phyr_.*.tgz$
-^vignettes/dev.Rmd$
-^vignettes/profvis.Rmd$
+^vignettes/_dev\.Rmd$
+^vignettes/_profvis\.Rmd$
+^vignettes/phyr_example_empirical\.Rmd$
 ^data-raw$
+^_pkgdown\.yml$
+^docs$
+^pkgdown$
+^\.github$
