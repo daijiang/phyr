@@ -16,7 +16,7 @@
   ...
 )
 
-\method{plot_bayes}{communityPGLMM}(x, n_samp = 1000, ...)
+\method{plot_bayes}{communityPGLMM}(x, n_samp = 1000, sort = TRUE, ...)
 }
 \arguments{
 \item{x}{A communityPGLMM object fit with \code{bayes = TRUE}.}
@@ -36,6 +36,8 @@
 \item{...}{Further arguments to pass to or from other methods.}
 
 \item{n_samp}{Number of sample from the marginal posterior to take in order to estimate the posterior density.}
+
+\item{sort}{Whether to plot different terms in the order of their estimations. Default is 'TRUE'.}
 }
 \value{
 A ggplot object

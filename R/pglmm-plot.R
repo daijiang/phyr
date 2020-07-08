@@ -116,7 +116,7 @@ plot_bayes.communityPGLMM <- function(x, n_samp = 1000, sort = TRUE, ...) {
               .groups = "drop_last")
   
   if(sort){
-    ci <- dplyr::arrange(ci, mean) %>% ungroup() %>% 
+    ci <- dplyr::arrange(ci, mean) %>% dplyr::ungroup() %>% 
       dplyr::mutate(var = factor(as.character(var), levels = as.character(var)))
   }
   
