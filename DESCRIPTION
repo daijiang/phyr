@@ -54,6 +54,6 @@ Suggests:
     DHARMa,
     rr2
 VignetteBuilder: knitr
-URL: https://github.com/daijiang/phyr/
+URL: https://daijiang.github.io/phyr/, https://github.com/daijiang/phyr/
 BugReports: https://github.com/daijiang/phyr/issues
 Additional_repositories: https://inla.r-inla-download.org/R/stable/
