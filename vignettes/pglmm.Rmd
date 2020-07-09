@@ -39,6 +39,8 @@ All models fitted with `pglmm()` have class of `communityPGLMM`. Here is a list 
 - `pglmm_plot_re()`: plot images of random term matrix, see vignettes `plot-re`          
 - `pglmm_predicted_values()` or `fitted()`: extract fitted values
 - `pglmm_profile_LRT()`: to test significance of random terms; only works with binomial models 
+- `plot_data()`: plot data used (and optionally predicted) by fitted model
+- `plot_bayes()`: plot posterior distributions of random and fixed effects
 - `summary()`: summary of model fit
 - `print()`: summary of model fit
 - `residuals()`: residuals values

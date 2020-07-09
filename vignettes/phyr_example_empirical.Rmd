@@ -109,7 +109,7 @@ Indeed! My original results hold up to this model-based test of the same questio
 We can also get an idea of how well the model fits the data by plotting the observed and predicted values of the model side-by-side.
 
 ```{r plot_mod, fig.width=16, fig.height=9, out.width="90%"}
-plot(mod, predicted = TRUE)
+plot_data(mod, predicted = TRUE)
 ```
 
 The other result from this model is that there is a strong fixed effect of disturbance. In the context of a binomial multivariate model such as communityPGLMM this means there is an overall increase in the probability of occurrence in disturbed sites. In essence, this means that disturbed sites have a higher species richness at the site level (noting that expected alpha species richness of a site can be expressed as Gamma richness * E(prob_site(occurrence))).

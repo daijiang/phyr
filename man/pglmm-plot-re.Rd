@@ -132,10 +132,6 @@ a zero. The rest of the parameters of the model then reflect the "non-zero" part
 of the model. Note that "zeroinflated.binomial" only makes sense for success/failure
 response data.}
 
-\item{sp.var}{The variable name of "species"; y-axis of the image.}
-
-\item{site.var}{The variable name of "site"; x-axis of the image.}
-
 \item{tree}{A phylogeny for column sp, with "phylo" class, or a covariance matrix for sp.
 Make sure to have all species in the matrix; if the matrix is not standardized,
 (i.e., det(tree) != 1), \code{pglmm} will try to standardize it for you.
