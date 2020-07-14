@@ -541,7 +541,7 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
       if(is.null(tree) & !is.null(tree_site)) cov_ranef = list(site = tree_site) # column name must be site
       if(!is.null(tree) & !is.null(tree_site)) cov_ranef = list(sp = tree, site = tree_site)
     }
-    dat_prepared = prep_dat_pglmm(formula, data, cov_ranef, repulsion, prep_re, family, add.obs.re)
+    dat_prepared = prep_dat_pglmm(formula, data, cov_ranef, repulsion, prep_re, family, add.obs.re, bayes)
     formula = dat_prepared$formula
     random.effects = dat_prepared$random.effects
     cov_ranef_updated = dat_prepared$cov_ranef_updated
@@ -1046,9 +1046,10 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
       # nested term: 1|sp@site, 1|sp__@site, 1|sp@site__, 1|sp__@site__
       inla_effects[[i]] <- 1:nrow(data)
       inla_Cmat[[i]] <- solve(random.effects[[i]][[1]])
-    } else if(length(random.effects[[i]]) == 2) { # nested term
+    } else if(length(random.effects[[i]]) == 2) { 
+      # nested term: x|sp@site, x|sp__@site, x|sp@site__, x|sp__@site__
       inla_effects[[i]] <- 1:nrow(data)
-      inla_weights[[i]] <- random.effects[[i]][1]
+      inla_weights[[i]] <- random.effects[[i]][[1]]
       inla_Cmat[[i]] <- solve(random.effects[[i]][[2]])
     } else if(length(random.effects[[i]]) == 3) { 
       # non-nested term: e.g. 1|sp__, x|sp__

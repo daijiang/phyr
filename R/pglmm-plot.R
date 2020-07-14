@@ -136,7 +136,7 @@ plot_bayes.communityPGLMM <- function(x, n_samp = 1000, sort = TRUE, ...) {
     dplyr::left_join(sig_vars, by = "var") %>%
     dplyr::group_by(var) %>%
     dplyr::filter(abs(val - mean(val)) < (10 * sd(val))) %>% 
-    ungroup()
+    dplyr::ungroup()
   
   pal <- c("#fc8d62", "#8da0cb")
   p <- ggplot2::ggplot(samps, ggplot2::aes(val, var, height = ..density..)) +
@@ -180,7 +180,7 @@ plot_bayes <- function(x, ...) {
 #' 
 #' @rdname pglmm-plot-re
 #' @inheritParams pglmm
-#' @inheritParams plot.communityPGLMM
+#' @inheritParams plot_data
 #' @param x A fitted model with class communityPGLMM.
 #' @param show.image Whether to show the images of random effects.
 #' @param show.sim.image Whether to show the images of simulated site by sp matrix. 

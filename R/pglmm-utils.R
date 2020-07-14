@@ -67,7 +67,7 @@ parse_conv_ranef = function(x, df){
 #' @export
 prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE, 
                           prep.re.effects = TRUE, family = "gaussian",
-                          add.obs.re = TRUE){
+                          add.obs.re = TRUE, bayes){
   fm = unique(lme4::findbars(formula))
   formula.nobars <- lme4::nobars(formula) # fixed terms
   
@@ -238,8 +238,10 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
       } else { # slope
         if(grepl("@", x2[3])) {
           
+          if(!bayes) stop("Nested random term for slope is not allowed yet")
           ############## Working on this #########################
           
+          d = data[, x2[2]] # extract the column
           sp_or_site = strsplit(x2[3], split = "@")[[1]]
           colns = gsub("__$", "", sp_or_site)
           site_sp_c = paste(as.character(data[, colns[2]]), as.character(data[, colns[1]]), sep = "___")
@@ -249,22 +251,12 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
                         paste(colns[grepl("__", sp_or_site)], collapse = " and "), 
                         " not specified in cov_ranef."))
           
-          if(!grepl("__", x2[3])){ # no phylogenetic term; e.g. sp@site
-            if(family == 'poisson' | 
-               (family == 'binomial' & 
-                is.array(model.response(model.frame(formula.nobars, data = data, na.action = NULL))))){
-              if(add.obs.re) {
-                message("It seems that you specified an observation-level random term already e.g. (1|sp@site); 
-                       we will set 'add.obs.re' to FALSE.")
-                add.obs.re <<- FALSE
-                no_obs_re <<- FALSE
-              }
-            }
+          if(!grepl("__", x2[3])){ # no phylogenetic term; e.g. x|sp@site
             # message("Nested term without specify phylogeny, use identity matrix instead")
-            xout = list(as(diag(nrow(data)), "dgCMatrix"))
+            xout = list(d, as(diag(nrow(data)), "dgCMatrix"))
             xout = list(xout)
-          } else { # has phylogenetic term; sp__@site; sp__@site__; sp@site__
-            if(grepl("__", sp_or_site[1]) & !grepl("__", sp_or_site[2])){ # sp__@site
+          } else { # has phylogenetic term; x|sp__@site; x|sp__@site__; x|sp@site__
+            if(grepl("__", sp_or_site[1]) & !grepl("__", sp_or_site[2])){ # x|sp__@site
               n_dim = nlevels(data[, colns[2]])
               if(repulsion[nested_repul_i]){
                 xout = as(kronecker(diag(n_dim), solve(cov_ranef_list[[colns[1]]])), "dgCMatrix")
@@ -278,11 +270,11 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
                 sep = "___")
               # select the actual combination in the data; e.g. not all sp observed in every site.
               xout = xout[site_sp_c, site_sp_c]
-              xout = list(xout)
+              xout = list(d, xout)
               nested_repul_i <<- nested_repul_i + 1 # update repulsion index
             }
             
-            if(!grepl("__", sp_or_site[1]) & grepl("__", sp_or_site[2])){ # sp@site__
+            if(!grepl("__", sp_or_site[1]) & grepl("__", sp_or_site[2])){ # x|sp@site__
               n_dim = length(unique(data[, colns[1]]))
               if(repulsion[nested_repul_i]){
                 xout = as(kronecker(solve(cov_ranef_list[[colns[2]]]), diag(n_dim)), "dgCMatrix")
@@ -298,11 +290,11 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
               # select the actual combination in the data; e.g. not all sp observed in every site.
               xout = xout[site_sp_c, site_sp_c]
               
-              xout = list(xout)
+              xout = list(d, xout)
               nested_repul_i <<- nested_repul_i + 1
             }
             
-            if(grepl("__", sp_or_site[1]) & grepl("__", sp_or_site[2])){ # sp__@site__
+            if(grepl("__", sp_or_site[1]) & grepl("__", sp_or_site[2])){ # x|sp__@site__
               if(repulsion[nested_repul_i]){
                 Vphy2 = solve(cov_ranef_list[[colns[1]]])
               } else {
@@ -325,37 +317,31 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
                 sep = "___")
               # select the actual combination in the data; e.g. not all sp observed in every site.
               xout = xout[site_sp_c, site_sp_c]
-              xout = list(xout)
+              xout = list(d, xout)
             }
             
             xout = list(xout) # to put the matrix in a list
           }
-          
-          
-          
-          
-          
+ 
           ###########################################################
-          
-          
-          
+        } else{
+          if(grepl("__$", x2[3])){ # x|sp__
+            # also want phylogenetic version, 
+            # it makes sense if the phylogenetic version is in, the non-phy part should be there too
+            coln = gsub("__$", "", x2[3])
+            d = data[, coln] # extract the column
+            xout_nonphy = list(data[, x2[2]], d, covar = diag(nlevels(d)))
+            names(xout_nonphy)[2] = coln
+            xout_phy = list(data[, x2[2]], d, covar = cov_ranef_list[[coln]])
+            names(xout_phy)[2] = x2[3]
+            xout = list(xout_nonphy, xout_phy)
+          } else { # non phylogenetic random term; x|sp
+            d = data[, x2[3]] # extract the column
+            xout = list(data[, x2[2]], d, covar = diag(nlevels(d)))
+            names(xout)[2] = x2[3]
+            xout = list(xout)
+          }
         }
-        if(grepl("__$", x2[3])){ # x|sp__
-          # also want phylogenetic version, 
-          # it makes sense if the phylogenetic version is in, the non-phy part should be there too
-          coln = gsub("__$", "", x2[3])
-          d = data[, coln] # extract the column
-          xout_nonphy = list(data[, x2[2]], d, covar = diag(nlevels(d)))
-          names(xout_nonphy)[2] = coln
-          xout_phy = list(data[, x2[2]], d, covar = cov_ranef_list[[coln]])
-          names(xout_phy)[2] = x2[3]
-          xout = list(xout_nonphy, xout_phy)
-        } else { # non phylogenetic random term; x|sp
-          d = data[, x2[3]] # extract the column
-          xout = list(data[, x2[2]], d, covar = diag(nlevels(d)))
-          names(xout)[2] = x2[3]
-          xout = list(xout)
-        } 
       }
       xout
     })
