@@ -155,7 +155,7 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
           
           if(!grepl("__", x2[3])){ # no phylogenetic term; e.g. sp@site
             if(family == 'poisson' | 
-               (family == 'binomial' & 
+               (family == 'binomial' & # formula such as cbind(success, fail) ~ x
                 is.array(model.response(model.frame(formula.nobars, data = data, na.action = NULL))))){
               if(add.obs.re) {
                 message("It seems that you specified an observation-level random term already e.g. (1|sp@site); 
@@ -1135,12 +1135,12 @@ residuals.communityPGLMM <- function(
 #' @export
 fitted.communityPGLMM <- function(object, ...){
   if(object$bayes) {
-    ft = pglmm_predicted_values(object)$Y_hat
+    ft = pglmm_predicted_values(object, ...)$Y_hat
   } else {
     if(object$family %in% c("binomial","poisson")){
       ft = object$mu[, 1]
     } else {
-      ft = pglmm_predicted_values(object)$Y_hat
+      ft = pglmm_predicted_values(object, ...)$Y_hat
     }
   }
   
@@ -1150,6 +1150,8 @@ fitted.communityPGLMM <- function(object, ...){
 #' Extract the fixed-effects estimates
 #'
 #' Extract the estimates of the fixed-effects parameters from a fitted model.
+#' For bayesian models, the p-values are simply to indicate whether the 
+#' credible intervals include 0 (p = 0.04) or not (p = 0.6).
 #' 
 #' @name fixef
 #' @title Extract fixed-effects estimates
@@ -1164,10 +1166,10 @@ fitted.communityPGLMM <- function(object, ...){
 #' @export
 fixef.communityPGLMM <- function(object, ...) {
   if (object$bayes) {
+    in_interval <- function(x, y1, y2){y1 <= x & x <= y2 }
 
-    in_interval <- function(x, y1, y2){ y1 <= x & x <= y2 }
-
-    coef <- data.frame(Value = object$B, lower.CI = object$B.ci[, 1], upper.CI = object$B.ci[, 2],
+    coef <- data.frame(Value = object$B, lower.CI = object$B.ci[, 1], 
+                       upper.CI = object$B.ci[, 2],
                        Pvalue = ifelse(apply(object$B.ci, 1, function(y)
                          in_interval(0, y[1], y[2])) == FALSE,
                          0.04, 0.6))
@@ -1268,7 +1270,7 @@ predict.communityPGLMM <- function(object, newdata = NULL, ...) {
     warning("newdata argument is currently not supported by predict.communityPGLMM. It will be ignored, and predictions 
             returned on original data used to fit the model. newdata will be supported in the future.")
   }
-  as.matrix(pglmm_predicted_values(object))
+  as.matrix(pglmm_predicted_values(object, ...))
 }
 
 #' Simulate from a communityPGLMM object

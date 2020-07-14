@@ -139,7 +139,7 @@
 #'   \code{(1|sp__@site) + (1|sp@site__) + (1|sp__@site__)}, then you should set the 
 #'   repulsion to be something like \code{c(TRUE, FALSE, TRUE, TRUE)} (length of 4). 
 #' @param add.obs.re Whether to add an observation-level random term for binomial or Poisson
-#'   distributions Normally it would be a good idea to add this to account for overdispersion,
+#'   distributions. Normally it would be a good idea to add this to account for overdispersion,
 #'   so \code{add.obs.re = TRUE} by default.
 #' @param verbose If \code{TRUE}, the model deviance and running
 #'   estimates of \code{s2} and \code{B} are plotted each iteration
@@ -1042,18 +1042,20 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   inla_reps <- list()
   
   for(i in seq_along(random.effects)) {
-    if(length(random.effects[[i]]) == 1) { # nested term
+    if(length(random.effects[[i]]) == 1) { 
+      # nested term: 1|sp@site, 1|sp__@site, 1|sp@site__, 1|sp__@site__
       inla_effects[[i]] <- 1:nrow(data)
       inla_Cmat[[i]] <- solve(random.effects[[i]][[1]])
     } else if(length(random.effects[[i]]) == 2) { # nested term
       inla_effects[[i]] <- 1:nrow(data)
       inla_weights[[i]] <- random.effects[[i]][1]
       inla_Cmat[[i]] <- solve(random.effects[[i]][[2]])
-    } else if(length(random.effects[[i]]) == 3) { # non-nested term
+    } else if(length(random.effects[[i]]) == 3) { 
+      # non-nested term: e.g. 1|sp__, x|sp__
       inla_effects[[i]] <- as.numeric(random.effects[[i]][[2]])
       inla_Cmat[[i]] <- solve(random.effects[[i]][[3]])
       inla_weights[[i]] <- random.effects[[i]][[1]]
-    } else { # nested term
+    } else { # nested term: 1|sp@site, 1|sp__@site, 1|sp@site__, 1|sp__@site__
       inla_effects[[i]] <- as.numeric(random.effects[[i]][[2]])
       inla_Cmat[[i]] <- solve(random.effects[[i]][[3]])
       inla_weights[[i]] <- random.effects[[i]][[1]]
