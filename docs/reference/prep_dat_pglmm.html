@@ -150,7 +150,8 @@ prepare a list of random effects, which then can be updated by users for more co
   repulsion = <span class='fl'>FALSE</span>,
   prep.re.effects = <span class='fl'>TRUE</span>,
   family = <span class='st'>"gaussian"</span>,
-  add.obs.re = <span class='fl'>TRUE</span>
+  add.obs.re = <span class='fl'>TRUE</span>,
+  <span class='kw'>bayes</span>
 )</pre>
 
     <h2 class="hasAnchor" id="arguments"><a class="anchor" href="#arguments"></a>Arguments</h2>
@@ -229,8 +230,12 @@ response data.</p></td>
     <tr>
       <th>add.obs.re</th>
       <td><p>Whether to add an observation-level random term for binomial or Poisson
-distributions Normally it would be a good idea to add this to account for overdispersion,
+distributions. Normally it would be a good idea to add this to account for overdispersion,
 so <code>add.obs.re = TRUE</code> by default.</p></td>
+    </tr>
+    <tr>
+      <th>bayes</th>
+      <td><p>Whether to fit a Bayesian version of the PGLMM using <code>r-inla</code>.</p></td>
     </tr>
     </table>
 

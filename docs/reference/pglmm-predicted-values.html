@@ -148,7 +148,8 @@ c("binomial","poisson"), these values are in the transformed space.</p>
     <pre class="usage"><span class='fu'><a href='https://rdrr.io/pkg/phyr/man/pglmm-predicted-values.html'>pglmm_predicted_values</a></span>(
   <span class='kw'>x</span>,
   cpp = <span class='fl'>TRUE</span>,
-  gaussian.pred = <span class='fu'><a href='https://rdrr.io/r/base/c.html'>c</a></span>(<span class='st'>"nearest_node"</span>, <span class='st'>"tip_rm"</span>)
+  gaussian.pred = <span class='fu'><a href='https://rdrr.io/r/base/c.html'>c</a></span>(<span class='st'>"nearest_node"</span>, <span class='st'>"tip_rm"</span>),
+  <span class='kw'>...</span>
 )
 
 <span class='fu'><a href='https://rdrr.io/pkg/phyr/man/pglmm-predicted-values.html'>communityPGLMM.predicted.values</a></span>(
@@ -173,6 +174,10 @@ c("binomial","poisson"), these values are in the transformed space.</p>
       <td><p>When family is gaussian, which type of prediction to calculate?
 Option nearest_node will predict values to the nearest node, which is same as lme4::predict or
 fitted. Option tip_rm will remove the point then predict the value of this point with remaining ones.</p></td>
+    </tr>
+    <tr>
+      <th>...</th>
+      <td><p>Optional additional parameters. None are used at present.</p></td>
     </tr>
     </table>
 
