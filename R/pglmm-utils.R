@@ -945,8 +945,8 @@ summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") -
   random.effects = x$random.effects
   if(!is.null(names(random.effects))){
     re.names = names(random.effects)[c(
-      which(sapply(random.effects, length) %nin% c(1, 4)),
-      which(sapply(random.effects, length) %in% c(1, 4))
+      which(sapply(random.effects, length) %nin% c(1, 2, 4)),
+      which(sapply(random.effects, length) %in% c(1, 2, 4))
     )]
   } else {
     re.names <- NULL
@@ -960,7 +960,7 @@ summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") -
   
   if (x$family == "gaussian") re.names <- c(re.names, "residual")
   
-  row.names(w) <- re.names
+  if(!x$bayes) row.names(w) <- re.names
   print(w, digits = digits)
   
   cat("\nFixed effects:\n")

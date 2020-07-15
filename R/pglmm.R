@@ -627,11 +627,11 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
   # add names for ss
   if(!is.null(names(random.effects))){
     re.names = names(random.effects)[c(
-      which(sapply(random.effects, length) %nin% c(1, 4)), # non-nested terms
-      which(sapply(random.effects, length) %in% c(1, 4)) # nested terms
+      which(sapply(random.effects, length) %nin% c(1, 2, 4)), # non-nested terms
+      which(sapply(random.effects, length) %in% c(1, 2, 4)) # nested terms
     )]
-    if (family == "gaussian") re.names <- c(re.names, "residual")
-    names(z$ss) = re.names
+    if(family == "gaussian") re.names <- c(re.names, "residual")
+    if(!bayes) names(z$ss) = re.names
   }
   
   return(z)
@@ -1208,6 +1208,7 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   
   if(family == "gaussian") {
     resid_var <- variances[1]
+    names(resid_var) <- "residual"
     variances <- variances[-1]
     resid_var.ci <- variances.ci[1, ]
     variances.ci <- variances.ci[-1, ]
@@ -1226,7 +1227,10 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     zeroinflated_param.ci <- NULL
   }
   
-  ss <- c(variances[!nested]^0.5, variances[nested]^0.5, resid_var^0.5)
+  names(variances) <- names(random.effects)
+  row.names(variances.ci) <- paste("Precision for", names(random.effects))
+  std.vars <- variances^0.5
+  ss <- c(std.vars[!nested], std.vars[nested], resid_var)
   
   if(marginal.summ == "median") marginal.summ <- "0.5quant"
   
