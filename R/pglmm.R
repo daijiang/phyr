@@ -139,7 +139,7 @@
 #'   \code{(1|sp__@site) + (1|sp@site__) + (1|sp__@site__)}, then you should set the 
 #'   repulsion to be something like \code{c(TRUE, FALSE, TRUE, TRUE)} (length of 4). 
 #' @param add.obs.re Whether to add an observation-level random term for binomial or Poisson
-#'   distributions Normally it would be a good idea to add this to account for overdispersion,
+#'   distributions. Normally it would be a good idea to add this to account for overdispersion,
 #'   so \code{add.obs.re = TRUE} by default.
 #' @param verbose If \code{TRUE}, the model deviance and running
 #'   estimates of \code{s2} and \code{B} are plotted each iteration
@@ -541,7 +541,7 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
       if(is.null(tree) & !is.null(tree_site)) cov_ranef = list(site = tree_site) # column name must be site
       if(!is.null(tree) & !is.null(tree_site)) cov_ranef = list(sp = tree, site = tree_site)
     }
-    dat_prepared = prep_dat_pglmm(formula, data, cov_ranef, repulsion, prep_re, family, add.obs.re)
+    dat_prepared = prep_dat_pglmm(formula, data, cov_ranef, repulsion, prep_re, family, add.obs.re, bayes)
     formula = dat_prepared$formula
     random.effects = dat_prepared$random.effects
     cov_ranef_updated = dat_prepared$cov_ranef_updated
@@ -624,15 +624,15 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
   z$formula_original = fm_original
   z$cov_ranef = if(is.null(cov_ranef)) NA else cov_ranef_updated
   
-  # add names for ss
-  if(!is.null(names(random.effects))){
-    re.names = names(random.effects)[c(
-      which(sapply(random.effects, length) %nin% c(1, 4)), # non-nested terms
-      which(sapply(random.effects, length) %in% c(1, 4)) # nested terms
-    )]
-    if (family == "gaussian") re.names <- c(re.names, "residual")
-    names(z$ss) = re.names
-  }
+  # # add names for ss
+  # if(!is.null(names(random.effects))){
+  #   re.names = names(random.effects)[c(
+  #     which(sapply(random.effects, length) %nin% c(1, 2, 4)), # non-nested terms
+  #     which(sapply(random.effects, length) %in% c(1, 2, 4)) # nested terms
+  #   )]
+  #   if(family == "gaussian") re.names <- c(re.names, "residual")
+  #   if((!bayes) & family != "gaussian") names(z$ss) = re.names
+  # }
   
   return(z)
 }
@@ -717,6 +717,14 @@ communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian",
     }
   }
   
+  # add names to variance estimates to make sure they are in order
+  if(!is.null(names(random.effects))){
+    re.len <- sapply(random.effects, length)
+    if(length(out$sr)) names(out$sr) <- names(out$s2r) <- names(random.effects)[re.len == 3]
+    if(length(out$sn)) names(out$sn) <- names(out$s2n) <- names(random.effects)[re.len %in% c(1, 4)]
+    names(out$s2resid) <- "residual"
+  }
+ 
   ss <- c(out$sr, out$sn, out$s2resid^0.5)
   B.zscore <- out$B/out$B.se
   B.pvalue <- 2 * pnorm(abs(B.zscore), lower.tail = FALSE)
@@ -875,6 +883,7 @@ communityPGLMM.glmm <- function(formula, data = list(), family = "binomial",
       est.ss <- ss
       est.B <- B
     }
+    row.names(B) = colnames(X)
   }
   
   # Extract parameters
@@ -889,6 +898,14 @@ communityPGLMM.glmm <- function(formula, data = list(), family = "binomial",
     sn <- ss[(q.nonNested + 1):(q.nonNested + q.Nested)]
   } else {
     sn <- NULL
+  }
+  
+  # add names to variance estimates to make sure they are in order
+  if(!is.null(names(random.effects))){
+    re.len <- sapply(random.effects, length)
+    if(length(sr)) names(sr) <- names(random.effects)[re.len == 3]
+    if(length(sn)) names(sn) <- names(random.effects)[re.len %in% c(1, 4)]
+    names(ss) <- c(names(sr), names(sn))
   }
   
   s2r <- sr^2
@@ -1042,18 +1059,21 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   inla_reps <- list()
   
   for(i in seq_along(random.effects)) {
-    if(length(random.effects[[i]]) == 1) { # nested term
+    if(length(random.effects[[i]]) == 1) { 
+      # nested term: 1|sp@site, 1|sp__@site, 1|sp@site__, 1|sp__@site__
       inla_effects[[i]] <- 1:nrow(data)
       inla_Cmat[[i]] <- solve(random.effects[[i]][[1]])
-    } else if(length(random.effects[[i]]) == 2) { # nested term
+    } else if(length(random.effects[[i]]) == 2) { 
+      # nested term: x|sp@site, x|sp__@site, x|sp@site__, x|sp__@site__
       inla_effects[[i]] <- 1:nrow(data)
-      inla_weights[[i]] <- random.effects[[i]][1]
+      inla_weights[[i]] <- random.effects[[i]][[1]]
       inla_Cmat[[i]] <- solve(random.effects[[i]][[2]])
-    } else if(length(random.effects[[i]]) == 3) { # non-nested term
+    } else if(length(random.effects[[i]]) == 3) { 
+      # non-nested term: e.g. 1|sp__, x|sp__
       inla_effects[[i]] <- as.numeric(random.effects[[i]][[2]])
       inla_Cmat[[i]] <- solve(random.effects[[i]][[3]])
       inla_weights[[i]] <- random.effects[[i]][[1]]
-    } else { # nested term
+    } else { # nested term: 1|sp@site, 1|sp__@site, 1|sp@site__, 1|sp__@site__
       inla_effects[[i]] <- as.numeric(random.effects[[i]][[2]])
       inla_Cmat[[i]] <- solve(random.effects[[i]][[3]])
       inla_weights[[i]] <- random.effects[[i]][[1]]
@@ -1122,9 +1142,8 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   argus <- c(list(formula = as.formula(inla_formula),
                   data = data,
                   verbose = verbose,
-                  family = family
-  ),
-  bayes_options)
+                  family = family), 
+             bayes_options)
   if(is.null(argus$control.fixed)) {
     argus$control.fixed = list(prec.intercept = 0.0001, correlation.matrix = TRUE)
   } else {
@@ -1196,6 +1215,12 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     DIC <- NULL
   }
   
+  if(calc.WAIC){
+    WAIC <- out$waic$waic
+  } else {
+    WAIC <- NULL
+  }
+  
   if(marginal.summ == "median") marginal.summ <- "0.5quant"
   
   nested <- sapply(random.effects, length) %in% c(1, 2, 4)
@@ -1205,6 +1230,7 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   
   if(family == "gaussian") {
     resid_var <- variances[1]
+    names(resid_var) <- "residual"
     variances <- variances[-1]
     resid_var.ci <- variances.ci[1, ]
     variances.ci <- variances.ci[-1, ]
@@ -1223,7 +1249,10 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     zeroinflated_param.ci <- NULL
   }
   
-  ss <- c(variances[!nested]^0.5, variances[nested]^0.5, resid_var^0.5)
+  names(variances) <- names(random.effects)
+  row.names(variances.ci) <- paste("Precision for", names(random.effects))
+  std.vars <- variances^0.5
+  ss <- c(std.vars[!nested], std.vars[nested], resid_var)
   
   if(marginal.summ == "median") marginal.summ <- "0.5quant"
   
@@ -1240,7 +1269,7 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
                   s2resid = resid_var, zi = zeroinlated_param, s2n.ci = variances.ci[nested, ], 
                   s2r.ci = variances.ci[!nested, ], s2resid.ci = resid_var.ci,
                   zi.ci = zeroinflated_param.ci,
-                  logLik = out$mlik[1, 1], AIC = NULL, BIC = NULL, DIC = DIC, 
+                  logLik = out$mlik[1, 1], AIC = NULL, BIC = NULL, DIC = DIC, WAIC = WAIC,
                   REML = NULL, bayes = TRUE, marginal.summ = marginal.summ, 
                   s2.init = s2.init, B.init = B.init, Y = Y, X = X, H = H, 
                   iV = NULL, mu = mu, nested = nested, Zt = NULL, St = NULL, 

@@ -22,4 +22,6 @@ Extract the fixed-effects estimates
 }
 \details{
 Extract the estimates of the fixed-effects parameters from a fitted model.
+For bayesian models, the p-values are simply to indicate whether the
+credible intervals include 0 (p = 0.04) or not (p = 0.6).
 }

@@ -142,7 +142,7 @@
     </div>
 
     <pre class="usage"><span class='co'># S3 method for communityPGLMM</span>
-<span class='fu'><a href='https://rdrr.io/r/stats/simulate.html'>simulate</a></span>(<span class='kw'>object</span>, nsim = <span class='fl'>1</span>, seed = <span class='kw'>NULL</span>, use.u = <span class='fl'>FALSE</span>, <span class='kw'>...</span>)</pre>
+<span class='fu'><a href='https://rdrr.io/r/stats/simulate.html'>simulate</a></span>(<span class='kw'>object</span>, nsim = <span class='fl'>1</span>, seed = <span class='kw'>NULL</span>, use.u = <span class='fl'>FALSE</span>, re.form = <span class='fl'>NA</span>, <span class='kw'>...</span>)</pre>
 
     <h2 class="hasAnchor" id="arguments"><a class="anchor" href="#arguments"></a>Arguments</h2>
     <table class="ref-arguments">
@@ -169,6 +169,12 @@
     <code>re.form = NULL</code> (condition on all random effects), while
     <code>FALSE</code> corresponds to <code>re.form = ~0</code> (condition on none
     of the random effects).)</p></td>
+    </tr>
+    <tr>
+      <th>re.form</th>
+      <td><p>formula for random effects to condition on.  If
+    <code>NULL</code>, condition on all random effects; if <code>NA</code> or <code>~0</code>,
+    condition on no random effects.  See Details.</p></td>
     </tr>
     <tr>
       <th>...</th>

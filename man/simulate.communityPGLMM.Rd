@@ -4,7 +4,7 @@
 \alias{simulate.communityPGLMM}
 \title{Simulate from a communityPGLMM object}
 \usage{
-\method{simulate}{communityPGLMM}(object, nsim = 1, seed = NULL, use.u = FALSE, ...)
+\method{simulate}{communityPGLMM}(object, nsim = 1, seed = NULL, use.u = FALSE, re.form = NA, ...)
 }
 \arguments{
 \item{object}{A fitted model object with class 'communityPGLMM'.}
@@ -21,6 +21,10 @@
     \code{re.form = NULL} (condition on all random effects), while
     \code{FALSE} corresponds to \code{re.form = ~0} (condition on none
     of the random effects).)}
+
+\item{re.form}{formula for random effects to condition on.  If
+    \code{NULL}, condition on all random effects; if \code{NA} or \code{~0},
+    condition on no random effects.  See Details.}
 
 \item{...}{optional additional arguments: none are used at present.}
 }

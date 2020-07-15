@@ -49,7 +49,9 @@ a zero. The rest of the parameters of the model then reflect the "non-zero" part
 of the model. Note that "zeroinflated.binomial" only makes sense for success/failure
 response data.}
 
-\item{data}{A data frame containing the variables named in formula.}
+\item{data}{A data frame containing the variables named in formula. It must has
+the tip labels of the phylogeny as row names; if they are not in the same order,
+the data frame will be arranged so that row names match the order of tip labels.}
 
 \item{phy}{A phylogenetic tree as an object of class "phylo".}
 
@@ -199,7 +201,8 @@ hypothesis that there is no signal. Therefore, when applied without
 predictor (independent) variables, it gives a test for phylogenetic signal.
 \code{pglmm_compare} is a wrapper for \code{pglmm} tailored for comparative data in
 which each value of the response (dependent) variable corresponds to a single tip
-on a phylogenetic tree.
+on a phylogenetic tree. If there are multiple measures for each species, \code{pglmm}
+will be helpful.
 }
 \details{
 \code{pglmm_compare} in the package \code{phyr} is similar to \code{binaryPGLMM} in
@@ -250,28 +253,30 @@ X1 <- rTraitCont(phy, model = "BM", sigma = 1)
 X1 <- (X1 - mean(X1))/var(X1)
 
 # Simulate binary Y
-sim.dat <- data.frame(Y=array(0, dim=n), X1=X1, row.names=phy$tip.label)
-sim.dat$Y <- ape::binaryPGLMM.sim(Y ~ X1, phy=phy, data=sim.dat, s2=1,
-                             B=matrix(c(0,.25),nrow=2,ncol=1), nrep=1)$Y
+sim.dat <- data.frame(Y = array(0, dim = n), X1 = X1, row.names = phy$tip.label)
+sim.dat$Y <- ape::binaryPGLMM.sim(Y ~ X1, phy = phy, data=sim.dat, s2 = 1,
+                             B = matrix(c(0, .25), nrow = 2, ncol = 1), 
+                             nrep = 1)$Y
 
 # Fit model
-pglmm_compare(Y ~ X1, family="binomial", phy=phy, data=sim.dat)
+pglmm_compare(Y ~ X1, family = "binomial", phy = phy, data = sim.dat)
 
 # Compare with `binaryPGLMM`
-ape::binaryPGLMM(Y ~ X1, phy=phy, data=sim.dat)
+ape::binaryPGLMM(Y ~ X1, phy = phy, data = sim.dat)
 
 # Compare with `phyloglm`
-summary(phylolm::phyloglm(Y ~ X1, phy=phy, data=sim.dat))
+summary(phylolm::phyloglm(Y ~ X1, phy = phy, data = sim.dat))
 
 # Compare with `glm` that does not account for phylogeny
-summary(glm(Y ~ X1, data=sim.dat, family="binomial"))
+summary(glm(Y ~ X1, data = sim.dat, family = "binomial"))
 
 # Compare with logistf() that does not account
 # for phylogeny but is less biased than glm()
-logistf::logistf(Y ~ X1, data=sim.dat)
+logistf::logistf(Y ~ X1, data = sim.dat)
 
 ## Fit model with bayes = TRUE
-# pglmm_compare(Y ~ X1, family="binomial", phy=phy, data=sim.dat, bayes = TRUE, calc.DIC = TRUE)
+# pglmm_compare(Y ~ X1, family = "binomial", phy = phy, data = sim.dat, 
+#               bayes = TRUE, calc.DIC = TRUE)
 
 # Compare with `MCMCglmm`
 
@@ -290,9 +295,9 @@ burnin <- 3000
 
 prior <- list(R=list(V=1, fix=1), G=list(G1=list(V=1, nu=1000, alpha.mu=0, alpha.V=1)))
 # commented out to save time
-# summary(MCMCglmm::MCMCglmm(Y ~ X1, random=~species, ginvers=list(species=invV),
-#     data=sim.dat, slice=TRUE, nitt=nitt, thin=thin, burnin=burnin,
-#    family="categorical", prior=prior, verbose=FALSE))
+# summary(MCMCglmm::MCMCglmm(Y ~ X1, random = ~species, ginvers = list(species = invV),
+#     data = sim.dat, slice = TRUE, nitt = nitt, thin = thin, burnin = burnin,
+#    family = "categorical", prior = prior, verbose = FALSE))
 
 }
 \references{

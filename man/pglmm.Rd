@@ -147,7 +147,7 @@ elements (repulsion for sp and repulsion for site). Therefore, if your nested te
 repulsion to be something like \code{c(TRUE, FALSE, TRUE, TRUE)} (length of 4).}
 
 \item{add.obs.re}{Whether to add an observation-level random term for binomial or Poisson
-distributions Normally it would be a good idea to add this to account for overdispersion,
+distributions. Normally it would be a good idea to add this to account for overdispersion,
 so \code{add.obs.re = TRUE} by default.}
 
 \item{verbose}{If \code{TRUE}, the model deviance and running

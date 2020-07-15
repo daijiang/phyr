@@ -8,7 +8,8 @@
 pglmm_predicted_values(
   x,
   cpp = TRUE,
-  gaussian.pred = c("nearest_node", "tip_rm")
+  gaussian.pred = c("nearest_node", "tip_rm"),
+  ...
 )
 
 communityPGLMM.predicted.values(
@@ -25,6 +26,8 @@ communityPGLMM.predicted.values(
 \item{gaussian.pred}{When family is gaussian, which type of prediction to calculate?
 Option nearest_node will predict values to the nearest node, which is same as lme4::predict or
 fitted. Option tip_rm will remove the point then predict the value of this point with remaining ones.}
+
+\item{...}{Optional additional parameters. None are used at present.}
 }
 \value{
 A data frame with column Y_hat (predicted values accounting for

@@ -3,7 +3,6 @@
 #' Plot the original dataset and predicted values (optional)
 #' 
 #' @rdname pglmm-plot-data
-#' @method plot communityPGLMM
 #' @importFrom graphics image
 #' @param x A fitted model with class communityPGLMM.
 #' @param sp.var The variable name of "species"; y-axis of the image.
@@ -12,12 +11,13 @@
 #' @param show.site.names Whether to print site names as x-axis labels.
 #' @param digits Not used.
 #' @param predicted Whether to plot predicted values side by side with observed ones.
+#' @param ... Additional arguments for [`graphics::image`].
 #' @note The underlying plot grid object is returned but invisible. It can be saved for later uses.
 #' @export
-plot.communityPGLMM <- function(x, sp.var = "sp", site.var = "site",
-                                show.sp.names = FALSE, show.site.names = FALSE,
-                                digits = max(3, getOption("digits") - 3), 
-                                predicted = FALSE, ...) {
+plot_data <- function(x, sp.var = "sp", site.var = "site",
+                      show.sp.names = FALSE, show.site.names = FALSE,
+                      digits = max(3, getOption("digits") - 3), 
+                      predicted = FALSE, ...) {
   data = x$data
   W <- data.frame(Y = x$Y, sp = data[, sp.var], site = data[, site.var])
   Y <- reshape(W, v.names = "Y", idvar = "sp", timevar = "site", direction = "wide")
@@ -136,7 +136,7 @@ plot_bayes.communityPGLMM <- function(x, n_samp = 1000, sort = TRUE, ...) {
     dplyr::left_join(sig_vars, by = "var") %>%
     dplyr::group_by(var) %>%
     dplyr::filter(abs(val - mean(val)) < (10 * sd(val))) %>% 
-    ungroup()
+    dplyr::ungroup()
   
   pal <- c("#fc8d62", "#8da0cb")
   p <- ggplot2::ggplot(samps, ggplot2::aes(val, var, height = ..density..)) +
@@ -180,7 +180,7 @@ plot_bayes <- function(x, ...) {
 #' 
 #' @rdname pglmm-plot-re
 #' @inheritParams pglmm
-#' @inheritParams plot.communityPGLMM
+#' @inheritParams plot_data
 #' @param x A fitted model with class communityPGLMM.
 #' @param show.image Whether to show the images of random effects.
 #' @param show.sim.image Whether to show the images of simulated site by sp matrix. 

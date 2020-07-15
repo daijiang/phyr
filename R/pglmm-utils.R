@@ -67,7 +67,7 @@ parse_conv_ranef = function(x, df){
 #' @export
 prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE, 
                           prep.re.effects = TRUE, family = "gaussian",
-                          add.obs.re = TRUE){
+                          add.obs.re = TRUE, bayes){
   fm = unique(lme4::findbars(formula))
   formula.nobars <- lme4::nobars(formula) # fixed terms
   
@@ -155,7 +155,7 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
           
           if(!grepl("__", x2[3])){ # no phylogenetic term; e.g. sp@site
             if(family == 'poisson' | 
-               (family == 'binomial' & 
+               (family == 'binomial' & # formula such as cbind(success, fail) ~ x
                 is.array(model.response(model.frame(formula.nobars, data = data, na.action = NULL))))){
               if(add.obs.re) {
                 message("It seems that you specified an observation-level random term already e.g. (1|sp@site); 
@@ -238,8 +238,10 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
       } else { # slope
         if(grepl("@", x2[3])) {
           
+          if(!bayes) stop("Nested random term for slope is not allowed yet")
           ############## Working on this #########################
           
+          d = data[, x2[2]] # extract the column
           sp_or_site = strsplit(x2[3], split = "@")[[1]]
           colns = gsub("__$", "", sp_or_site)
           site_sp_c = paste(as.character(data[, colns[2]]), as.character(data[, colns[1]]), sep = "___")
@@ -249,22 +251,12 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
                         paste(colns[grepl("__", sp_or_site)], collapse = " and "), 
                         " not specified in cov_ranef."))
           
-          if(!grepl("__", x2[3])){ # no phylogenetic term; e.g. sp@site
-            if(family == 'poisson' | 
-               (family == 'binomial' & 
-                is.array(model.response(model.frame(formula.nobars, data = data, na.action = NULL))))){
-              if(add.obs.re) {
-                message("It seems that you specified an observation-level random term already e.g. (1|sp@site); 
-                       we will set 'add.obs.re' to FALSE.")
-                add.obs.re <<- FALSE
-                no_obs_re <<- FALSE
-              }
-            }
+          if(!grepl("__", x2[3])){ # no phylogenetic term; e.g. x|sp@site
             # message("Nested term without specify phylogeny, use identity matrix instead")
-            xout = list(as(diag(nrow(data)), "dgCMatrix"))
+            xout = list(d, as(diag(nrow(data)), "dgCMatrix"))
             xout = list(xout)
-          } else { # has phylogenetic term; sp__@site; sp__@site__; sp@site__
-            if(grepl("__", sp_or_site[1]) & !grepl("__", sp_or_site[2])){ # sp__@site
+          } else { # has phylogenetic term; x|sp__@site; x|sp__@site__; x|sp@site__
+            if(grepl("__", sp_or_site[1]) & !grepl("__", sp_or_site[2])){ # x|sp__@site
               n_dim = nlevels(data[, colns[2]])
               if(repulsion[nested_repul_i]){
                 xout = as(kronecker(diag(n_dim), solve(cov_ranef_list[[colns[1]]])), "dgCMatrix")
@@ -278,11 +270,11 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
                 sep = "___")
               # select the actual combination in the data; e.g. not all sp observed in every site.
               xout = xout[site_sp_c, site_sp_c]
-              xout = list(xout)
+              xout = list(d, xout)
               nested_repul_i <<- nested_repul_i + 1 # update repulsion index
             }
             
-            if(!grepl("__", sp_or_site[1]) & grepl("__", sp_or_site[2])){ # sp@site__
+            if(!grepl("__", sp_or_site[1]) & grepl("__", sp_or_site[2])){ # x|sp@site__
               n_dim = length(unique(data[, colns[1]]))
               if(repulsion[nested_repul_i]){
                 xout = as(kronecker(solve(cov_ranef_list[[colns[2]]]), diag(n_dim)), "dgCMatrix")
@@ -298,11 +290,11 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
               # select the actual combination in the data; e.g. not all sp observed in every site.
               xout = xout[site_sp_c, site_sp_c]
               
-              xout = list(xout)
+              xout = list(d, xout)
               nested_repul_i <<- nested_repul_i + 1
             }
             
-            if(grepl("__", sp_or_site[1]) & grepl("__", sp_or_site[2])){ # sp__@site__
+            if(grepl("__", sp_or_site[1]) & grepl("__", sp_or_site[2])){ # x|sp__@site__
               if(repulsion[nested_repul_i]){
                 Vphy2 = solve(cov_ranef_list[[colns[1]]])
               } else {
@@ -325,37 +317,31 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
                 sep = "___")
               # select the actual combination in the data; e.g. not all sp observed in every site.
               xout = xout[site_sp_c, site_sp_c]
-              xout = list(xout)
+              xout = list(d, xout)
             }
             
             xout = list(xout) # to put the matrix in a list
           }
-          
-          
-          
-          
-          
+ 
           ###########################################################
-          
-          
-          
+        } else{
+          if(grepl("__$", x2[3])){ # x|sp__
+            # also want phylogenetic version, 
+            # it makes sense if the phylogenetic version is in, the non-phy part should be there too
+            coln = gsub("__$", "", x2[3])
+            d = data[, coln] # extract the column
+            xout_nonphy = list(data[, x2[2]], d, covar = diag(nlevels(d)))
+            names(xout_nonphy)[2] = coln
+            xout_phy = list(data[, x2[2]], d, covar = cov_ranef_list[[coln]])
+            names(xout_phy)[2] = x2[3]
+            xout = list(xout_nonphy, xout_phy)
+          } else { # non phylogenetic random term; x|sp
+            d = data[, x2[3]] # extract the column
+            xout = list(data[, x2[2]], d, covar = diag(nlevels(d)))
+            names(xout)[2] = x2[3]
+            xout = list(xout)
+          }
         }
-        if(grepl("__$", x2[3])){ # x|sp__
-          # also want phylogenetic version, 
-          # it makes sense if the phylogenetic version is in, the non-phy part should be there too
-          coln = gsub("__$", "", x2[3])
-          d = data[, coln] # extract the column
-          xout_nonphy = list(data[, x2[2]], d, covar = diag(nlevels(d)))
-          names(xout_nonphy)[2] = coln
-          xout_phy = list(data[, x2[2]], d, covar = cov_ranef_list[[coln]])
-          names(xout_phy)[2] = x2[3]
-          xout = list(xout_nonphy, xout_phy)
-        } else { # non phylogenetic random term; x|sp
-          d = data[, x2[3]] # extract the column
-          xout = list(data[, x2[2]], d, covar = diag(nlevels(d)))
-          names(xout)[2] = x2[3]
-          xout = list(xout)
-        } 
       }
       xout
     })
@@ -920,15 +906,10 @@ summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") -
   cat("\n")
   
   if(x$bayes) {
-    logLik <- x$logLik
-    names(logLik) <- "marginal logLik"
-    if(!is.null(x$DIC)) {
-      DIC <- x$DIC
-      names(DIC) <- "DIC"
-      print(c(logLik, DIC), digits = digits)
-    } else {
-      print(logLik, digits = digits)
-    }
+    logLik <- c("marginal logLik" = unname(x$logLik), 
+                "DIC" = unname(x$DIC), 
+                "WAIC" = unname(x$WAIC))
+    print(logLik, digits = digits)
   } else {
     if (x$family == "gaussian") {
       logLik = x$logLik
@@ -944,7 +925,8 @@ summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") -
   
   if(grepl("zeroinflated", x$family)) {
     cat("\nZero Inflation Parameter:\n")
-    print(data.frame(Estimate = x$zi, lower.CI = x$zi.ci[1, 1], upper.CI = x$zi.ci[1, 2]), digits = digits)
+    print(data.frame(Estimate = x$zi, lower.CI = x$zi.ci[1, 1], 
+                     upper.CI = x$zi.ci[1, 2]), digits = digits)
   }
   
   cat("\nRandom effects:\n")
@@ -958,10 +940,7 @@ summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") -
   
   random.effects = x$random.effects
   if(!is.null(names(random.effects))){
-    re.names = names(random.effects)[c(
-      which(sapply(random.effects, length) %nin% c(1, 4)),
-      which(sapply(random.effects, length) %in% c(1, 4))
-    )]
+    re.names = names(random.effects)
   } else {
     re.names <- NULL
     if (length(x$s2r) > 0) {
@@ -974,7 +953,12 @@ summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") -
   
   if (x$family == "gaussian") re.names <- c(re.names, "residual")
   
-  row.names(w) <- re.names
+  if(!is.null(names(random.effects))){
+    w <- w[re.names, ] # print in the same order of random terms
+  } else {
+    row.names(w) <- re.names
+  }
+  
   print(w, digits = digits)
   
   cat("\nFixed effects:\n")
@@ -1011,11 +995,12 @@ print.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ..
 #' @param gaussian.pred When family is gaussian, which type of prediction to calculate?
 #'   Option nearest_node will predict values to the nearest node, which is same as lme4::predict or
 #'   fitted. Option tip_rm will remove the point then predict the value of this point with remaining ones.
+#' @param ... Optional additional parameters. None are used at present.
 #' @export
 #' @return A data frame with column Y_hat (predicted values accounting for 
 #'   both fixed and random terms).
 pglmm_predicted_values <- function(x, cpp = TRUE, 
-                                   gaussian.pred = c("nearest_node", "tip_rm")) {
+                                   gaussian.pred = c("nearest_node", "tip_rm"), ...) {
   ptype = match.arg(gaussian.pred)
   if(x$bayes) {
     marginal.summ <- x$marginal.summ
@@ -1135,12 +1120,12 @@ residuals.communityPGLMM <- function(
 #' @export
 fitted.communityPGLMM <- function(object, ...){
   if(object$bayes) {
-    ft = pglmm_predicted_values(object)$Y_hat
+    ft = pglmm_predicted_values(object, ...)$Y_hat
   } else {
     if(object$family %in% c("binomial","poisson")){
       ft = object$mu[, 1]
     } else {
-      ft = pglmm_predicted_values(object)$Y_hat
+      ft = pglmm_predicted_values(object, ...)$Y_hat
     }
   }
   
@@ -1150,6 +1135,8 @@ fitted.communityPGLMM <- function(object, ...){
 #' Extract the fixed-effects estimates
 #'
 #' Extract the estimates of the fixed-effects parameters from a fitted model.
+#' For bayesian models, the p-values are simply to indicate whether the 
+#' credible intervals include 0 (p = 0.04) or not (p = 0.6).
 #' 
 #' @name fixef
 #' @title Extract fixed-effects estimates
@@ -1164,10 +1151,10 @@ fitted.communityPGLMM <- function(object, ...){
 #' @export
 fixef.communityPGLMM <- function(object, ...) {
   if (object$bayes) {
+    in_interval <- function(x, y1, y2){y1 <= x & x <= y2 }
 
-    in_interval <- function(x, y1, y2){ y1 <= x & x <= y2 }
-
-    coef <- data.frame(Value = object$B, lower.CI = object$B.ci[, 1], upper.CI = object$B.ci[, 2],
+    coef <- data.frame(Value = object$B, lower.CI = object$B.ci[, 1], 
+                       upper.CI = object$B.ci[, 2],
                        Pvalue = ifelse(apply(object$B.ci, 1, function(y)
                          in_interval(0, y[1], y[2])) == FALSE,
                          0.04, 0.6))
@@ -1268,7 +1255,7 @@ predict.communityPGLMM <- function(object, newdata = NULL, ...) {
     warning("newdata argument is currently not supported by predict.communityPGLMM. It will be ignored, and predictions 
             returned on original data used to fit the model. newdata will be supported in the future.")
   }
-  as.matrix(pglmm_predicted_values(object))
+  as.matrix(pglmm_predicted_values(object, ...))
 }
 
 #' Simulate from a communityPGLMM object
@@ -1280,32 +1267,59 @@ predict.communityPGLMM <- function(object, newdata = NULL, ...) {
 #'
 #' @export
 #'
-simulate.communityPGLMM <- function(object, nsim = 1, seed = NULL, use.u = FALSE, ...) {
-  if(!object$bayes) {
-    stop("simulate is currently only available for models fit with bayes = TRUE. simulate for ML models is coming soon!")
-  }
-  
-  if(use.u) {
+simulate.communityPGLMM <- function(object, nsim = 1, seed = NULL, 
+                                    use.u = FALSE, re.form = NA, ...) {
+  if(use.u & object$bayes) {
     stop("Sorry, simulate.communityPGLMM currently doesn't support use.u = TRUE, but we are working on it!")
   }
   
   #sim <- INLA::inla.posterior.sample(nsim, object$inla.model)
   
-  mu_sim <- do.call(rbind, lapply(object$inla.model$marginals.fitted.values, INLA::inla.rmarginal, n = nsim)) %>%
-    as.data.frame()
-  
-  if(object$bayes && object$family == "binomial" && !is.null(object$inla.model$Ntrials)) {
-    Ntrials <- object$inla.model$Ntrials
-  } else {
-    Ntrials <- 1
+  if(!object$bayes) {
+    nn <- nrow(object$iV)
+    sim <- (object$X %*% object$B) %*% matrix(1, 1, nsim)
+    if(is.na(re.form) | re.form == "~0" | !use.u){
+      # condition on none of the random effects
+      sim <- sim + matrix(rnorm(nsim * nn), nrow = nn) 
+    } else {
+      if(is.null(re.form) | use.u){
+        chol.V <- backsolve(chol(object$iV), diag(nn))
+        sim <- sim + chol.V %*% matrix(rnorm(nsim * nn), nrow = nn)
+      } else {
+        warning("Formula for random effects to condition on currently is not supported yet. 
+                Simulated without condition on random effects")
+        sim <- sim + matrix(rnorm(nsim * nn), nrow = nn) 
+      }
+    }
+      
+    if(object$family == "poisson") {
+      mu_sim  <- exp(sim)
+      sim <- apply(mu_sim, MARGIN = 2, FUN = function(x) rpois(length(x), x))
+    }
+    if(object$family == "binomial") {
+      mu_sim  <- 1/(1 + exp(-sim))
+      Ntrials <- object$size
+      sim <- apply(mu_sim, MARGIN = 2, FUN = function(x) rbinom(length(x), Ntrials, x))
+    }
+  } else { # beyes version
+    mu_sim <- do.call(rbind, lapply(object$inla.model$marginals.fitted.values, 
+                                    INLA::inla.rmarginal, n = nsim)) %>%
+      as.data.frame()
+    
+    if(object$bayes && object$family == "binomial" && 
+       !is.null(object$inla.model$Ntrials)) {
+      Ntrials <- object$inla.model$Ntrials
+    } else {
+      Ntrials <- 1
+    }
+    
+    sim <- switch(object$family,
+                  binomial = lapply(mu_sim, function(x) rbinom(length(x), Ntrials, x)),
+                  poisson = lapply(mu_sim, function(x) rpois(length(x), x))
+    )
+    
+    sim <- do.call(cbind, sim)
   }
-  
-  sim <- switch(object$family,
-                binomial = lapply(mu_sim, function(x) rbinom(length(x), Ntrials, x)),
-                poisson = lapply(mu_sim, function(x) rpois(length(x), x))
-  )
-  
-  sim <- do.call(cbind, sim)
   
   sim
 }

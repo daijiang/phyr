@@ -11,7 +11,8 @@ prep_dat_pglmm(
   repulsion = FALSE,
   prep.re.effects = TRUE,
   family = "gaussian",
-  add.obs.re = TRUE
+  add.obs.re = TRUE,
+  bayes
 )
 }
 \arguments{
@@ -76,8 +77,10 @@ of the model. Note that "zeroinflated.binomial" only makes sense for success/fai
 response data.}
 
 \item{add.obs.re}{Whether to add an observation-level random term for binomial or Poisson
-distributions Normally it would be a good idea to add this to account for overdispersion,
+distributions. Normally it would be a good idea to add this to account for overdispersion,
 so \code{add.obs.re = TRUE} by default.}
+
+\item{bayes}{Whether to fit a Bayesian version of the PGLMM using \code{r-inla}.}
 }
 \value{
 A list with updated formula, random.effects, and updated cov_ranef.

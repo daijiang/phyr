@@ -22,7 +22,7 @@ This is a temporal Rmd file to facilitate develoement.
 library(dplyr, quietly = TRUE)
 comm = phyr::comm_a
 comm$site = row.names(comm)
-dat = TRUEidyr::gather(comm, key = "sp", value = "freq", -site) %>% 
+dat = tidyr::gather(comm, key = "sp", value = "freq", -site) %>% 
   left_join(phyr::envi, by = "site") %>% 
   left_join(phyr::traits, by = "sp")
 dat$pa = as.numeric(dat$freq > 0)
@@ -30,7 +30,8 @@ tree = phyr::phylotree
 data = dat
 tree_site = ape::rtree(n = nlevels(data$site), tip.label = levels(data$site))
 formula = freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site) + (1|sp@site)
-formula = freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site)
+formula = freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site) + (shade | sp__@site)
+data$freq2 = 20
 formula = cbind(freq, freq2) ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site)
 cov_ranef = list(sp = phylotree)
 repulsion = F

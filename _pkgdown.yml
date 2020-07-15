@@ -1,0 +1,41 @@
+reference:
+  - title: "Phylogenetic Diversity"
+    desc: >
+      Functions to calculate alpha and beta phylogenetic diversity
+    contents: 
+      - starts_with("ps")
+      - pcd
+      - pcd_pred
+  - title: "Phylogenetic Correlations"
+    desc: "Functions to calculate correlations while accounting for phylogenetic relationships."
+    contents:
+      - cor_phylo
+      - boot_ci
+      - refit_boots
+  - title: "Phylogenetic Generalized Linear Mixed Models"
+    desc: "Functions to fit PGLMMs."
+    contents:
+      - matches("pglmm")
+      - matches("PGLMM")
+      - get_design_matrix
+      - plot_data
+      - plot_bayes
+  - title: "Helper Functions"
+    desc: "Functions to help with data processing."
+    contents:
+      - vcv2
+      - rm_site_noobs
+      - rm_sp_noobs
+      - '%nin%'
+      - align_comm_V
+      - match_comm_tree
+  - title: "Data Sets"
+    desc: "Examplary data sets used in the package"
+    contents:
+      - comm_a
+      - comm_b
+      - traits
+      - phylotree
+      - envi
+      - oldfield
+      
