@@ -906,15 +906,10 @@ summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") -
   cat("\n")
   
   if(x$bayes) {
-    logLik <- x$logLik
-    names(logLik) <- "marginal logLik"
-    if(!is.null(x$DIC)) {
-      DIC <- x$DIC
-      names(DIC) <- "DIC"
-      print(c(logLik, DIC), digits = digits)
-    } else {
-      print(logLik, digits = digits)
-    }
+    logLik <- c("marginal logLik" = unname(x$logLik), 
+                "DIC" = unname(x$DIC), 
+                "WAIC" = unname(x$WAIC))
+    print(logLik, digits = digits)
   } else {
     if (x$family == "gaussian") {
       logLik = x$logLik
@@ -930,7 +925,8 @@ summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") -
   
   if(grepl("zeroinflated", x$family)) {
     cat("\nZero Inflation Parameter:\n")
-    print(data.frame(Estimate = x$zi, lower.CI = x$zi.ci[1, 1], upper.CI = x$zi.ci[1, 2]), digits = digits)
+    print(data.frame(Estimate = x$zi, lower.CI = x$zi.ci[1, 1], 
+                     upper.CI = x$zi.ci[1, 2]), digits = digits)
   }
   
   cat("\nRandom effects:\n")
@@ -944,10 +940,7 @@ summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") -
   
   random.effects = x$random.effects
   if(!is.null(names(random.effects))){
-    re.names = names(random.effects)[c(
-      which(sapply(random.effects, length) %nin% c(1, 2, 4)),
-      which(sapply(random.effects, length) %in% c(1, 2, 4))
-    )]
+    re.names = names(random.effects)
   } else {
     re.names <- NULL
     if (length(x$s2r) > 0) {
@@ -960,7 +953,12 @@ summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") -
   
   if (x$family == "gaussian") re.names <- c(re.names, "residual")
   
-  if(!x$bayes) row.names(w) <- re.names
+  if(!is.null(names(random.effects))){
+    w <- w[re.names, ] # print in the same order of random terms
+  } else {
+    row.names(w) <- re.names
+  }
+  
   print(w, digits = digits)
   
   cat("\nFixed effects:\n")
