@@ -995,11 +995,12 @@ print.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ..
 #' @param gaussian.pred When family is gaussian, which type of prediction to calculate?
 #'   Option nearest_node will predict values to the nearest node, which is same as lme4::predict or
 #'   fitted. Option tip_rm will remove the point then predict the value of this point with remaining ones.
+#' @param ... Optional additional parameters. None are used at present.
 #' @export
 #' @return A data frame with column Y_hat (predicted values accounting for 
 #'   both fixed and random terms).
 pglmm_predicted_values <- function(x, cpp = TRUE, 
-                                   gaussian.pred = c("nearest_node", "tip_rm")) {
+                                   gaussian.pred = c("nearest_node", "tip_rm"), ...) {
   ptype = match.arg(gaussian.pred)
   if(x$bayes) {
     marginal.summ <- x$marginal.summ
@@ -1266,32 +1267,59 @@ predict.communityPGLMM <- function(object, newdata = NULL, ...) {
 #'
 #' @export
 #'
-simulate.communityPGLMM <- function(object, nsim = 1, seed = NULL, use.u = FALSE, ...) {
-  if(!object$bayes) {
-    stop("simulate is currently only available for models fit with bayes = TRUE. simulate for ML models is coming soon!")
-  }
-  
-  if(use.u) {
+simulate.communityPGLMM <- function(object, nsim = 1, seed = NULL, 
+                                    use.u = FALSE, re.form = NA, ...) {
+  if(use.u & object$bayes) {
     stop("Sorry, simulate.communityPGLMM currently doesn't support use.u = TRUE, but we are working on it!")
   }
   
   #sim <- INLA::inla.posterior.sample(nsim, object$inla.model)
   
-  mu_sim <- do.call(rbind, lapply(object$inla.model$marginals.fitted.values, INLA::inla.rmarginal, n = nsim)) %>%
-    as.data.frame()
-  
-  if(object$bayes && object$family == "binomial" && !is.null(object$inla.model$Ntrials)) {
-    Ntrials <- object$inla.model$Ntrials
-  } else {
-    Ntrials <- 1
+  if(!object$bayes) {
+    nn <- nrow(object$iV)
+    sim <- (object$X %*% object$B) %*% matrix(1, 1, nsim)
+    if(is.na(re.form) | re.form == "~0" | !use.u){
+      # condition on none of the random effects
+      sim <- sim + matrix(rnorm(nsim * nn), nrow = nn) 
+    } else {
+      if(is.null(re.form) | use.u){
+        chol.V <- backsolve(chol(object$iV), diag(nn))
+        sim <- sim + chol.V %*% matrix(rnorm(nsim * nn), nrow = nn)
+      } else {
+        warning("Formula for random effects to condition on currently is not supported yet. 
+                Simulated without condition on random effects")
+        sim <- sim + matrix(rnorm(nsim * nn), nrow = nn) 
+      }
+    }
+      
+    if(object$family == "poisson") {
+      mu_sim  <- exp(sim)
+      sim <- apply(mu_sim, MARGIN = 2, FUN = function(x) rpois(length(x), x))
+    }
+    if(object$family == "binomial") {
+      mu_sim  <- 1/(1 + exp(-sim))
+      Ntrials <- object$size
+      sim <- apply(mu_sim, MARGIN = 2, FUN = function(x) rbinom(length(x), Ntrials, x))
+    }
+  } else { # beyes version
+    mu_sim <- do.call(rbind, lapply(object$inla.model$marginals.fitted.values, 
+                                    INLA::inla.rmarginal, n = nsim)) %>%
+      as.data.frame()
+    
+    if(object$bayes && object$family == "binomial" && 
+       !is.null(object$inla.model$Ntrials)) {
+      Ntrials <- object$inla.model$Ntrials
+    } else {
+      Ntrials <- 1
+    }
+    
+    sim <- switch(object$family,
+                  binomial = lapply(mu_sim, function(x) rbinom(length(x), Ntrials, x)),
+                  poisson = lapply(mu_sim, function(x) rpois(length(x), x))
+    )
+    
+    sim <- do.call(cbind, sim)
   }
-  
-  sim <- switch(object$family,
-                binomial = lapply(mu_sim, function(x) rbinom(length(x), Ntrials, x)),
-                poisson = lapply(mu_sim, function(x) rpois(length(x), x))
-  )
-  
-  sim <- do.call(cbind, sim)
   
   sim
 }
