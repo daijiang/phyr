@@ -9,6 +9,8 @@ pglmm_predicted_values(
   x,
   cpp = TRUE,
   gaussian.pred = c("nearest_node", "tip_rm"),
+  re.form = NULL,
+  type = c("link", "response"),
   ...
 )
 
@@ -26,6 +28,13 @@ communityPGLMM.predicted.values(
 \item{gaussian.pred}{When family is gaussian, which type of prediction to calculate?
 Option nearest_node will predict values to the nearest node, which is same as lme4::predict or
 fitted. Option tip_rm will remove the point then predict the value of this point with remaining ones.}
+
+\item{re.form}{(formula, \code{NULL}, or \code{NA}) specify which random effects to condition on when predicting.
+If \code{NULL}, include all random effects (i.e $X\beta + Z\mu$);
+if \code{NA} or \code{~0}, include no random effects (i.e. $X\beta$).}
+
+\item{type}{character string - either \code{"link"}, the default, or
+    \code{"response"} indicating the type of prediction object returned.}
 
 \item{...}{Optional additional parameters. None are used at present.}
 }
