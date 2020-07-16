@@ -67,7 +67,7 @@ parse_conv_ranef = function(x, df){
 #' @export
 prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE, 
                           prep.re.effects = TRUE, family = "gaussian",
-                          add.obs.re = TRUE, bayes){
+                          add.obs.re = TRUE, bayes = FALSE){
   fm = unique(lme4::findbars(formula))
   formula.nobars <- lme4::nobars(formula) # fixed terms
   
@@ -1278,20 +1278,20 @@ simulate.communityPGLMM <- function(object, nsim = 1, seed = NULL,
   if(!object$bayes) {
     nn <- nrow(object$iV)
     sim <- (object$X %*% object$B) %*% matrix(1, 1, nsim)
-    if(is.na(re.form) | re.form == "~0" | !use.u){
-      # condition on none of the random effects
-      sim <- sim + matrix(rnorm(nsim * nn), nrow = nn) 
+    
+    if(is.null(re.form) | use.u){
+      chol.V <- backsolve(chol(object$iV), diag(nn))
+      sim <- sim + chol.V %*% matrix(rnorm(nsim * nn), nrow = nn)
     } else {
-      if(is.null(re.form) | use.u){
-        chol.V <- backsolve(chol(object$iV), diag(nn))
-        sim <- sim + chol.V %*% matrix(rnorm(nsim * nn), nrow = nn)
+      if(is.na(re.form) | re.form == "~0" | !use.u){
+        # condition on none of the random effects
+        sim <- sim + matrix(rnorm(nsim * nn), nrow = nn) 
       } else {
         warning("Formula for random effects to condition on currently is not supported yet. 
                 Simulated without condition on random effects")
         sim <- sim + matrix(rnorm(nsim * nn), nrow = nn) 
       }
     }
-      
     if(object$family == "poisson") {
       mu_sim  <- exp(sim)
       sim <- apply(mu_sim, MARGIN = 2, FUN = function(x) rpois(length(x), x))
