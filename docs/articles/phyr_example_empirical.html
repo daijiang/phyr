@@ -104,7 +104,7 @@
 <div id="communitypglmm-example-on-simple-empirical-dataset" class="section level2">
 <h2 class="hasAnchor">
 <a href="#communitypglmm-example-on-simple-empirical-dataset" class="anchor"></a>communityPGLMM Example on Simple Empirical Dataset</h2>
-<p>This vignette will show a complete analysis example for <code>communityPGLMM</code> on a simple empirical dataset. The dataset is taken from Dinnage (2009). Here we will demonstrate how to fit a communityPGLMM, including main phylogenetic effects, nested phylogenetic effects, as well as including environmental covariates. First let’s load the dataset and take a look at what we have. The data is included in <code>phyr</code>, so we can just call <code><a href="https://rdrr.io/r/utils/data.html">data(oldfield)</a></code> to load it.</p>
+<p>This vignette will show a complete analysis example for <code>pglmm</code> on a simple empirical dataset. The dataset is taken from <a href="https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0007071">Dinnage (2009)</a>. Here we will demonstrate how to fit a PGLMM, including main phylogenetic effects, nested phylogenetic effects, as well as including environmental covariates. First let’s load the dataset and take a look at what we have. The data is included in <code>phyr</code>, so we can just call <code><a href="https://rdrr.io/r/utils/data.html">data(oldfield)</a></code> to load it.</p>
 </div>
 <div id="modelling-old-field-plants-as-a-function-of-phylogeny-and-distubance" class="section level2">
 <h2 class="hasAnchor">
@@ -123,7 +123,7 @@
 <span class="co">#&gt;     intersect, setdiff, setequal, union</span>
 <span class="fu"><a href="https://rdrr.io/r/utils/data.html">data</a></span>(<span class="st">"oldfield"</span>)
 </pre></div>
-<p>The data is a list with two elements. The first element is a phylogeny containing 47 species of plants (all herbaceous forbs) that live in old field habitats in Southern Ontario, Canada. Oldfield habitats typically are found in areas that were formerly cultivated but are now abandoned. This is often considered a successional stage between farmland and secondary forest. This data comes from plots that had experience two “treatments”, one set of plots had been disturbed by field ploughing within a few years of sampling, the other set had not been disturbed in this way recently. Let’s have a look at the phylogeny and data.</p>
+<p>The data is a list with two elements. The first element is a phylogeny containing 47 species of plants (all herbaceous forbs) that live in old field habitats in Southern Ontario, Canada. Oldfield habitats typically are found in areas that were formerly cultivated but are now abandoned. This is often considered a successional stage between farmland and secondary forest. These data come from plots that had experienced two “treatments”: one set of plots had been disturbed by field ploughing within a few years of sampling, whereas the other set had not been disturbed in this way recently. Let’s have a look at the phylogeny and data.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit">
 <span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html">plot</a></span>(<span class="kw">oldfield</span><span class="op">$</span><span class="kw">phy</span>)
 </pre></div>
@@ -145,7 +145,7 @@
 <span class="co">#&gt; 10        18 undisturbed  Daucus_carota         0           0 18_undistur…     0</span>
 <span class="co">#&gt; # … with 30 more rows</span>
 </pre></div>
-<p>With this data we are interested in asking whether there is any kind of phylogenetic structure in the distribution of these species as well as whether disturbance has any overall effects. To do this we will specify two different phylogenetic effects in our <code>phyr</code>, which uses a syntax similar to the <code>lme4</code> package for specifying random effects. We also include site-level random effects to account for the paired design of the experiment. We will start by modeling just presence and absence of species (a binomial model). Note this model will take awhile when using maximum likelihood (the Bayesian method is much faster). This is the full model specification:</p>
+<p>With these data we are interested in asking whether there is phylogenetic structure in the distribution of these species, as well as whether disturbance has any overall effects. To do this we will specify two different phylogenetic effects in our <code>pglmm</code>, which uses a syntax similar to <code>lmer</code> and <code>glmer</code> in the <code>lme4</code> package for specifying random effects. We also include site-level random effects to account for the paired design of the experiment. We will start by modeling just presence and absence of species (a binomial model). Note this model will take a while when using maximum likelihood (the Bayesian method is much faster). This is the full model specification:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit">
 <span class="kw">mod</span> <span class="op">&lt;-</span> <span class="kw">phyr</span>::<span class="fu"><a href="../reference/pglmm.html">pglmm</a></span>(<span class="kw">pres</span> <span class="op">~</span> <span class="kw">disturbance</span> <span class="op">+</span> (<span class="fl">1</span> <span class="op">|</span> <span class="kw">sp__</span>) <span class="op">+</span> (<span class="fl">1</span> <span class="op">|</span> <span class="kw">site</span>) <span class="op">+</span> 
                      (<span class="kw">disturbance</span> <span class="op">|</span> <span class="kw">sp__</span>) <span class="op">+</span> (<span class="fl">1</span> <span class="op">|</span> <span class="kw">sp__</span><span class="op">@</span>site), 
@@ -153,7 +153,7 @@
                    cov_ranef = <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span>(sp = <span class="kw">oldfield</span><span class="op">$</span><span class="kw">phy</span>),
                    family = <span class="st">"binomial"</span>)
 </pre></div>
-<p>Here we specified an overall phylogenetic effect using <code>sp__</code>, which also automatically includes an i.i.d. effect of species. <code>phyr</code> finds the linked phylogenetic data because we specified the phylogeny in the <code>cov_ranef</code> argument, giving it the name <code>sp</code> which matches <code>sp__</code> but without the underscores. We can include any number of phylogenies or covariance matrices in this way, allowing us to model multiple sources of covariance in one model. In this example, however, we will stick to one phylogeny to cover the basics of how to run <code>phyr</code> models. We use the same phylogeny to model a second phylogenetic random effects in this model, which is specified as <code>sp__@site</code>. This is a “nested” phylogenetic effect. What this basically means is we are fitting an effect that had covariance proportional to the species phylogeny, but independently for each site (or “nested” in sites). We’ve also included a disturbance by phylogenetic species effect (<code>(disturbance | sp__)</code>), which estimates the degree to which occurrence in disturbed vs. undisturbed habitat has a phylogenetic signal. Like the main <code>sp__</code> effect, the disturbance by <code>sp__</code> effects also includes and i.i.d. species by disturbance interaction. Let’s look at the results:</p>
+<p>Here, we specified an overall phylogenetic effect using <code>sp__</code>, which also automatically includes a nonphylogenetic i.i.d. effect of species. <code>phyr</code> finds the linked phylogenetic data because we specified the phylogeny in the <code>cov_ranef</code> argument, giving it the name <code>sp</code> which matches <code>sp__</code> but without the underscores. We can include any number of phylogenies or covariance matrices in this way, allowing us to model multiple sources of covariance in one model. In this example, however, we will stick to one phylogeny to cover the basics of how to run <code>pglmm</code> models. We use the same phylogeny to model a second phylogenetic random effect, which is specified as <code>sp__@site</code>. This is a “nested” phylogenetic effect. This means that we are fitting an effect that had covariance proportional to the species phylogeny, but independently for each site (or “nested” in sites). We’ve also included a disturbance-by-phylogenetic species effect (<code>(disturbance | sp__)</code>), which estimates the degree to which occurrence in disturbed vs. undisturbed habitat has a phylogenetic signal. Like the main <code>sp__</code> effect, the disturbance-by-<code>sp__</code> effect also includes an nonphylogenetic species-by-disturbance interaction. Let’s look at the results:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit">
 <span class="fu"><a href="https://rdrr.io/r/base/summary.html">summary</a></span>(<span class="kw">mod</span>)
 <span class="co">#&gt; Generalized linear mixed model for binomial data fit by restricted maximum likelihood</span>
@@ -177,7 +177,7 @@
 <span class="co">#&gt; ---</span>
 <span class="co">#&gt; Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span>
 </pre></div>
-<p>The results of the random effects imply that the strongest effect is an overall i.i.d. species effect, followed closely by a disturbance by i.i.d. species effect. This implies that species vary strongly in their occurrence in disturbed or undisturbed sites, that there is a clear community difference between these treatments. the next strongest effect is the nested phylogenetic effect. But how can we know if this effect is strong enough to take seriously? Well one way to get an idea is to run a likelihood ratio test on the random effect. This can be achieved by using the the <code><a href="../reference/pglmm_profile_LRT.html">pglmm_profile_LRT()</a></code> function, at least for binomial models.</p>
+<p>The results of the random effects imply that the strongest effect is an overall nonphylogenetic species effect, followed closely by a disturbance-by-species effect. This implies that species vary strongly in their occurrence in disturbed or undisturbed sites, that there is a clear community difference between these treatments. The next strongest effect is the nested phylogenetic effect. But how can we know if this effect is strong enough to take seriously? Well one way to get an idea is to run a likelihood ratio test on the random effect. This can be achieved by using the <code><a href="../reference/pglmm_profile_LRT.html">pglmm_profile_LRT()</a></code> function, at least for binomial models.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit">
 <span class="fu"><a href="https://rdrr.io/r/base/names.html">names</a></span>(<span class="kw">mod</span><span class="op">$</span><span class="kw">ss</span>)
 <span class="co">#&gt; [1] "1|sp"             "1|sp__"           "1|site"           "disturbance|sp"  </span>
@@ -192,8 +192,20 @@
 <span class="co">#&gt; </span>
 <span class="co">#&gt; $Pr</span>
 <span class="co">#&gt; [1] 0.002244134</span>
+
+<span class="co"># alternatively, we can test all random effects</span>
+<span class="kw">LRTs</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html">sapply</a></span>(<span class="fl">1</span><span class="op">:</span><span class="fl">6</span>, FUN = <span class="fu">function</span>(<span class="kw">x</span>) <span class="kw">phyr</span>::<span class="fu"><a href="../reference/pglmm_profile_LRT.html">pglmm_profile_LRT</a></span>(<span class="kw">mod</span>, re.number = <span class="kw">x</span>))
+<span class="fu"><a href="https://rdrr.io/r/base/colnames.html">colnames</a></span>(<span class="kw">LRTs</span>) <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html">names</a></span>(<span class="kw">mod</span><span class="op">$</span><span class="kw">ss</span>)
+<span class="fu"><a href="https://rdrr.io/r/base/t.html">t</a></span>(<span class="kw">LRTs</span>)
+<span class="co">#&gt;                  LR           df Pr          </span>
+<span class="co">#&gt; 1|sp             54.01487     1  1.323873e-25</span>
+<span class="co">#&gt; 1|sp__           0.2179382    1  0.2545597   </span>
+<span class="co">#&gt; 1|site           -0.002140096 1  1           </span>
+<span class="co">#&gt; disturbance|sp   15.94218     1  8.18144e-09 </span>
+<span class="co">#&gt; disturbance|sp__ -0.001094586 1  1           </span>
+<span class="co">#&gt; 1|sp__@site      4.037448     1  0.002244134</span>
 </pre></div>
-<p>This result suggests that there is overall a nested phylogenetic effect. What does this mean? Well essentially a model where the within site distributions of species are reasonably explained by the phylogenetic covariance of species implies a ‘phylogenetic clustering’ effect, that is that closely related species are more likely to be found together in the same community, relative to the total variance in communities across sites. In the original paper I analysed this data using traditional community phylogenetics methods (null model based) and found that generally the disturbed sites were phylogenetically clustered but undisturbed sites were not. If I split the data this way and model each separately, does this result hold up?</p>
+<p>This result shows that the nested phylogenetic effect is statistically significant. What does this mean? A model where the within-site distributions of species are explained by the phylogenetic covariance of species implies a ‘phylogenetic attraction’ or ‘phylogenetic clustering’ effect, in which closely related species are more likely to be found together in the same community. In the original analysis of these data using traditional community phylogenetics methods (null model based) found that the disturbed sites were phylogenetically clustered but undisturbed sites were not. If the data are split in this way, and each split modeled separately, does this result hold up?</p>
 <div class="sourceCode" id="cb7"><pre class="downlit">
 <span class="kw">mod_disturbed</span> <span class="op">&lt;-</span> <span class="kw">phyr</span>::<span class="fu"><a href="../reference/pglmm.html">pglmm</a></span>(<span class="kw">pres</span> <span class="op">~</span> (<span class="fl">1</span> <span class="op">|</span> <span class="kw">sp__</span>) <span class="op">+</span> (<span class="fl">1</span> <span class="op">|</span> <span class="kw">sp__</span><span class="op">@</span>site) <span class="op">+</span> 
                                (<span class="fl">1</span> <span class="op">|</span> <span class="kw">site</span>), 
@@ -233,13 +245,13 @@
 <span class="co">#&gt; $Pr</span>
 <span class="co">#&gt; [1] 1</span>
 </pre></div>
-<p>Indeed! My original results hold up to this model-based test of the same question. Whew! (╹◡╹)凸 We can also get an idea of how well the model fits the data by plotting the observed and predicted values of the model side-by-side.</p>
+<p>Indeed! The original results hold up to this model-based test of the same question. Whew! (╹◡╹)凸 We can also get an idea of how well the model fits the data by plotting the observed and predicted values of the model side-by-side.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit">
 <span class="fu"><a href="../reference/plot_data.html">plot_data</a></span>(<span class="kw">mod</span>, predicted = <span class="fl">TRUE</span>)
 </pre></div>
 <p><img src="phyr_example_empirical_files/figure-html/plot_mod-1.png" width="90%"></p>
-<p>The other result from this model is that there is a strong fixed effect of disturbance. In the context of a binomial multivariate model such as communityPGLMM this means there is an overall increase in the probability of occurrence in disturbed sites. In essence, this means that disturbed sites have a higher species richness at the site level (noting that expected alpha species richness of a site can be expressed as Gamma richness * E(prob_site(occurrence))).</p>
-<p>Another way to explore than random effects is to use the Bayesian version of <code>communityPGLMM</code> and then look at the shape of the posterior distribution of our random effect variance terms. Let’s have a look at that.</p>
+<p>The other result from this model is that there is a strong fixed effect of disturbance. In the context of a binomial multivariate model such as <code>pglmm</code>, this means there is an overall increase in the probability of occurrence in disturbed sites. In other words, disturbed sites have a higher species richness at the site level (noting that expected alpha species richness of a site can be expressed as Gamma richness * E(prob_site(occurrence))).</p>
+<p>Another way to explore the random effects is to use the Bayesian version of <code>pglmm</code> and then look at the shape of the posterior distribution of our random effect variance terms.</p>
 <div class="sourceCode" id="cb10"><pre class="downlit">
 <span class="kw">mod_bayes</span> <span class="op">&lt;-</span> <span class="kw">phyr</span>::<span class="fu"><a href="../reference/pglmm.html">pglmm</a></span>(<span class="kw">pres</span> <span class="op">~</span> <span class="kw">disturbance</span> <span class="op">+</span> (<span class="fl">1</span> <span class="op">|</span> <span class="kw">sp__</span>) <span class="op">+</span> (<span class="fl">1</span> <span class="op">|</span> <span class="kw">site</span>) <span class="op">+</span> 
                      (<span class="kw">disturbance</span> <span class="op">|</span> <span class="kw">sp__</span>) <span class="op">+</span> (<span class="fl">1</span> <span class="op">|</span> <span class="kw">sp__</span><span class="op">@</span>site), 
@@ -258,30 +270,30 @@
 <span class="co">#&gt; </span>
 <span class="co">#&gt; Random effects:</span>
 <span class="co">#&gt;                  Variance Std.Dev lower.CI upper.CI</span>
-<span class="co">#&gt; 1|sp             2.063578 1.43652 1.114925   4.3921</span>
-<span class="co">#&gt; 1|sp__           0.134766 0.36711 0.029574   1.2277</span>
-<span class="co">#&gt; 1|site           0.007812 0.08838 0.001344   0.1703</span>
-<span class="co">#&gt; disturbance|sp   1.981738 1.40774 0.976468   5.0776</span>
-<span class="co">#&gt; disturbance|sp__ 0.050322 0.22433 0.008422   1.2570</span>
-<span class="co">#&gt; 1|sp__@site      0.102650 0.32039 0.043470   0.2814</span>
+<span class="co">#&gt; 1|sp             2.063941 1.43664 1.115151   4.3914</span>
+<span class="co">#&gt; 1|sp__           0.134617 0.36690 0.029535   1.2274</span>
+<span class="co">#&gt; 1|site           0.007831 0.08849 0.001347   0.1712</span>
+<span class="co">#&gt; disturbance|sp   1.981614 1.40770 0.976677   5.0745</span>
+<span class="co">#&gt; disturbance|sp__ 0.050617 0.22498 0.008487   1.2597</span>
+<span class="co">#&gt; 1|sp__@site      0.102632 0.32036 0.043465   0.2814</span>
 <span class="co">#&gt; </span>
 <span class="co">#&gt; Fixed effects:</span>
 <span class="co">#&gt;                Value lower.CI upper.CI</span>
-<span class="co">#&gt; (Intercept) -3.14638 -3.60307  -2.7410</span>
-<span class="co">#&gt; disturbance  0.92520  0.44047   1.4309</span>
+<span class="co">#&gt; (Intercept) -3.14632 -3.60299  -2.7409</span>
+<span class="co">#&gt; disturbance  0.92516  0.44045   1.4308</span>
 </pre></div>
-<p>“pc.prior.auto” is a good choice of prior I find for binomial models. If you are interested in the details of this kind of prior (known as a penalising complexity prior), check out this paper: <a href="https://arxiv.org/abs/1403.4630" class="uri">https://arxiv.org/abs/1403.4630</a>.</p>
+<p>“pc.prior.auto” is a good choice to generate priors for binomial models. If you are interested in the details of this kind of prior (known as a penalizing complexity prior), check out this paper: <a href="https://arxiv.org/abs/1403.4630" class="uri">https://arxiv.org/abs/1403.4630</a>.</p>
 <p>The results of this model are consistent with the ML model, which is good to see. Now we also have lower and upper credible intervals. We can look at the full approximate marginal posterior distributions of the random effects and fixed effects with the <code>plot_bayes</code> function.</p>
 <div class="sourceCode" id="cb11"><pre class="downlit">
 <span class="fu"><a href="../reference/plot_bayes.html">plot_bayes</a></span>(<span class="kw">mod_bayes</span>, sort = <span class="fl">TRUE</span>)
 </pre></div>
 <p><img src="phyr_example_empirical_files/figure-html/plot_bayes-1.png" width="85%"></p>
-<p>What we are looking for is that the posterior distribution mode is well away from zero, and that it looks relatively symmetrical. If it is skewed and crammed up against the left side of the plot, near zero, that is a sign the effect is not especially strong (remembering that variance components cannot be less than or equal zero, so you always will see some positive probability mass). The most obvious effects here are again the species random effect, the species by disturbance random effect, and the nested phylogenetic effect. In this plot, the 95% credible interval is also plotted, along with the posterior mean (the point and bar at the bottom of each density). For the random effects these aren’t too meaningful, but they can help distinguish genuine effects in the fixed effects. If these credible intervals overlap zero in the fixed effects, the density will be plotted with a lighter colour to suggest it is not a strong effect (not relevant in this model since both fixed effects are strong).</p>
+<p>What we are looking for is that the posterior distribution mode is well away from zero, and that it looks relatively symmetrical. If it were skewed and crammed up against the left side of the plot, near zero, we would conclude that the effect is weak (remembering that variance components cannot be less than or equal zero, so there will always be some positive probability mass). The most obvious effects (well away from zero) are again the species random effect, the species-by-disturbance random effect, and the nested phylogenetic effect. In this plot, the 95% credible interval is also plotted, along with the posterior mean (the point and bar at the bottom of each density). For the random effects these aren’t too meaningful, but they can help distinguish genuine effects in the fixed effects. If these credible intervals overlap zero in the fixed effects, the density will be plotted with a lighter color to suggest it is not a strong effect (although this is not relevant for this dataset, because both fixed effects are strong).</p>
 </div>
 <div id="model-assumption-checks-mod_bayes-as-an-example" class="section level2">
 <h2 class="hasAnchor">
 <a href="#model-assumption-checks-mod_bayes-as-an-example" class="anchor"></a>Model Assumption Checks: <code>mod_bayes</code> as an example</h2>
-<p>The next thing we might want to check is whether assumptions of the model are met by the data. The typical way to do this is by plotting and / or analysing the model residuals. In non-Gaussian models such as this one, this can be a little less straightforward. However, <code>phyr</code> output supports the <code>DHARMa</code> package, which can generated a generalised type of residual known as randomized quantile residuals (or sometimes Dunn-Smyth residuals). These can be calculated and inspected for nearly any error distribution. We can produce standard diagnostic plots for our <code>phyr</code> model by simply calling <code><a href="https://rdrr.io/pkg/DHARMa/man/simulateResiduals.html">DHARMa::simulateResiduals</a></code> on the model object.</p>
+<p>The next thing we might want to check is whether assumptions of the model are met by the data. The typical way to do this is by plotting and/or analyzing the model residuals. In non-Gaussian models such as this one, this can be less straightforward. However, <code>phyr</code> output supports the <code>DHARMa</code> package, which can generated a generalized type of residual known as randomized quantile residuals (or sometimes Dunn-Smyth residuals). These can be calculated and inspected for nearly any error distribution. We can produce standard diagnostic plots for our <code>pglmm</code> model by simply calling <code><a href="https://rdrr.io/pkg/DHARMa/man/simulateResiduals.html">DHARMa::simulateResiduals</a></code> on the model object.</p>
 <div class="sourceCode" id="cb12"><pre class="downlit">
 <span class="kw">resids</span> <span class="op">&lt;-</span> <span class="kw">DHARMa</span>::<span class="fu"><a href="https://rdrr.io/pkg/DHARMa/man/simulateResiduals.html">simulateResiduals</a></span>(<span class="kw">mod_bayes</span>, plot = <span class="fl">FALSE</span>)
 <span class="co">#&gt; Warning in checkModel(fittedModel): DHARMa: fittedModel not in class of</span>
@@ -289,7 +301,7 @@
 <span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html">plot</a></span>(<span class="kw">resids</span>)
 </pre></div>
 <p><img src="phyr_example_empirical_files/figure-html/call_dharma-1.png" width="90%"></p>
-<p>So that looks pretty good to me, though some of the tests failed. Specifically the residual quantiles are not quite as flat with respect to the model predictions as we would like them to be. There is a slight curvature, and the residuals are overall increasing slightly with higher predictions. Visually however, this looks like a weak effect, and are only likely a ‘significant’ deviation because of the large number of data-points. I am reasonably comfortable that the model assumptions are satisfied fairly well in this case. Given that we are interested in the effect of disturbance, we may also want to check that the residuals do not show any strong patterns with the disturbance treatment. This is simple to do with <code>DHARMa</code> as follows:</p>
+<p>The residual plots look pretty good, though some of the tests failed. Specifically the residual quantiles are not quite as flat with respect to the model predictions as we would like them to be. There is a slight curvature, and the residuals are overall increasing slightly with higher predictions. Visually, however, this looks like a weak effect, and for large datasets such as this, it is easy for the tests to fail. Thus, it is likely that the statistical inference we get from the model is pretty good. Given that we are interested in the effect of disturbance, we may also want to check that the residuals do not show any strong patterns with the disturbance treatment. This is simple to do with <code>DHARMa</code> as follows:</p>
 <div class="sourceCode" id="cb13"><pre class="downlit">
 <span class="kw">DHARMa</span>::<span class="fu"><a href="https://rdrr.io/pkg/DHARMa/man/plotResiduals.html">plotResiduals</a></span>(<span class="kw">resids</span>, <span class="kw">mod_bayes</span><span class="op">$</span><span class="kw">data</span><span class="op">$</span><span class="kw">disturbance</span>)
 </pre></div>
@@ -299,7 +311,7 @@
 <div id="goodness-of-fit" class="section level2">
 <h2 class="hasAnchor">
 <a href="#goodness-of-fit" class="anchor"></a>Goodness of Fit</h2>
-<p>Another good question about our model is simply: how well does it fit the data. A metric appealing in its simplicity is the classic R<sup>2</sup> metric, which purports to estimate the proportion of the variance in the response explained by the model predictors. Once again though, when using non-Gaussian errors this can become a bit tricky. An additional complication is created by model with random effects. Given that random effects are very flexible model components (for example, nothing stopping you from fitting a random effect for each observation in your dataset), a straight-up calculation of variance explains isn’t too meaningful. That being said, methods that can produce a useful R<sup>2</sup> metric in the complex situation have been developed. The package <code>rr2</code> is able to calculate several flavours of R<sup>2</sup>, and supports <code>phyr</code>’s <code>communityPGLMM</code> model object. Let’s try it!</p>
+<p>Another question about our model is simply how well it fits the data. A metric appealing in its simplicity is the classic R<sup>2</sup> metric, which purports to estimate the proportion of the variance in the response explained by the model predictors. Once again, though, when using non-Gaussian errors this can become a bit tricky. An additional complication is created by model with random effects. Given that random effects are very flexible model components (for example, nothing stops you from fitting a random effect for each observation in your dataset), a straight-up calculation of variance explains isn’t meaningful. That said, methods that can produce a useful R<sup>2</sup> metric in the complex situation have been developed. The <a href="https://github.com/arives/rr2">package <code>rr2</code></a> is able to calculate several flavors of R<sup>2</sup>, and supports <code>phyr</code>’s <code>pglmm</code> model object. Let’s try it!</p>
 <div class="sourceCode" id="cb14"><pre class="downlit">
 <span class="kw">rr2</span>::<span class="fu"><a href="https://rdrr.io/pkg/rr2/man/R2.html">R2</a></span>(<span class="kw">mod</span>)
 <span class="co">#&gt; Models of class pglmm do not have a R2_resid method.</span>
@@ -309,14 +321,14 @@
 <span class="co">#&gt; Models of class pglmm do not have a R2_resid method.</span>
 <span class="co">#&gt; Models of class pglmm with bayes = TRUE do not have a R2_lik method.</span>
 <span class="co">#&gt;   R2_pred </span>
-<span class="co">#&gt; 0.4577086</span>
+<span class="co">#&gt; 0.4577072</span>
 </pre></div>
-<p>There we go! 0.46 for <code>mod_bayes</code>! We can think of this as saying roughly 46% of our response’s variance has been explained by our model, taking into account the various sources of covariance we modeled, subject to a boatload of assumption and caveats of course. That’s handy! See Ives (2018) for the full description of how this R<sup>2</sup> works.</p>
+<p>There we go! R<sup>2</sup> = 0.44 for <code>mod</code> and R<sup>2</sup> = 0.46 for <code>mod_bayes</code>! We can think of this as saying roughly 44% (or 46%) of our response’s variance has been explained by our model, taking into account the various sources of covariance we modeled, subject to a boatload of assumption and caveats of course. That’s handy! See <a href="https://academic.oup.com/sysbio/article/68/2/234/5098616">Ives (2018)</a> for the full description of how this R<sup>2</sup> works.</p>
 </div>
 <div id="auc-specificity-and-true-skill-statistics-tss" class="section level2">
 <h2 class="hasAnchor">
 <a href="#auc-specificity-and-true-skill-statistics-tss" class="anchor"></a>AUC, Specificity, and True Skill Statistics (TSS)</h2>
-<p>Assessments of predictive accuracy of Species Distribution Models generally are based on confusion matrices that record the numbers of true positive, false positive, true negative, and false negative. Such matrices are straightforward to construct for models providing presence-absence predictions, which is true for most SDMs. Commonly used measures for SDMs include Specificity (true negative rate), Sensitivity (true positive rate), True Skill Statistic (TSS = Sensitivity + Specificity - 1), and area under the receiver operating characteristic (ROC) curve (AUC) (<a href="https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/j.1365-2664.2006.01214.x">Allouche et al. 2006</a>). Combining the observed values with the predictions generated by the <code><a href="../reference/pglmm_predicted_values.html">pglmm_predicted_values()</a></code> function, we can calculate such measures to evaluate the performance of our models.</p>
+<p>Assessments of predictive accuracy of Species Distribution Models are generally based on confusion matrices that record the numbers of true positive, false positive, true negative, and false negative. Such matrices are straightforward to construct for models providing presence-absence predictions, which is true for most SDMs. Commonly used measures for SDMs include Specificity (true negative rate), Sensitivity (true positive rate), True Skill Statistic (TSS = Sensitivity + Specificity - 1), and area under the receiver operating characteristic (ROC) curve (AUC) (<a href="https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/j.1365-2664.2006.01214.x">Allouche et al. 2006</a>). Combining the observed values with the predictions generated by the <code><a href="../reference/pglmm_predicted_values.html">pglmm_predicted_values()</a></code> function, we can calculate such measures to evaluate the performance of our models.</p>
 <div class="sourceCode" id="cb15"><pre class="downlit">
 <span class="kw">pred_mod</span> <span class="op">=</span> <span class="kw">phyr</span>::<span class="fu"><a href="../reference/pglmm_predicted_values.html">pglmm_predicted_values</a></span>(<span class="kw">mod</span>)<span class="op">$</span><span class="kw">Y_hat</span>
 <span class="kw">obs_mod</span> <span class="op">=</span> <span class="kw">mod</span><span class="op">$</span><span class="kw">data</span><span class="op">$</span><span class="kw">pres</span>
@@ -332,7 +344,7 @@
                         x.measure = <span class="st">"fpr"</span>), main = <span class="st">"ROC Curve"</span>) <span class="co"># ROC curve</span>
 </pre></div>
 <p><img src="phyr_example_empirical_files/figure-html/perfML-1.png" width="672"></p>
-<p>We can see that the AUC is pretty high (0.9273677) with the model fitted with maximum likelihood framework (<code>mod</code>). True positive rate and true negative rates are also both reasonably high. What about the model fitted with Bayesian framework (<code>mod_bayes</code>)? Not surprising, the results are similar to those of <code>mod</code>.</p>
+<p>We can see that the AUC is pretty high (0.9273677) with the model fitted with maximum likelihood framework (<code>mod</code>). True positive rates and true negative rates are also both reasonably high. What about the model fitted with Bayesian framework (<code>mod_bayes</code>)? Not surprising, the results are similar to those of <code>mod</code>.</p>
 <div class="sourceCode" id="cb16"><pre class="downlit">
 <span class="kw">pred_mod_bayes</span> <span class="op">=</span> <span class="kw">phyr</span>::<span class="fu"><a href="../reference/pglmm_predicted_values.html">pglmm_predicted_values</a></span>(<span class="kw">mod_bayes</span>)<span class="op">$</span><span class="kw">Y_hat</span>
 <span class="kw">obs_mod_bayes</span> <span class="op">=</span> <span class="kw">mod_bayes</span><span class="op">$</span><span class="kw">data</span><span class="op">$</span><span class="kw">pres</span>
@@ -350,7 +362,7 @@
                         x.measure = <span class="st">"fpr"</span>), main = <span class="st">"ROC Curve"</span>) <span class="co"># ROC curve</span>
 </pre></div>
 <p><img src="phyr_example_empirical_files/figure-html/perfBayes-1.png" width="672"></p>
-<p>Now let’s compare the model that does not account for phylogenetic relationships, i.e. the regular joint species distribution models.</p>
+<p>Now let’s compare the model that does not account for phylogenetic relationships, that is, the regular joint species distribution models.</p>
 <div class="sourceCode" id="cb17"><pre class="downlit">
 <span class="kw">mod_bayes_no_phy</span> <span class="op">&lt;-</span> <span class="kw">phyr</span>::<span class="fu"><a href="../reference/pglmm.html">pglmm</a></span>(<span class="kw">pres</span> <span class="op">~</span> <span class="kw">disturbance</span> <span class="op">+</span> (<span class="fl">1</span> <span class="op">|</span> <span class="kw">sp</span>) <span class="op">+</span> 
                                   (<span class="fl">1</span> <span class="op">|</span> <span class="kw">site</span>) <span class="op">+</span> (<span class="kw">disturbance</span> <span class="op">|</span> <span class="kw">sp</span>), 
@@ -375,7 +387,7 @@
                        measure = <span class="st">"tpr"</span>, x.measure = <span class="st">"fpr"</span>), main = <span class="st">"ROC Curve"</span>) <span class="co"># ROC curve</span>
 </pre></div>
 <p><img src="phyr_example_empirical_files/figure-html/perfBayesNoPhy-1.png" width="672"></p>
-<p>Including species’ phylogenetic relationships in the model indeed improved the model performance. After dropping the phylogenetic random terms from the model, <code>AUC</code> decreased from 0.9325339 to 0.9025726 and <code>TSS</code> decreased from 0.7159671 to 0.6674661.</p>
+<p>Including species’ phylogenetic relationships in the model indeed improved the model performance. After dropping the phylogenetic random terms from the model, <code>AUC</code> decreased from 0.9325 to 0.9026 and <code>TSS</code> decreased from 0.716 to 0.6675.</p>
 </div>
   </div>
 
