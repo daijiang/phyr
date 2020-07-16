@@ -30,7 +30,7 @@ tree = phyr::phylotree
 data = dat
 tree_site = ape::rtree(n = nlevels(data$site), tip.label = levels(data$site))
 formula = freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site) + (1|sp@site)
-formula = freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site) + (shade | sp__@site)
+formula = freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site) + (shade | sp) + (shade | sp__@site)
 data$freq2 = 20
 formula = cbind(freq, freq2) ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site)
 cov_ranef = list(sp = phylotree)
@@ -48,7 +48,7 @@ optimizer = "bobyqa"
 optimizer = "Nelder-Mead"
 prep.s2.lme4 = FALSE
 cpp = TRUE
-prep_re = TRUERUE
+prep_re = TRUE
 family = "gaussian"
 family = "binomial"
 tol.pql = 10^-6
