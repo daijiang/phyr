@@ -1053,10 +1053,13 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   
   # contruct INLA formula
   inla_formula <- Reduce(paste, deparse(formula_bayes))
-  inla_effects <- list()
-  inla_Cmat <- list()
-  inla_weights <- list()
-  inla_reps <- list()
+  inla_effects <- vector("list", length = length(random.effects))
+  if(is.null(names(random.effects))){
+    names(inla_effects) <- as.character(1:length(inla_effects))
+  } else { # assign names so that the inla.model has names in random terms
+    names(inla_effects) <- names(random.effects)
+  }
+  inla_Cmat <- inla_weights <- inla_reps <- inla_effects
   
   for(i in seq_along(random.effects)) {
     if(length(random.effects[[i]]) == 1) { 
@@ -1094,23 +1097,27 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   f_form = vector(mode = "character", length = length(random.effects))
   for(i in seq_along(random.effects)) {
     if(length(random.effects[[i]]) == 3) { # non-nested term
-      if(length(random.effects[[i]][[1]]) == 1) {
-        f_form[i] <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
-      } else {
-        f_form[i] <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
+      if(length(random.effects[[i]][[1]]) == 1) { # 1 | sp, 1 | sp__, 1 | site, 1 | site__
+        f_form[i] <- paste0("f(inla_effects[['", names(inla_effects)[i], "']], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
+      } else {  # x | sp, x | sp__, x | site, x | site__
+        f_form[i] <- paste0("f(inla_effects[['", names(inla_effects)[i], "']], inla_weights[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
       }
-    } else { # nested term
+    } else { # nested term 1 | sp__@site, etc.
       if(length(random.effects[[i]]) == 4) { 
         if(length(random.effects[[i]][[1]]) == 1) {
-          f_form[i] <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
+          f_form[i] <- paste0("f(inla_effects[['", names(inla_effects)[i], "']], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
         } else {
-          f_form[i] <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
+          f_form[i] <- paste0("f(inla_effects[['", names(inla_effects)[i], "']], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
         }
-      } else {
-        if(length(random.effects[[i]]) == 1) {
-          f_form[i] <- paste0("f(inla_effects[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
+      } else { # length of 1 or 2: specified as a matrix (1|sp__@site) or list of 2 (x|sp__@site)
+        if(length(random.effects[[i]]) == 1) { # (1|sp__@site) etc.
+          f_form[i] <- paste0("f(inla_effects[['", names(inla_effects)[i], "']], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
         } else {
-          f_form[i] <- paste0("f(inla_effects[[", i, "]], inla_weights[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
+          if(length(random.effects[[i]]) == 2) { # (x|sp__@site) etc.
+            f_form[i] <- paste0("f(inla_effects[['", names(inla_effects)[i], "']], inla_weights[[", i, "]], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
+          } else { # other lengths? just in case ...
+            f_form[i] <- paste0("f(inla_effects[['", names(inla_effects)[i], "']], model = 'generic0', constr = TRUE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
+          }
         }
       }
     }
@@ -1177,7 +1184,6 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   }
   
   if(family == "gaussian") {
-    
     if(is.null(argus$control.family)) {
       argus$control.family = list(hyper = list(prec = list(initial = resid.init)))
     } else {
@@ -1226,6 +1232,7 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   nested <- sapply(random.effects, length) %in% c(1, 2, 4)
   
   variances <- 1/out$summary.hyperpar[ , marginal.summ]
+  # names(variances) <- gsub("Precision for ", "", rownames(out$summary.hyperpar))
   variances.ci <- 1/out$summary.hyperpar[ , c("0.975quant", "0.025quant")]
   
   if(family == "gaussian") {
