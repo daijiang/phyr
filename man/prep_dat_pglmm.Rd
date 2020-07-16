@@ -12,7 +12,7 @@ prep_dat_pglmm(
   prep.re.effects = TRUE,
   family = "gaussian",
   add.obs.re = TRUE,
-  bayes
+  bayes = FALSE
 )
 }
 \arguments{
