@@ -1211,23 +1211,25 @@ ranef.communityPGLMM <- function(object, ...) {
   
   random.effects = object$random.effects
   if(!is.null(names(random.effects))){
-    re.names = names(random.effects)[c(
-      which(sapply(random.effects, length) %nin% c(1, 4)),
-      which(sapply(random.effects, length) %in% c(1, 4))
-    )]
+    re.names = names(random.effects)
   } else {
     re.names <- NULL
-    if (length(object$s2r) > 0) {
-      for (i in 1:length(object$s2r)) re.names <- c(re.names, paste("non-nested ", i, sep = ""))
+    if (length(x$s2r) > 0) {
+      for (i in 1:length(x$s2r)) re.names <- c(re.names, paste("non-nested ", i, sep = ""))
     }
-    if (length(object$s2n) > 0) {
-      for (i in 1:length(object$s2n)) re.names <- c(re.names, paste("nested ", i, sep = ""))
+    if (length(x$s2n) > 0) {
+      for (i in 1:length(x$s2n)) re.names <- c(re.names, paste("nested ", i, sep = ""))
     }
   }
   
-  if (object$family == "gaussian") re.names <- c(re.names, "residual")
+  if (x$family == "gaussian") re.names <- c(re.names, "residual")
   
-  row.names(w) <- re.names
+  if(!is.null(names(random.effects))){
+    w <- w[re.names, ] # print in the same order of random terms
+  } else {
+    row.names(w) <- re.names
+  }
+  
   w
 }
 
