@@ -1304,9 +1304,10 @@ simulate.communityPGLMM <- function(object, nsim = 1, seed = NULL,
       sim <- pglmm_predicted_values(object, re.form = NULL, type = "link")$Y_hat
       sim <- sim %*% matrix(1, 1, nsim)
       if(object$family == "gaussian")
-        sim <- sim + matrix(rnorm(nsim * nn), nrow = nn)  
+        sim <- sim + sqrt(object$s2resid) * matrix(rnorm(nsim * nn), nrow = nn)  
     } else {
-      if(is.na(re.form) | re.form == "~0" | !use.u){
+      re.form = deparse(NA)
+      if(deparse(re.form) == "~0" | deparse(re.form) == "NA" |  !use.u){
         # condition on none of the random effects
         sim <- (object$X %*% object$B) %*% matrix(1, 1, nsim)
         chol.V <- backsolve(chol(object$iV), diag(nn))
