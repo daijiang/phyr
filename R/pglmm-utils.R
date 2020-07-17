@@ -996,8 +996,8 @@ print.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ..
 #'   Option nearest_node will predict values to the nearest node, which is same as lme4::predict or
 #'   fitted. Option tip_rm will remove the point then predict the value of this point with remaining ones.
 #' @param re.form (formula, `NULL`, or `NA`) specify which random effects to condition on when predicting. 
-#' If `NULL`, include all random effects (i.e $X\beta + Z\mu$); 
-#' if `NA` or `~0`, include no random effects (i.e. $X\beta$).
+#' If `NULL`, include all random effects (i.e Xb + Zu); 
+#' if `NA` or `~0`, include no random effects (i.e. Xb).
 #' @param ... Optional additional parameters. None are used at present.
 #' @inheritParams lme4::predict.merMod
 #' @export
@@ -1214,15 +1214,15 @@ ranef.communityPGLMM <- function(object, ...) {
     re.names = names(random.effects)
   } else {
     re.names <- NULL
-    if (length(x$s2r) > 0) {
-      for (i in 1:length(x$s2r)) re.names <- c(re.names, paste("non-nested ", i, sep = ""))
+    if (length(object$s2r) > 0) {
+      for (i in 1:length(object$s2r)) re.names <- c(re.names, paste("non-nested ", i, sep = ""))
     }
-    if (length(x$s2n) > 0) {
-      for (i in 1:length(x$s2n)) re.names <- c(re.names, paste("nested ", i, sep = ""))
+    if (length(object$s2n) > 0) {
+      for (i in 1:length(object$s2n)) re.names <- c(re.names, paste("nested ", i, sep = ""))
     }
   }
   
-  if (x$family == "gaussian") re.names <- c(re.names, "residual")
+  if (object$family == "gaussian") re.names <- c(re.names, "residual")
   
   if(!is.null(names(random.effects))){
     w <- w[re.names, ] # print in the same order of random terms
@@ -1284,14 +1284,14 @@ predict.communityPGLMM <- function(object, newdata = NULL, ...) {
 #'
 #' @inheritParams lme4::simulate.merMod
 #' @param re.form (formula, `NULL`, or `NA`) specify which random effects to condition on when predicting. 
-#' If `NULL`, include all random effects and the conditional modes of those random effects will be included in the deterministic part of the simulation (i.e $X\beta + Z\mu$ + random errors if Gaussian); 
-#' if `NA` or `~0`, include no random effects and new values will be chosen for each group based on the estimated random-effects variances (i.e. $X\beta + Z\mu * u_random$ + random errors if Gaussion).
+#' If `NULL`, include all random effects and the conditional modes of those random effects will be included in the deterministic part of the simulation (i.e Xb + Zu); 
+#' if `NA` or `~0`, include no random effects and new values will be chosen for each group based on the estimated random-effects variances (i.e. Xb + Zu * u_random).
 #' @param object A fitted model object with class 'communityPGLMM'.
 #'
 #' @export
 #'
 simulate.communityPGLMM <- function(object, nsim = 1, seed = NULL, 
-                                    use.u = FALSE, re.form = NA, ...) {
+                                    use.u = FALSE, re.form = NULL, ...) {
   if(use.u & object$bayes) {
     stop("Sorry, simulate.communityPGLMM currently doesn't support use.u = TRUE, but we are working on it!")
   }
@@ -1300,6 +1300,8 @@ simulate.communityPGLMM <- function(object, nsim = 1, seed = NULL,
   #sim <- INLA::inla.posterior.sample(nsim, object$inla.model)
   
   if(!object$bayes) {
+    # when re.form = NULL, pglmm and lme4 have the same predict and simulate values
+    # for gaussion, binomial, and poisson distributions.
     nn <- nrow(object$iV)
     
     if(is.null(re.form) | use.u){
@@ -1309,7 +1311,7 @@ simulate.communityPGLMM <- function(object, nsim = 1, seed = NULL,
         sim <- sim + sqrt(object$s2resid) * matrix(rnorm(nsim * nn), nrow = nn)  
     } else {
       re.form = deparse(NA)
-      if(deparse(re.form) == "~0" | deparse(re.form) == "NA" |  !use.u){
+      if(deparse(re.form) == "~0" | deparse(re.form) == "NA" | !use.u){
         # condition on none of the random effects
         sim <- (object$X %*% object$B) %*% matrix(1, 1, nsim)
         chol.V <- backsolve(chol(object$iV), diag(nn))
@@ -1330,6 +1332,9 @@ simulate.communityPGLMM <- function(object, nsim = 1, seed = NULL,
       sim <- apply(mu_sim, MARGIN = 2, FUN = function(x) rbinom(length(x), Ntrials, x))
     }
   } else { # beyes version
+    if(deparse(re.form) == "~0" | deparse(re.form) == "NA" | !use.u)
+      warning("re.form = NULL is the only option for bayes models at this moment",
+              immediate. = TRUE)
     mu_sim <- do.call(rbind, lapply(object$inla.model$marginals.fitted.values, 
                                     INLA::inla.rmarginal, n = nsim)) %>%
       as.data.frame()
