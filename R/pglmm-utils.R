@@ -995,59 +995,77 @@ print.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ..
 #' @param gaussian.pred When family is gaussian, which type of prediction to calculate?
 #'   Option nearest_node will predict values to the nearest node, which is same as lme4::predict or
 #'   fitted. Option tip_rm will remove the point then predict the value of this point with remaining ones.
+#' @param re.form (formula, `NULL`, or `NA`) specify which random effects to condition on when predicting. 
+#' If `NULL`, include all random effects (i.e Xb + Zu); 
+#' if `NA` or `~0`, include no random effects (i.e. Xb).
 #' @param ... Optional additional parameters. None are used at present.
+#' @inheritParams lme4::predict.merMod
 #' @export
 #' @return A data frame with column Y_hat (predicted values accounting for 
 #'   both fixed and random terms).
 pglmm_predicted_values <- function(x, cpp = TRUE, 
-                                   gaussian.pred = c("nearest_node", "tip_rm"), ...) {
+                                   gaussian.pred = c("nearest_node", "tip_rm"), 
+                                   re.form = NULL,
+                                   type = c("link", "response"), ...) {
+
   ptype = match.arg(gaussian.pred)
   if(x$bayes) {
     marginal.summ <- x$marginal.summ
     if(marginal.summ == "median") marginal.summ <- "0.5quant"
     predicted.values <- x$inla.model$summary.fitted.values[ , marginal.summ, drop = TRUE]
   } else {
-    if (x$family == "gaussian") {
-      n <- dim(x$X)[1]
-      fit <- x$X %*% x$B
-      V <- solve(x$iV)
-      if(ptype == "nearest_node"){
-        R <- matrix(x$Y, ncol = 1) - fit # similar as lme4. predict(merMod, re.form = NA); no random effects
-        v <- V
-        for(i in 1:n) {
-          v[i, i] <- max(V[i, -i])
-        }
-        Rhat <- v %*% x$iV %*% R # random effects
-        predicted.values <- as.numeric(fit + Rhat)
-      }
-      if(ptype == "tip_rm"){
-        if(cpp){
-          predicted.values <- pglmm_gaussian_predict(x$iV, x$H)
-        } else {
-          V <- solve(x$iV)
-          h <- matrix(0, nrow = n, ncol = 1)
-          for (i in 1:n) {
-            h[i] <- as.numeric(V[i, -i] %*% solve(V[-i, -i]) %*% matrix(x$H[-i]))
-            # H is Y - X %*% B
+    if(is.null(re.form)){
+      if (x$family == "gaussian") {
+        n <- dim(x$X)[1]
+        fit <- x$X %*% x$B
+        V <- solve(x$iV)
+        if(ptype == "nearest_node"){
+          R <- matrix(x$Y, ncol = 1) - fit # similar as lme4. predict(merMod, re.form = NULL)
+          v <- V
+          for(i in 1:n) {
+            v[i, i] <- max(V[i, -i])
           }
-          predicted.values <- h
+          Rhat <- v %*% x$iV %*% R # random effects
+          predicted.values <- as.numeric(fit + Rhat)
+        }
+        if(ptype == "tip_rm"){
+          if(cpp){
+            predicted.values <- pglmm_gaussian_predict(x$iV, x$H)
+          } else {
+            V <- solve(x$iV)
+            h <- matrix(0, nrow = n, ncol = 1)
+            for (i in 1:n) {
+              h[i] <- as.numeric(V[i, -i] %*% solve(V[-i, -i]) %*% matrix(x$H[-i]))
+              # H is Y - X %*% B
+            }
+            predicted.values <- h
+          }
         }
       }
+      
+      if (x$family == "binomial") {
+        # x$H is calculated by the following lines of code
+        # Z <- X %*% B + b + (Y - mu) * size/(mu * (1 - mu))
+        # H <- Z - X %*% B
+        # this gives the solutions to the over-determined set of equations for the fixed 
+        # effects X %*% B and random effects b
+        # h <- x$H + x$X %*% x$B - (x$Y - x$mu) * size/(x$mu * (1 - x$mu)) 
+        predicted.values <- logit(x$mu)
+      }
+      
+      if(x$family == "poisson") predicted.values <- log(x$mu)
+    } else { # re.form = NA or ~0, XB
+      predicted.values <- x$X %*% x$B
     }
-    
-    if (x$family == "binomial") {
-      # x$H is calculated by the following lines of code
-      # Z <- X %*% B + b + (Y - mu) * size/(mu * (1 - mu))
-      # H <- Z - X %*% B
-      # this gives the solutions to the over-determined set of equations for the fixed 
-      # effects X %*% B and random effects b
-      # h <- x$H + x$X %*% x$B - (x$Y - x$mu) * size/(x$mu * (1 - x$mu)) 
-      predicted.values <- logit(x$mu)
+    type <- match.arg(type)
+    if(type == "response"){
+      if(x$family == "binomial") 
+        predicted.values <- make.link("logit")$linkinv(predicted.values)
+      if(x$family == "poisson") 
+        predicted.values <- make.link("log")$linkinv(predicted.values)
     }
-    
-    if(x$family == "poisson") predicted.values <- log(x$mu)
   }
-  
+    
   data.frame(Y_hat = predicted.values)
 }
 
@@ -1193,10 +1211,7 @@ ranef.communityPGLMM <- function(object, ...) {
   
   random.effects = object$random.effects
   if(!is.null(names(random.effects))){
-    re.names = names(random.effects)[c(
-      which(sapply(random.effects, length) %nin% c(1, 4)),
-      which(sapply(random.effects, length) %in% c(1, 4))
-    )]
+    re.names = names(random.effects)
   } else {
     re.names <- NULL
     if (length(object$s2r) > 0) {
@@ -1209,7 +1224,12 @@ ranef.communityPGLMM <- function(object, ...) {
   
   if (object$family == "gaussian") re.names <- c(re.names, "residual")
   
-  row.names(w) <- re.names
+  if(!is.null(names(random.effects))){
+    w <- w[re.names, ] # print in the same order of random terms
+  } else {
+    row.names(w) <- re.names
+  }
+  
   w
 }
 
@@ -1263,45 +1283,58 @@ predict.communityPGLMM <- function(object, newdata = NULL, ...) {
 #' Note that this function currently only works for model fit with \code{bayes = TRUE}
 #'
 #' @inheritParams lme4::simulate.merMod
+#' @param re.form (formula, `NULL`, or `NA`) specify which random effects to condition on when predicting. 
+#' If `NULL`, include all random effects and the conditional modes of those random effects will be included in the deterministic part of the simulation (i.e Xb + Zu); 
+#' if `NA` or `~0`, include no random effects and new values will be chosen for each group based on the estimated random-effects variances (i.e. Xb + Zu * u_random).
 #' @param object A fitted model object with class 'communityPGLMM'.
 #'
 #' @export
 #'
 simulate.communityPGLMM <- function(object, nsim = 1, seed = NULL, 
-                                    use.u = FALSE, re.form = NA, ...) {
+                                    use.u = FALSE, re.form = NULL, ...) {
   if(use.u & object$bayes) {
     stop("Sorry, simulate.communityPGLMM currently doesn't support use.u = TRUE, but we are working on it!")
   }
+  if(!is.null(seed)) set.seed(seed)
   
   #sim <- INLA::inla.posterior.sample(nsim, object$inla.model)
   
   if(!object$bayes) {
+    # when re.form = NULL, pglmm and lme4 have the same predict and simulate values
+    # for gaussion, binomial, and poisson distributions.
     nn <- nrow(object$iV)
-    sim <- (object$X %*% object$B) %*% matrix(1, 1, nsim)
     
     if(is.null(re.form) | use.u){
-      chol.V <- backsolve(chol(object$iV), diag(nn))
-      sim <- sim + chol.V %*% matrix(rnorm(nsim * nn), nrow = nn)
+      sim <- pglmm_predicted_values(object, re.form = NULL, type = "link")$Y_hat
+      sim <- sim %*% matrix(1, 1, nsim)
+      if(object$family == "gaussian")
+        sim <- sim + sqrt(object$s2resid) * matrix(rnorm(nsim * nn), nrow = nn)  
     } else {
-      if(is.na(re.form) | re.form == "~0" | !use.u){
+      re.form = deparse(NA)
+      if(deparse(re.form) == "~0" | deparse(re.form) == "NA" | !use.u){
         # condition on none of the random effects
-        sim <- sim + matrix(rnorm(nsim * nn), nrow = nn) 
+        sim <- (object$X %*% object$B) %*% matrix(1, 1, nsim)
+        chol.V <- backsolve(chol(object$iV), diag(nn))
+        sim <- sim + chol.V %*% matrix(rnorm(nsim * nn), nrow = nn)
+        if(object$family == "gaussian")
+          sim <- sim + matrix(rnorm(nsim * nn), nrow = nn) 
       } else {
-        warning("Formula for random effects to condition on currently is not supported yet. 
-                Simulated without condition on random effects")
-        sim <- sim + matrix(rnorm(nsim * nn), nrow = nn) 
+        stop("Formula for random effects to condition on currently is not supported yet")
       }
     }
     if(object$family == "poisson") {
-      mu_sim  <- exp(sim)
+      mu_sim  <- make.link("log")$linkinv(sim) # exp(sim)
       sim <- apply(mu_sim, MARGIN = 2, FUN = function(x) rpois(length(x), x))
     }
     if(object$family == "binomial") {
-      mu_sim  <- 1/(1 + exp(-sim))
+      mu_sim  <- make.link("logit")$linkinv(sim) # 1/(1 + exp(-sim))
       Ntrials <- object$size
       sim <- apply(mu_sim, MARGIN = 2, FUN = function(x) rbinom(length(x), Ntrials, x))
     }
   } else { # beyes version
+    if(deparse(re.form) == "~0" | deparse(re.form) == "NA" | !use.u)
+      warning("re.form = NULL is the only option for bayes models at this moment",
+              immediate. = TRUE)
     mu_sim <- do.call(rbind, lapply(object$inla.model$marginals.fitted.values, 
                                     INLA::inla.rmarginal, n = nsim)) %>%
       as.data.frame()

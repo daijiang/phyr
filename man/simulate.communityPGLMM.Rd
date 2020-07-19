@@ -4,7 +4,7 @@
 \alias{simulate.communityPGLMM}
 \title{Simulate from a communityPGLMM object}
 \usage{
-\method{simulate}{communityPGLMM}(object, nsim = 1, seed = NULL, use.u = FALSE, re.form = NA, ...)
+\method{simulate}{communityPGLMM}(object, nsim = 1, seed = NULL, use.u = FALSE, re.form = NULL, ...)
 }
 \arguments{
 \item{object}{A fitted model object with class 'communityPGLMM'.}
@@ -22,9 +22,9 @@
     \code{FALSE} corresponds to \code{re.form = ~0} (condition on none
     of the random effects).)}
 
-\item{re.form}{formula for random effects to condition on.  If
-    \code{NULL}, condition on all random effects; if \code{NA} or \code{~0},
-    condition on no random effects.  See Details.}
+\item{re.form}{(formula, \code{NULL}, or \code{NA}) specify which random effects to condition on when predicting.
+If \code{NULL}, include all random effects and the conditional modes of those random effects will be included in the deterministic part of the simulation (i.e Xb + Zu);
+if \code{NA} or \code{~0}, include no random effects and new values will be chosen for each group based on the estimated random-effects variances (i.e. Xb + Zu * u_random).}
 
 \item{...}{optional additional arguments: none are used at present.}
 }
