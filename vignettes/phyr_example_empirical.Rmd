@@ -142,7 +142,7 @@ plot_bayes(mod_bayes, sort = TRUE)
 
 What we are looking for is that the posterior distribution mode is well away from zero, and that it looks relatively symmetrical. If it were skewed and crammed up against the left side of the plot, near zero, we would conclude that the effect is weak (remembering that variance components cannot be less than or equal zero, so there will always be some positive probability mass). The most obvious effects (well away from zero) are again the species random effect, the species-by-disturbance random effect, and the nested phylogenetic effect. In this plot, the 95% credible interval is also plotted, along with the posterior mean (the point and bar at the bottom of each density). For the random effects these aren't too meaningful, but they can help distinguish genuine effects in the fixed effects. If these credible intervals overlap zero in the fixed effects, the density will be plotted with a lighter color to suggest it is not a strong effect (although this is not relevant for this dataset, because both fixed effects are strong). 
 
-## Model Assumption Checks: `mod_bayes` as an example
+## Model Assumption Checks
 
 The next thing we might want to check is whether assumptions of the model are met by the data. The typical way to do this is by plotting and/or analyzing the model residuals. In non-Gaussian models such as this one, this can be less straightforward. However, `phyr` output supports the `DHARMa` package, which can generated a generalized type of residual known as randomized quantile residuals (or sometimes Dunn-Smyth residuals). These can be calculated and inspected for nearly any error distribution. We can produce standard diagnostic plots for our `pglmm` model by simply calling `DHARMa::simulateResiduals` on the model object.
 
@@ -157,7 +157,12 @@ The residual plots look pretty good, though some of the tests failed. Specifical
 DHARMa::plotResiduals(resids, mod_bayes$data$disturbance)
 ```
 
-Obviously no problems there.
+Obviously no problems there. This is also the case for the model fitted by Maximum Likelihood method (`mod`).
+
+```{r call_dharma_mod, fig.width=16, fig.height=9, out.width="90%"}
+resids_mod <- DHARMa::simulateResiduals(mod, plot = FALSE)
+plot(resids_mod)
+```
 
 ## Goodness of Fit
 

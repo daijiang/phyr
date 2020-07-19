@@ -1291,10 +1291,7 @@ predict.communityPGLMM <- function(object, newdata = NULL, ...) {
 #' @export
 #'
 simulate.communityPGLMM <- function(object, nsim = 1, seed = NULL, 
-                                    use.u = FALSE, re.form = NULL, ...) {
-  if(use.u & object$bayes) {
-    stop("Sorry, simulate.communityPGLMM currently doesn't support use.u = TRUE, but we are working on it!")
-  }
+                                    re.form = NULL, ...) {
   if(!is.null(seed)) set.seed(seed)
   
   #sim <- INLA::inla.posterior.sample(nsim, object$inla.model)
@@ -1304,14 +1301,14 @@ simulate.communityPGLMM <- function(object, nsim = 1, seed = NULL,
     # for gaussion, binomial, and poisson distributions.
     nn <- nrow(object$iV)
     
-    if(is.null(re.form) | use.u){
+    if(is.null(re.form)){
       sim <- pglmm_predicted_values(object, re.form = NULL, type = "link")$Y_hat
       sim <- sim %*% matrix(1, 1, nsim)
       if(object$family == "gaussian")
         sim <- sim + sqrt(object$s2resid) * matrix(rnorm(nsim * nn), nrow = nn)  
     } else {
       re.form = deparse(NA)
-      if(deparse(re.form) == "~0" | deparse(re.form) == "NA" | !use.u){
+      if(deparse(re.form) == "~0" | deparse(re.form) == "NA"){
         # condition on none of the random effects
         sim <- (object$X %*% object$B) %*% matrix(1, 1, nsim)
         chol.V <- backsolve(chol(object$iV), diag(nn))
@@ -1332,7 +1329,7 @@ simulate.communityPGLMM <- function(object, nsim = 1, seed = NULL,
       sim <- apply(mu_sim, MARGIN = 2, FUN = function(x) rbinom(length(x), Ntrials, x))
     }
   } else { # beyes version
-    if(deparse(re.form) == "~0" | deparse(re.form) == "NA" | !use.u)
+    if(deparse(re.form) == "~0" | deparse(re.form) == "NA")
       warning("re.form = NULL is the only option for bayes models at this moment",
               immediate. = TRUE)
     mu_sim <- do.call(rbind, lapply(object$inla.model$marginals.fitted.values, 
