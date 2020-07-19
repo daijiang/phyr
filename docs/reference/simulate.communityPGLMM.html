@@ -142,7 +142,7 @@
     </div>
 
     <pre class="usage"><span class='co'># S3 method for communityPGLMM</span>
-<span class='fu'><a href='https://rdrr.io/r/stats/simulate.html'>simulate</a></span>(<span class='kw'>object</span>, nsim = <span class='fl'>1</span>, seed = <span class='kw'>NULL</span>, use.u = <span class='fl'>FALSE</span>, re.form = <span class='fl'>NA</span>, <span class='kw'>...</span>)</pre>
+<span class='fu'><a href='https://rdrr.io/r/stats/simulate.html'>simulate</a></span>(<span class='kw'>object</span>, nsim = <span class='fl'>1</span>, seed = <span class='kw'>NULL</span>, re.form = <span class='kw'>NULL</span>, <span class='kw'>...</span>)</pre>
 
     <h2 class="hasAnchor" id="arguments"><a class="anchor" href="#arguments"></a>Arguments</h2>
     <table class="ref-arguments">
@@ -161,20 +161,10 @@
     immediately before the simulation so as to generate a reproducible sample.</p></td>
     </tr>
     <tr>
-      <th>use.u</th>
-      <td><p>(logical) if <code>TRUE</code>, generate a simulation
-    conditional on the current random-effects estimates; if <code>FALSE</code>
-    generate new Normally distributed random-effects values. (Redundant
-    with <code>re.form</code>, which is preferred: <code>TRUE</code> corresponds to
-    <code>re.form = NULL</code> (condition on all random effects), while
-    <code>FALSE</code> corresponds to <code>re.form = ~0</code> (condition on none
-    of the random effects).)</p></td>
-    </tr>
-    <tr>
       <th>re.form</th>
-      <td><p>formula for random effects to condition on.  If
-    <code>NULL</code>, condition on all random effects; if <code>NA</code> or <code>~0</code>,
-    condition on no random effects.  See Details.</p></td>
+      <td><p>(formula, <code>NULL</code>, or <code>NA</code>) specify which random effects to condition on when predicting.
+If <code>NULL</code>, include all random effects and the conditional modes of those random effects will be included in the deterministic part of the simulation (i.e Xb + Zu);
+if <code>NA</code> or <code>~0</code>, include no random effects and new values will be chosen for each group based on the estimated random-effects variances (i.e. Xb + Zu * u_random).</p></td>
     </tr>
     <tr>
       <th>...</th>

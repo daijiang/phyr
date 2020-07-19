@@ -149,7 +149,7 @@ data, formula, and family, etc. without actually fitting the model, which will
 save time.</p>
     </div>
 
-    <pre class="usage"><span class='fu'><a href='https://rdrr.io/pkg/phyr/man/pglmm-plot-re.html'>pglmm_plot_ranef</a></span>(
+    <pre class="usage"><span class='fu'>pglmm_plot_ranef</span>(
   formula = <span class='kw'>NULL</span>,
   data = <span class='kw'>NULL</span>,
   family = <span class='st'>"gaussian"</span>,
@@ -171,7 +171,7 @@ save time.</p>
   <span class='kw'>...</span>
 )
 
-<span class='fu'><a href='https://rdrr.io/pkg/phyr/man/pglmm-plot-re.html'>communityPGLMM.show.re</a></span>(
+<span class='fu'>communityPGLMM.show.re</span>(
   formula = <span class='kw'>NULL</span>,
   data = <span class='kw'>NULL</span>,
   family = <span class='st'>"gaussian"</span>,
@@ -193,7 +193,7 @@ save time.</p>
   <span class='kw'>...</span>
 )
 
-<span class='fu'><a href='https://rdrr.io/pkg/phyr/man/pglmm-plot-re.html'>pglmm_plot_re</a></span>(
+<span class='fu'>pglmm_plot_re</span>(
   formula = <span class='kw'>NULL</span>,
   data = <span class='kw'>NULL</span>,
   family = <span class='st'>"gaussian"</span>,
@@ -215,7 +215,7 @@ save time.</p>
   <span class='kw'>...</span>
 )
 
-<span class='fu'><a href='https://rdrr.io/pkg/phyr/man/pglmm-plot-re.html'>communityPGLMM.plot.re</a></span>(
+<span class='fu'>communityPGLMM.plot.re</span>(
   formula = <span class='kw'>NULL</span>,
   data = <span class='kw'>NULL</span>,
   family = <span class='st'>"gaussian"</span>,
@@ -334,7 +334,7 @@ This can be useful to see how the phylogenetic information were included.</p></t
     <tr>
       <th>random.effects</th>
       <td><p>Optional pre-build list of random effects. If <code>NULL</code> (the default),
-the function <code><a href='https://rdrr.io/pkg/phyr/man/prep_dat_pglmm.html'>prep_dat_pglmm</a></code> will prepare the random effects for you from the information
+the function <code>prep_dat_pglmm</code> will prepare the random effects for you from the information
 in <code>formula</code>, <code>data</code>, and <code>cov_ranef</code>. <code>random.effect</code> allows a list of
 pre-generated random effects terms to increase flexibility; for example, this makes it
 possible to construct models with both phylogenetic correlation and spatio-temporal autocorrelation.

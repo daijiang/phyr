@@ -4,7 +4,7 @@
 \alias{simulate.communityPGLMM}
 \title{Simulate from a communityPGLMM object}
 \usage{
-\method{simulate}{communityPGLMM}(object, nsim = 1, seed = NULL, use.u = FALSE, re.form = NULL, ...)
+\method{simulate}{communityPGLMM}(object, nsim = 1, seed = NULL, re.form = NULL, ...)
 }
 \arguments{
 \item{object}{A fitted model object with class 'communityPGLMM'.}
@@ -13,14 +13,6 @@
 
 \item{seed}{an optional seed to be used in \code{\link{set.seed}}
     immediately before the simulation so as to generate a reproducible sample.}
-
-\item{use.u}{(logical) if \code{TRUE}, generate a simulation
-    conditional on the current random-effects estimates; if \code{FALSE}
-    generate new Normally distributed random-effects values. (Redundant
-    with \code{re.form}, which is preferred: \code{TRUE} corresponds to
-    \code{re.form = NULL} (condition on all random effects), while
-    \code{FALSE} corresponds to \code{re.form = ~0} (condition on none
-    of the random effects).)}
 
 \item{re.form}{(formula, \code{NULL}, or \code{NA}) specify which random effects to condition on when predicting.
 If \code{NULL}, include all random effects and the conditional modes of those random effects will be included in the deterministic part of the simulation (i.e Xb + Zu);

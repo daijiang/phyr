@@ -149,6 +149,8 @@ c("binomial","poisson"), these values are in the transformed space.</p>
   <span class='kw'>x</span>,
   cpp = <span class='fl'>TRUE</span>,
   gaussian.pred = <span class='fu'><a href='https://rdrr.io/r/base/c.html'>c</a></span>(<span class='st'>"nearest_node"</span>, <span class='st'>"tip_rm"</span>),
+  re.form = <span class='kw'>NULL</span>,
+  type = <span class='fu'><a href='https://rdrr.io/r/base/c.html'>c</a></span>(<span class='st'>"link"</span>, <span class='st'>"response"</span>),
   <span class='kw'>...</span>
 )
 
@@ -174,6 +176,17 @@ c("binomial","poisson"), these values are in the transformed space.</p>
       <td><p>When family is gaussian, which type of prediction to calculate?
 Option nearest_node will predict values to the nearest node, which is same as lme4::predict or
 fitted. Option tip_rm will remove the point then predict the value of this point with remaining ones.</p></td>
+    </tr>
+    <tr>
+      <th>re.form</th>
+      <td><p>(formula, <code>NULL</code>, or <code>NA</code>) specify which random effects to condition on when predicting.
+If <code>NULL</code>, include all random effects (i.e Xb + Zu);
+if <code>NA</code> or <code>~0</code>, include no random effects (i.e. Xb).</p></td>
+    </tr>
+    <tr>
+      <th>type</th>
+      <td><p>character string - either <code>"link"</code>, the default, or
+    <code>"response"</code> indicating the type of prediction object returned.</p></td>
     </tr>
     <tr>
       <th>...</th>
