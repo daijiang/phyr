@@ -498,7 +498,7 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
                            cpp = TRUE, bayes = FALSE, 
                            s2.init = NULL, B.init = NULL, reltol = 10^-6, 
                            maxit = 500, tol.pql = 10^-6, maxit.pql = 200,  
-                           marginal.summ = "mean", calc.DIC = FALSE, calc.WAIC = FALSE, prior = "inla.default", 
+                           marginal.summ = "mean", calc.DIC = TRUE, calc.WAIC = TRUE, prior = "inla.default", 
                            prior_alpha = 0.1, prior_mu = 1, ML.init = FALSE,
                            tree = NULL, tree_site = NULL, sp = NULL, site = NULL, bayes_options = NULL
                            ) {
