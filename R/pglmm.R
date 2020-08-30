@@ -1256,8 +1256,11 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     zeroinflated_param.ci <- NULL
   }
   
-  names(variances) <- names(random.effects)
-  row.names(variances.ci) <- paste("Precision for", names(random.effects))
+  if(!is.null(names(random.effects))){
+    names(variances) <- names(random.effects)
+    row.names(variances.ci) <- paste("Precision for", names(random.effects))
+  }
+ 
   std.vars <- variances^0.5
   ss <- c(std.vars[!nested], std.vars[nested], resid_var)
   
