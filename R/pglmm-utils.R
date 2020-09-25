@@ -164,9 +164,22 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
                 no_obs_re <<- FALSE
               }
             }
-            # message("Nested term without specify phylogeny, use identity matrix instead")
-            xout = list(as(diag(nrow(data)), "dgCMatrix"))
-            xout = list(xout)
+            # # message("Nested term without specify phylogeny, use identity matrix instead")
+            # xout = list(as(diag(nrow(data)), "dgCMatrix"))
+            # xout = list(xout)
+            
+            n_dim = length(unique(data[, colns[1]]))
+            n_dim2 = length(unique(data[, colns[2]]))
+            xout = as(kronecker(diag(n_dim2), diag(n_dim)), "dgCMatrix")
+            # put names back
+            rownames(xout) = colnames(xout) = paste(
+              rep(unique(as.character(data[, colns[2]])), each = n_dim),
+              rep(unique(as.character(data[, colns[1]])), n_dim2),
+              sep = "___")
+            # select the actual combination in the data; e.g. not all sp observed in every site.
+            xout = xout[site_sp_c, site_sp_c]
+            xout = list(list(xout))
+            
           } else { # has phylogenetic term; sp__@site; sp__@site__; sp@site__
             if(grepl("__", sp_or_site[1]) & !grepl("__", sp_or_site[2])){ # sp__@site
               n_dim = nlevels(data[, colns[2]])
