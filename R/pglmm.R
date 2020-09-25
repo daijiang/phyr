@@ -120,7 +120,8 @@
 #'   possible to construct models with both phylogenetic correlation and spatio-temporal autocorrelation.
 #'   In preparing \code{random.effect}, make sure that the orders of rows and columns of 
 #'   covariance matrices in the list are the same as their corresponding group variables
-#'   in the data.
+#'   in the data. Also, this should be _a list of lists_, e.g. 
+#'   `random.effects = list(re1 = list(matrix_a), re2 = list(1, sp = sp, covar = Vsp))`.
 #' @param REML Whether REML or ML is used for model fitting the random effects. Ignored if
 #'  \code{bayes = TRUE}.
 #' @param optimizer nelder-mead-nlopt (default), bobyqa, Nelder-Mead, or subplex. 

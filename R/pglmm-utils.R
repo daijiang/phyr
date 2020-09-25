@@ -77,7 +77,12 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
       xx = gsub(pattern = "__", replacement = "", x = as.character(x)[3])
       strsplit(xx, "[@]")
     })))
-    data = dplyr::mutate_at(data, grp_vars, as.factor)
+    # data = dplyr::mutate_at(data, grp_vars, as.factor)
+    ### should we use unique(as.character()) as levels?
+    ### otherwise, it will be alphebatic
+    for(ig in grp_vars){
+      data[, ig] = factor(data[, ig], levels = unique(as.character(data[, ig])))
+    }
   }
 
   if(prep.re.effects){
@@ -157,13 +162,17 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
             if(family == 'poisson' | 
                (family == 'binomial' & # formula such as cbind(success, fail) ~ x
                 is.array(model.response(model.frame(formula.nobars, data = data, na.action = NULL))))){
-              if(add.obs.re) {
+              if(add.obs.re & 
+                 nlevels(data[, colns[2]]) * nlevels(data[, colns[1]]) == nrow(data)
+                 # only wroks for full balanced design though...
+                 ) {
                 message("It seems that you specified an observation-level random term already e.g. (1|sp@site); 
                        we will set 'add.obs.re' to FALSE.")
                 add.obs.re <<- FALSE
                 no_obs_re <<- FALSE
               }
             }
+          
             # # message("Nested term without specify phylogeny, use identity matrix instead")
             # xout = list(as(diag(nrow(data)), "dgCMatrix"))
             # xout = list(xout)

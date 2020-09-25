@@ -174,7 +174,8 @@ pre-generated random effects terms to increase flexibility; for example, this ma
 possible to construct models with both phylogenetic correlation and spatio-temporal autocorrelation.
 In preparing \code{random.effect}, make sure that the orders of rows and columns of
 covariance matrices in the list are the same as their corresponding group variables
-in the data.}
+in the data. Also, this should be \emph{a list of lists}, e.g.
+\code{random.effects = list(re1 = list(matrix_a), re2 = list(1, sp = sp, covar = Vsp))}.}
 
 \item{add.tree.sp}{Whether to add a phylogeny of species at the top of the
 simulated site by sp matrix plot, default is TRUE.}
