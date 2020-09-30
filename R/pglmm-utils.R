@@ -67,7 +67,7 @@ parse_conv_ranef = function(x, df){
 #' @export
 prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE, 
                           prep.re.effects = TRUE, family = "gaussian",
-                          add.obs.re = TRUE, bayes = FALSE){
+                          add.obs.re = TRUE, bayes = FALSE, bayes_nested_matrix_as_list){
   fm = unique(lme4::findbars(formula))
   formula.nobars <- lme4::nobars(formula) # fixed terms
   
@@ -255,6 +255,36 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
             }
             
             xout = list(xout) # to put the matrix in a list
+          }
+          
+          if(bayes_nested_matrix_as_list | (bayes & # invertible nested matrix for bayes version will cause error
+             inherits(try(solve(xout[[1]][[1]]), silent = TRUE), "try-error"))){
+            message("nested matrix as a list")
+            if(!grepl("__", x2[3])){ # 1|sp@site
+              vm = diag(length(unique(data[, colns[1]])))
+              xout = list(list(1, data[, colns[1]], covar = vm, data[, colns[2]]))
+            } else {
+              # 1 | sp__@site
+              if(grepl("__", sp_or_site[1]) & !grepl("__", sp_or_site[2])){
+                vm = cov_ranef_list[[colns[1]]]
+                # if(repulsion[nested_repul_i]){
+                #   vm = solve(cov_ranef_list[[colns[1]]])
+                #   nested_repul_i <<- nested_repul_i + 1
+                # }
+                xout = list(list(1, data[, colns[1]], covar = vm, data[, colns[2]]))
+              }
+              # 1 | sp@site__
+              if(!grepl("__", sp_or_site[1]) & grepl("__", sp_or_site[2])){
+                vm = cov_ranef_list[[colns[2]]]
+                # if(repulsion[nested_repul_i]){
+                #   vm = solve(cov_ranef_list[[colns[2]]])
+                #   nested_repul_i <<- nested_repul_i + 1
+                # }
+                xout = list(list(1, data[, colns[2]], covar = vm, data[, colns[1]]))
+              }
+              # 1 | sp__@site__ ?? how do in the old way?
+              
+            } 
           }
         }
       } else { # slope
