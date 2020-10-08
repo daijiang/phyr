@@ -13,7 +13,7 @@ prep_dat_pglmm(
   family = "gaussian",
   add.obs.re = TRUE,
   bayes = FALSE,
-  bayes_nested_matrix_as_list
+  bayes_nested_matrix_as_list = FALSE
 )
 }
 \arguments{

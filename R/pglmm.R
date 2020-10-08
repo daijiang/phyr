@@ -550,6 +550,25 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
     cov_ranef_updated = dat_prepared$cov_ranef_updated
   } else {
     formula = lme4::nobars(formula)
+    for(i in 1:length(random.effects)){
+      if(length(random.effects[[i]]) >= 3){
+        if(inherits(random.effects[[i]][[3]], c("matrix", "Matrix")) &
+           !is.null(rownames(random.effects[[i]][[3]]))){
+          if(!all(rownames(random.effects[[i]][[3]]) == colnames(random.effects[[i]][[3]])))
+            stop("the row and column names of cov matrix in random.effects[", i, "] not in the same order")
+          if(!all(rownames(random.effects[[i]][[3]]) == levels(random.effects[[i]][[2]]))){
+            warning("the row/column names of cov matrix in random.effects[", i, 
+                    "] not in the same order of its grouping variable, reordering now", 
+                    immediate. = TRUE, call. = FALSE)
+            if(length(setdiff(levels(random.effects[[i]][[2]]), rownames(random.effects[[i]][[3]]))))
+              stop("some levels in the grouping variable of random.effects[", i, 
+                   "] not in the cov matrix")
+            random.effects[[i]][[3]] = 
+              random.effects[[i]][[3]][levels(random.effects[[i]][[2]]), levels(random.effects[[i]][[2]])]
+          }
+        }
+      }
+    }
   }
   
   # initial values for bayesian analysis: binomial and gaussian
