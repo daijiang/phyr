@@ -88,9 +88,11 @@ plot_bayes.communityPGLMM <- function(x, n_samp = 1000, sort = TRUE, ...) {
     stop('plot_bayes requires the ggridges package but it is unavailable. Use install.packages("ggridges") to install it.')
   }
   
+  re.names <- names(x$random.effects)
+  if (x$family == "gaussian") re.names <- c("residual", re.names)
   random_samps <- lapply(x$inla.model$marginals.hyperpar, 
                          function(x) INLA::inla.rmarginal(n_samp, INLA::inla.tmarginal(function(x) sqrt(1 / x), x))) %>%
-    setNames(names(x$random.effects)) %>%
+    setNames(re.names) %>%
     dplyr::as_tibble() %>%
     tidyr::pivot_longer(cols = dplyr::everything(),
                         names_to = "var",

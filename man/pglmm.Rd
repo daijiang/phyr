@@ -35,7 +35,8 @@ pglmm(
   tree_site = NULL,
   sp = NULL,
   site = NULL,
-  bayes_options = NULL
+  bayes_options = NULL,
+  bayes_nested_matrix_as_list = FALSE
 )
 
 communityPGLMM(
@@ -68,7 +69,8 @@ communityPGLMM(
   tree_site = NULL,
   sp = NULL,
   site = NULL,
-  bayes_options = NULL
+  bayes_options = NULL,
+  bayes_nested_matrix_as_list = FALSE
 )
 }
 \arguments{
@@ -254,6 +256,8 @@ correspond to parameters in the \code{inla} function. One special option is \cod
 the options list is names \code{diagonal} this tells \code{INLA} to add its value to the diagonal of the random effects
 precision matrices. This can help with numerical stability if the model is ill-conditioned (if you get a lot of warnings,
 try setting this to \code{list(diagonal = 1e-4)}).}
+
+\item{bayes_nested_matrix_as_list}{For \code{bayes = TRUE}, prepare the nested terms as a list of length of 4 as the old way?}
 }
 \value{
 An object (list) of class \code{communityPGLMM} with the following elements:

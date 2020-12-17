@@ -225,6 +225,7 @@
 #' the options list is names \code{diagonal} this tells \code{INLA} to add its value to the diagonal of the random effects
 #' precision matrices. This can help with numerical stability if the model is ill-conditioned (if you get a lot of warnings,
 #' try setting this to \code{list(diagonal = 1e-4)}).
+#' @param bayes_nested_matrix_as_list For `bayes = TRUE`, prepare the nested terms as a list of length of 4 as the old way?
 #' @return An object (list) of class \code{communityPGLMM} with the following elements:
 #' \item{formula}{the formula for fixed effects}
 #' \item{formula_original}{the formula for both fixed effects and random effects}
@@ -501,7 +502,8 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
                            maxit = 500, tol.pql = 10^-6, maxit.pql = 200,  
                            marginal.summ = "mean", calc.DIC = TRUE, calc.WAIC = TRUE, prior = "inla.default", 
                            prior_alpha = 0.1, prior_mu = 1, ML.init = FALSE,
-                           tree = NULL, tree_site = NULL, sp = NULL, site = NULL, bayes_options = NULL
+                           tree = NULL, tree_site = NULL, sp = NULL, site = NULL, bayes_options = NULL,
+                  bayes_nested_matrix_as_list = FALSE
                            ) {
 
   optimizer = match.arg(optimizer)
@@ -542,12 +544,31 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
       if(is.null(tree) & !is.null(tree_site)) cov_ranef = list(site = tree_site) # column name must be site
       if(!is.null(tree) & !is.null(tree_site)) cov_ranef = list(sp = tree, site = tree_site)
     }
-    dat_prepared = prep_dat_pglmm(formula, data, cov_ranef, repulsion, prep_re, family, add.obs.re, bayes)
+    dat_prepared = prep_dat_pglmm(formula, data, cov_ranef, repulsion, prep_re, family, add.obs.re, bayes, bayes_nested_matrix_as_list)
     formula = dat_prepared$formula
     random.effects = dat_prepared$random.effects
     cov_ranef_updated = dat_prepared$cov_ranef_updated
   } else {
     formula = lme4::nobars(formula)
+    for(i in 1:length(random.effects)){
+      if(length(random.effects[[i]]) >= 3){
+        if(inherits(random.effects[[i]][[3]], c("matrix", "Matrix")) &
+           !is.null(rownames(random.effects[[i]][[3]]))){
+          if(!all(rownames(random.effects[[i]][[3]]) == colnames(random.effects[[i]][[3]])))
+            stop("the row and column names of cov matrix in random.effects[", i, "] not in the same order")
+          if(!all(rownames(random.effects[[i]][[3]]) == levels(random.effects[[i]][[2]]))){
+            warning("the row/column names of cov matrix in random.effects[", i, 
+                    "] not in the same order of its grouping variable, reordering now", 
+                    immediate. = TRUE, call. = FALSE)
+            if(length(setdiff(levels(random.effects[[i]][[2]]), rownames(random.effects[[i]][[3]]))))
+              stop("some levels in the grouping variable of random.effects[", i, 
+                   "] not in the cov matrix")
+            random.effects[[i]][[3]] = 
+              random.effects[[i]][[3]][levels(random.effects[[i]][[2]]), levels(random.effects[[i]][[2]])]
+          }
+        }
+      }
+    }
   }
   
   # initial values for bayesian analysis: binomial and gaussian

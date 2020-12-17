@@ -12,7 +12,8 @@ prep_dat_pglmm(
   prep.re.effects = TRUE,
   family = "gaussian",
   add.obs.re = TRUE,
-  bayes = FALSE
+  bayes = FALSE,
+  bayes_nested_matrix_as_list = FALSE
 )
 }
 \arguments{
@@ -81,6 +82,8 @@ distributions. Normally it would be a good idea to add this to account for overd
 so \code{add.obs.re = TRUE} by default.}
 
 \item{bayes}{Whether to fit a Bayesian version of the PGLMM using \code{r-inla}.}
+
+\item{bayes_nested_matrix_as_list}{For \code{bayes = TRUE}, prepare the nested terms as a list of length of 4 as the old way?}
 }
 \value{
 A list with updated formula, random.effects, and updated cov_ranef.
