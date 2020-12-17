@@ -1,7 +1,6 @@
 ^CODE_OF_CONDUCT\.md$
 ^CRAN-RELEASE$
 ^cran-comments\.md$
-^NEWS\.md$
 ^.*\.Rproj$
 ^\.Rproj\.user$
 ^LICENSE\.md$
