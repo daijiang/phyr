@@ -1123,7 +1123,7 @@ cor_phylo <- function(variates,
 
 
 
-#' Refit bootstrap replicates that failed to converge in a call to `cor_phylo`.
+#' Refit bootstrap replicates that failed to converge in a call to `cor_phylo`
 #'
 #' This function is to be called on a `cor_phylo` object if when one or more bootstrap
 #' replicates fail to converge.

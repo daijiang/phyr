@@ -2,7 +2,7 @@
 % Please edit documentation in R/utils.R
 \name{rm_sp_noobs}
 \alias{rm_sp_noobs}
-\title{Remove species that not observed in any site.}
+\title{Remove species that not observed in any site}
 \usage{
 rm_sp_noobs(df, warn = FALSE)
 }
@@ -15,7 +15,7 @@ rm_sp_noobs(df, warn = FALSE)
 A site by species data frame.
 }
 \description{
-Remove species that not observed in any site.
+Remove species that not observed in any site
 }
 \author{
 Daijiang Li

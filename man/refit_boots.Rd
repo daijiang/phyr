@@ -3,7 +3,7 @@
 \name{refit_boots}
 \alias{refit_boots}
 \alias{print.cp_refits}
-\title{Refit bootstrap replicates that failed to converge in a call to \code{cor_phylo}.}
+\title{Refit bootstrap replicates that failed to converge in a call to \code{cor_phylo}}
 \usage{
 refit_boots(cp_obj, inds = NULL, ...)
 

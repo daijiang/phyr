@@ -21,7 +21,7 @@ logit <- make.link("logit")$linkfun
 
 inv.logit <- make.link("logit")$linkinv
 
-#' Remove species that not observed in any site.
+#' Remove species that not observed in any site
 #'
 #' @author Daijiang Li
 #'
@@ -40,7 +40,7 @@ rm_sp_noobs = function(df, warn = FALSE) {
   df
 }
 
-#' Remove site that has no observations of any species.
+#' Remove site that has no observations of any species
 #'
 #' This function will remove site that has no observations in a site by species data frame.
 #'
