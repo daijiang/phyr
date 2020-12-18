@@ -31,7 +31,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">phyr</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.0.3</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.1.0</span>
       </span>
     </div>
 
@@ -88,13 +88,13 @@
 
       
 
-      </header><script src="pglmm_files/accessible-code-block-0.0.1/empty-anchor.js"></script><div class="row">
+      </header><script src="pglmm_files/header-attrs-2.3/header-attrs.js"></script><div class="row">
   <div class="col-md-9 contents">
     <div class="page-header toc-ignore">
       <h1 data-toc-skip>Usage of pglmm()</h1>
                         <h4 class="author">Daijiang Li</h4>
             
-            <h4 class="date">2020-07-18</h4>
+            <h4 class="date">2020-12-17</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/daijiang/phyr/blob/master/vignettes/pglmm.Rmd"><code>vignettes/pglmm.Rmd</code></a></small>
       <div class="hidden name"><code>pglmm.Rmd</code></div>
@@ -109,8 +109,7 @@
 <a href="#fit-a-binomial-model-with-success-and-failures" class="anchor"></a>Fit a binomial model with success and failures</h1>
 <p>To fit a binomial model to a data frame with columns of success and failures (say named as <code>yes</code> and <code>no</code>, respectively), use</p>
 <div class="sourceCode" id="cb1"><pre class="downlit">
-<span class="fu"><a href="../reference/pglmm.html">pglmm</a></span>(<span class="fu"><a href="https://rdrr.io/r/base/cbind.html">cbind</a></span>(<span class="kw">yes</span>, <span class="kw">no</span>) <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="kw">x</span>, data = <span class="kw">dat</span>, family = <span class="st">'binomial'</span>)
-</pre></div>
+<span class="fu"><a href="../reference/pglmm.html">pglmm</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html">cbind</a></span><span class="op">(</span><span class="va">yes</span>, <span class="va">no</span><span class="op">)</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">x</span>, data <span class="op">=</span> <span class="va">dat</span>, family <span class="op">=</span> <span class="st">'binomial'</span><span class="op">)</span></pre></div>
 </div>
 <div id="prepare-random-terms-for-complex-models-that-cannot-be-set-up-with-formula" class="section level1">
 <h1 class="hasAnchor">
@@ -165,7 +164,7 @@
 </div>
 
 <div class="pkgdown">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/">pkgdown</a> 1.5.1.9000.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/">pkgdown</a> 1.6.1.</p>
 </div>
 
       </footer>

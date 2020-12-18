@@ -31,7 +31,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">phyr</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.0.3</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.1.0</span>
       </span>
     </div>
 
@@ -88,13 +88,13 @@
 
       
 
-      </header><script src="plot-re_files/accessible-code-block-0.0.1/empty-anchor.js"></script><div class="row">
+      </header><script src="plot-re_files/header-attrs-2.3/header-attrs.js"></script><div class="row">
   <div class="col-md-9 contents">
     <div class="page-header toc-ignore">
       <h1 data-toc-skip>Plot random terms of communityPGLMM</h1>
                         <h4 class="author">Daijiang Li</h4>
             
-            <h4 class="date">2020-07-18</h4>
+            <h4 class="date">2020-12-17</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/daijiang/phyr/blob/master/vignettes/plot-re.Rmd"><code>vignettes/plot-re.Rmd</code></a></small>
       <div class="hidden name"><code>plot-re.Rmd</code></div>
@@ -109,14 +109,13 @@
 <a href="#main-function" class="anchor"></a>Main function</h1>
 <p>The main function to use is <code><a href="../reference/pglmm_plot_ranef.html">phyr::pglmm_plot_re()</a></code> (alias: <code><a href="../reference/pglmm_plot_ranef.html">phyr::pglmm_plot_ranef()</a></code>, <code><a href="../reference/pglmm_plot_ranef.html">phyr::communityPGLMM.show.re()</a></code>, <code><a href="../reference/pglmm_plot_ranef.html">phyr::communityPGLMM.plot.re()</a></code>). Here are the arguments of this function:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit">
-<span class="fu"><a href="https://rdrr.io/r/base/args.html">args</a></span>(<span class="kw">phyr</span>::<span class="kw"><a href="../reference/pglmm_plot_ranef.html">pglmm_plot_re</a></span>)
+<span class="fu"><a href="https://rdrr.io/r/base/args.html">args</a></span><span class="op">(</span><span class="fu">phyr</span><span class="fu">::</span><span class="va"><a href="../reference/pglmm_plot_ranef.html">pglmm_plot_re</a></span><span class="op">)</span>
 <span class="co">## function (formula = NULL, data = NULL, family = "gaussian", sp.var = "sp", </span>
 <span class="co">##     site.var = "site", tree = NULL, tree_site = NULL, repulsion = FALSE, </span>
 <span class="co">##     x = NULL, show.image = TRUE, show.sim.image = FALSE, random.effects = NULL, </span>
 <span class="co">##     add.tree.sp = TRUE, add.tree.site = FALSE, cov_ranef = NULL, </span>
 <span class="co">##     tree.panel.space = 0.5, title.space = 5, tree.size = 3, ...) </span>
-<span class="co">## NULL</span>
-</pre></div>
+<span class="co">## NULL</span></pre></div>
 <p>Some brief explanation of arguments:</p>
 <ul>
 <li>
@@ -139,46 +138,46 @@
 <a href="#simulate-data" class="anchor"></a>Simulate data</h1>
 <p>Now, let’s show how to use this function to help us understanding better the random terms.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit">
-<span class="fu"><a href="https://rdrr.io/r/base/library.html">library</a></span>(<span class="kw"><a href="http://ape-package.ird.fr">ape</a></span>)
-<span class="fu"><a href="https://rdrr.io/r/base/library.html">library</a></span>(<span class="kw"><a href="https://daijiang.github.io/phyr">phyr</a></span>)
-<span class="fu"><a href="https://rdrr.io/r/base/message.html">suppressPackageStartupMessages</a></span>(<span class="fu"><a href="https://rdrr.io/r/base/library.html">library</a></span>(<span class="kw"><a href="https://dplyr.tidyverse.org">dplyr</a></span>))
+<span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="http://ape-package.ird.fr/">ape</a></span><span class="op">)</span>
+<span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://daijiang.github.io/phyr/">phyr</a></span><span class="op">)</span>
+<span class="fu"><a href="https://rdrr.io/r/base/message.html">suppressPackageStartupMessages</a></span><span class="op">(</span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org">dplyr</a></span><span class="op">)</span><span class="op">)</span>
 
-<span class="fu"><a href="https://rdrr.io/r/base/Random.html">set.seed</a></span>(<span class="fl">12345</span>)
-<span class="kw">nspp</span> <span class="op">&lt;-</span> <span class="fl">7</span>
-<span class="kw">nsite</span> <span class="op">&lt;-</span> <span class="fl">5</span>
+<span class="fu"><a href="https://rdrr.io/r/base/Random.html">set.seed</a></span><span class="op">(</span><span class="fl">12345</span><span class="op">)</span>
+<span class="va">nspp</span> <span class="op">&lt;-</span> <span class="fl">7</span>
+<span class="va">nsite</span> <span class="op">&lt;-</span> <span class="fl">5</span>
 <span class="co"># Simulate a phylogeny that has a lot of phylogenetic signal (power = 1.3)</span>
-<span class="kw">phy</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/ape/man/compute.brlen.html">compute.brlen</a></span>(<span class="fu"><a href="https://rdrr.io/pkg/ape/man/rtree.html">rtree</a></span>(n = <span class="kw">nspp</span>), method = <span class="st">"Grafen"</span>, power = <span class="fl">1.3</span>)
+<span class="va">phy</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/ape/man/compute.brlen.html">compute.brlen</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/ape/man/rtree.html">rtree</a></span><span class="op">(</span>n <span class="op">=</span> <span class="va">nspp</span><span class="op">)</span>, method <span class="op">=</span> <span class="st">"Grafen"</span>, power <span class="op">=</span> <span class="fl">1.3</span><span class="op">)</span>
 <span class="co"># Simulate species means</span>
-<span class="kw">sd.sp</span> <span class="op">&lt;-</span> <span class="fl">1</span>
-<span class="kw">mean.sp</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/ape/man/rTraitCont.html">rTraitCont</a></span>(<span class="kw">phy</span>, model = <span class="st">"BM"</span>, sigma = <span class="kw">sd.sp</span><span class="op">^</span><span class="fl">2</span>)
-<span class="kw">Y.sp</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html">rep</a></span>(<span class="kw">mean.sp</span>, times = <span class="kw">nsite</span>)
+<span class="va">sd.sp</span> <span class="op">&lt;-</span> <span class="fl">1</span>
+<span class="va">mean.sp</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/ape/man/rTraitCont.html">rTraitCont</a></span><span class="op">(</span><span class="va">phy</span>, model <span class="op">=</span> <span class="st">"BM"</span>, sigma <span class="op">=</span> <span class="va">sd.sp</span><span class="op">^</span><span class="fl">2</span><span class="op">)</span>
+<span class="va">Y.sp</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html">rep</a></span><span class="op">(</span><span class="va">mean.sp</span>, times <span class="op">=</span> <span class="va">nsite</span><span class="op">)</span>
 <span class="co"># Phylogenetically correlated response of species to env</span>
-<span class="kw">sd.trait</span> <span class="op">&lt;-</span> <span class="fl">1</span>
-<span class="kw">trait</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/ape/man/rTraitCont.html">rTraitCont</a></span>(<span class="kw">phy</span>, model = <span class="st">"BM"</span>, sigma = <span class="kw">sd.trait</span>)
-<span class="kw">trait</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html">rep</a></span>(<span class="kw">trait</span>, times = <span class="kw">nsite</span>)
+<span class="va">sd.trait</span> <span class="op">&lt;-</span> <span class="fl">1</span>
+<span class="va">trait</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/ape/man/rTraitCont.html">rTraitCont</a></span><span class="op">(</span><span class="va">phy</span>, model <span class="op">=</span> <span class="st">"BM"</span>, sigma <span class="op">=</span> <span class="va">sd.trait</span><span class="op">)</span>
+<span class="va">trait</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html">rep</a></span><span class="op">(</span><span class="va">trait</span>, times <span class="op">=</span> <span class="va">nsite</span><span class="op">)</span>
 <span class="co"># Simulate site means</span>
-<span class="kw">sd.site</span> <span class="op">&lt;-</span> <span class="fl">1</span>
-<span class="kw">mean.site</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html">rnorm</a></span>(<span class="kw">nsite</span>, sd = <span class="kw">sd.site</span>)
-<span class="kw">Y.site</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html">rep</a></span>(<span class="kw">mean.site</span>, each = <span class="kw">nspp</span>)
+<span class="va">sd.site</span> <span class="op">&lt;-</span> <span class="fl">1</span>
+<span class="va">mean.site</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html">rnorm</a></span><span class="op">(</span><span class="va">nsite</span>, sd <span class="op">=</span> <span class="va">sd.site</span><span class="op">)</span>
+<span class="va">Y.site</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html">rep</a></span><span class="op">(</span><span class="va">mean.site</span>, each <span class="op">=</span> <span class="va">nspp</span><span class="op">)</span>
 <span class="co"># Site-specific environmental variation</span>
-<span class="kw">sd.env</span> <span class="op">&lt;-</span> <span class="fl">1</span>
-<span class="kw">env</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html">rnorm</a></span>(<span class="kw">nsite</span>, sd = <span class="kw">sd.env</span>)
+<span class="va">sd.env</span> <span class="op">&lt;-</span> <span class="fl">1</span>
+<span class="va">env</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html">rnorm</a></span><span class="op">(</span><span class="va">nsite</span>, sd <span class="op">=</span> <span class="va">sd.env</span><span class="op">)</span>
 <span class="co"># Generate covariance matrix for phylogenetic attraction</span>
-<span class="kw">sd.attract</span> <span class="op">&lt;-</span> <span class="fl">1</span>
-<span class="kw">Vphy</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/ape/man/vcv.phylo.html">vcv</a></span>(<span class="kw">phy</span>)
-<span class="kw">Vphy</span> <span class="op">&lt;-</span> <span class="kw">Vphy</span> <span class="op">/</span> (<span class="fu"><a href="https://rdrr.io/r/base/det.html">det</a></span>(<span class="kw">Vphy</span>) <span class="op">^</span> (<span class="fl">1</span> <span class="op">/</span> <span class="kw">nspp</span>))
-<span class="kw">V.attract</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/kronecker.html">kronecker</a></span>(<span class="fu"><a href="https://rdrr.io/r/base/diag.html">diag</a></span>(nrow = <span class="kw">nsite</span>, ncol = <span class="kw">nsite</span>), <span class="kw">Vphy</span>)
-<span class="kw">Y.attract</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/array.html">array</a></span>(<span class="fu"><a href="https://rdrr.io/r/base/t.html">t</a></span>(<span class="kw">mvtnorm</span>::<span class="fu"><a href="https://rdrr.io/pkg/mvtnorm/man/Mvnorm.html">rmvnorm</a></span>(n = <span class="fl">1</span>, sigma = <span class="kw">sd.attract</span> <span class="op">^</span> <span class="fl">2</span> <span class="op">*</span> <span class="kw">V.attract</span>)))
+<span class="va">sd.attract</span> <span class="op">&lt;-</span> <span class="fl">1</span>
+<span class="va">Vphy</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/ape/man/vcv.phylo.html">vcv</a></span><span class="op">(</span><span class="va">phy</span><span class="op">)</span>
+<span class="va">Vphy</span> <span class="op">&lt;-</span> <span class="va">Vphy</span> <span class="op">/</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/det.html">det</a></span><span class="op">(</span><span class="va">Vphy</span><span class="op">)</span> <span class="op">^</span> <span class="op">(</span><span class="fl">1</span> <span class="op">/</span> <span class="va">nspp</span><span class="op">)</span><span class="op">)</span>
+<span class="va">V.attract</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/kronecker.html">kronecker</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/diag.html">diag</a></span><span class="op">(</span>nrow <span class="op">=</span> <span class="va">nsite</span>, ncol <span class="op">=</span> <span class="va">nsite</span><span class="op">)</span>, <span class="va">Vphy</span><span class="op">)</span>
+<span class="va">Y.attract</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/array.html">array</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/t.html">t</a></span><span class="op">(</span><span class="fu">mvtnorm</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/mvtnorm/man/Mvnorm.html">rmvnorm</a></span><span class="op">(</span>n <span class="op">=</span> <span class="fl">1</span>, sigma <span class="op">=</span> <span class="va">sd.attract</span> <span class="op">^</span> <span class="fl">2</span> <span class="op">*</span> <span class="va">V.attract</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>
 <span class="co"># Residual errors</span>
-<span class="kw">sd.e</span> <span class="op">&lt;-</span> <span class="fl">1</span>
-<span class="kw">Y.e</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html">rnorm</a></span>(<span class="kw">nspp</span> <span class="op">*</span> <span class="kw">nsite</span>, sd = <span class="kw">sd.e</span>)
+<span class="va">sd.e</span> <span class="op">&lt;-</span> <span class="fl">1</span>
+<span class="va">Y.e</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html">rnorm</a></span><span class="op">(</span><span class="va">nspp</span> <span class="op">*</span> <span class="va">nsite</span>, sd <span class="op">=</span> <span class="va">sd.e</span><span class="op">)</span>
 <span class="co"># Construct the dataset</span>
-<span class="kw">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html">data.frame</a></span>(sp = <span class="fu"><a href="https://rdrr.io/r/base/rep.html">rep</a></span>(<span class="kw">phy</span><span class="op">$</span><span class="kw">tip.label</span>, times = <span class="kw">nsite</span>), 
-                site = <span class="fu"><a href="https://rdrr.io/r/base/rep.html">rep</a></span>(<span class="fl">1</span><span class="op">:</span><span class="kw">nsite</span>, each = <span class="kw">nspp</span>),
-                env = <span class="fu"><a href="https://rdrr.io/r/base/rep.html">rep</a></span>(<span class="kw">env</span>, each = <span class="kw">nspp</span>))
+<span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html">data.frame</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html">rep</a></span><span class="op">(</span><span class="va">phy</span><span class="op">$</span><span class="va">tip.label</span>, times <span class="op">=</span> <span class="va">nsite</span><span class="op">)</span>, 
+                site <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html">rep</a></span><span class="op">(</span><span class="fl">1</span><span class="op">:</span><span class="va">nsite</span>, each <span class="op">=</span> <span class="va">nspp</span><span class="op">)</span>,
+                env <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html">rep</a></span><span class="op">(</span><span class="va">env</span>, each <span class="op">=</span> <span class="va">nspp</span><span class="op">)</span><span class="op">)</span>
 <span class="co"># Simulate abundance data</span>
-<span class="kw">d</span><span class="op">$</span><span class="kw">Y</span> <span class="op">&lt;-</span> <span class="kw">Y.sp</span> <span class="op">+</span> <span class="kw">Y.attract</span> <span class="op">+</span> <span class="kw">trait</span> <span class="op">*</span> <span class="kw">d</span><span class="op">$</span><span class="kw">env</span> <span class="op">+</span> <span class="kw">Y.e</span>
-<span class="fu"><a href="https://rdrr.io/r/utils/head.html">head</a></span>(<span class="kw">d</span>)
+<span class="va">d</span><span class="op">$</span><span class="va">Y</span> <span class="op">&lt;-</span> <span class="va">Y.sp</span> <span class="op">+</span> <span class="va">Y.attract</span> <span class="op">+</span> <span class="va">trait</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">env</span> <span class="op">+</span> <span class="va">Y.e</span>
+<span class="fu"><a href="https://rdrr.io/r/utils/head.html">head</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span>
 <span class="co">##   sp site       env          Y</span>
 <span class="co">## 1 t4    1 -1.060266 -1.3475684</span>
 <span class="co">## 2 t2    1 -1.060266  1.2422030</span>
@@ -188,9 +187,9 @@
 <span class="co">## 6 t7    1 -1.060266  0.3308875</span>
 
 <span class="co"># fit a model</span>
-<span class="kw">mod_1</span> <span class="op">=</span> <span class="fu"><a href="../reference/pglmm.html">pglmm</a></span>(<span class="kw">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="kw">env</span> <span class="op">+</span> (<span class="fl">1</span><span class="op">|</span><span class="kw">sp__</span>) <span class="op">+</span> (<span class="fl">1</span><span class="op">|</span><span class="kw">site</span>) <span class="op">+</span> (<span class="kw">env</span><span class="op">|</span><span class="kw">sp__</span>) <span class="op">+</span> (<span class="fl">1</span><span class="op">|</span><span class="kw">sp__</span><span class="op">@</span>site),
-              data = <span class="kw">d</span>, cov_ranef = <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span>(sp = <span class="kw">phy</span>))
-<span class="fu"><a href="https://rdrr.io/r/base/summary.html">summary</a></span>(<span class="kw">mod_1</span>)
+<span class="va">mod_1</span> <span class="op">=</span> <span class="fu"><a href="../reference/pglmm.html">pglmm</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">env</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="va">env</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span>,
+              data <span class="op">=</span> <span class="va">d</span>, cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span><span class="op">)</span>
+<span class="fu"><a href="https://rdrr.io/r/base/summary.html">summary</a></span><span class="op">(</span><span class="va">mod_1</span><span class="op">)</span>
 <span class="co">## Linear mixed model fit by restricted maximum likelihood</span>
 <span class="co">## </span>
 <span class="co">## Call:Y ~ 1 + env</span>
@@ -211,8 +210,7 @@
 <span class="co">## Fixed effects:</span>
 <span class="co">##               Value Std.Error Zscore Pvalue</span>
 <span class="co">## (Intercept) 0.83092   0.63742 1.3036 0.1924</span>
-<span class="co">## env         0.75052   0.68819 1.0906 0.2755</span>
-</pre></div>
+<span class="co">## env         0.75052   0.68819 1.0906 0.2755</span></pre></div>
 </div>
 <div id="var-cov-matrices-of-random-terms" class="section level1">
 <h1 class="hasAnchor">
@@ -222,42 +220,37 @@
 <a href="#plot-var-cov-matrices-of-all-random-terms-in-one-figure" class="anchor"></a>Plot var-cov matrices of all random terms in one figure</h2>
 <div class="sourceCode" id="cb3"><pre class="downlit">
 <span class="co"># plot var-cov matrices of random terms</span>
-<span class="kw">mod1re</span> <span class="op">=</span> <span class="fu"><a href="../reference/pglmm_plot_ranef.html">pglmm_plot_re</a></span>(<span class="kw">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="kw">env</span> <span class="op">+</span> (<span class="fl">1</span><span class="op">|</span><span class="kw">sp__</span>) <span class="op">+</span> (<span class="fl">1</span><span class="op">|</span><span class="kw">site</span>) <span class="op">+</span> (<span class="kw">env</span><span class="op">|</span><span class="kw">sp__</span>) <span class="op">+</span> (<span class="fl">1</span><span class="op">|</span><span class="kw">sp__</span><span class="op">@</span>site),
-                       data = <span class="kw">d</span>, cov_ranef = <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span>(sp = <span class="kw">phy</span>), show.image = <span class="fl">TRUE</span>, 
-                       show.sim.image = <span class="fl">FALSE</span>)
-</pre></div>
+<span class="va">mod1re</span> <span class="op">=</span> <span class="fu"><a href="../reference/pglmm_plot_ranef.html">pglmm_plot_re</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">env</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="va">env</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span>,
+                       data <span class="op">=</span> <span class="va">d</span>, cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span>, show.image <span class="op">=</span> <span class="cn">TRUE</span>, 
+                       show.sim.image <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></pre></div>
 <p><img src="plot-re_files/figure-html/unnamed-chunk-2-1.png" width="100%" style="display: block; margin: auto;"></p>
 <p>In the above plot, we can see that some of the panels are black-white but some have colors. This is because, by default, if a matrix has both positive and negative values, then the function will use red-blue color and will draw a key for that (use <code>colorkey = FALSE</code> to suppress it). If a matrix does not have negative values, then the function will use black/white color (use <code>useAbs = FALSE</code> to use color instead, and use <code>colorkey = FALSE</code> to suppress key if wanted). In both cases, value 0 will be white so that the structure of the var-cov matrix can be easier to see.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit">
 <span class="co"># all use color with useAbs = FALSE</span>
-<span class="fu"><a href="../reference/pglmm_plot_ranef.html">pglmm_plot_re</a></span>(<span class="kw">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="kw">env</span> <span class="op">+</span> (<span class="fl">1</span><span class="op">|</span><span class="kw">sp__</span>) <span class="op">+</span> (<span class="fl">1</span><span class="op">|</span><span class="kw">site</span>) <span class="op">+</span> (<span class="kw">env</span><span class="op">|</span><span class="kw">sp__</span>) <span class="op">+</span> (<span class="fl">1</span><span class="op">|</span><span class="kw">sp__</span><span class="op">@</span>site),
-              data = <span class="kw">d</span>, cov_ranef = <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span>(sp = <span class="kw">phy</span>), show.image = <span class="fl">TRUE</span>, 
-              show.sim.image = <span class="fl">FALSE</span>, useAbs = <span class="fl">FALSE</span>)
-</pre></div>
+<span class="fu"><a href="../reference/pglmm_plot_ranef.html">pglmm_plot_re</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">env</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="va">env</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span>,
+              data <span class="op">=</span> <span class="va">d</span>, cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span>, show.image <span class="op">=</span> <span class="cn">TRUE</span>, 
+              show.sim.image <span class="op">=</span> <span class="cn">FALSE</span>, useAbs <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></pre></div>
 <p><img src="plot-re_files/figure-html/unnamed-chunk-3-1.png" width="100%" style="display: block; margin: auto;"></p>
 <p>For the above plot, notice that for <code>1|sp</code> and <code>1|site</code>, all values are either 1 or 0 even though we have a range in the key. We can suppress the key with <code>colorkey = FALSE</code>.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit">
 <span class="co"># suppress key with colorkey = FALSE</span>
-<span class="fu"><a href="../reference/pglmm_plot_ranef.html">pglmm_plot_re</a></span>(<span class="kw">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="kw">env</span> <span class="op">+</span> (<span class="fl">1</span><span class="op">|</span><span class="kw">sp__</span>) <span class="op">+</span> (<span class="fl">1</span><span class="op">|</span><span class="kw">site</span>) <span class="op">+</span> (<span class="kw">env</span><span class="op">|</span><span class="kw">sp__</span>) <span class="op">+</span> (<span class="fl">1</span><span class="op">|</span><span class="kw">sp__</span><span class="op">@</span>site),
-              data = <span class="kw">d</span>, cov_ranef = <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span>(sp = <span class="kw">phy</span>), show.image = <span class="fl">TRUE</span>, 
-              show.sim.image = <span class="fl">FALSE</span>, useAbs = <span class="fl">FALSE</span>, colorkey = <span class="fl">FALSE</span>)
-</pre></div>
+<span class="fu"><a href="../reference/pglmm_plot_ranef.html">pglmm_plot_re</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">env</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="va">env</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span>,
+              data <span class="op">=</span> <span class="va">d</span>, cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span>, show.image <span class="op">=</span> <span class="cn">TRUE</span>, 
+              show.sim.image <span class="op">=</span> <span class="cn">FALSE</span>, useAbs <span class="op">=</span> <span class="cn">FALSE</span>, colorkey <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></pre></div>
 <p><img src="plot-re_files/figure-html/unnamed-chunk-4-1.png" width="100%" style="display: block; margin: auto;"></p>
 <p>We can also just use <code>colorkey = FALSE</code> and still use black/white color for matrices that do not have negative values (without setting <code>useAbs</code>).</p>
 <div class="sourceCode" id="cb6"><pre class="downlit">
 <span class="co"># suppress colorkey, let the function decide whether use color or not</span>
-<span class="fu"><a href="../reference/pglmm_plot_ranef.html">pglmm_plot_re</a></span>(<span class="kw">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="kw">env</span> <span class="op">+</span> (<span class="fl">1</span><span class="op">|</span><span class="kw">sp__</span>) <span class="op">+</span> (<span class="fl">1</span><span class="op">|</span><span class="kw">site</span>) <span class="op">+</span> (<span class="kw">env</span><span class="op">|</span><span class="kw">sp__</span>) <span class="op">+</span> (<span class="fl">1</span><span class="op">|</span><span class="kw">sp__</span><span class="op">@</span>site),
-              data = <span class="kw">d</span>, cov_ranef = <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span>(sp = <span class="kw">phy</span>), show.image = <span class="fl">TRUE</span>, 
-              show.sim.image = <span class="fl">FALSE</span>, colorkey = <span class="fl">FALSE</span>)
-</pre></div>
+<span class="fu"><a href="../reference/pglmm_plot_ranef.html">pglmm_plot_re</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">env</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="va">env</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span>,
+              data <span class="op">=</span> <span class="va">d</span>, cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span>, show.image <span class="op">=</span> <span class="cn">TRUE</span>, 
+              show.sim.image <span class="op">=</span> <span class="cn">FALSE</span>, colorkey <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></pre></div>
 <p><img src="plot-re_files/figure-html/unnamed-chunk-5-1.png" width="100%" style="display: block; margin: auto;"></p>
 <p>To make all plots black or white, use <code>useAbs = TRUE</code>.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit">
 <span class="co"># all black and white</span>
-<span class="fu"><a href="../reference/pglmm_plot_ranef.html">pglmm_plot_re</a></span>(<span class="kw">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="kw">env</span> <span class="op">+</span> (<span class="fl">1</span><span class="op">|</span><span class="kw">sp__</span>) <span class="op">+</span> (<span class="fl">1</span><span class="op">|</span><span class="kw">site</span>) <span class="op">+</span> (<span class="kw">env</span><span class="op">|</span><span class="kw">sp__</span>) <span class="op">+</span> (<span class="fl">1</span><span class="op">|</span><span class="kw">sp__</span><span class="op">@</span>site),
-              data = <span class="kw">d</span>, cov_ranef = <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span>(sp = <span class="kw">phy</span>), show.image = <span class="fl">TRUE</span>, 
-              show.sim.image = <span class="fl">FALSE</span>, useAbs = <span class="fl">TRUE</span>)
-</pre></div>
+<span class="fu"><a href="../reference/pglmm_plot_ranef.html">pglmm_plot_re</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">env</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="va">env</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span>,
+              data <span class="op">=</span> <span class="va">d</span>, cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span>, show.image <span class="op">=</span> <span class="cn">TRUE</span>, 
+              show.sim.image <span class="op">=</span> <span class="cn">FALSE</span>, useAbs <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></pre></div>
 <p><img src="plot-re_files/figure-html/unnamed-chunk-6-1.png" width="100%" style="display: block; margin: auto;"></p>
 </div>
 <div id="individual-plots-for-var-cov-matrices" class="section level2">
@@ -265,33 +258,28 @@
 <a href="#individual-plots-for-var-cov-matrices" class="anchor"></a>Individual plots for var-cov matrices</h2>
 <p>Instead of plotting all var-cov matrices in one figure, we can also select the ones we are interested and then work from there.</p>
 <div class="sourceCode" id="cb8"><pre class="downlit">
-<span class="fu"><a href="https://rdrr.io/r/base/names.html">names</a></span>(<span class="kw">mod1re</span>)
+<span class="fu"><a href="https://rdrr.io/r/base/names.html">names</a></span><span class="op">(</span><span class="va">mod1re</span><span class="op">)</span>
 <span class="co">## [1] "vcv"               "sim"               "tree"             </span>
-<span class="co">## [4] "plt_re_list"       "plt_sim_list"      "plt_re_all_in_one"</span>
-</pre></div>
+<span class="co">## [4] "plt_re_list"       "plt_sim_list"      "plt_re_all_in_one"</span></pre></div>
 <p>So, the data of var-cov matrices are saved as <code>mod1re$vcv</code>, which is a list. We can use this list to plot the random terms in other ways, using either the base R or ggplot2 package.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit">
-<span class="fu"><a href="https://rdrr.io/r/base/names.html">names</a></span>(<span class="kw">mod1re</span><span class="op">$</span><span class="kw">vcv</span>)
+<span class="fu"><a href="https://rdrr.io/r/base/names.html">names</a></span><span class="op">(</span><span class="va">mod1re</span><span class="op">$</span><span class="va">vcv</span><span class="op">)</span>
 <span class="co">## [1] "1|sp"        "1|sp__"      "1|site"      "env|sp"      "env|sp__"   </span>
-<span class="co">## [6] "1|sp__@site"</span>
-</pre></div>
+<span class="co">## [6] "1|sp__@site"</span></pre></div>
 <p>The individual plots are saved as <code>mod1re$plt_re_list</code>, which is also a list.</p>
 <div class="sourceCode" id="cb10"><pre class="downlit">
-<span class="fu"><a href="https://rdrr.io/r/base/names.html">names</a></span>(<span class="kw">mod1re</span><span class="op">$</span><span class="kw">plt_re_list</span>)
+<span class="fu"><a href="https://rdrr.io/r/base/names.html">names</a></span><span class="op">(</span><span class="va">mod1re</span><span class="op">$</span><span class="va">plt_re_list</span><span class="op">)</span>
 <span class="co">## [1] "1|sp"        "1|sp__"      "1|site"      "env|sp"      "env|sp__"   </span>
 <span class="co">## [6] "1|sp__@site"</span>
-<span class="kw">mod1re</span><span class="op">$</span><span class="kw">plt_re_list</span>[[<span class="fl">6</span>]]
-</pre></div>
+<span class="va">mod1re</span><span class="op">$</span><span class="va">plt_re_list</span><span class="op">[[</span><span class="fl">6</span><span class="op">]</span><span class="op">]</span></pre></div>
 <p><img src="plot-re_files/figure-html/unnamed-chunk-9-1.png" width="50%" style="display: block; margin: auto;"></p>
 <p>The individual plots were generated using <code>Matrix::image()</code>, which used <code><a href="https://rdrr.io/pkg/lattice/man/levelplot.html">lattice::levelplot()</a></code> as the back bone function.</p>
 <div class="sourceCode" id="cb11"><pre class="downlit">
-<span class="kw">Matrix</span>::<span class="fu">image</span>(<span class="kw">mod1re</span><span class="op">$</span><span class="kw">vcv</span>[[<span class="fl">6</span>]], xlab = <span class="st">""</span>, ylab = <span class="st">""</span>, sub = <span class="st">""</span>, main = <span class="st">"1|sp__@site"</span>)
-</pre></div>
+<span class="fu">Matrix</span><span class="fu">::</span><span class="fu">image</span><span class="op">(</span><span class="va">mod1re</span><span class="op">$</span><span class="va">vcv</span><span class="op">[[</span><span class="fl">6</span><span class="op">]</span><span class="op">]</span>, xlab <span class="op">=</span> <span class="st">""</span>, ylab <span class="op">=</span> <span class="st">""</span>, sub <span class="op">=</span> <span class="st">""</span>, main <span class="op">=</span> <span class="st">"1|sp__@site"</span><span class="op">)</span></pre></div>
 <p><img src="plot-re_files/figure-html/unnamed-chunk-10-1.png" width="50%" style="display: block; margin: auto;"></p>
 <p>We can also pick the ones that we are interested in and put them in one figure. For example, suppose that we are only interested in those with phylogenetic relationships. That is, <code>1|sp__</code>, <code>env|sp__</code>, and <code>1|sp__@site</code>.</p>
 <div class="sourceCode" id="cb12"><pre class="downlit">
-<span class="kw">gridExtra</span>::<span class="fu"><a href="https://rdrr.io/pkg/gridExtra/man/arrangeGrob.html">grid.arrange</a></span>(grobs = <span class="kw">mod1re</span><span class="op">$</span><span class="kw">plt_re_list</span>[<span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span>(<span class="fl">2</span>, <span class="fl">5</span>, <span class="fl">6</span>)], nrow = <span class="fl">1</span>)
-</pre></div>
+<span class="fu">gridExtra</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/gridExtra/man/arrangeGrob.html">grid.arrange</a></span><span class="op">(</span>grobs <span class="op">=</span> <span class="va">mod1re</span><span class="op">$</span><span class="va">plt_re_list</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">5</span>, <span class="fl">6</span><span class="op">)</span><span class="op">]</span>, nrow <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></pre></div>
 <p><img src="plot-re_files/figure-html/unnamed-chunk-11-1.png" width="100%" style="display: block; margin: auto;"></p>
 <p>To save this plot, we can wrap the above line of code within <code><a href="https://rdrr.io/r/grDevices/pdf.html">pdf()</a></code> and <code><a href="https://rdrr.io/r/grDevices/dev.html">dev.off()</a></code>.</p>
 </div>
@@ -305,50 +293,44 @@
 <a href="#plot-simulated-matrices-of-all-random-terms-in-one-figure" class="anchor"></a>Plot simulated matrices of all random terms in one figure</h2>
 <div class="sourceCode" id="cb13"><pre class="downlit">
 <span class="co"># plot simulated matrices of random terms</span>
-<span class="kw">mod1sim</span> <span class="op">=</span> <span class="fu"><a href="../reference/pglmm_plot_ranef.html">pglmm_plot_re</a></span>(<span class="kw">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="kw">env</span> <span class="op">+</span> (<span class="fl">1</span><span class="op">|</span><span class="kw">sp__</span>) <span class="op">+</span> (<span class="fl">1</span><span class="op">|</span><span class="kw">site</span>) <span class="op">+</span> (<span class="kw">env</span><span class="op">|</span><span class="kw">sp__</span>) <span class="op">+</span> (<span class="fl">1</span><span class="op">|</span><span class="kw">sp__</span><span class="op">@</span>site),
-                        data = <span class="kw">d</span>, cov_ranef = <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span>(sp = <span class="kw">phy</span>), show.image = <span class="fl">FALSE</span>, 
-                        show.sim.image = <span class="fl">TRUE</span>)
-</pre></div>
+<span class="va">mod1sim</span> <span class="op">=</span> <span class="fu"><a href="../reference/pglmm_plot_ranef.html">pglmm_plot_re</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">env</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="va">env</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span>,
+                        data <span class="op">=</span> <span class="va">d</span>, cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span>, show.image <span class="op">=</span> <span class="cn">FALSE</span>, 
+                        show.sim.image <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></pre></div>
 <p><img src="plot-re_files/figure-html/unnamed-chunk-12-1.png" width="100%" style="display: block; margin: auto;"></p>
 <p>For the <code>1|sp__</code> panel, we can see that closely related species have similar value across all sites. While the `<code>|sp__@site</code> panel shows that closely related species within each site have similar values.</p>
 <p>By default, we added a phylogeny for species at the top of each panel when we show the simulated site by species matrices. This can be suppressed with <code>add.tree.sp = FALSE</code>.</p>
 <div class="sourceCode" id="cb14"><pre class="downlit">
-<span class="fu"><a href="../reference/pglmm_plot_ranef.html">pglmm_plot_re</a></span>(<span class="kw">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="kw">env</span> <span class="op">+</span> (<span class="fl">1</span><span class="op">|</span><span class="kw">sp__</span>) <span class="op">+</span> (<span class="fl">1</span><span class="op">|</span><span class="kw">site</span>) <span class="op">+</span> (<span class="kw">env</span><span class="op">|</span><span class="kw">sp__</span>) <span class="op">+</span> (<span class="fl">1</span><span class="op">|</span><span class="kw">sp__</span><span class="op">@</span>site),
-              data = <span class="kw">d</span>, cov_ranef = <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span>(sp = <span class="kw">phy</span>), show.image = <span class="fl">FALSE</span>, 
-              show.sim.image = <span class="fl">TRUE</span>, add.tree.sp = <span class="fl">FALSE</span>)
-</pre></div>
+<span class="fu"><a href="../reference/pglmm_plot_ranef.html">pglmm_plot_re</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">env</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="va">env</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span>,
+              data <span class="op">=</span> <span class="va">d</span>, cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span>, show.image <span class="op">=</span> <span class="cn">FALSE</span>, 
+              show.sim.image <span class="op">=</span> <span class="cn">TRUE</span>, add.tree.sp <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></pre></div>
 <p><img src="plot-re_files/figure-html/unnamed-chunk-13-1.png" width="100%" style="display: block; margin: auto;"></p>
 <p>Again, we can remove the keys with <code>colorkey = FALSE</code>. We can also use <code>useAbs</code> to force using color for all panels.</p>
 <div class="sourceCode" id="cb15"><pre class="downlit">
-<span class="fu"><a href="../reference/pglmm_plot_ranef.html">pglmm_plot_re</a></span>(<span class="kw">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="kw">env</span> <span class="op">+</span> (<span class="fl">1</span><span class="op">|</span><span class="kw">sp__</span>) <span class="op">+</span> (<span class="fl">1</span><span class="op">|</span><span class="kw">site</span>) <span class="op">+</span> (<span class="kw">env</span><span class="op">|</span><span class="kw">sp__</span>) <span class="op">+</span> (<span class="fl">1</span><span class="op">|</span><span class="kw">sp__</span><span class="op">@</span>site),
-              data = <span class="kw">d</span>, cov_ranef = <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span>(sp = <span class="kw">phy</span>), show.image = <span class="fl">FALSE</span>,
-              show.sim.image = <span class="fl">TRUE</span>, add.tree.sp = <span class="fl">TRUE</span>,
-              colorkey = <span class="fl">FALSE</span>, useAbs = <span class="fl">FALSE</span>)
-</pre></div>
+<span class="fu"><a href="../reference/pglmm_plot_ranef.html">pglmm_plot_re</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">env</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="va">env</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span>,
+              data <span class="op">=</span> <span class="va">d</span>, cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span>, show.image <span class="op">=</span> <span class="cn">FALSE</span>,
+              show.sim.image <span class="op">=</span> <span class="cn">TRUE</span>, add.tree.sp <span class="op">=</span> <span class="cn">TRUE</span>,
+              colorkey <span class="op">=</span> <span class="cn">FALSE</span>, useAbs <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></pre></div>
 <p><img src="plot-re_files/figure-html/unnamed-chunk-14-1.png" width="100%" style="display: block; margin: auto;"></p>
 </div>
 <div id="individual-plots-for-simulated-site-by-species-matrix" class="section level2">
 <h2 class="hasAnchor">
 <a href="#individual-plots-for-simulated-site-by-species-matrix" class="anchor"></a>Individual plots for simulated site by species matrix</h2>
 <div class="sourceCode" id="cb16"><pre class="downlit">
-<span class="fu"><a href="https://rdrr.io/r/base/names.html">names</a></span>(<span class="kw">mod1sim</span>)
+<span class="fu"><a href="https://rdrr.io/r/base/names.html">names</a></span><span class="op">(</span><span class="va">mod1sim</span><span class="op">)</span>
 <span class="co">## [1] "vcv"                "sim"                "tree"              </span>
-<span class="co">## [4] "plt_re_list"        "plt_sim_list"       "plt_sim_all_in_one"</span>
-</pre></div>
+<span class="co">## [4] "plt_re_list"        "plt_sim_list"       "plt_sim_all_in_one"</span></pre></div>
 <p>The individual simulated matrices are saved as <code>mod1sim$sim</code> and individual plots are saved as <code>mod1sim$plt_sim_list</code>. We can use the same approach to select our own plots as those of var-cov matrices.</p>
 <p>We can control the space between the phylogeny and the matrix plot with <code>key.top</code> argument in <code><a href="https://rdrr.io/pkg/lattice/man/levelplot.html">lattice::levelplot()</a></code>, which has a default value of 1 (line).</p>
 <div class="sourceCode" id="cb17"><pre class="downlit">
-<span class="kw">gridExtra</span>::<span class="fu"><a href="https://rdrr.io/pkg/gridExtra/man/arrangeGrob.html">grid.arrange</a></span>(grobs = <span class="kw">mod1sim</span><span class="op">$</span><span class="kw">plt_sim_list</span>[<span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span>(<span class="fl">2</span>, <span class="fl">6</span>)], nrow = <span class="fl">1</span>)
-</pre></div>
+<span class="fu">gridExtra</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/gridExtra/man/arrangeGrob.html">grid.arrange</a></span><span class="op">(</span>grobs <span class="op">=</span> <span class="va">mod1sim</span><span class="op">$</span><span class="va">plt_sim_list</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">6</span><span class="op">)</span><span class="op">]</span>, nrow <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></pre></div>
 <p><img src="plot-re_files/figure-html/unnamed-chunk-16-1.png" width="100%" style="display: block; margin: auto;"></p>
 <div class="sourceCode" id="cb18"><pre class="downlit">
-<span class="kw">gridExtra</span>::<span class="fu"><a href="https://rdrr.io/pkg/gridExtra/man/arrangeGrob.html">grid.arrange</a></span>(grobs = <span class="fu"><a href="https://rdrr.io/r/base/lapply.html">lapply</a></span>(<span class="kw">mod1sim</span><span class="op">$</span><span class="kw">plt_sim_list</span>[<span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span>(<span class="fl">2</span>, <span class="fl">6</span>)], 
-                                       <span class="kw">update</span>, 
-                                       par.settings = <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span>(layout.heights = 
-                                                             <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span>(key.top = <span class="fl">0.3</span>,
-                                                                  main = <span class="fl">5</span>))), 
-                        nrow = <span class="fl">1</span>)
-</pre></div>
+<span class="fu">gridExtra</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/gridExtra/man/arrangeGrob.html">grid.arrange</a></span><span class="op">(</span>grobs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html">lapply</a></span><span class="op">(</span><span class="va">mod1sim</span><span class="op">$</span><span class="va">plt_sim_list</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">6</span><span class="op">)</span><span class="op">]</span>, 
+                                       <span class="va">update</span>, 
+                                       par.settings <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span><span class="op">(</span>layout.heights <span class="op">=</span> 
+                                                             <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span><span class="op">(</span>key.top <span class="op">=</span> <span class="fl">0.3</span>,
+                                                                  main <span class="op">=</span> <span class="fl">5</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>, 
+                        nrow <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></pre></div>
 <p><img src="plot-re_files/figure-html/unnamed-chunk-16-2.png" width="100%" style="display: block; margin: auto;"></p>
 </div>
 <div id="fitted-model-as-input" class="section level2">
@@ -356,13 +338,11 @@
 <a href="#fitted-model-as-input" class="anchor"></a>Fitted model as input</h2>
 <p>If you don’t have the model fitted, then the above way with specified formula, data, etc. can save you lots of time. Because it won’t actually fit the model, instead, it only return and plot the variance-cov matrices of random terms. However, if you already have the model fitted, you can just use the model as the input.</p>
 <div class="sourceCode" id="cb19"><pre class="downlit">
-<span class="fu"><a href="../reference/pglmm_plot_ranef.html">pglmm_plot_re</a></span>(x = <span class="kw">mod_1</span>, show.image = <span class="fl">FALSE</span>, show.sim.image = <span class="fl">TRUE</span>, 
-              add.tree.sp = <span class="fl">TRUE</span>, colorkey = <span class="fl">FALSE</span>, useAbs = <span class="fl">FALSE</span>)
-</pre></div>
+<span class="fu"><a href="../reference/pglmm_plot_ranef.html">pglmm_plot_re</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">mod_1</span>, show.image <span class="op">=</span> <span class="cn">FALSE</span>, show.sim.image <span class="op">=</span> <span class="cn">TRUE</span>, 
+              add.tree.sp <span class="op">=</span> <span class="cn">TRUE</span>, colorkey <span class="op">=</span> <span class="cn">FALSE</span>, useAbs <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></pre></div>
 <p><img src="plot-re_files/figure-html/unnamed-chunk-17-1.png" width="100%" style="display: block; margin: auto;"></p>
 <div class="sourceCode" id="cb20"><pre class="downlit">
-<span class="fu"><a href="../reference/pglmm_plot_ranef.html">communityPGLMM.show.re</a></span>(x = <span class="kw">mod_1</span>, show.image = <span class="fl">TRUE</span>, show.sim.image = <span class="fl">FALSE</span>, useAbs = <span class="fl">TRUE</span>)
-</pre></div>
+<span class="fu"><a href="../reference/pglmm_plot_ranef.html">communityPGLMM.show.re</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">mod_1</span>, show.image <span class="op">=</span> <span class="cn">TRUE</span>, show.sim.image <span class="op">=</span> <span class="cn">FALSE</span>, useAbs <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></pre></div>
 <p><img src="plot-re_files/figure-html/unnamed-chunk-17-2.png" width="100%" style="display: block; margin: auto;"></p>
 </div>
 </div>
@@ -383,7 +363,7 @@
 </div>
 
 <div class="pkgdown">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/">pkgdown</a> 1.5.1.9000.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/">pkgdown</a> 1.6.1.</p>
 </div>
 
       </footer>

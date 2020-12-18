@@ -46,7 +46,7 @@ approximate standard errors. It is specifically designed for community data
 in which species occur within multiple sites (locations).
 A Bayesian version of PGLMM uses the package INLA,
 which is not available on CRAN yet. If you wish to use this option,
-you must first install INLA from http://www.r-inla.org/ by running
+you must first install INLA from https://www.r-inla.org/ by running
 install.packages('INLA', repos='https://www.math.ntnu.no/inla/R/stable') in R." />
 
 
@@ -79,7 +79,7 @@ install.packages('INLA', repos='https://www.math.ntnu.no/inla/R/stable') in R." 
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">phyr</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.0.3</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.1.0</span>
       </span>
     </div>
 
@@ -151,75 +151,77 @@ approximate standard errors. It is specifically designed for community data
 in which species occur within multiple sites (locations).
 A Bayesian version of PGLMM uses the package <code>INLA</code>,
 which is not available on CRAN yet. If you wish to use this option,
-you must first install <code>INLA</code> from <a href='http://www.r-inla.org/'>http://www.r-inla.org/</a> by running
+you must first install <code>INLA</code> from <a href='https://www.r-inla.org/'>https://www.r-inla.org/</a> by running
 <code><a href='https://rdrr.io/r/utils/install.packages.html'>install.packages('INLA', repos='https://www.math.ntnu.no/inla/R/stable')</a></code> in R.</p>
     </div>
 
-    <pre class="usage"><span class='fu'><a href='https://rdrr.io/pkg/phyr/man/pglmm.html'>pglmm</a></span>(
-  <span class='kw'>formula</span>,
-  data = <span class='kw'>NULL</span>,
-  family = <span class='st'>"gaussian"</span>,
-  cov_ranef = <span class='kw'>NULL</span>,
-  random.effects = <span class='kw'>NULL</span>,
-  REML = <span class='fl'>TRUE</span>,
-  optimizer = <span class='fu'><a href='https://rdrr.io/r/base/c.html'>c</a></span>(<span class='st'>"nelder-mead-nlopt"</span>, <span class='st'>"bobyqa"</span>, <span class='st'>"Nelder-Mead"</span>, <span class='st'>"subplex"</span>),
-  repulsion = <span class='fl'>FALSE</span>,
-  add.obs.re = <span class='fl'>TRUE</span>,
-  verbose = <span class='fl'>FALSE</span>,
-  cpp = <span class='fl'>TRUE</span>,
-  bayes = <span class='fl'>FALSE</span>,
-  s2.init = <span class='kw'>NULL</span>,
-  B.init = <span class='kw'>NULL</span>,
-  reltol = <span class='fl'>10</span><span class='op'>^</span><span class='op'>-</span><span class='fl'>6</span>,
-  maxit = <span class='fl'>500</span>,
-  tol.pql = <span class='fl'>10</span><span class='op'>^</span><span class='op'>-</span><span class='fl'>6</span>,
-  maxit.pql = <span class='fl'>200</span>,
-  marginal.summ = <span class='st'>"mean"</span>,
-  calc.DIC = <span class='fl'>FALSE</span>,
-  calc.WAIC = <span class='fl'>FALSE</span>,
-  prior = <span class='st'>"inla.default"</span>,
-  prior_alpha = <span class='fl'>0.1</span>,
-  prior_mu = <span class='fl'>1</span>,
-  ML.init = <span class='fl'>FALSE</span>,
-  tree = <span class='kw'>NULL</span>,
-  tree_site = <span class='kw'>NULL</span>,
-  sp = <span class='kw'>NULL</span>,
-  site = <span class='kw'>NULL</span>,
-  bayes_options = <span class='kw'>NULL</span>
-)
+    <pre class="usage"><span class='fu'>pglmm</span><span class='op'>(</span>
+  <span class='va'>formula</span>,
+  data <span class='op'>=</span> <span class='cn'>NULL</span>,
+  family <span class='op'>=</span> <span class='st'>"gaussian"</span>,
+  cov_ranef <span class='op'>=</span> <span class='cn'>NULL</span>,
+  random.effects <span class='op'>=</span> <span class='cn'>NULL</span>,
+  REML <span class='op'>=</span> <span class='cn'>TRUE</span>,
+  optimizer <span class='op'>=</span> <span class='fu'><a href='https://rdrr.io/r/base/c.html'>c</a></span><span class='op'>(</span><span class='st'>"nelder-mead-nlopt"</span>, <span class='st'>"bobyqa"</span>, <span class='st'>"Nelder-Mead"</span>, <span class='st'>"subplex"</span><span class='op'>)</span>,
+  repulsion <span class='op'>=</span> <span class='cn'>FALSE</span>,
+  add.obs.re <span class='op'>=</span> <span class='cn'>TRUE</span>,
+  verbose <span class='op'>=</span> <span class='cn'>FALSE</span>,
+  cpp <span class='op'>=</span> <span class='cn'>TRUE</span>,
+  bayes <span class='op'>=</span> <span class='cn'>FALSE</span>,
+  s2.init <span class='op'>=</span> <span class='cn'>NULL</span>,
+  B.init <span class='op'>=</span> <span class='cn'>NULL</span>,
+  reltol <span class='op'>=</span> <span class='fl'>10</span><span class='op'>^</span><span class='op'>-</span><span class='fl'>6</span>,
+  maxit <span class='op'>=</span> <span class='fl'>500</span>,
+  tol.pql <span class='op'>=</span> <span class='fl'>10</span><span class='op'>^</span><span class='op'>-</span><span class='fl'>6</span>,
+  maxit.pql <span class='op'>=</span> <span class='fl'>200</span>,
+  marginal.summ <span class='op'>=</span> <span class='st'>"mean"</span>,
+  calc.DIC <span class='op'>=</span> <span class='cn'>TRUE</span>,
+  calc.WAIC <span class='op'>=</span> <span class='cn'>TRUE</span>,
+  prior <span class='op'>=</span> <span class='st'>"inla.default"</span>,
+  prior_alpha <span class='op'>=</span> <span class='fl'>0.1</span>,
+  prior_mu <span class='op'>=</span> <span class='fl'>1</span>,
+  ML.init <span class='op'>=</span> <span class='cn'>FALSE</span>,
+  tree <span class='op'>=</span> <span class='cn'>NULL</span>,
+  tree_site <span class='op'>=</span> <span class='cn'>NULL</span>,
+  sp <span class='op'>=</span> <span class='cn'>NULL</span>,
+  site <span class='op'>=</span> <span class='cn'>NULL</span>,
+  bayes_options <span class='op'>=</span> <span class='cn'>NULL</span>,
+  bayes_nested_matrix_as_list <span class='op'>=</span> <span class='cn'>FALSE</span>
+<span class='op'>)</span>
 
-<span class='fu'><a href='https://rdrr.io/pkg/phyr/man/pglmm.html'>communityPGLMM</a></span>(
-  <span class='kw'>formula</span>,
-  data = <span class='kw'>NULL</span>,
-  family = <span class='st'>"gaussian"</span>,
-  cov_ranef = <span class='kw'>NULL</span>,
-  random.effects = <span class='kw'>NULL</span>,
-  REML = <span class='fl'>TRUE</span>,
-  optimizer = <span class='fu'><a href='https://rdrr.io/r/base/c.html'>c</a></span>(<span class='st'>"nelder-mead-nlopt"</span>, <span class='st'>"bobyqa"</span>, <span class='st'>"Nelder-Mead"</span>, <span class='st'>"subplex"</span>),
-  repulsion = <span class='fl'>FALSE</span>,
-  add.obs.re = <span class='fl'>TRUE</span>,
-  verbose = <span class='fl'>FALSE</span>,
-  cpp = <span class='fl'>TRUE</span>,
-  bayes = <span class='fl'>FALSE</span>,
-  s2.init = <span class='kw'>NULL</span>,
-  B.init = <span class='kw'>NULL</span>,
-  reltol = <span class='fl'>10</span><span class='op'>^</span><span class='op'>-</span><span class='fl'>6</span>,
-  maxit = <span class='fl'>500</span>,
-  tol.pql = <span class='fl'>10</span><span class='op'>^</span><span class='op'>-</span><span class='fl'>6</span>,
-  maxit.pql = <span class='fl'>200</span>,
-  marginal.summ = <span class='st'>"mean"</span>,
-  calc.DIC = <span class='fl'>FALSE</span>,
-  calc.WAIC = <span class='fl'>FALSE</span>,
-  prior = <span class='st'>"inla.default"</span>,
-  prior_alpha = <span class='fl'>0.1</span>,
-  prior_mu = <span class='fl'>1</span>,
-  ML.init = <span class='fl'>FALSE</span>,
-  tree = <span class='kw'>NULL</span>,
-  tree_site = <span class='kw'>NULL</span>,
-  sp = <span class='kw'>NULL</span>,
-  site = <span class='kw'>NULL</span>,
-  bayes_options = <span class='kw'>NULL</span>
-)</pre>
+<span class='fu'>communityPGLMM</span><span class='op'>(</span>
+  <span class='va'>formula</span>,
+  data <span class='op'>=</span> <span class='cn'>NULL</span>,
+  family <span class='op'>=</span> <span class='st'>"gaussian"</span>,
+  cov_ranef <span class='op'>=</span> <span class='cn'>NULL</span>,
+  random.effects <span class='op'>=</span> <span class='cn'>NULL</span>,
+  REML <span class='op'>=</span> <span class='cn'>TRUE</span>,
+  optimizer <span class='op'>=</span> <span class='fu'><a href='https://rdrr.io/r/base/c.html'>c</a></span><span class='op'>(</span><span class='st'>"nelder-mead-nlopt"</span>, <span class='st'>"bobyqa"</span>, <span class='st'>"Nelder-Mead"</span>, <span class='st'>"subplex"</span><span class='op'>)</span>,
+  repulsion <span class='op'>=</span> <span class='cn'>FALSE</span>,
+  add.obs.re <span class='op'>=</span> <span class='cn'>TRUE</span>,
+  verbose <span class='op'>=</span> <span class='cn'>FALSE</span>,
+  cpp <span class='op'>=</span> <span class='cn'>TRUE</span>,
+  bayes <span class='op'>=</span> <span class='cn'>FALSE</span>,
+  s2.init <span class='op'>=</span> <span class='cn'>NULL</span>,
+  B.init <span class='op'>=</span> <span class='cn'>NULL</span>,
+  reltol <span class='op'>=</span> <span class='fl'>10</span><span class='op'>^</span><span class='op'>-</span><span class='fl'>6</span>,
+  maxit <span class='op'>=</span> <span class='fl'>500</span>,
+  tol.pql <span class='op'>=</span> <span class='fl'>10</span><span class='op'>^</span><span class='op'>-</span><span class='fl'>6</span>,
+  maxit.pql <span class='op'>=</span> <span class='fl'>200</span>,
+  marginal.summ <span class='op'>=</span> <span class='st'>"mean"</span>,
+  calc.DIC <span class='op'>=</span> <span class='cn'>TRUE</span>,
+  calc.WAIC <span class='op'>=</span> <span class='cn'>TRUE</span>,
+  prior <span class='op'>=</span> <span class='st'>"inla.default"</span>,
+  prior_alpha <span class='op'>=</span> <span class='fl'>0.1</span>,
+  prior_mu <span class='op'>=</span> <span class='fl'>1</span>,
+  ML.init <span class='op'>=</span> <span class='cn'>FALSE</span>,
+  tree <span class='op'>=</span> <span class='cn'>NULL</span>,
+  tree_site <span class='op'>=</span> <span class='cn'>NULL</span>,
+  sp <span class='op'>=</span> <span class='cn'>NULL</span>,
+  site <span class='op'>=</span> <span class='cn'>NULL</span>,
+  bayes_options <span class='op'>=</span> <span class='cn'>NULL</span>,
+  bayes_nested_matrix_as_list <span class='op'>=</span> <span class='cn'>FALSE</span>
+<span class='op'>)</span></pre>
 
     <h2 class="hasAnchor" id="arguments"><a class="anchor" href="#arguments"></a>Arguments</h2>
     <table class="ref-arguments">
@@ -278,13 +280,14 @@ columns are in the same order as the levels of their corresponding group variabl
     <tr>
       <th>random.effects</th>
       <td><p>Optional pre-build list of random effects. If <code>NULL</code> (the default),
-the function <code><a href='https://rdrr.io/pkg/phyr/man/prep_dat_pglmm.html'>prep_dat_pglmm</a></code> will prepare the random effects for you from the information
+the function <code><a href='prep_dat_pglmm.html'>prep_dat_pglmm</a></code> will prepare the random effects for you from the information
 in <code>formula</code>, <code>data</code>, and <code>cov_ranef</code>. <code>random.effect</code> allows a list of
 pre-generated random effects terms to increase flexibility; for example, this makes it
 possible to construct models with both phylogenetic correlation and spatio-temporal autocorrelation.
 In preparing <code>random.effect</code>, make sure that the orders of rows and columns of
 covariance matrices in the list are the same as their corresponding group variables
-in the data.</p></td>
+in the data. Also, this should be <em>a list of lists</em>, e.g.
+<code>random.effects = list(re1 = list(matrix_a), re2 = list(1, sp = sp, covar = Vsp))</code>.</p></td>
     </tr>
     <tr>
       <th>REML</th>
@@ -464,6 +467,10 @@ the options list is names <code>diagonal</code> this tells <code>INLA</code> to 
 precision matrices. This can help with numerical stability if the model is ill-conditioned (if you get a lot of warnings,
 try setting this to <code><a href='https://rdrr.io/r/base/list.html'>list(diagonal = 1e-4)</a></code>).</p></td>
     </tr>
+    <tr>
+      <th>bayes_nested_matrix_as_list</th>
+      <td><p>For <code>bayes = TRUE</code>, prepare the nested terms as a list of length of 4 as the old way?</p></td>
+    </tr>
     </table>
 
     <h2 class="hasAnchor" id="value"><a class="anchor" href="#value"></a>Value</h2>
@@ -600,34 +607,34 @@ New Phytologist, 214(2), 607-618.</p>
 <span class='co'>### Brief summary of models and their use ###</span>
 <span class='co'>#############################################</span>
 <span class='co'>## Model structures from Ives &amp; Helmus (2011)</span>
-<span class='co'>if</span>(<span class='fl'>FALSE</span>){
+<span class='kw'>if</span><span class='op'>(</span><span class='cn'>FALSE</span><span class='op'>)</span><span class='op'>{</span>
   <span class='co'># dat = data set for regression (note: must have a column "sp" and a column "site")</span>
   <span class='co'># phy = phylogeny of class "phylo"</span>
   <span class='co'># repulsion = to test phylogenetic repulsion or not</span>
   
   <span class='co'># Model 1 (Eq. 1)</span>
-  <span class='kw'>z</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/pkg/phyr/man/pglmm.html'>pglmm</a></span>(<span class='kw'>freq</span> <span class='op'>~</span> <span class='kw'>sp</span> <span class='op'>+</span> (<span class='fl'>1</span><span class='op'>|</span><span class='kw'>site</span>) <span class='op'>+</span> (<span class='fl'>1</span><span class='op'>|</span><span class='kw'>sp__</span><span class='op'>@</span>site), data = <span class='kw'>dat</span>, family = <span class='st'>"binomial"</span>,
-             cov_ranef = <span class='fu'><a href='https://rdrr.io/r/base/list.html'>list</a></span>(sp = <span class='kw'>phy</span>), REML = <span class='fl'>TRUE</span>, verbose = <span class='fl'>TRUE</span>, s2.init = <span class='fl'>.1</span>)
+  <span class='va'>z</span> <span class='op'>&lt;-</span> <span class='fu'>pglmm</span><span class='op'>(</span><span class='va'>freq</span> <span class='op'>~</span> <span class='va'>sp</span> <span class='op'>+</span> <span class='op'>(</span><span class='fl'>1</span><span class='op'>|</span><span class='va'>site</span><span class='op'>)</span> <span class='op'>+</span> <span class='op'>(</span><span class='fl'>1</span><span class='op'>|</span><span class='va'>sp__</span><span class='op'>@</span><span class='va'>site</span><span class='op'>)</span>, data <span class='op'>=</span> <span class='va'>dat</span>, family <span class='op'>=</span> <span class='st'>"binomial"</span>,
+             cov_ranef <span class='op'>=</span> <span class='fu'><a href='https://rdrr.io/r/base/list.html'>list</a></span><span class='op'>(</span>sp <span class='op'>=</span> <span class='va'>phy</span><span class='op'>)</span>, REML <span class='op'>=</span> <span class='cn'>TRUE</span>, verbose <span class='op'>=</span> <span class='cn'>TRUE</span>, s2.init <span class='op'>=</span> <span class='fl'>.1</span><span class='op'>)</span>
   
   <span class='co'># Model 2 (Eq. 2)</span>
-  <span class='kw'>z</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/pkg/phyr/man/pglmm.html'>pglmm</a></span>(<span class='kw'>freq</span> <span class='op'>~</span> <span class='kw'>sp</span> <span class='op'>+</span> <span class='kw'>X</span> <span class='op'>+</span> (<span class='fl'>1</span><span class='op'>|</span><span class='kw'>site</span>) <span class='op'>+</span> (<span class='kw'>X</span><span class='op'>|</span><span class='kw'>sp__</span>), data = <span class='kw'>dat</span>, family = <span class='st'>"binomial"</span>,
-             cov_ranef = <span class='fu'><a href='https://rdrr.io/r/base/list.html'>list</a></span>(sp = <span class='kw'>phy</span>), REML = <span class='fl'>TRUE</span>, verbose = <span class='fl'>TRUE</span>, s2.init = <span class='fl'>.1</span>)
+  <span class='va'>z</span> <span class='op'>&lt;-</span> <span class='fu'>pglmm</span><span class='op'>(</span><span class='va'>freq</span> <span class='op'>~</span> <span class='va'>sp</span> <span class='op'>+</span> <span class='va'>X</span> <span class='op'>+</span> <span class='op'>(</span><span class='fl'>1</span><span class='op'>|</span><span class='va'>site</span><span class='op'>)</span> <span class='op'>+</span> <span class='op'>(</span><span class='va'>X</span><span class='op'>|</span><span class='va'>sp__</span><span class='op'>)</span>, data <span class='op'>=</span> <span class='va'>dat</span>, family <span class='op'>=</span> <span class='st'>"binomial"</span>,
+             cov_ranef <span class='op'>=</span> <span class='fu'><a href='https://rdrr.io/r/base/list.html'>list</a></span><span class='op'>(</span>sp <span class='op'>=</span> <span class='va'>phy</span><span class='op'>)</span>, REML <span class='op'>=</span> <span class='cn'>TRUE</span>, verbose <span class='op'>=</span> <span class='cn'>TRUE</span>, s2.init <span class='op'>=</span> <span class='fl'>.1</span><span class='op'>)</span>
   
   <span class='co'># Model 3 (Eq. 3)</span>
-  <span class='kw'>z</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/pkg/phyr/man/pglmm.html'>pglmm</a></span>(<span class='kw'>freq</span> <span class='op'>~</span> <span class='kw'>sp</span><span class='op'>*</span><span class='kw'>X</span> <span class='op'>+</span> (<span class='fl'>1</span><span class='op'>|</span><span class='kw'>site</span>) <span class='op'>+</span> (<span class='fl'>1</span><span class='op'>|</span><span class='kw'>sp__</span><span class='op'>@</span>site), data = <span class='kw'>dat</span>, family = <span class='st'>"binomial"</span>,
-             cov_ranef = <span class='fu'><a href='https://rdrr.io/r/base/list.html'>list</a></span>(sp = <span class='kw'>phy</span>), REML = <span class='fl'>TRUE</span>, verbose = <span class='fl'>TRUE</span>, s2.init = <span class='fl'>.1</span>)
+  <span class='va'>z</span> <span class='op'>&lt;-</span> <span class='fu'>pglmm</span><span class='op'>(</span><span class='va'>freq</span> <span class='op'>~</span> <span class='va'>sp</span><span class='op'>*</span><span class='va'>X</span> <span class='op'>+</span> <span class='op'>(</span><span class='fl'>1</span><span class='op'>|</span><span class='va'>site</span><span class='op'>)</span> <span class='op'>+</span> <span class='op'>(</span><span class='fl'>1</span><span class='op'>|</span><span class='va'>sp__</span><span class='op'>@</span><span class='va'>site</span><span class='op'>)</span>, data <span class='op'>=</span> <span class='va'>dat</span>, family <span class='op'>=</span> <span class='st'>"binomial"</span>,
+             cov_ranef <span class='op'>=</span> <span class='fu'><a href='https://rdrr.io/r/base/list.html'>list</a></span><span class='op'>(</span>sp <span class='op'>=</span> <span class='va'>phy</span><span class='op'>)</span>, REML <span class='op'>=</span> <span class='cn'>TRUE</span>, verbose <span class='op'>=</span> <span class='cn'>TRUE</span>, s2.init <span class='op'>=</span> <span class='fl'>.1</span><span class='op'>)</span>
   
   <span class='co'>## Model structure from Rafferty &amp; Ives (2013) (Eq. 3)</span>
   <span class='co'># dat = data set</span>
   <span class='co'># phyPol = phylogeny for pollinators (pol)</span>
   <span class='co'># phyPlt = phylogeny for plants (plt)</span>
   
-  <span class='kw'>z</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/pkg/phyr/man/pglmm.html'>pglmm</a></span>(<span class='kw'>freq</span> <span class='op'>~</span> <span class='kw'>pol</span> <span class='op'>*</span> <span class='kw'>X</span> <span class='op'>+</span> (<span class='fl'>1</span><span class='op'>|</span><span class='kw'>pol__</span>) <span class='op'>+</span> (<span class='fl'>1</span><span class='op'>|</span><span class='kw'>plt__</span>) <span class='op'>+</span> (<span class='fl'>1</span><span class='op'>|</span><span class='kw'>pol__</span><span class='op'>@</span>plt) <span class='op'>+</span>
-               (<span class='fl'>1</span><span class='op'>|</span><span class='kw'>pol</span><span class='op'>@</span>plt__) <span class='op'>+</span> (<span class='fl'>1</span><span class='op'>|</span><span class='kw'>pol__</span><span class='op'>@</span>plt__),
-             data = <span class='kw'>dat</span>, family = <span class='st'>"binomial"</span>,
-             cov_ranef = <span class='fu'><a href='https://rdrr.io/r/base/list.html'>list</a></span>(pol = <span class='kw'>phyPol</span>, plt = <span class='kw'>phyPlt</span>),
-             REML = <span class='fl'>TRUE</span>, verbose = <span class='fl'>TRUE</span>, s2.init = <span class='fl'>.1</span>)
-}
+  <span class='va'>z</span> <span class='op'>&lt;-</span> <span class='fu'>pglmm</span><span class='op'>(</span><span class='va'>freq</span> <span class='op'>~</span> <span class='va'>pol</span> <span class='op'>*</span> <span class='va'>X</span> <span class='op'>+</span> <span class='op'>(</span><span class='fl'>1</span><span class='op'>|</span><span class='va'>pol__</span><span class='op'>)</span> <span class='op'>+</span> <span class='op'>(</span><span class='fl'>1</span><span class='op'>|</span><span class='va'>plt__</span><span class='op'>)</span> <span class='op'>+</span> <span class='op'>(</span><span class='fl'>1</span><span class='op'>|</span><span class='va'>pol__</span><span class='op'>@</span><span class='va'>plt</span><span class='op'>)</span> <span class='op'>+</span>
+               <span class='op'>(</span><span class='fl'>1</span><span class='op'>|</span><span class='va'>pol</span><span class='op'>@</span><span class='va'>plt__</span><span class='op'>)</span> <span class='op'>+</span> <span class='op'>(</span><span class='fl'>1</span><span class='op'>|</span><span class='va'>pol__</span><span class='op'>@</span><span class='va'>plt__</span><span class='op'>)</span>,
+             data <span class='op'>=</span> <span class='va'>dat</span>, family <span class='op'>=</span> <span class='st'>"binomial"</span>,
+             cov_ranef <span class='op'>=</span> <span class='fu'><a href='https://rdrr.io/r/base/list.html'>list</a></span><span class='op'>(</span>pol <span class='op'>=</span> <span class='va'>phyPol</span>, plt <span class='op'>=</span> <span class='va'>phyPlt</span><span class='op'>)</span>,
+             REML <span class='op'>=</span> <span class='cn'>TRUE</span>, verbose <span class='op'>=</span> <span class='cn'>TRUE</span>, s2.init <span class='op'>=</span> <span class='fl'>.1</span><span class='op'>)</span>
+<span class='op'>}</span>
 
 <span class='co'>#####################################################</span>
 <span class='co'>### Detailed analysis showing covariance matrices ###</span>
@@ -636,59 +643,60 @@ New Phytologist, 214(2), 607-618.</p>
 <span class='co'># This is the example from section 4.3 in Ives, A. R. (2018) Mixed </span>
 <span class='co'># and phylogenetic models: a conceptual introduction to correlated data.</span>
 
-<span class='fu'><a href='https://rdrr.io/r/base/library.html'>library</a></span>(<span class='kw'><a href='http://ape-package.ird.fr'>ape</a></span>)
-<span class='fu'><a href='https://rdrr.io/r/base/library.html'>library</a></span>(<span class='kw'><a href='http://mvtnorm.R-forge.R-project.org'>mvtnorm</a></span>)
+<span class='kw'><a href='https://rdrr.io/r/base/library.html'>library</a></span><span class='op'>(</span><span class='va'><a href='http://ape-package.ird.fr/'>ape</a></span><span class='op'>)</span>
+<span class='kw'><a href='https://rdrr.io/r/base/library.html'>library</a></span><span class='op'>(</span><span class='va'><a href='http://mvtnorm.R-forge.R-project.org'>mvtnorm</a></span><span class='op'>)</span>
 
 <span class='co'># Investigating covariance matrices for different types of model structure</span>
-<span class='kw'>nspp</span> <span class='op'>&lt;-</span> <span class='fl'>6</span>
-<span class='kw'>nsite</span> <span class='op'>&lt;-</span> <span class='fl'>4</span>
+<span class='va'>nspp</span> <span class='op'>&lt;-</span> <span class='fl'>6</span>
+<span class='va'>nsite</span> <span class='op'>&lt;-</span> <span class='fl'>4</span>
 
 <span class='co'># Simulate a phylogeny that has a lot of phylogenetic signal (power = 1.3)</span>
-<span class='kw'>phy</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/pkg/ape/man/compute.brlen.html'>compute.brlen</a></span>(<span class='fu'><a href='https://rdrr.io/pkg/ape/man/rtree.html'>rtree</a></span>(n = <span class='kw'>nspp</span>), method = <span class='st'>"Grafen"</span>, power = <span class='fl'>1.3</span>)
+<span class='va'>phy</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/pkg/ape/man/compute.brlen.html'>compute.brlen</a></span><span class='op'>(</span><span class='fu'><a href='https://rdrr.io/pkg/ape/man/rtree.html'>rtree</a></span><span class='op'>(</span>n <span class='op'>=</span> <span class='va'>nspp</span><span class='op'>)</span>, method <span class='op'>=</span> <span class='st'>"Grafen"</span>, power <span class='op'>=</span> <span class='fl'>1.3</span><span class='op'>)</span>
 
 <span class='co'># Simulate species means</span>
-<span class='kw'>sd.sp</span> <span class='op'>&lt;-</span> <span class='fl'>1</span>
-<span class='kw'>mean.sp</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/pkg/ape/man/rTraitCont.html'>rTraitCont</a></span>(<span class='kw'>phy</span>, model = <span class='st'>"BM"</span>, sigma=<span class='kw'>sd.sp</span><span class='op'>^</span><span class='fl'>2</span>)
+<span class='va'>sd.sp</span> <span class='op'>&lt;-</span> <span class='fl'>1</span>
+<span class='va'>mean.sp</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/pkg/ape/man/rTraitCont.html'>rTraitCont</a></span><span class='op'>(</span><span class='va'>phy</span>, model <span class='op'>=</span> <span class='st'>"BM"</span>, sigma<span class='op'>=</span><span class='va'>sd.sp</span><span class='op'>^</span><span class='fl'>2</span><span class='op'>)</span>
 
 <span class='co'># Replicate values of mean.sp over sites</span>
-<span class='kw'>Y.sp</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/base/rep.html'>rep</a></span>(<span class='kw'>mean.sp</span>, times=<span class='kw'>nsite</span>)
+<span class='va'>Y.sp</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/base/rep.html'>rep</a></span><span class='op'>(</span><span class='va'>mean.sp</span>, times<span class='op'>=</span><span class='va'>nsite</span><span class='op'>)</span>
 
 <span class='co'># Simulate site means</span>
-<span class='kw'>sd.site</span> <span class='op'>&lt;-</span> <span class='fl'>1</span>
-<span class='kw'>mean.site</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/stats/Normal.html'>rnorm</a></span>(<span class='kw'>nsite</span>, sd=<span class='kw'>sd.site</span>)
+<span class='va'>sd.site</span> <span class='op'>&lt;-</span> <span class='fl'>1</span>
+<span class='va'>mean.site</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/stats/Normal.html'>rnorm</a></span><span class='op'>(</span><span class='va'>nsite</span>, sd<span class='op'>=</span><span class='va'>sd.site</span><span class='op'>)</span>
 
 <span class='co'># Replicate values of mean.site over sp</span>
-<span class='kw'>Y.site</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/base/rep.html'>rep</a></span>(<span class='kw'>mean.site</span>, each=<span class='kw'>nspp</span>)
+<span class='va'>Y.site</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/base/rep.html'>rep</a></span><span class='op'>(</span><span class='va'>mean.site</span>, each<span class='op'>=</span><span class='va'>nspp</span><span class='op'>)</span>
 
 <span class='co'># Compute a covariance matrix for phylogenetic attraction</span>
-<span class='kw'>sd.attract</span> <span class='op'>&lt;-</span> <span class='fl'>1</span>
-<span class='kw'>Vphy</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/pkg/ape/man/vcv.phylo.html'>vcv</a></span>(<span class='kw'>phy</span>)
+<span class='va'>sd.attract</span> <span class='op'>&lt;-</span> <span class='fl'>1</span>
+<span class='va'>Vphy</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/pkg/ape/man/vcv.phylo.html'>vcv</a></span><span class='op'>(</span><span class='va'>phy</span><span class='op'>)</span>
 
 <span class='co'># Standardize the phylogenetic covariance matrix to have determinant = 1. </span>
 <span class='co'># (For an explanation of this standardization, see subsection 4.3.1 in Ives (2018))</span>
-<span class='kw'>Vphy</span> <span class='op'>&lt;-</span> <span class='kw'>Vphy</span><span class='op'>/</span>(<span class='fu'><a href='https://rdrr.io/r/base/det.html'>det</a></span>(<span class='kw'>Vphy</span>)<span class='op'>^</span>(<span class='fl'>1</span><span class='op'>/</span><span class='kw'>nspp</span>))
+<span class='va'>Vphy</span> <span class='op'>&lt;-</span> <span class='va'>Vphy</span><span class='op'>/</span><span class='op'>(</span><span class='fu'><a href='https://rdrr.io/r/base/det.html'>det</a></span><span class='op'>(</span><span class='va'>Vphy</span><span class='op'>)</span><span class='op'>^</span><span class='op'>(</span><span class='fl'>1</span><span class='op'>/</span><span class='va'>nspp</span><span class='op'>)</span><span class='op'>)</span>
 
 <span class='co'># Construct the overall covariance matrix for phylogenetic attraction. </span>
 <span class='co'># (For an explanation of Kronecker products, see subsection 4.3.1 in the book)</span>
-<span class='kw'>V</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/base/kronecker.html'>kronecker</a></span>(<span class='fu'><a href='https://rdrr.io/r/base/diag.html'>diag</a></span>(nrow = <span class='kw'>nsite</span>, ncol = <span class='kw'>nsite</span>), <span class='kw'>Vphy</span>)
-<span class='kw'>Y.attract</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/base/array.html'>array</a></span>(<span class='fu'><a href='https://rdrr.io/r/base/t.html'>t</a></span>(<span class='fu'><a href='https://rdrr.io/pkg/mvtnorm/man/Mvnorm.html'>rmvnorm</a></span>(n = <span class='fl'>1</span>, sigma = <span class='kw'>sd.attract</span><span class='op'>^</span><span class='fl'>2</span><span class='op'>*</span><span class='kw'>V</span>)))
+<span class='va'>V</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/base/kronecker.html'>kronecker</a></span><span class='op'>(</span><span class='fu'><a href='https://rdrr.io/r/base/diag.html'>diag</a></span><span class='op'>(</span>nrow <span class='op'>=</span> <span class='va'>nsite</span>, ncol <span class='op'>=</span> <span class='va'>nsite</span><span class='op'>)</span>, <span class='va'>Vphy</span><span class='op'>)</span>
+<span class='va'>Y.attract</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/base/array.html'>array</a></span><span class='op'>(</span><span class='fu'><a href='https://rdrr.io/r/base/t.html'>t</a></span><span class='op'>(</span><span class='fu'><a href='https://rdrr.io/pkg/mvtnorm/man/Mvnorm.html'>rmvnorm</a></span><span class='op'>(</span>n <span class='op'>=</span> <span class='fl'>1</span>, sigma <span class='op'>=</span> <span class='va'>sd.attract</span><span class='op'>^</span><span class='fl'>2</span><span class='op'>*</span><span class='va'>V</span><span class='op'>)</span><span class='op'>)</span><span class='op'>)</span>
 
 <span class='co'># Simulate residual errors</span>
-<span class='kw'>sd.e</span> <span class='op'>&lt;-</span> <span class='fl'>1</span>
-<span class='kw'>Y.e</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/stats/Normal.html'>rnorm</a></span>(<span class='kw'>nspp</span><span class='op'>*</span><span class='kw'>nsite</span>, sd = <span class='kw'>sd.e</span>)
+<span class='va'>sd.e</span> <span class='op'>&lt;-</span> <span class='fl'>1</span>
+<span class='va'>Y.e</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/stats/Normal.html'>rnorm</a></span><span class='op'>(</span><span class='va'>nspp</span><span class='op'>*</span><span class='va'>nsite</span>, sd <span class='op'>=</span> <span class='va'>sd.e</span><span class='op'>)</span>
 
 <span class='co'># Construct the dataset</span>
-<span class='kw'>d</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/base/data.frame.html'>data.frame</a></span>(sp = <span class='fu'><a href='https://rdrr.io/r/base/rep.html'>rep</a></span>(<span class='kw'>phy</span><span class='op'>$</span><span class='kw'>tip.label</span>, times = <span class='kw'>nsite</span>), 
-                site = <span class='fu'><a href='https://rdrr.io/r/base/rep.html'>rep</a></span>(<span class='fl'>1</span><span class='op'>:</span><span class='kw'>nsite</span>, each = <span class='kw'>nspp</span>))
+<span class='va'>d</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/base/data.frame.html'>data.frame</a></span><span class='op'>(</span>sp <span class='op'>=</span> <span class='fu'><a href='https://rdrr.io/r/base/rep.html'>rep</a></span><span class='op'>(</span><span class='va'>phy</span><span class='op'>$</span><span class='va'>tip.label</span>, times <span class='op'>=</span> <span class='va'>nsite</span><span class='op'>)</span>, 
+                site <span class='op'>=</span> <span class='fu'><a href='https://rdrr.io/r/base/rep.html'>rep</a></span><span class='op'>(</span><span class='fl'>1</span><span class='op'>:</span><span class='va'>nsite</span>, each <span class='op'>=</span> <span class='va'>nspp</span><span class='op'>)</span><span class='op'>)</span>
 
 <span class='co'># Simulate abundance data</span>
-<span class='kw'>d</span><span class='op'>$</span><span class='kw'>Y</span> <span class='op'>&lt;-</span> <span class='kw'>Y.sp</span> <span class='op'>+</span> <span class='kw'>Y.site</span> <span class='op'>+</span> <span class='kw'>Y.attract</span> <span class='op'>+</span> <span class='kw'>Y.e</span>
+<span class='va'>d</span><span class='op'>$</span><span class='va'>Y</span> <span class='op'>&lt;-</span> <span class='va'>Y.sp</span> <span class='op'>+</span> <span class='va'>Y.site</span> <span class='op'>+</span> <span class='va'>Y.attract</span> <span class='op'>+</span> <span class='va'>Y.e</span>
 
 <span class='co'># Analyze the model</span>
-<span class='fu'><a href='https://rdrr.io/pkg/phyr/man/pglmm.html'>pglmm</a></span>(<span class='kw'>Y</span> <span class='op'>~</span> <span class='fl'>1</span> <span class='op'>+</span> (<span class='fl'>1</span><span class='op'>|</span><span class='kw'>sp__</span>) <span class='op'>+</span> (<span class='fl'>1</span><span class='op'>|</span><span class='kw'>site</span>) <span class='op'>+</span> (<span class='fl'>1</span><span class='op'>|</span><span class='kw'>sp__</span><span class='op'>@</span>site), data = <span class='kw'>d</span>, cov_ranef = <span class='fu'><a href='https://rdrr.io/r/base/list.html'>list</a></span>(sp = <span class='kw'>phy</span>))</div><div class='output co'>#&gt; Linear mixed model fit by restricted maximum likelihood
+<span class='fu'>pglmm</span><span class='op'>(</span><span class='va'>Y</span> <span class='op'>~</span> <span class='fl'>1</span> <span class='op'>+</span> <span class='op'>(</span><span class='fl'>1</span><span class='op'>|</span><span class='va'>sp__</span><span class='op'>)</span> <span class='op'>+</span> <span class='op'>(</span><span class='fl'>1</span><span class='op'>|</span><span class='va'>site</span><span class='op'>)</span> <span class='op'>+</span> <span class='op'>(</span><span class='fl'>1</span><span class='op'>|</span><span class='va'>sp__</span><span class='op'>@</span><span class='va'>site</span><span class='op'>)</span>, data <span class='op'>=</span> <span class='va'>d</span>, cov_ranef <span class='op'>=</span> <span class='fu'><a href='https://rdrr.io/r/base/list.html'>list</a></span><span class='op'>(</span>sp <span class='op'>=</span> <span class='va'>phy</span><span class='op'>)</span><span class='op'>)</span>
+</div><div class='output co'>#&gt; Linear mixed model fit by restricted maximum likelihood
 #&gt; 
 #&gt; Call:Y ~ 1
-#&gt; &lt;environment: 0x7ff1b3fd2570&gt;
+#&gt; &lt;environment: 0x7feaa69a2898&gt;
 #&gt; 
 #&gt; logLik    AIC    BIC 
 #&gt; -43.14  98.28  98.48 
@@ -710,76 +718,79 @@ New Phytologist, 214(2), 607-618.</p>
 <span class='co'># Display random effects: the function `pglmm_plot_ranef()` does what </span>
 <span class='co'># the name implies. You can set `show.image = TRUE` and `show.sim.image = TRUE` </span>
 <span class='co'># to see the matrices and simulations.</span>
-<span class='kw'>re</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/pkg/phyr/man/pglmm-plot-re.html'>pglmm_plot_ranef</a></span>(<span class='kw'>Y</span> <span class='op'>~</span> <span class='fl'>1</span> <span class='op'>+</span> (<span class='fl'>1</span><span class='op'>|</span><span class='kw'>sp__</span>) <span class='op'>+</span> (<span class='fl'>1</span><span class='op'>|</span><span class='kw'>site</span>) <span class='op'>+</span> (<span class='fl'>1</span><span class='op'>|</span><span class='kw'>sp__</span><span class='op'>@</span>site), data = <span class='kw'>d</span>, 
-                    cov_ranef = <span class='fu'><a href='https://rdrr.io/r/base/list.html'>list</a></span>(sp = <span class='kw'>phy</span>), show.image = <span class='fl'>FALSE</span>, 
-                    show.sim.image = <span class='fl'>FALSE</span>)
+<span class='va'>re</span> <span class='op'>&lt;-</span> <span class='fu'><a href='pglmm_plot_ranef.html'>pglmm_plot_ranef</a></span><span class='op'>(</span><span class='va'>Y</span> <span class='op'>~</span> <span class='fl'>1</span> <span class='op'>+</span> <span class='op'>(</span><span class='fl'>1</span><span class='op'>|</span><span class='va'>sp__</span><span class='op'>)</span> <span class='op'>+</span> <span class='op'>(</span><span class='fl'>1</span><span class='op'>|</span><span class='va'>site</span><span class='op'>)</span> <span class='op'>+</span> <span class='op'>(</span><span class='fl'>1</span><span class='op'>|</span><span class='va'>sp__</span><span class='op'>@</span><span class='va'>site</span><span class='op'>)</span>, data <span class='op'>=</span> <span class='va'>d</span>, 
+                    cov_ranef <span class='op'>=</span> <span class='fu'><a href='https://rdrr.io/r/base/list.html'>list</a></span><span class='op'>(</span>sp <span class='op'>=</span> <span class='va'>phy</span><span class='op'>)</span>, show.image <span class='op'>=</span> <span class='cn'>FALSE</span>, 
+                    show.sim.image <span class='op'>=</span> <span class='cn'>FALSE</span><span class='op'>)</span>
 
 <span class='co'>#################################################</span>
 <span class='co'>### Example of a bipartite phylogenetic model ###</span>
 <span class='co'>#################################################</span>
 
 <span class='co'># Investigating covariance matrices for different types of model structure</span>
-<span class='kw'>nspp</span> <span class='op'>&lt;-</span> <span class='fl'>20</span>
-<span class='kw'>nsite</span> <span class='op'>&lt;-</span> <span class='fl'>15</span>
+<span class='va'>nspp</span> <span class='op'>&lt;-</span> <span class='fl'>20</span>
+<span class='va'>nsite</span> <span class='op'>&lt;-</span> <span class='fl'>15</span>
 
 <span class='co'># Simulate a phylogeny that has a lot of phylogenetic signal (power = 1.3)</span>
-<span class='kw'>phy.sp</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/pkg/ape/man/compute.brlen.html'>compute.brlen</a></span>(<span class='fu'><a href='https://rdrr.io/pkg/ape/man/rtree.html'>rtree</a></span>(n = <span class='kw'>nspp</span>), method = <span class='st'>"Grafen"</span>, power = <span class='fl'>1.3</span>)
-<span class='kw'>phy.site</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/pkg/ape/man/compute.brlen.html'>compute.brlen</a></span>(<span class='fu'><a href='https://rdrr.io/pkg/ape/man/rtree.html'>rtree</a></span>(n = <span class='kw'>nsite</span>), method = <span class='st'>"Grafen"</span>, power = <span class='fl'>1.3</span>)
+<span class='va'>phy.sp</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/pkg/ape/man/compute.brlen.html'>compute.brlen</a></span><span class='op'>(</span><span class='fu'><a href='https://rdrr.io/pkg/ape/man/rtree.html'>rtree</a></span><span class='op'>(</span>n <span class='op'>=</span> <span class='va'>nspp</span><span class='op'>)</span>, method <span class='op'>=</span> <span class='st'>"Grafen"</span>, power <span class='op'>=</span> <span class='fl'>1.3</span><span class='op'>)</span>
+<span class='va'>phy.site</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/pkg/ape/man/compute.brlen.html'>compute.brlen</a></span><span class='op'>(</span><span class='fu'><a href='https://rdrr.io/pkg/ape/man/rtree.html'>rtree</a></span><span class='op'>(</span>n <span class='op'>=</span> <span class='va'>nsite</span><span class='op'>)</span>, method <span class='op'>=</span> <span class='st'>"Grafen"</span>, power <span class='op'>=</span> <span class='fl'>1.3</span><span class='op'>)</span>
 
 <span class='co'># Simulate species means</span>
-<span class='kw'>mean.sp</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/pkg/ape/man/rTraitCont.html'>rTraitCont</a></span>(<span class='kw'>phy.sp</span>, model = <span class='st'>"BM"</span>, sigma = <span class='fl'>1</span>)
+<span class='va'>mean.sp</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/pkg/ape/man/rTraitCont.html'>rTraitCont</a></span><span class='op'>(</span><span class='va'>phy.sp</span>, model <span class='op'>=</span> <span class='st'>"BM"</span>, sigma <span class='op'>=</span> <span class='fl'>1</span><span class='op'>)</span>
 
 <span class='co'># Replicate values of mean.sp over sites</span>
-<span class='kw'>Y.sp</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/base/rep.html'>rep</a></span>(<span class='kw'>mean.sp</span>, times = <span class='kw'>nsite</span>)
+<span class='va'>Y.sp</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/base/rep.html'>rep</a></span><span class='op'>(</span><span class='va'>mean.sp</span>, times <span class='op'>=</span> <span class='va'>nsite</span><span class='op'>)</span>
 
 <span class='co'># Simulate site means</span>
-<span class='kw'>mean.site</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/pkg/ape/man/rTraitCont.html'>rTraitCont</a></span>(<span class='kw'>phy.site</span>, model = <span class='st'>"BM"</span>, sigma = <span class='fl'>1</span>)
+<span class='va'>mean.site</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/pkg/ape/man/rTraitCont.html'>rTraitCont</a></span><span class='op'>(</span><span class='va'>phy.site</span>, model <span class='op'>=</span> <span class='st'>"BM"</span>, sigma <span class='op'>=</span> <span class='fl'>1</span><span class='op'>)</span>
 
 <span class='co'># Replicate values of mean.site over sp</span>
-<span class='kw'>Y.site</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/base/rep.html'>rep</a></span>(<span class='kw'>mean.site</span>, each = <span class='kw'>nspp</span>)
+<span class='va'>Y.site</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/base/rep.html'>rep</a></span><span class='op'>(</span><span class='va'>mean.site</span>, each <span class='op'>=</span> <span class='va'>nspp</span><span class='op'>)</span>
 
 <span class='co'># Generate covariance matrix for phylogenetic attraction among species</span>
-<span class='kw'>sd.sp.attract</span> <span class='op'>&lt;-</span> <span class='fl'>1</span>
-<span class='kw'>Vphy.sp</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/pkg/ape/man/vcv.phylo.html'>vcv</a></span>(<span class='kw'>phy.sp</span>)
-<span class='kw'>Vphy.sp</span> <span class='op'>&lt;-</span> <span class='kw'>Vphy.sp</span><span class='op'>/</span>(<span class='fu'><a href='https://rdrr.io/r/base/det.html'>det</a></span>(<span class='kw'>Vphy.sp</span>)<span class='op'>^</span>(<span class='fl'>1</span><span class='op'>/</span><span class='kw'>nspp</span>))
-<span class='kw'>V.sp</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/base/kronecker.html'>kronecker</a></span>(<span class='fu'><a href='https://rdrr.io/r/base/diag.html'>diag</a></span>(nrow = <span class='kw'>nsite</span>, ncol = <span class='kw'>nsite</span>), <span class='kw'>Vphy.sp</span>)
-<span class='kw'>Y.sp.attract</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/base/array.html'>array</a></span>(<span class='fu'><a href='https://rdrr.io/r/base/t.html'>t</a></span>(<span class='fu'><a href='https://rdrr.io/pkg/mvtnorm/man/Mvnorm.html'>rmvnorm</a></span>(n = <span class='fl'>1</span>, sigma = <span class='kw'>sd.sp.attract</span><span class='op'>^</span><span class='fl'>2</span><span class='op'>*</span><span class='kw'>V.sp</span>)))
+<span class='va'>sd.sp.attract</span> <span class='op'>&lt;-</span> <span class='fl'>1</span>
+<span class='va'>Vphy.sp</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/pkg/ape/man/vcv.phylo.html'>vcv</a></span><span class='op'>(</span><span class='va'>phy.sp</span><span class='op'>)</span>
+<span class='va'>Vphy.sp</span> <span class='op'>&lt;-</span> <span class='va'>Vphy.sp</span><span class='op'>/</span><span class='op'>(</span><span class='fu'><a href='https://rdrr.io/r/base/det.html'>det</a></span><span class='op'>(</span><span class='va'>Vphy.sp</span><span class='op'>)</span><span class='op'>^</span><span class='op'>(</span><span class='fl'>1</span><span class='op'>/</span><span class='va'>nspp</span><span class='op'>)</span><span class='op'>)</span>
+<span class='va'>V.sp</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/base/kronecker.html'>kronecker</a></span><span class='op'>(</span><span class='fu'><a href='https://rdrr.io/r/base/diag.html'>diag</a></span><span class='op'>(</span>nrow <span class='op'>=</span> <span class='va'>nsite</span>, ncol <span class='op'>=</span> <span class='va'>nsite</span><span class='op'>)</span>, <span class='va'>Vphy.sp</span><span class='op'>)</span>
+<span class='va'>Y.sp.attract</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/base/array.html'>array</a></span><span class='op'>(</span><span class='fu'><a href='https://rdrr.io/r/base/t.html'>t</a></span><span class='op'>(</span><span class='fu'><a href='https://rdrr.io/pkg/mvtnorm/man/Mvnorm.html'>rmvnorm</a></span><span class='op'>(</span>n <span class='op'>=</span> <span class='fl'>1</span>, sigma <span class='op'>=</span> <span class='va'>sd.sp.attract</span><span class='op'>^</span><span class='fl'>2</span><span class='op'>*</span><span class='va'>V.sp</span><span class='op'>)</span><span class='op'>)</span><span class='op'>)</span>
 <span class='co'># Generate covariance matrix for phylogenetic attraction among sites</span>
-<span class='kw'>sd.site.attract</span> <span class='op'>&lt;-</span> <span class='fl'>1</span>
-<span class='kw'>Vphy.site</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/pkg/ape/man/vcv.phylo.html'>vcv</a></span>(<span class='kw'>phy.site</span>)
-<span class='kw'>Vphy.site</span> <span class='op'>&lt;-</span> <span class='kw'>Vphy.site</span><span class='op'>/</span>(<span class='fu'><a href='https://rdrr.io/r/base/det.html'>det</a></span>(<span class='kw'>Vphy.site</span>)<span class='op'>^</span>(<span class='fl'>1</span><span class='op'>/</span><span class='kw'>nsite</span>))
-<span class='kw'>V.site</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/base/kronecker.html'>kronecker</a></span>(<span class='kw'>Vphy.site</span>, <span class='fu'><a href='https://rdrr.io/r/base/diag.html'>diag</a></span>(nrow = <span class='kw'>nspp</span>, ncol = <span class='kw'>nspp</span>))
-<span class='kw'>Y.site.attract</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/base/array.html'>array</a></span>(<span class='fu'><a href='https://rdrr.io/r/base/t.html'>t</a></span>(<span class='fu'><a href='https://rdrr.io/pkg/mvtnorm/man/Mvnorm.html'>rmvnorm</a></span>(n = <span class='fl'>1</span>, sigma = <span class='kw'>sd.site.attract</span><span class='op'>^</span><span class='fl'>2</span><span class='op'>*</span><span class='kw'>V.site</span>)))
+<span class='va'>sd.site.attract</span> <span class='op'>&lt;-</span> <span class='fl'>1</span>
+<span class='va'>Vphy.site</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/pkg/ape/man/vcv.phylo.html'>vcv</a></span><span class='op'>(</span><span class='va'>phy.site</span><span class='op'>)</span>
+<span class='va'>Vphy.site</span> <span class='op'>&lt;-</span> <span class='va'>Vphy.site</span><span class='op'>/</span><span class='op'>(</span><span class='fu'><a href='https://rdrr.io/r/base/det.html'>det</a></span><span class='op'>(</span><span class='va'>Vphy.site</span><span class='op'>)</span><span class='op'>^</span><span class='op'>(</span><span class='fl'>1</span><span class='op'>/</span><span class='va'>nsite</span><span class='op'>)</span><span class='op'>)</span>
+<span class='va'>V.site</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/base/kronecker.html'>kronecker</a></span><span class='op'>(</span><span class='va'>Vphy.site</span>, <span class='fu'><a href='https://rdrr.io/r/base/diag.html'>diag</a></span><span class='op'>(</span>nrow <span class='op'>=</span> <span class='va'>nspp</span>, ncol <span class='op'>=</span> <span class='va'>nspp</span><span class='op'>)</span><span class='op'>)</span>
+<span class='va'>Y.site.attract</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/base/array.html'>array</a></span><span class='op'>(</span><span class='fu'><a href='https://rdrr.io/r/base/t.html'>t</a></span><span class='op'>(</span><span class='fu'><a href='https://rdrr.io/pkg/mvtnorm/man/Mvnorm.html'>rmvnorm</a></span><span class='op'>(</span>n <span class='op'>=</span> <span class='fl'>1</span>, sigma <span class='op'>=</span> <span class='va'>sd.site.attract</span><span class='op'>^</span><span class='fl'>2</span><span class='op'>*</span><span class='va'>V.site</span><span class='op'>)</span><span class='op'>)</span><span class='op'>)</span>
 
 <span class='co'># Generate covariance matrix for phylogenetic attraction of species:site interaction</span>
-<span class='kw'>sd.sp.site.attract</span> <span class='op'>&lt;-</span> <span class='fl'>1</span>
-<span class='kw'>V.sp.site</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/base/kronecker.html'>kronecker</a></span>(<span class='kw'>Vphy.site</span>, <span class='kw'>Vphy.sp</span>)
-<span class='kw'>Y.sp.site.attract</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/base/array.html'>array</a></span>(<span class='fu'><a href='https://rdrr.io/r/base/t.html'>t</a></span>(<span class='fu'><a href='https://rdrr.io/pkg/mvtnorm/man/Mvnorm.html'>rmvnorm</a></span>(n = <span class='fl'>1</span>, sigma = <span class='kw'>sd.sp.site.attract</span><span class='op'>^</span><span class='fl'>2</span><span class='op'>*</span><span class='kw'>V.sp.site</span>)))
+<span class='va'>sd.sp.site.attract</span> <span class='op'>&lt;-</span> <span class='fl'>1</span>
+<span class='va'>V.sp.site</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/base/kronecker.html'>kronecker</a></span><span class='op'>(</span><span class='va'>Vphy.site</span>, <span class='va'>Vphy.sp</span><span class='op'>)</span>
+<span class='va'>Y.sp.site.attract</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/base/array.html'>array</a></span><span class='op'>(</span><span class='fu'><a href='https://rdrr.io/r/base/t.html'>t</a></span><span class='op'>(</span><span class='fu'><a href='https://rdrr.io/pkg/mvtnorm/man/Mvnorm.html'>rmvnorm</a></span><span class='op'>(</span>n <span class='op'>=</span> <span class='fl'>1</span>, sigma <span class='op'>=</span> <span class='va'>sd.sp.site.attract</span><span class='op'>^</span><span class='fl'>2</span><span class='op'>*</span><span class='va'>V.sp.site</span><span class='op'>)</span><span class='op'>)</span><span class='op'>)</span>
 
 <span class='co'># Simulate residual error</span>
-<span class='kw'>sd.e</span> <span class='op'>&lt;-</span> <span class='fl'>0.5</span>
-<span class='kw'>Y.e</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/stats/Normal.html'>rnorm</a></span>(<span class='kw'>nspp</span><span class='op'>*</span><span class='kw'>nsite</span>, sd = <span class='kw'>sd.e</span>)
+<span class='va'>sd.e</span> <span class='op'>&lt;-</span> <span class='fl'>0.5</span>
+<span class='va'>Y.e</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/stats/Normal.html'>rnorm</a></span><span class='op'>(</span><span class='va'>nspp</span><span class='op'>*</span><span class='va'>nsite</span>, sd <span class='op'>=</span> <span class='va'>sd.e</span><span class='op'>)</span>
 
 <span class='co'># Construct the dataset</span>
-<span class='kw'>d</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/base/data.frame.html'>data.frame</a></span>(sp = <span class='fu'><a href='https://rdrr.io/r/base/rep.html'>rep</a></span>(<span class='kw'>phy.sp</span><span class='op'>$</span><span class='kw'>tip.label</span>, times = <span class='kw'>nsite</span>), 
-                site = <span class='fu'><a href='https://rdrr.io/r/base/rep.html'>rep</a></span>(<span class='kw'>phy.site</span><span class='op'>$</span><span class='kw'>tip.label</span>, each = <span class='kw'>nspp</span>))
+<span class='va'>d</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/base/data.frame.html'>data.frame</a></span><span class='op'>(</span>sp <span class='op'>=</span> <span class='fu'><a href='https://rdrr.io/r/base/rep.html'>rep</a></span><span class='op'>(</span><span class='va'>phy.sp</span><span class='op'>$</span><span class='va'>tip.label</span>, times <span class='op'>=</span> <span class='va'>nsite</span><span class='op'>)</span>, 
+                site <span class='op'>=</span> <span class='fu'><a href='https://rdrr.io/r/base/rep.html'>rep</a></span><span class='op'>(</span><span class='va'>phy.site</span><span class='op'>$</span><span class='va'>tip.label</span>, each <span class='op'>=</span> <span class='va'>nspp</span><span class='op'>)</span><span class='op'>)</span>
 
 <span class='co'># Simulate abundance data</span>
-<span class='kw'>d</span><span class='op'>$</span><span class='kw'>Y</span> <span class='op'>&lt;-</span> <span class='kw'>Y.sp</span> <span class='op'>+</span> <span class='kw'>Y.site</span> <span class='op'>+</span> <span class='kw'>Y.sp.attract</span> <span class='op'>+</span> <span class='kw'>Y.site.attract</span> <span class='op'>+</span> <span class='kw'>Y.sp.site.attract</span> <span class='op'>+</span> <span class='kw'>Y.e</span>
+<span class='va'>d</span><span class='op'>$</span><span class='va'>Y</span> <span class='op'>&lt;-</span> <span class='va'>Y.sp</span> <span class='op'>+</span> <span class='va'>Y.site</span> <span class='op'>+</span> <span class='va'>Y.sp.attract</span> <span class='op'>+</span> <span class='va'>Y.site.attract</span> <span class='op'>+</span> <span class='va'>Y.sp.site.attract</span> <span class='op'>+</span> <span class='va'>Y.e</span>
 
 <span class='co'># Plot random effects covariance matrices and then add phylogenies</span>
 <span class='co'># Note that, if show.image and show.sim are not specified, pglmm_plot_ranef() shows</span>
 <span class='co'># the covariance matrices if nspp * nsite &lt; 200 and shows simulations </span>
 <span class='co'># if nspp * nsite &gt; 100</span>
-<span class='kw'>re</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/pkg/phyr/man/pglmm-plot-re.html'>pglmm_plot_ranef</a></span>(<span class='kw'>Y</span> <span class='op'>~</span> <span class='fl'>1</span> <span class='op'>+</span> (<span class='fl'>1</span><span class='op'>|</span><span class='kw'>sp__</span>) <span class='op'>+</span> (<span class='fl'>1</span><span class='op'>|</span><span class='kw'>site__</span>) <span class='op'>+</span> (<span class='fl'>1</span><span class='op'>|</span><span class='kw'>sp__</span><span class='op'>@</span>site) <span class='op'>+</span> 
-                    (<span class='fl'>1</span><span class='op'>|</span><span class='kw'>sp</span><span class='op'>@</span>site__) <span class='op'>+</span> (<span class='fl'>1</span><span class='op'>|</span><span class='kw'>sp__</span><span class='op'>@</span>site__),
-                    data=<span class='kw'>d</span>, cov_ranef = <span class='fu'><a href='https://rdrr.io/r/base/list.html'>list</a></span>(sp = <span class='kw'>phy.sp</span>, site = <span class='kw'>phy.site</span>))</div><div class='img'><img src='pglmm-1.png' alt='' width='700' height='433' /></div><div class='input'>
+<span class='va'>re</span> <span class='op'>&lt;-</span> <span class='fu'><a href='pglmm_plot_ranef.html'>pglmm_plot_ranef</a></span><span class='op'>(</span><span class='va'>Y</span> <span class='op'>~</span> <span class='fl'>1</span> <span class='op'>+</span> <span class='op'>(</span><span class='fl'>1</span><span class='op'>|</span><span class='va'>sp__</span><span class='op'>)</span> <span class='op'>+</span> <span class='op'>(</span><span class='fl'>1</span><span class='op'>|</span><span class='va'>site__</span><span class='op'>)</span> <span class='op'>+</span> <span class='op'>(</span><span class='fl'>1</span><span class='op'>|</span><span class='va'>sp__</span><span class='op'>@</span><span class='va'>site</span><span class='op'>)</span> <span class='op'>+</span> 
+                    <span class='op'>(</span><span class='fl'>1</span><span class='op'>|</span><span class='va'>sp</span><span class='op'>@</span><span class='va'>site__</span><span class='op'>)</span> <span class='op'>+</span> <span class='op'>(</span><span class='fl'>1</span><span class='op'>|</span><span class='va'>sp__</span><span class='op'>@</span><span class='va'>site__</span><span class='op'>)</span>,
+                    data<span class='op'>=</span><span class='va'>d</span>, cov_ranef <span class='op'>=</span> <span class='fu'><a href='https://rdrr.io/r/base/list.html'>list</a></span><span class='op'>(</span>sp <span class='op'>=</span> <span class='va'>phy.sp</span>, site <span class='op'>=</span> <span class='va'>phy.site</span><span class='op'>)</span><span class='op'>)</span>
+</div><div class='img'><img src='pglmm-1.png' alt='' width='700' height='433' /></div><div class='input'>
 <span class='co'># This flips the phylogeny to match to covariance matrices</span>
-<span class='kw'>rot.phy.site</span> <span class='op'>&lt;-</span> <span class='kw'>phy.site</span>
-<span class='co'>for</span>(<span class='kw'>i</span> <span class='co'>in</span> (<span class='kw'>nsite</span><span class='op'>+</span><span class='fl'>1</span>)<span class='op'>:</span>(<span class='kw'>nsite</span><span class='op'>+</span><span class='fu'><a href='https://rdrr.io/pkg/ape/man/summary.phylo.html'>Nnode</a></span>(<span class='kw'>phy.site</span>))) 
-   <span class='kw'>rot.phy.site</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/pkg/ape/man/rotate.html'>rotate</a></span>(<span class='kw'>rot.phy.site</span>, node = <span class='kw'>i</span>)
+<span class='va'>rot.phy.site</span> <span class='op'>&lt;-</span> <span class='va'>phy.site</span>
+<span class='kw'>for</span><span class='op'>(</span><span class='va'>i</span> <span class='kw'>in</span> <span class='op'>(</span><span class='va'>nsite</span><span class='op'>+</span><span class='fl'>1</span><span class='op'>)</span><span class='op'>:</span><span class='op'>(</span><span class='va'>nsite</span><span class='op'>+</span><span class='fu'><a href='https://rdrr.io/pkg/ape/man/summary.phylo.html'>Nnode</a></span><span class='op'>(</span><span class='va'>phy.site</span><span class='op'>)</span><span class='op'>)</span><span class='op'>)</span> 
+   <span class='va'>rot.phy.site</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/pkg/ape/man/rotate.html'>rotate</a></span><span class='op'>(</span><span class='va'>rot.phy.site</span>, node <span class='op'>=</span> <span class='va'>i</span><span class='op'>)</span>
 
-<span class='fu'><a href='https://rdrr.io/r/graphics/plot.default.html'>plot</a></span>(<span class='kw'>phy.sp</span>, main = <span class='st'>"Species"</span>, direction = <span class='st'>"upward"</span>)</div><div class='img'><img src='pglmm-2.png' alt='' width='700' height='433' /></div><div class='input'><span class='fu'><a href='https://rdrr.io/r/graphics/plot.default.html'>plot</a></span>(<span class='kw'>rot.phy.site</span>, main = <span class='st'>"Site"</span>)</div><div class='img'><img src='pglmm-3.png' alt='' width='700' height='433' /></div><div class='input'>
+<span class='fu'><a href='https://rdrr.io/r/graphics/plot.default.html'>plot</a></span><span class='op'>(</span><span class='va'>phy.sp</span>, main <span class='op'>=</span> <span class='st'>"Species"</span>, direction <span class='op'>=</span> <span class='st'>"upward"</span><span class='op'>)</span>
+</div><div class='img'><img src='pglmm-2.png' alt='' width='700' height='433' /></div><div class='input'><span class='fu'><a href='https://rdrr.io/r/graphics/plot.default.html'>plot</a></span><span class='op'>(</span><span class='va'>rot.phy.site</span>, main <span class='op'>=</span> <span class='st'>"Site"</span><span class='op'>)</span>
+</div><div class='img'><img src='pglmm-3.png' alt='' width='700' height='433' /></div><div class='input'>
 <span class='co'># Analyze the simulated data and compute a P-value for the (1|sp__@site__) </span>
 <span class='co'># random effect using a LRT. It is often better to fit the reduced model before</span>
 <span class='co'># the full model, because it s numerically easier to fit the reduced model, </span>
@@ -792,16 +803,17 @@ New Phytologist, 214(2), 607-618.</p>
 <span class='co'># are the standard deviations, so they have to be squared for use as initial </span>
 <span class='co'># values of variances in mod.f.</span>
 
-<span class='kw'>mod.r</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/pkg/phyr/man/pglmm.html'>pglmm</a></span>(<span class='kw'>Y</span> <span class='op'>~</span> <span class='fl'>1</span> <span class='op'>+</span> (<span class='fl'>1</span><span class='op'>|</span><span class='kw'>sp__</span>) <span class='op'>+</span> (<span class='fl'>1</span><span class='op'>|</span><span class='kw'>site__</span>) <span class='op'>+</span> (<span class='fl'>1</span><span class='op'>|</span><span class='kw'>sp__</span><span class='op'>@</span>site) <span class='op'>+</span> (<span class='fl'>1</span><span class='op'>|</span><span class='kw'>sp</span><span class='op'>@</span>site__), 
-                        data = <span class='kw'>d</span>, cov_ranef = <span class='fu'><a href='https://rdrr.io/r/base/list.html'>list</a></span>(sp = <span class='kw'>phy.sp</span>, site = <span class='kw'>phy.site</span>))
-<span class='kw'>mod.f</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/pkg/phyr/man/pglmm.html'>pglmm</a></span>(<span class='kw'>Y</span> <span class='op'>~</span> <span class='fl'>1</span> <span class='op'>+</span> (<span class='fl'>1</span><span class='op'>|</span><span class='kw'>sp__</span>) <span class='op'>+</span> (<span class='fl'>1</span><span class='op'>|</span><span class='kw'>site__</span>) <span class='op'>+</span> (<span class='fl'>1</span><span class='op'>|</span><span class='kw'>sp__</span><span class='op'>@</span>site) <span class='op'>+</span> (<span class='fl'>1</span><span class='op'>|</span><span class='kw'>sp</span><span class='op'>@</span>site__) <span class='op'>+</span> 
-               (<span class='fl'>1</span><span class='op'>|</span><span class='kw'>sp__</span><span class='op'>@</span>site__), data = <span class='kw'>d</span>, 
-               cov_ranef = <span class='fu'><a href='https://rdrr.io/r/base/list.html'>list</a></span>(sp = <span class='kw'>phy.sp</span>, site = <span class='kw'>phy.site</span>), 
-               s2.init = <span class='fu'><a href='https://rdrr.io/r/base/c.html'>c</a></span>(<span class='kw'>mod.r</span><span class='op'>$</span><span class='kw'>ss</span>, <span class='fl'>0.01</span>)<span class='op'>^</span><span class='fl'>2</span>)
-<span class='kw'>mod.f</span></div><div class='output co'>#&gt; Linear mixed model fit by restricted maximum likelihood
+<span class='va'>mod.r</span> <span class='op'>&lt;-</span> <span class='fu'>pglmm</span><span class='op'>(</span><span class='va'>Y</span> <span class='op'>~</span> <span class='fl'>1</span> <span class='op'>+</span> <span class='op'>(</span><span class='fl'>1</span><span class='op'>|</span><span class='va'>sp__</span><span class='op'>)</span> <span class='op'>+</span> <span class='op'>(</span><span class='fl'>1</span><span class='op'>|</span><span class='va'>site__</span><span class='op'>)</span> <span class='op'>+</span> <span class='op'>(</span><span class='fl'>1</span><span class='op'>|</span><span class='va'>sp__</span><span class='op'>@</span><span class='va'>site</span><span class='op'>)</span> <span class='op'>+</span> <span class='op'>(</span><span class='fl'>1</span><span class='op'>|</span><span class='va'>sp</span><span class='op'>@</span><span class='va'>site__</span><span class='op'>)</span>, 
+                        data <span class='op'>=</span> <span class='va'>d</span>, cov_ranef <span class='op'>=</span> <span class='fu'><a href='https://rdrr.io/r/base/list.html'>list</a></span><span class='op'>(</span>sp <span class='op'>=</span> <span class='va'>phy.sp</span>, site <span class='op'>=</span> <span class='va'>phy.site</span><span class='op'>)</span><span class='op'>)</span>
+<span class='va'>mod.f</span> <span class='op'>&lt;-</span> <span class='fu'>pglmm</span><span class='op'>(</span><span class='va'>Y</span> <span class='op'>~</span> <span class='fl'>1</span> <span class='op'>+</span> <span class='op'>(</span><span class='fl'>1</span><span class='op'>|</span><span class='va'>sp__</span><span class='op'>)</span> <span class='op'>+</span> <span class='op'>(</span><span class='fl'>1</span><span class='op'>|</span><span class='va'>site__</span><span class='op'>)</span> <span class='op'>+</span> <span class='op'>(</span><span class='fl'>1</span><span class='op'>|</span><span class='va'>sp__</span><span class='op'>@</span><span class='va'>site</span><span class='op'>)</span> <span class='op'>+</span> <span class='op'>(</span><span class='fl'>1</span><span class='op'>|</span><span class='va'>sp</span><span class='op'>@</span><span class='va'>site__</span><span class='op'>)</span> <span class='op'>+</span> 
+               <span class='op'>(</span><span class='fl'>1</span><span class='op'>|</span><span class='va'>sp__</span><span class='op'>@</span><span class='va'>site__</span><span class='op'>)</span>, data <span class='op'>=</span> <span class='va'>d</span>, 
+               cov_ranef <span class='op'>=</span> <span class='fu'><a href='https://rdrr.io/r/base/list.html'>list</a></span><span class='op'>(</span>sp <span class='op'>=</span> <span class='va'>phy.sp</span>, site <span class='op'>=</span> <span class='va'>phy.site</span><span class='op'>)</span>, 
+               s2.init <span class='op'>=</span> <span class='fu'><a href='https://rdrr.io/r/base/c.html'>c</a></span><span class='op'>(</span><span class='va'>mod.r</span><span class='op'>$</span><span class='va'>ss</span>, <span class='fl'>0.01</span><span class='op'>)</span><span class='op'>^</span><span class='fl'>2</span><span class='op'>)</span>
+<span class='va'>mod.f</span>
+</div><div class='output co'>#&gt; Linear mixed model fit by restricted maximum likelihood
 #&gt; 
 #&gt; Call:Y ~ 1
-#&gt; &lt;environment: 0x7ff1b3fd2570&gt;
+#&gt; &lt;environment: 0x7feaa69a2898&gt;
 #&gt; 
 #&gt; logLik    AIC    BIC 
 #&gt; -680.7 1379.4 1402.5 
@@ -820,8 +832,10 @@ New Phytologist, 214(2), 607-618.</p>
 #&gt; Fixed effects:
 #&gt;               Value Std.Error Zscore Pvalue
 #&gt; (Intercept) 0.78276   2.97042 0.2635 0.7922
-#&gt; </div><div class='input'><span class='kw'>pvalue</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/stats/Chisquare.html'>pchisq</a></span>(<span class='fl'>2</span><span class='op'>*</span>(<span class='kw'>mod.f</span><span class='op'>$</span><span class='kw'>logLik</span> <span class='op'>-</span> <span class='kw'>mod.r</span><span class='op'>$</span><span class='kw'>logLik</span>), df = <span class='fl'>1</span>, lower.tail = <span class='fl'>FALSE</span>)
-<span class='kw'>pvalue</span></div><div class='output co'>#&gt; [1] 0.0002028442</div><div class='input'><span class='co'># } </span></div></pre>
+#&gt; </div><div class='input'><span class='va'>pvalue</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/stats/Chisquare.html'>pchisq</a></span><span class='op'>(</span><span class='fl'>2</span><span class='op'>*</span><span class='op'>(</span><span class='va'>mod.f</span><span class='op'>$</span><span class='va'>logLik</span> <span class='op'>-</span> <span class='va'>mod.r</span><span class='op'>$</span><span class='va'>logLik</span><span class='op'>)</span>, df <span class='op'>=</span> <span class='fl'>1</span>, lower.tail <span class='op'>=</span> <span class='cn'>FALSE</span><span class='op'>)</span>
+<span class='va'>pvalue</span>
+</div><div class='output co'>#&gt; [1] 0.0002028442</div><div class='input'><span class='co'># } </span>
+</div></pre>
   </div>
   <div class="col-md-3 hidden-xs hidden-sm" id="pkgdown-sidebar">
     <nav id="toc" data-toggle="toc" class="sticky-top">
@@ -837,7 +851,7 @@ New Phytologist, 214(2), 607-618.</p>
 </div>
 
 <div class="pkgdown">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/">pkgdown</a> 1.5.1.9000.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/">pkgdown</a> 1.6.1.</p>
 </div>
 
       </footer>

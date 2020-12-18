@@ -81,7 +81,7 @@ will be helpful." />
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">phyr</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.0.3</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.1.0</span>
       </span>
     </div>
 
@@ -159,30 +159,30 @@ on a phylogenetic tree. If there are multiple measures for each species, <code>p
 will be helpful.</p>
     </div>
 
-    <pre class="usage"><span class='fu'><a href='https://rdrr.io/pkg/phyr/man/pglmm_compare.html'>pglmm_compare</a></span>(
-  <span class='kw'>formula</span>,
-  family = <span class='st'>"gaussian"</span>,
-  data = <span class='fu'><a href='https://rdrr.io/r/base/list.html'>list</a></span>(),
-  <span class='kw'>phy</span>,
-  REML = <span class='fl'>TRUE</span>,
-  optimizer = <span class='fu'><a href='https://rdrr.io/r/base/c.html'>c</a></span>(<span class='st'>"nelder-mead-nlopt"</span>, <span class='st'>"bobyqa"</span>, <span class='st'>"Nelder-Mead"</span>, <span class='st'>"subplex"</span>),
-  add.obs.re = <span class='fl'>TRUE</span>,
-  verbose = <span class='fl'>FALSE</span>,
-  cpp = <span class='fl'>TRUE</span>,
-  bayes = <span class='fl'>FALSE</span>,
-  reltol = <span class='fl'>10</span><span class='op'>^</span><span class='op'>-</span><span class='fl'>6</span>,
-  maxit = <span class='fl'>500</span>,
-  tol.pql = <span class='fl'>10</span><span class='op'>^</span><span class='op'>-</span><span class='fl'>6</span>,
-  maxit.pql = <span class='fl'>200</span>,
-  marginal.summ = <span class='st'>"mean"</span>,
-  calc.DIC = <span class='fl'>FALSE</span>,
-  prior = <span class='st'>"inla.default"</span>,
-  prior_alpha = <span class='fl'>0.1</span>,
-  prior_mu = <span class='fl'>1</span>,
-  ML.init = <span class='fl'>FALSE</span>,
-  s2.init = <span class='fl'>1</span>,
-  B.init = <span class='kw'>NULL</span>
-)</pre>
+    <pre class="usage"><span class='fu'>pglmm_compare</span><span class='op'>(</span>
+  <span class='va'>formula</span>,
+  family <span class='op'>=</span> <span class='st'>"gaussian"</span>,
+  data <span class='op'>=</span> <span class='fu'><a href='https://rdrr.io/r/base/list.html'>list</a></span><span class='op'>(</span><span class='op'>)</span>,
+  <span class='va'>phy</span>,
+  REML <span class='op'>=</span> <span class='cn'>TRUE</span>,
+  optimizer <span class='op'>=</span> <span class='fu'><a href='https://rdrr.io/r/base/c.html'>c</a></span><span class='op'>(</span><span class='st'>"nelder-mead-nlopt"</span>, <span class='st'>"bobyqa"</span>, <span class='st'>"Nelder-Mead"</span>, <span class='st'>"subplex"</span><span class='op'>)</span>,
+  add.obs.re <span class='op'>=</span> <span class='cn'>TRUE</span>,
+  verbose <span class='op'>=</span> <span class='cn'>FALSE</span>,
+  cpp <span class='op'>=</span> <span class='cn'>TRUE</span>,
+  bayes <span class='op'>=</span> <span class='cn'>FALSE</span>,
+  reltol <span class='op'>=</span> <span class='fl'>10</span><span class='op'>^</span><span class='op'>-</span><span class='fl'>6</span>,
+  maxit <span class='op'>=</span> <span class='fl'>500</span>,
+  tol.pql <span class='op'>=</span> <span class='fl'>10</span><span class='op'>^</span><span class='op'>-</span><span class='fl'>6</span>,
+  maxit.pql <span class='op'>=</span> <span class='fl'>200</span>,
+  marginal.summ <span class='op'>=</span> <span class='st'>"mean"</span>,
+  calc.DIC <span class='op'>=</span> <span class='cn'>FALSE</span>,
+  prior <span class='op'>=</span> <span class='st'>"inla.default"</span>,
+  prior_alpha <span class='op'>=</span> <span class='fl'>0.1</span>,
+  prior_mu <span class='op'>=</span> <span class='fl'>1</span>,
+  ML.init <span class='op'>=</span> <span class='cn'>FALSE</span>,
+  s2.init <span class='op'>=</span> <span class='fl'>1</span>,
+  B.init <span class='op'>=</span> <span class='cn'>NULL</span>
+<span class='op'>)</span></pre>
 
     <h2 class="hasAnchor" id="arguments"><a class="anchor" href="#arguments"></a>Arguments</h2>
     <table class="ref-arguments">
@@ -434,7 +434,7 @@ dependent variables. Pages 231--261 <em>in</em> L. Z. Garamszegi, editor.
 Evolutionary Biology</em>. Springer-Verlag, Berlin Heidelberg.</p>
     <h2 class="hasAnchor" id="see-also"><a class="anchor" href="#see-also"></a>See also</h2>
 
-    <div class='dont-index'><p><code><a href='https://rdrr.io/pkg/phyr/man/pglmm.html'>pglmm</a></code>; package <span class="pkg">ape</span> and its function <code>binaryPGLMM</code>;
+    <div class='dont-index'><p><code><a href='pglmm.html'>pglmm</a></code>; package <span class="pkg">ape</span> and its function <code>binaryPGLMM</code>;
 package <span class="pkg">phylolm</span> and its function <code>phyloglm</code>; package <span class="pkg">MCMCglmm</span></p></div>
     <h2 class="hasAnchor" id="author"><a class="anchor" href="#author"></a>Author</h2>
 
@@ -446,26 +446,27 @@ package <span class="pkg">phylolm</span> and its function <code>phyloglm</code>;
 
 <span class='co'># Generate random phylogeny</span>
 
-<span class='fu'><a href='https://rdrr.io/r/base/library.html'>library</a></span>(<span class='kw'><a href='http://ape-package.ird.fr'>ape</a></span>)
+<span class='kw'><a href='https://rdrr.io/r/base/library.html'>library</a></span><span class='op'>(</span><span class='va'><a href='http://ape-package.ird.fr/'>ape</a></span><span class='op'>)</span>
 
-<span class='kw'>n</span> <span class='op'>&lt;-</span> <span class='fl'>100</span>
-<span class='kw'>phy</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/pkg/ape/man/compute.brlen.html'>compute.brlen</a></span>(<span class='fu'><a href='https://rdrr.io/pkg/ape/man/rtree.html'>rtree</a></span>(n=<span class='kw'>n</span>), method = <span class='st'>"Grafen"</span>, power = <span class='fl'>1</span>)
+<span class='va'>n</span> <span class='op'>&lt;-</span> <span class='fl'>100</span>
+<span class='va'>phy</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/pkg/ape/man/compute.brlen.html'>compute.brlen</a></span><span class='op'>(</span><span class='fu'><a href='https://rdrr.io/pkg/ape/man/rtree.html'>rtree</a></span><span class='op'>(</span>n<span class='op'>=</span><span class='va'>n</span><span class='op'>)</span>, method <span class='op'>=</span> <span class='st'>"Grafen"</span>, power <span class='op'>=</span> <span class='fl'>1</span><span class='op'>)</span>
 
 <span class='co'># Generate random data and standardize to have mean 0 and variance 1</span>
-<span class='kw'>X1</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/pkg/ape/man/rTraitCont.html'>rTraitCont</a></span>(<span class='kw'>phy</span>, model = <span class='st'>"BM"</span>, sigma = <span class='fl'>1</span>)
-<span class='kw'>X1</span> <span class='op'>&lt;-</span> (<span class='kw'>X1</span> <span class='op'>-</span> <span class='fu'><a href='https://rdrr.io/r/base/mean.html'>mean</a></span>(<span class='kw'>X1</span>))<span class='op'>/</span><span class='fu'><a href='https://rdrr.io/r/stats/cor.html'>var</a></span>(<span class='kw'>X1</span>)
+<span class='va'>X1</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/pkg/ape/man/rTraitCont.html'>rTraitCont</a></span><span class='op'>(</span><span class='va'>phy</span>, model <span class='op'>=</span> <span class='st'>"BM"</span>, sigma <span class='op'>=</span> <span class='fl'>1</span><span class='op'>)</span>
+<span class='va'>X1</span> <span class='op'>&lt;-</span> <span class='op'>(</span><span class='va'>X1</span> <span class='op'>-</span> <span class='fu'><a href='https://rdrr.io/r/base/mean.html'>mean</a></span><span class='op'>(</span><span class='va'>X1</span><span class='op'>)</span><span class='op'>)</span><span class='op'>/</span><span class='fu'><a href='https://rdrr.io/r/stats/cor.html'>var</a></span><span class='op'>(</span><span class='va'>X1</span><span class='op'>)</span>
 
 <span class='co'># Simulate binary Y</span>
-<span class='kw'>sim.dat</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/base/data.frame.html'>data.frame</a></span>(Y = <span class='fu'><a href='https://rdrr.io/r/base/array.html'>array</a></span>(<span class='fl'>0</span>, dim = <span class='kw'>n</span>), X1 = <span class='kw'>X1</span>, row.names = <span class='kw'>phy</span><span class='op'>$</span><span class='kw'>tip.label</span>)
-<span class='kw'>sim.dat</span><span class='op'>$</span><span class='kw'>Y</span> <span class='op'>&lt;-</span> <span class='kw'>ape</span>::<span class='fu'><a href='https://rdrr.io/pkg/ape/man/binaryPGLMM.html'>binaryPGLMM.sim</a></span>(<span class='kw'>Y</span> <span class='op'>~</span> <span class='kw'>X1</span>, phy = <span class='kw'>phy</span>, data=<span class='kw'>sim.dat</span>, s2 = <span class='fl'>1</span>,
-                             B = <span class='fu'><a href='https://rdrr.io/r/base/matrix.html'>matrix</a></span>(<span class='fu'><a href='https://rdrr.io/r/base/c.html'>c</a></span>(<span class='fl'>0</span>, <span class='fl'>.25</span>), nrow = <span class='fl'>2</span>, ncol = <span class='fl'>1</span>), 
-                             nrep = <span class='fl'>1</span>)<span class='op'>$</span><span class='kw'>Y</span>
+<span class='va'>sim.dat</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/base/data.frame.html'>data.frame</a></span><span class='op'>(</span>Y <span class='op'>=</span> <span class='fu'><a href='https://rdrr.io/r/base/array.html'>array</a></span><span class='op'>(</span><span class='fl'>0</span>, dim <span class='op'>=</span> <span class='va'>n</span><span class='op'>)</span>, X1 <span class='op'>=</span> <span class='va'>X1</span>, row.names <span class='op'>=</span> <span class='va'>phy</span><span class='op'>$</span><span class='va'>tip.label</span><span class='op'>)</span>
+<span class='va'>sim.dat</span><span class='op'>$</span><span class='va'>Y</span> <span class='op'>&lt;-</span> <span class='fu'>ape</span><span class='fu'>::</span><span class='fu'><a href='https://rdrr.io/pkg/ape/man/binaryPGLMM.html'>binaryPGLMM.sim</a></span><span class='op'>(</span><span class='va'>Y</span> <span class='op'>~</span> <span class='va'>X1</span>, phy <span class='op'>=</span> <span class='va'>phy</span>, data<span class='op'>=</span><span class='va'>sim.dat</span>, s2 <span class='op'>=</span> <span class='fl'>1</span>,
+                             B <span class='op'>=</span> <span class='fu'><a href='https://rdrr.io/r/base/matrix.html'>matrix</a></span><span class='op'>(</span><span class='fu'><a href='https://rdrr.io/r/base/c.html'>c</a></span><span class='op'>(</span><span class='fl'>0</span>, <span class='fl'>.25</span><span class='op'>)</span>, nrow <span class='op'>=</span> <span class='fl'>2</span>, ncol <span class='op'>=</span> <span class='fl'>1</span><span class='op'>)</span>, 
+                             nrep <span class='op'>=</span> <span class='fl'>1</span><span class='op'>)</span><span class='op'>$</span><span class='va'>Y</span>
 
 <span class='co'># Fit model</span>
-<span class='fu'><a href='https://rdrr.io/pkg/phyr/man/pglmm_compare.html'>pglmm_compare</a></span>(<span class='kw'>Y</span> <span class='op'>~</span> <span class='kw'>X1</span>, family = <span class='st'>"binomial"</span>, phy = <span class='kw'>phy</span>, data = <span class='kw'>sim.dat</span>)</div><div class='output co'>#&gt; Generalized linear mixed model for binomial data fit by restricted maximum likelihood
+<span class='fu'>pglmm_compare</span><span class='op'>(</span><span class='va'>Y</span> <span class='op'>~</span> <span class='va'>X1</span>, family <span class='op'>=</span> <span class='st'>"binomial"</span>, phy <span class='op'>=</span> <span class='va'>phy</span>, data <span class='op'>=</span> <span class='va'>sim.dat</span><span class='op'>)</span>
+</div><div class='output co'>#&gt; Generalized linear mixed model for binomial data fit by restricted maximum likelihood
 #&gt; 
 #&gt; Call:Y ~ X1
-#&gt; &lt;environment: 0x7ff198f534b0&gt;
+#&gt; &lt;environment: 0x7feaa7836b38&gt;
 #&gt; 
 #&gt; logLik    AIC    BIC 
 #&gt;  -58.2  124.4  130.2 
@@ -482,10 +483,11 @@ package <span class="pkg">phylolm</span> and its function <code>phyloglm</code>;
 #&gt; Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 #&gt; </div><div class='input'>
 <span class='co'># Compare with `binaryPGLMM`</span>
-<span class='kw'>ape</span>::<span class='fu'><a href='https://rdrr.io/pkg/ape/man/binaryPGLMM.html'>binaryPGLMM</a></span>(<span class='kw'>Y</span> <span class='op'>~</span> <span class='kw'>X1</span>, phy = <span class='kw'>phy</span>, data = <span class='kw'>sim.dat</span>)</div><div class='output co'>#&gt; 
+<span class='fu'>ape</span><span class='fu'>::</span><span class='fu'><a href='https://rdrr.io/pkg/ape/man/binaryPGLMM.html'>binaryPGLMM</a></span><span class='op'>(</span><span class='va'>Y</span> <span class='op'>~</span> <span class='va'>X1</span>, phy <span class='op'>=</span> <span class='va'>phy</span>, data <span class='op'>=</span> <span class='va'>sim.dat</span><span class='op'>)</span>
+</div><div class='output co'>#&gt; 
 #&gt; 
 #&gt; Call:Y ~ X1
-#&gt; &lt;environment: 0x7ff198f534b0&gt;
+#&gt; &lt;environment: 0x7feaa7836b38&gt;
 #&gt; 
 #&gt; Random effect (phylogenetic signal s2):
 #&gt;         s2     Pr
@@ -499,7 +501,8 @@ package <span class="pkg">phylolm</span> and its function <code>phyloglm</code>;
 #&gt; Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 #&gt; </div><div class='input'>
 <span class='co'># Compare with `phyloglm`</span>
-<span class='fu'><a href='https://rdrr.io/r/base/summary.html'>summary</a></span>(<span class='kw'>phylolm</span>::<span class='fu'><a href='https://rdrr.io/pkg/phylolm/man/phyloglm.html'>phyloglm</a></span>(<span class='kw'>Y</span> <span class='op'>~</span> <span class='kw'>X1</span>, phy = <span class='kw'>phy</span>, data = <span class='kw'>sim.dat</span>))</div><div class='output co'>#&gt; <span class='warning'>Warning: phyloglm failed to converge.</span></div><div class='output co'>#&gt; 
+<span class='fu'><a href='https://rdrr.io/r/base/summary.html'>summary</a></span><span class='op'>(</span><span class='fu'>phylolm</span><span class='fu'>::</span><span class='fu'><a href='https://rdrr.io/pkg/phylolm/man/phyloglm.html'>phyloglm</a></span><span class='op'>(</span><span class='va'>Y</span> <span class='op'>~</span> <span class='va'>X1</span>, phy <span class='op'>=</span> <span class='va'>phy</span>, data <span class='op'>=</span> <span class='va'>sim.dat</span><span class='op'>)</span><span class='op'>)</span>
+</div><div class='output co'>#&gt; <span class='warning'>Warning: phyloglm failed to converge.</span></div><div class='output co'>#&gt; 
 #&gt; Call:
 #&gt; phylolm::phyloglm(formula = Y ~ X1, data = sim.dat, phy = phy)
 #&gt;        AIC     logLik Pen.logLik 
@@ -520,7 +523,8 @@ package <span class="pkg">phylolm</span> and its function <code>phyloglm</code>;
 #&gt; Note: Wald-type p-values for coefficients, conditional on alpha=53.50916
 #&gt; </div><div class='input'>
 <span class='co'># Compare with `glm` that does not account for phylogeny</span>
-<span class='fu'><a href='https://rdrr.io/r/base/summary.html'>summary</a></span>(<span class='fu'><a href='https://rdrr.io/r/stats/glm.html'>glm</a></span>(<span class='kw'>Y</span> <span class='op'>~</span> <span class='kw'>X1</span>, data = <span class='kw'>sim.dat</span>, family = <span class='st'>"binomial"</span>))</div><div class='output co'>#&gt; 
+<span class='fu'><a href='https://rdrr.io/r/base/summary.html'>summary</a></span><span class='op'>(</span><span class='fu'><a href='https://rdrr.io/r/stats/glm.html'>glm</a></span><span class='op'>(</span><span class='va'>Y</span> <span class='op'>~</span> <span class='va'>X1</span>, data <span class='op'>=</span> <span class='va'>sim.dat</span>, family <span class='op'>=</span> <span class='st'>"binomial"</span><span class='op'>)</span><span class='op'>)</span>
+</div><div class='output co'>#&gt; 
 #&gt; Call:
 #&gt; glm(formula = Y ~ X1, family = "binomial", data = sim.dat)
 #&gt; 
@@ -545,13 +549,14 @@ package <span class="pkg">phylolm</span> and its function <code>phyloglm</code>;
 #&gt; </div><div class='input'>
 <span class='co'># Compare with logistf() that does not account</span>
 <span class='co'># for phylogeny but is less biased than glm()</span>
-<span class='kw'>logistf</span>::<span class='fu'><a href='https://rdrr.io/pkg/logistf/man/logistf.html'>logistf</a></span>(<span class='kw'>Y</span> <span class='op'>~</span> <span class='kw'>X1</span>, data = <span class='kw'>sim.dat</span>)</div><div class='output co'>#&gt; logistf::logistf(formula = Y ~ X1, data = sim.dat)
+<span class='fu'>logistf</span><span class='fu'>::</span><span class='fu'><a href='https://rdrr.io/pkg/logistf/man/logistf.html'>logistf</a></span><span class='op'>(</span><span class='va'>Y</span> <span class='op'>~</span> <span class='va'>X1</span>, data <span class='op'>=</span> <span class='va'>sim.dat</span><span class='op'>)</span>
+</div><div class='output co'>#&gt; logistf::logistf(formula = Y ~ X1, data = sim.dat)
 #&gt; Model fitted by Penalized ML
 #&gt; Confidence intervals and p-values by Profile Likelihood 
 #&gt; 
-#&gt;                  coef  se(coef)  lower 0.95 upper 0.95     Chisq            p
-#&gt; (Intercept) 0.9152256 0.2272477 0.487259237  1.3751591 18.505673 1.693994e-05
-#&gt; X1          0.3288414 0.1720083 0.002832897  0.6743805  3.909395 4.801687e-02
+#&gt; Coefficients:
+#&gt; (Intercept)          X1 
+#&gt;   0.9152256   0.3288414 
 #&gt; 
 #&gt; Likelihood ratio test=3.909395 on 1 df, p=0.04801687, n=100
 #&gt; </div><div class='input'>
@@ -561,24 +566,25 @@ package <span class="pkg">phylolm</span> and its function <code>phyloglm</code>;
 
 <span class='co'># Compare with `MCMCglmm`</span>
 
-<span class='kw'>V</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/pkg/ape/man/vcv.phylo.html'>vcv</a></span>(<span class='kw'>phy</span>)
-<span class='kw'>V</span> <span class='op'>&lt;-</span> <span class='kw'>V</span><span class='op'>/</span><span class='fu'><a href='https://rdrr.io/r/base/Extremes.html'>max</a></span>(<span class='kw'>V</span>)
-<span class='kw'>detV</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/base/Log.html'>exp</a></span>(<span class='fu'><a href='https://rdrr.io/r/base/det.html'>determinant</a></span>(<span class='kw'>V</span>)<span class='op'>$</span><span class='kw'>modulus</span>[<span class='fl'>1</span>])
-<span class='kw'>V</span> <span class='op'>&lt;-</span> <span class='kw'>V</span><span class='op'>/</span><span class='kw'>detV</span><span class='op'>^</span>(<span class='fl'>1</span><span class='op'>/</span><span class='kw'>n</span>)
+<span class='va'>V</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/pkg/ape/man/vcv.phylo.html'>vcv</a></span><span class='op'>(</span><span class='va'>phy</span><span class='op'>)</span>
+<span class='va'>V</span> <span class='op'>&lt;-</span> <span class='va'>V</span><span class='op'>/</span><span class='fu'><a href='https://rdrr.io/r/base/Extremes.html'>max</a></span><span class='op'>(</span><span class='va'>V</span><span class='op'>)</span>
+<span class='va'>detV</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/base/Log.html'>exp</a></span><span class='op'>(</span><span class='fu'><a href='https://rdrr.io/r/base/det.html'>determinant</a></span><span class='op'>(</span><span class='va'>V</span><span class='op'>)</span><span class='op'>$</span><span class='va'>modulus</span><span class='op'>[</span><span class='fl'>1</span><span class='op'>]</span><span class='op'>)</span>
+<span class='va'>V</span> <span class='op'>&lt;-</span> <span class='va'>V</span><span class='op'>/</span><span class='va'>detV</span><span class='op'>^</span><span class='op'>(</span><span class='fl'>1</span><span class='op'>/</span><span class='va'>n</span><span class='op'>)</span>
 
-<span class='kw'>invV</span> <span class='op'>&lt;-</span> <span class='kw'>Matrix</span>::<span class='fu'><a href='https://rdrr.io/pkg/Matrix/man/Matrix.html'>Matrix</a></span>(<span class='fu'><a href='https://rdrr.io/r/base/solve.html'>solve</a></span>(<span class='kw'>V</span>),sparse = <span class='fl'>TRUE</span>)
-<span class='kw'>sim.dat</span><span class='op'>$</span><span class='kw'>species</span> <span class='op'>&lt;-</span> <span class='kw'>phy</span><span class='op'>$</span><span class='kw'>tip.label</span>
-<span class='fu'><a href='https://rdrr.io/r/base/colnames.html'>rownames</a></span>(<span class='kw'>invV</span>) <span class='op'>&lt;-</span> <span class='kw'>sim.dat</span><span class='op'>$</span><span class='kw'>species</span>
+<span class='va'>invV</span> <span class='op'>&lt;-</span> <span class='fu'>Matrix</span><span class='fu'>::</span><span class='fu'><a href='https://rdrr.io/pkg/Matrix/man/Matrix.html'>Matrix</a></span><span class='op'>(</span><span class='fu'><a href='https://rdrr.io/r/base/solve.html'>solve</a></span><span class='op'>(</span><span class='va'>V</span><span class='op'>)</span>,sparse <span class='op'>=</span> <span class='cn'>TRUE</span><span class='op'>)</span>
+<span class='va'>sim.dat</span><span class='op'>$</span><span class='va'>species</span> <span class='op'>&lt;-</span> <span class='va'>phy</span><span class='op'>$</span><span class='va'>tip.label</span>
+<span class='fu'><a href='https://rdrr.io/r/base/colnames.html'>rownames</a></span><span class='op'>(</span><span class='va'>invV</span><span class='op'>)</span> <span class='op'>&lt;-</span> <span class='va'>sim.dat</span><span class='op'>$</span><span class='va'>species</span>
 
-<span class='kw'>nitt</span> <span class='op'>&lt;-</span> <span class='fl'>43000</span>
-<span class='kw'>thin</span> <span class='op'>&lt;-</span> <span class='fl'>10</span>
-<span class='kw'>burnin</span> <span class='op'>&lt;-</span> <span class='fl'>3000</span>
+<span class='va'>nitt</span> <span class='op'>&lt;-</span> <span class='fl'>43000</span>
+<span class='va'>thin</span> <span class='op'>&lt;-</span> <span class='fl'>10</span>
+<span class='va'>burnin</span> <span class='op'>&lt;-</span> <span class='fl'>3000</span>
 
-<span class='kw'>prior</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/base/list.html'>list</a></span>(R=<span class='fu'><a href='https://rdrr.io/r/base/list.html'>list</a></span>(V=<span class='fl'>1</span>, fix=<span class='fl'>1</span>), G=<span class='fu'><a href='https://rdrr.io/r/base/list.html'>list</a></span>(G1=<span class='fu'><a href='https://rdrr.io/r/base/list.html'>list</a></span>(V=<span class='fl'>1</span>, nu=<span class='fl'>1000</span>, alpha.mu=<span class='fl'>0</span>, alpha.V=<span class='fl'>1</span>)))
+<span class='va'>prior</span> <span class='op'>&lt;-</span> <span class='fu'><a href='https://rdrr.io/r/base/list.html'>list</a></span><span class='op'>(</span>R<span class='op'>=</span><span class='fu'><a href='https://rdrr.io/r/base/list.html'>list</a></span><span class='op'>(</span>V<span class='op'>=</span><span class='fl'>1</span>, fix<span class='op'>=</span><span class='fl'>1</span><span class='op'>)</span>, G<span class='op'>=</span><span class='fu'><a href='https://rdrr.io/r/base/list.html'>list</a></span><span class='op'>(</span>G1<span class='op'>=</span><span class='fu'><a href='https://rdrr.io/r/base/list.html'>list</a></span><span class='op'>(</span>V<span class='op'>=</span><span class='fl'>1</span>, nu<span class='op'>=</span><span class='fl'>1000</span>, alpha.mu<span class='op'>=</span><span class='fl'>0</span>, alpha.V<span class='op'>=</span><span class='fl'>1</span><span class='op'>)</span><span class='op'>)</span><span class='op'>)</span>
 <span class='co'># commented out to save time</span>
 <span class='co'># summary(MCMCglmm::MCMCglmm(Y ~ X1, random = ~species, ginvers = list(species = invV),</span>
 <span class='co'>#     data = sim.dat, slice = TRUE, nitt = nitt, thin = thin, burnin = burnin,</span>
 <span class='co'>#    family = "categorical", prior = prior, verbose = FALSE))</span>
+
 </div></pre>
   </div>
   <div class="col-md-3 hidden-xs hidden-sm" id="pkgdown-sidebar">
@@ -595,7 +601,7 @@ package <span class="pkg">phylolm</span> and its function <code>phyloglm</code>;
 </div>
 
 <div class="pkgdown">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/">pkgdown</a> 1.5.1.9000.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/">pkgdown</a> 1.6.1.</p>
 </div>
 
       </footer>

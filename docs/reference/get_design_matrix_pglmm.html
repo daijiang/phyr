@@ -6,7 +6,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title><code>get_design_matrix</code> gets design matrix for gaussian, binomial, and poisson models — get_design_matrix • phyr</title>
+<title>get_design_matrix gets design matrix for gaussian, binomial, and poisson models — get_design_matrix • phyr</title>
 
 
 <!-- jquery -->
@@ -39,7 +39,7 @@
 
 
 
-<meta property="og:title" content="<code>get_design_matrix</code> gets design matrix for gaussian, binomial, and poisson models — get_design_matrix" />
+<meta property="og:title" content="get_design_matrix gets design matrix for gaussian, binomial, and poisson models — get_design_matrix" />
 <meta property="og:description" content="get_design_matrix gets design matrix for gaussian, binomial, and poisson models" />
 
 
@@ -72,7 +72,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">phyr</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.0.3</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.1.0</span>
       </span>
     </div>
 
@@ -141,7 +141,7 @@
     <p><code>get_design_matrix</code> gets design matrix for gaussian, binomial, and poisson models</p>
     </div>
 
-    <pre class="usage"><span class='fu'><a href='https://rdrr.io/pkg/phyr/man/get_design_matrix_pglmm.html'>get_design_matrix</a></span>(<span class='kw'>formula</span>, <span class='kw'>data</span>, <span class='kw'>random.effects</span>, na.action = <span class='kw'>NULL</span>)</pre>
+    <pre class="usage"><span class='fu'>get_design_matrix</span><span class='op'>(</span><span class='va'>formula</span>, <span class='va'>data</span>, <span class='va'>random.effects</span>, na.action <span class='op'>=</span> <span class='cn'>NULL</span><span class='op'>)</span></pre>
 
     <h2 class="hasAnchor" id="arguments"><a class="anchor" href="#arguments"></a>Arguments</h2>
     <table class="ref-arguments">
@@ -174,13 +174,14 @@ correlations among species, while the form <code>(1|sp__@site)</code> excludes t
     <tr>
       <th>random.effects</th>
       <td><p>Optional pre-build list of random effects. If <code>NULL</code> (the default),
-the function <code><a href='https://rdrr.io/pkg/phyr/man/prep_dat_pglmm.html'>prep_dat_pglmm</a></code> will prepare the random effects for you from the information
+the function <code><a href='prep_dat_pglmm.html'>prep_dat_pglmm</a></code> will prepare the random effects for you from the information
 in <code>formula</code>, <code>data</code>, and <code>cov_ranef</code>. <code>random.effect</code> allows a list of
 pre-generated random effects terms to increase flexibility; for example, this makes it
 possible to construct models with both phylogenetic correlation and spatio-temporal autocorrelation.
 In preparing <code>random.effect</code>, make sure that the orders of rows and columns of
 covariance matrices in the list are the same as their corresponding group variables
-in the data.</p></td>
+in the data. Also, this should be <em>a list of lists</em>, e.g.
+<code>random.effects = list(re1 = list(matrix_a), re2 = list(1, sp = sp, covar = Vsp))</code>.</p></td>
     </tr>
     <tr>
       <th>na.action</th>
@@ -207,7 +208,7 @@ in the data.</p></td>
 </div>
 
 <div class="pkgdown">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/">pkgdown</a> 1.5.1.9000.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/">pkgdown</a> 1.6.1.</p>
 </div>
 
       </footer>

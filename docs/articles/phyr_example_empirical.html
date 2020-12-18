@@ -31,7 +31,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">phyr</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.0.3</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.1.0</span>
       </span>
     </div>
 
@@ -88,7 +88,7 @@
 
       
 
-      </header><script src="phyr_example_empirical_files/accessible-code-block-0.0.1/empty-anchor.js"></script><div class="row">
+      </header><script src="phyr_example_empirical_files/header-attrs-2.3/header-attrs.js"></script><div class="row">
   <div class="col-md-9 contents">
     <div class="page-header toc-ignore">
       <h1 data-toc-skip>pglmm example with empirical data</h1>
@@ -110,9 +110,9 @@
 <h2 class="hasAnchor">
 <a href="#modelling-old-field-plants-as-a-function-of-phylogeny-and-distubance" class="anchor"></a>Modelling Old Field Plants as a Function of Phylogeny and Distubance</h2>
 <div class="sourceCode" id="cb1"><pre class="downlit">
-<span class="fu"><a href="https://rdrr.io/r/base/library.html">library</a></span>(<span class="kw"><a href="https://daijiang.github.io/phyr">phyr</a></span>)
-<span class="fu"><a href="https://rdrr.io/r/base/library.html">library</a></span>(<span class="kw"><a href="http://ape-package.ird.fr">ape</a></span>)
-<span class="fu"><a href="https://rdrr.io/r/base/library.html">library</a></span>(<span class="kw"><a href="https://dplyr.tidyverse.org">dplyr</a></span>)
+<span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://daijiang.github.io/phyr/">phyr</a></span><span class="op">)</span>
+<span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="http://ape-package.ird.fr/">ape</a></span><span class="op">)</span>
+<span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org">dplyr</a></span><span class="op">)</span>
 <span class="co">#&gt; </span>
 <span class="co">#&gt; Attaching package: 'dplyr'</span>
 <span class="co">#&gt; The following objects are masked from 'package:stats':</span>
@@ -121,15 +121,13 @@
 <span class="co">#&gt; The following objects are masked from 'package:base':</span>
 <span class="co">#&gt; </span>
 <span class="co">#&gt;     intersect, setdiff, setequal, union</span>
-<span class="fu"><a href="https://rdrr.io/r/utils/data.html">data</a></span>(<span class="st">"oldfield"</span>)
-</pre></div>
+<span class="fu"><a href="https://rdrr.io/r/utils/data.html">data</a></span><span class="op">(</span><span class="st">"oldfield"</span><span class="op">)</span></pre></div>
 <p>The data is a list with two elements. The first element is a phylogeny containing 47 species of plants (all herbaceous forbs) that live in old field habitats in Southern Ontario, Canada. Oldfield habitats typically are found in areas that were formerly cultivated but are now abandoned. This is often considered a successional stage between farmland and secondary forest. These data come from plots that had experienced two “treatments”: one set of plots had been disturbed by field ploughing within a few years of sampling, whereas the other set had not been disturbed in this way recently. Let’s have a look at the phylogeny and data.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit">
-<span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html">plot</a></span>(<span class="kw">oldfield</span><span class="op">$</span><span class="kw">phy</span>)
-</pre></div>
+<span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html">plot</a></span><span class="op">(</span><span class="va">oldfield</span><span class="op">$</span><span class="va">phy</span><span class="op">)</span></pre></div>
 <p><img src="phyr_example_empirical_files/figure-html/init_plots-1.png" width="80%"></p>
 <div class="sourceCode" id="cb3"><pre class="downlit">
-<span class="fu"><a href="https://rdrr.io/r/utils/head.html">head</a></span>(<span class="kw">oldfield</span><span class="op">$</span><span class="kw">data</span>, <span class="fl">40</span>)
+<span class="fu"><a href="https://rdrr.io/r/utils/head.html">head</a></span><span class="op">(</span><span class="va">oldfield</span><span class="op">$</span><span class="va">data</span>, <span class="fl">40</span><span class="op">)</span>
 <span class="co">#&gt; # A tibble: 40 x 7</span>
 <span class="co">#&gt;    site_orig habitat_type sp            abundance disturbance site          pres</span>
 <span class="co">#&gt;        &lt;int&gt; &lt;chr&gt;        &lt;chr&gt;             &lt;int&gt;       &lt;dbl&gt; &lt;chr&gt;        &lt;int&gt;</span>
@@ -143,19 +141,17 @@
 <span class="co">#&gt;  8        15 undisturbed  Daucus_carota         0           0 15_undistur…     0</span>
 <span class="co">#&gt;  9        16 undisturbed  Daucus_carota         0           0 16_undistur…     0</span>
 <span class="co">#&gt; 10        18 undisturbed  Daucus_carota         0           0 18_undistur…     0</span>
-<span class="co">#&gt; # … with 30 more rows</span>
-</pre></div>
+<span class="co">#&gt; # … with 30 more rows</span></pre></div>
 <p>With these data we are interested in asking whether there is phylogenetic structure in the distribution of these species, as well as whether disturbance has any overall effects. To do this we will specify two different phylogenetic effects in our <code>pglmm</code>, which uses a syntax similar to <code>lmer</code> and <code>glmer</code> in the <code>lme4</code> package for specifying random effects. We also include site-level random effects to account for the paired design of the experiment. We will start by modeling just presence and absence of species (a binomial model). Note this model will take a while when using maximum likelihood (the Bayesian method is much faster). This is the full model specification:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit">
-<span class="kw">mod</span> <span class="op">&lt;-</span> <span class="kw">phyr</span>::<span class="fu"><a href="../reference/pglmm.html">pglmm</a></span>(<span class="kw">pres</span> <span class="op">~</span> <span class="kw">disturbance</span> <span class="op">+</span> (<span class="fl">1</span> <span class="op">|</span> <span class="kw">sp__</span>) <span class="op">+</span> (<span class="fl">1</span> <span class="op">|</span> <span class="kw">site</span>) <span class="op">+</span> 
-                     (<span class="kw">disturbance</span> <span class="op">|</span> <span class="kw">sp__</span>) <span class="op">+</span> (<span class="fl">1</span> <span class="op">|</span> <span class="kw">sp__</span><span class="op">@</span>site), 
-                   data = <span class="kw">oldfield</span><span class="op">$</span><span class="kw">data</span>, 
-                   cov_ranef = <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span>(sp = <span class="kw">oldfield</span><span class="op">$</span><span class="kw">phy</span>),
-                   family = <span class="st">"binomial"</span>)
-</pre></div>
+<span class="va">mod</span> <span class="op">&lt;-</span> <span class="fu">phyr</span><span class="fu">::</span><span class="fu"><a href="../reference/pglmm.html">pglmm</a></span><span class="op">(</span><span class="va">pres</span> <span class="op">~</span> <span class="va">disturbance</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">site</span><span class="op">)</span> <span class="op">+</span> 
+                     <span class="op">(</span><span class="va">disturbance</span> <span class="op">|</span> <span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span>, 
+                   data <span class="op">=</span> <span class="va">oldfield</span><span class="op">$</span><span class="va">data</span>, 
+                   cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">oldfield</span><span class="op">$</span><span class="va">phy</span><span class="op">)</span>,
+                   family <span class="op">=</span> <span class="st">"binomial"</span><span class="op">)</span></pre></div>
 <p>Here, we specified an overall phylogenetic effect using <code>sp__</code>, which also automatically includes a nonphylogenetic i.i.d. effect of species. <code>phyr</code> finds the linked phylogenetic data because we specified the phylogeny in the <code>cov_ranef</code> argument, giving it the name <code>sp</code> which matches <code>sp__</code> but without the underscores. We can include any number of phylogenies or covariance matrices in this way, allowing us to model multiple sources of covariance in one model. In this example, however, we will stick to one phylogeny to cover the basics of how to run <code>pglmm</code> models. We use the same phylogeny to model a second phylogenetic random effect, which is specified as <code>sp__@site</code>. This is a “nested” phylogenetic effect. This means that we are fitting an effect that had covariance proportional to the species phylogeny, but independently for each site (or “nested” in sites). We’ve also included a disturbance-by-phylogenetic species effect (<code>(disturbance | sp__)</code>), which estimates the degree to which occurrence in disturbed vs. undisturbed habitat has a phylogenetic signal. Like the main <code>sp__</code> effect, the disturbance-by-<code>sp__</code> effect also includes an nonphylogenetic species-by-disturbance interaction. Let’s look at the results:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit">
-<span class="fu"><a href="https://rdrr.io/r/base/summary.html">summary</a></span>(<span class="kw">mod</span>)
+<span class="fu"><a href="https://rdrr.io/r/base/summary.html">summary</a></span><span class="op">(</span><span class="va">mod</span><span class="op">)</span>
 <span class="co">#&gt; Generalized linear mixed model for binomial data fit by restricted maximum likelihood</span>
 <span class="co">#&gt; </span>
 <span class="co">#&gt; Call:pres ~ disturbance</span>
@@ -175,15 +171,14 @@
 <span class="co">#&gt; (Intercept) -2.72421   0.33520 -8.1272 4.393e-16 ***</span>
 <span class="co">#&gt; disturbance  0.78423   0.28689  2.7336  0.006266 ** </span>
 <span class="co">#&gt; ---</span>
-<span class="co">#&gt; Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span>
-</pre></div>
+<span class="co">#&gt; Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></pre></div>
 <p>The results of the random effects imply that the strongest effect is an overall nonphylogenetic species effect, followed closely by a disturbance-by-species effect. This implies that species vary strongly in their occurrence in disturbed or undisturbed sites, that there is a clear community difference between these treatments. The next strongest effect is the nested phylogenetic effect. But how can we know if this effect is strong enough to take seriously? Well one way to get an idea is to run a likelihood ratio test on the random effect. This can be achieved by using the <code><a href="../reference/pglmm_profile_LRT.html">pglmm_profile_LRT()</a></code> function, at least for binomial models.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit">
-<span class="fu"><a href="https://rdrr.io/r/base/names.html">names</a></span>(<span class="kw">mod</span><span class="op">$</span><span class="kw">ss</span>)
+<span class="fu"><a href="https://rdrr.io/r/base/names.html">names</a></span><span class="op">(</span><span class="va">mod</span><span class="op">$</span><span class="va">ss</span><span class="op">)</span>
 <span class="co">#&gt; [1] "1|sp"             "1|sp__"           "1|site"           "disturbance|sp"  </span>
 <span class="co">#&gt; [5] "disturbance|sp__" "1|sp__@site"</span>
-<span class="kw">test_nested</span> <span class="op">&lt;-</span> <span class="kw">phyr</span>::<span class="fu"><a href="../reference/pglmm_profile_LRT.html">pglmm_profile_LRT</a></span>(<span class="kw">mod</span>, re.number = <span class="fl">6</span>) <span class="co">## sp__@site is the 6th random effect</span>
-<span class="kw">test_nested</span>
+<span class="va">test_nested</span> <span class="op">&lt;-</span> <span class="fu">phyr</span><span class="fu">::</span><span class="fu"><a href="../reference/pglmm_profile_LRT.html">pglmm_profile_LRT</a></span><span class="op">(</span><span class="va">mod</span>, re.number <span class="op">=</span> <span class="fl">6</span><span class="op">)</span> <span class="co">## sp__@site is the 6th random effect</span>
+<span class="va">test_nested</span>
 <span class="co">#&gt; $LR</span>
 <span class="co">#&gt; [1] 4.037448</span>
 <span class="co">#&gt; </span>
@@ -194,37 +189,35 @@
 <span class="co">#&gt; [1] 0.002244134</span>
 
 <span class="co"># alternatively, we can test all random effects</span>
-<span class="kw">LRTs</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html">sapply</a></span>(<span class="fl">1</span><span class="op">:</span><span class="fl">6</span>, FUN = <span class="fu">function</span>(<span class="kw">x</span>) <span class="kw">phyr</span>::<span class="fu"><a href="../reference/pglmm_profile_LRT.html">pglmm_profile_LRT</a></span>(<span class="kw">mod</span>, re.number = <span class="kw">x</span>))
-<span class="fu"><a href="https://rdrr.io/r/base/colnames.html">colnames</a></span>(<span class="kw">LRTs</span>) <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html">names</a></span>(<span class="kw">mod</span><span class="op">$</span><span class="kw">ss</span>)
-<span class="fu"><a href="https://rdrr.io/r/base/t.html">t</a></span>(<span class="kw">LRTs</span>)
+<span class="va">LRTs</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html">sapply</a></span><span class="op">(</span><span class="fl">1</span><span class="op">:</span><span class="fl">6</span>, FUN <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="fu">phyr</span><span class="fu">::</span><span class="fu"><a href="../reference/pglmm_profile_LRT.html">pglmm_profile_LRT</a></span><span class="op">(</span><span class="va">mod</span>, re.number <span class="op">=</span> <span class="va">x</span><span class="op">)</span><span class="op">)</span>
+<span class="fu"><a href="https://rdrr.io/r/base/colnames.html">colnames</a></span><span class="op">(</span><span class="va">LRTs</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html">names</a></span><span class="op">(</span><span class="va">mod</span><span class="op">$</span><span class="va">ss</span><span class="op">)</span>
+<span class="fu"><a href="https://rdrr.io/r/base/t.html">t</a></span><span class="op">(</span><span class="va">LRTs</span><span class="op">)</span>
 <span class="co">#&gt;                  LR           df Pr          </span>
 <span class="co">#&gt; 1|sp             54.01487     1  1.323873e-25</span>
 <span class="co">#&gt; 1|sp__           0.2179382    1  0.2545597   </span>
 <span class="co">#&gt; 1|site           -0.002140096 1  1           </span>
 <span class="co">#&gt; disturbance|sp   15.94218     1  8.18144e-09 </span>
 <span class="co">#&gt; disturbance|sp__ -0.001094586 1  1           </span>
-<span class="co">#&gt; 1|sp__@site      4.037448     1  0.002244134</span>
-</pre></div>
+<span class="co">#&gt; 1|sp__@site      4.037448     1  0.002244134</span></pre></div>
 <p>This result shows that the nested phylogenetic effect is statistically significant. What does this mean? A model where the within-site distributions of species are explained by the phylogenetic covariance of species implies a ‘phylogenetic attraction’ or ‘phylogenetic clustering’ effect, in which closely related species are more likely to be found together in the same community. In the original analysis of these data using traditional community phylogenetics methods (null model based) found that the disturbed sites were phylogenetically clustered but undisturbed sites were not. If the data are split in this way, and each split modeled separately, does this result hold up?</p>
 <div class="sourceCode" id="cb7"><pre class="downlit">
-<span class="kw">mod_disturbed</span> <span class="op">&lt;-</span> <span class="kw">phyr</span>::<span class="fu"><a href="../reference/pglmm.html">pglmm</a></span>(<span class="kw">pres</span> <span class="op">~</span> (<span class="fl">1</span> <span class="op">|</span> <span class="kw">sp__</span>) <span class="op">+</span> (<span class="fl">1</span> <span class="op">|</span> <span class="kw">sp__</span><span class="op">@</span>site) <span class="op">+</span> 
-                               (<span class="fl">1</span> <span class="op">|</span> <span class="kw">site</span>), 
-                             data = <span class="kw">oldfield</span><span class="op">$</span><span class="kw">data</span> <span class="op">%&gt;%</span>
-                               <span class="kw">dplyr</span>::<span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html">filter</a></span>(<span class="kw">disturbance</span> <span class="op">==</span> <span class="fl">1</span>), 
-                             cov_ranef = <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span>(sp = <span class="kw">oldfield</span><span class="op">$</span><span class="kw">phy</span>),
-                             family = <span class="st">"binomial"</span>)
+<span class="va">mod_disturbed</span> <span class="op">&lt;-</span> <span class="fu">phyr</span><span class="fu">::</span><span class="fu"><a href="../reference/pglmm.html">pglmm</a></span><span class="op">(</span><span class="va">pres</span> <span class="op">~</span> <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> 
+                               <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">site</span><span class="op">)</span>, 
+                             data <span class="op">=</span> <span class="va">oldfield</span><span class="op">$</span><span class="va">data</span> <span class="op">%&gt;%</span>
+                               <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html">filter</a></span><span class="op">(</span><span class="va">disturbance</span> <span class="op">==</span> <span class="fl">1</span><span class="op">)</span>, 
+                             cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">oldfield</span><span class="op">$</span><span class="va">phy</span><span class="op">)</span>,
+                             family <span class="op">=</span> <span class="st">"binomial"</span><span class="op">)</span>
 
-<span class="kw">mod_undisturbed</span> <span class="op">&lt;-</span> <span class="kw">phyr</span>::<span class="fu"><a href="../reference/pglmm.html">pglmm</a></span>(<span class="kw">pres</span> <span class="op">~</span> (<span class="fl">1</span> <span class="op">|</span> <span class="kw">sp__</span>) <span class="op">+</span> (<span class="fl">1</span> <span class="op">|</span> <span class="kw">sp__</span><span class="op">@</span>site) <span class="op">+</span> 
-                                 (<span class="fl">1</span> <span class="op">|</span> <span class="kw">site</span>), 
-                               data = <span class="kw">oldfield</span><span class="op">$</span><span class="kw">data</span> <span class="op">%&gt;%</span>
-                                 <span class="kw">dplyr</span>::<span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html">filter</a></span>(<span class="kw">disturbance</span> <span class="op">==</span> <span class="fl">0</span>), 
-                               cov_ranef = <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span>(sp = <span class="kw">oldfield</span><span class="op">$</span><span class="kw">phy</span>),
-                               family = <span class="st">"binomial"</span>)
-</pre></div>
+<span class="va">mod_undisturbed</span> <span class="op">&lt;-</span> <span class="fu">phyr</span><span class="fu">::</span><span class="fu"><a href="../reference/pglmm.html">pglmm</a></span><span class="op">(</span><span class="va">pres</span> <span class="op">~</span> <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> 
+                                 <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">site</span><span class="op">)</span>, 
+                               data <span class="op">=</span> <span class="va">oldfield</span><span class="op">$</span><span class="va">data</span> <span class="op">%&gt;%</span>
+                                 <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html">filter</a></span><span class="op">(</span><span class="va">disturbance</span> <span class="op">==</span> <span class="fl">0</span><span class="op">)</span>, 
+                               cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">oldfield</span><span class="op">$</span><span class="va">phy</span><span class="op">)</span>,
+                               family <span class="op">=</span> <span class="st">"binomial"</span><span class="op">)</span></pre></div>
 <div class="sourceCode" id="cb8"><pre class="downlit">
-<span class="fu"><a href="https://rdrr.io/r/base/cat.html">cat</a></span>(<span class="st">"Disturbed phylogenetic clustering test:\n"</span>)
+<span class="fu"><a href="https://rdrr.io/r/base/cat.html">cat</a></span><span class="op">(</span><span class="st">"Disturbed phylogenetic clustering test:\n"</span><span class="op">)</span>
 <span class="co">#&gt; Disturbed phylogenetic clustering test:</span>
-<span class="kw">phyr</span>::<span class="fu"><a href="../reference/pglmm_profile_LRT.html">pglmm_profile_LRT</a></span>(<span class="kw">mod_disturbed</span>, re.number = <span class="fl">4</span>)
+<span class="fu">phyr</span><span class="fu">::</span><span class="fu"><a href="../reference/pglmm_profile_LRT.html">pglmm_profile_LRT</a></span><span class="op">(</span><span class="va">mod_disturbed</span>, re.number <span class="op">=</span> <span class="fl">4</span><span class="op">)</span>
 <span class="co">#&gt; $LR</span>
 <span class="co">#&gt; [1] 4.680287</span>
 <span class="co">#&gt; </span>
@@ -233,9 +226,9 @@
 <span class="co">#&gt; </span>
 <span class="co">#&gt; $Pr</span>
 <span class="co">#&gt; [1] 0.001108513</span>
-<span class="fu"><a href="https://rdrr.io/r/base/cat.html">cat</a></span>(<span class="st">"Undisturbed phylogenetic clustering test:\n"</span>)
+<span class="fu"><a href="https://rdrr.io/r/base/cat.html">cat</a></span><span class="op">(</span><span class="st">"Undisturbed phylogenetic clustering test:\n"</span><span class="op">)</span>
 <span class="co">#&gt; Undisturbed phylogenetic clustering test:</span>
-<span class="kw">phyr</span>::<span class="fu"><a href="../reference/pglmm_profile_LRT.html">pglmm_profile_LRT</a></span>(<span class="kw">mod_undisturbed</span>, re.number = <span class="fl">4</span>)
+<span class="fu">phyr</span><span class="fu">::</span><span class="fu"><a href="../reference/pglmm_profile_LRT.html">pglmm_profile_LRT</a></span><span class="op">(</span><span class="va">mod_undisturbed</span>, re.number <span class="op">=</span> <span class="fl">4</span><span class="op">)</span>
 <span class="co">#&gt; $LR</span>
 <span class="co">#&gt; [1] -9.778164e-06</span>
 <span class="co">#&gt; </span>
@@ -243,50 +236,46 @@
 <span class="co">#&gt; [1] 1</span>
 <span class="co">#&gt; </span>
 <span class="co">#&gt; $Pr</span>
-<span class="co">#&gt; [1] 1</span>
-</pre></div>
+<span class="co">#&gt; [1] 1</span></pre></div>
 <p>Indeed! The original results hold up to this model-based test of the same question. Whew! (╹◡╹)凸 We can also get an idea of how well the model fits the data by plotting the observed and predicted values of the model side-by-side.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit">
-<span class="fu"><a href="../reference/plot_data.html">plot_data</a></span>(<span class="kw">mod</span>, predicted = <span class="fl">TRUE</span>)
-</pre></div>
+<span class="fu"><a href="../reference/plot_data.html">plot_data</a></span><span class="op">(</span><span class="va">mod</span>, predicted <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></pre></div>
 <p><img src="phyr_example_empirical_files/figure-html/plot_mod-1.png" width="90%"></p>
 <p>The other result from this model is that there is a strong fixed effect of disturbance. In the context of a binomial multivariate model such as <code>pglmm</code>, this means there is an overall increase in the probability of occurrence in disturbed sites. In other words, disturbed sites have a higher species richness at the site level (noting that expected alpha species richness of a site can be expressed as Gamma richness * E(prob_site(occurrence))).</p>
 <p>Another way to explore the random effects is to use the Bayesian version of <code>pglmm</code> and then look at the shape of the posterior distribution of our random effect variance terms.</p>
 <div class="sourceCode" id="cb10"><pre class="downlit">
-<span class="kw">mod_bayes</span> <span class="op">&lt;-</span> <span class="kw">phyr</span>::<span class="fu"><a href="../reference/pglmm.html">pglmm</a></span>(<span class="kw">pres</span> <span class="op">~</span> <span class="kw">disturbance</span> <span class="op">+</span> (<span class="fl">1</span> <span class="op">|</span> <span class="kw">sp__</span>) <span class="op">+</span> (<span class="fl">1</span> <span class="op">|</span> <span class="kw">site</span>) <span class="op">+</span> 
-                     (<span class="kw">disturbance</span> <span class="op">|</span> <span class="kw">sp__</span>) <span class="op">+</span> (<span class="fl">1</span> <span class="op">|</span> <span class="kw">sp__</span><span class="op">@</span>site), 
-                         data = <span class="kw">oldfield</span><span class="op">$</span><span class="kw">data</span>, 
-                         cov_ranef = <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span>(sp = <span class="kw">oldfield</span><span class="op">$</span><span class="kw">phy</span>),
-                         family = <span class="st">"binomial"</span>,
-                         bayes = <span class="fl">TRUE</span>,
-                         prior = <span class="st">"pc.prior.auto"</span>)
-<span class="fu"><a href="https://rdrr.io/r/base/summary.html">summary</a></span>(<span class="kw">mod_bayes</span>)
+<span class="va">mod_bayes</span> <span class="op">&lt;-</span> <span class="fu">phyr</span><span class="fu">::</span><span class="fu"><a href="../reference/pglmm.html">pglmm</a></span><span class="op">(</span><span class="va">pres</span> <span class="op">~</span> <span class="va">disturbance</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">site</span><span class="op">)</span> <span class="op">+</span> 
+                     <span class="op">(</span><span class="va">disturbance</span> <span class="op">|</span> <span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span>, 
+                         data <span class="op">=</span> <span class="va">oldfield</span><span class="op">$</span><span class="va">data</span>, 
+                         cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">oldfield</span><span class="op">$</span><span class="va">phy</span><span class="op">)</span>,
+                         family <span class="op">=</span> <span class="st">"binomial"</span>,
+                         bayes <span class="op">=</span> <span class="cn">TRUE</span>,
+                         prior <span class="op">=</span> <span class="st">"pc.prior.auto"</span><span class="op">)</span>
+<span class="fu"><a href="https://rdrr.io/r/base/summary.html">summary</a></span><span class="op">(</span><span class="va">mod_bayes</span><span class="op">)</span>
 <span class="co">#&gt; Generalized linear mixed model for binomial data fit by Bayesian INLA</span>
 <span class="co">#&gt; </span>
 <span class="co">#&gt; Call:pres ~ disturbance</span>
 <span class="co">#&gt; </span>
-<span class="co">#&gt; marginal logLik </span>
-<span class="co">#&gt;          -618.1 </span>
+<span class="co">#&gt; marginal logLik             DIC            WAIC </span>
+<span class="co">#&gt;          -618.1          1074.6          1073.0 </span>
 <span class="co">#&gt; </span>
 <span class="co">#&gt; Random effects:</span>
 <span class="co">#&gt;                  Variance Std.Dev lower.CI upper.CI</span>
-<span class="co">#&gt; 1|sp             2.063720 1.43657 1.115055   4.3915</span>
-<span class="co">#&gt; 1|sp__           0.134677 0.36698 0.029551   1.2273</span>
-<span class="co">#&gt; 1|site           0.007813 0.08839 0.001344   0.1704</span>
-<span class="co">#&gt; disturbance|sp   1.981671 1.40772 0.976784   5.0771</span>
-<span class="co">#&gt; disturbance|sp__ 0.050414 0.22453 0.008443   1.2571</span>
-<span class="co">#&gt; 1|sp__@site      0.102651 0.32039 0.043477   0.2814</span>
+<span class="co">#&gt; 1|sp              2.06397 1.43665 1.115149   4.3922</span>
+<span class="co">#&gt; 1|sp__            0.13445 0.36667 0.029487   1.2275</span>
+<span class="co">#&gt; 1|site            0.00784 0.08854 0.001349   0.1716</span>
+<span class="co">#&gt; disturbance|sp    1.98071 1.40738 0.975676   5.0745</span>
+<span class="co">#&gt; disturbance|sp__  0.05070 0.22516 0.008501   1.2620</span>
+<span class="co">#&gt; 1|sp__@site       0.10266 0.32040 0.043477   0.2815</span>
 <span class="co">#&gt; </span>
 <span class="co">#&gt; Fixed effects:</span>
 <span class="co">#&gt;                Value lower.CI upper.CI</span>
-<span class="co">#&gt; (Intercept) -3.14636 -3.60303  -2.7409</span>
-<span class="co">#&gt; disturbance  0.92519  0.44047   1.4309</span>
-</pre></div>
+<span class="co">#&gt; (Intercept) -3.14632 -3.60301  -2.7409</span>
+<span class="co">#&gt; disturbance  0.92515  0.44044   1.4308</span></pre></div>
 <p>“pc.prior.auto” is a good choice to generate priors for binomial models. If you are interested in the details of this kind of prior (known as a penalizing complexity prior), check out this paper: <a href="https://arxiv.org/abs/1403.4630" class="uri">https://arxiv.org/abs/1403.4630</a>.</p>
 <p>The results of this model are consistent with the ML model, which is good to see. Now we also have lower and upper credible intervals. We can look at the full approximate marginal posterior distributions of the random effects and fixed effects with the <code>plot_bayes</code> function.</p>
 <div class="sourceCode" id="cb11"><pre class="downlit">
-<span class="fu"><a href="../reference/plot_bayes.html">plot_bayes</a></span>(<span class="kw">mod_bayes</span>, sort = <span class="fl">TRUE</span>)
-</pre></div>
+<span class="fu"><a href="../reference/plot_bayes.html">plot_bayes</a></span><span class="op">(</span><span class="va">mod_bayes</span>, sort <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></pre></div>
 <p><img src="phyr_example_empirical_files/figure-html/plot_bayes-1.png" width="85%"></p>
 <p>What we are looking for is that the posterior distribution mode is well away from zero, and that it looks relatively symmetrical. If it were skewed and crammed up against the left side of the plot, near zero, we would conclude that the effect is weak (remembering that variance components cannot be less than or equal zero, so there will always be some positive probability mass). The most obvious effects (well away from zero) are again the species random effect, the species-by-disturbance random effect, and the nested phylogenetic effect. In this plot, the 95% credible interval is also plotted, along with the posterior mean (the point and bar at the bottom of each density). For the random effects these aren’t too meaningful, but they can help distinguish genuine effects in the fixed effects. If these credible intervals overlap zero in the fixed effects, the density will be plotted with a lighter color to suggest it is not a strong effect (although this is not relevant for this dataset, because both fixed effects are strong).</p>
 </div>
@@ -295,24 +284,21 @@
 <a href="#model-assumption-checks" class="anchor"></a>Model Assumption Checks</h2>
 <p>The next thing we might want to check is whether assumptions of the model are met by the data. The typical way to do this is by plotting and/or analyzing the model residuals. In non-Gaussian models such as this one, this can be less straightforward. However, <code>phyr</code> output supports the <code>DHARMa</code> package, which can generated a generalized type of residual known as randomized quantile residuals (or sometimes Dunn-Smyth residuals). These can be calculated and inspected for nearly any error distribution. We can produce standard diagnostic plots for our <code>pglmm</code> model by simply calling <code><a href="https://rdrr.io/pkg/DHARMa/man/simulateResiduals.html">DHARMa::simulateResiduals</a></code> on the model object.</p>
 <div class="sourceCode" id="cb12"><pre class="downlit">
-<span class="kw">resids</span> <span class="op">&lt;-</span> <span class="kw">DHARMa</span>::<span class="fu"><a href="https://rdrr.io/pkg/DHARMa/man/simulateResiduals.html">simulateResiduals</a></span>(<span class="kw">mod_bayes</span>, plot = <span class="fl">FALSE</span>)
+<span class="va">resids</span> <span class="op">&lt;-</span> <span class="fu">DHARMa</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/DHARMa/man/simulateResiduals.html">simulateResiduals</a></span><span class="op">(</span><span class="va">mod_bayes</span>, plot <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span>
 <span class="co">#&gt; Warning in checkModel(fittedModel): DHARMa: fittedModel not in class of</span>
 <span class="co">#&gt; supported models. Absolutely no guarantee that this will work!</span>
-<span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html">plot</a></span>(<span class="kw">resids</span>)
-</pre></div>
+<span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html">plot</a></span><span class="op">(</span><span class="va">resids</span><span class="op">)</span></pre></div>
 <p><img src="phyr_example_empirical_files/figure-html/call_dharma-1.png" width="90%"></p>
 <p>The residual plots look pretty good, though some of the tests failed. Specifically the residual quantiles are not quite as flat with respect to the model predictions as we would like them to be. There is a slight curvature, and the residuals are overall increasing slightly with higher predictions. Visually, however, this looks like a weak effect, and for large datasets such as this, it is easy for the tests to fail. Thus, it is likely that the statistical inference we get from the model is pretty good. Given that we are interested in the effect of disturbance, we may also want to check that the residuals do not show any strong patterns with the disturbance treatment. This is simple to do with <code>DHARMa</code> as follows:</p>
 <div class="sourceCode" id="cb13"><pre class="downlit">
-<span class="kw">DHARMa</span>::<span class="fu"><a href="https://rdrr.io/pkg/DHARMa/man/plotResiduals.html">plotResiduals</a></span>(<span class="kw">resids</span>, <span class="kw">mod_bayes</span><span class="op">$</span><span class="kw">data</span><span class="op">$</span><span class="kw">disturbance</span>)
-</pre></div>
+<span class="fu">DHARMa</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/DHARMa/man/plotResiduals.html">plotResiduals</a></span><span class="op">(</span><span class="va">resids</span>, <span class="va">mod_bayes</span><span class="op">$</span><span class="va">data</span><span class="op">$</span><span class="va">disturbance</span><span class="op">)</span></pre></div>
 <p><img src="phyr_example_empirical_files/figure-html/some_other_plots-1.png" width="85%"></p>
 <p>Obviously no problems there. This is also the case for the model fitted by Maximum Likelihood method (<code>mod</code>).</p>
 <div class="sourceCode" id="cb14"><pre class="downlit">
-<span class="kw">resids_mod</span> <span class="op">&lt;-</span> <span class="kw">DHARMa</span>::<span class="fu"><a href="https://rdrr.io/pkg/DHARMa/man/simulateResiduals.html">simulateResiduals</a></span>(<span class="kw">mod</span>, plot = <span class="fl">FALSE</span>)
+<span class="va">resids_mod</span> <span class="op">&lt;-</span> <span class="fu">DHARMa</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/DHARMa/man/simulateResiduals.html">simulateResiduals</a></span><span class="op">(</span><span class="va">mod</span>, plot <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span>
 <span class="co">#&gt; Warning in checkModel(fittedModel): DHARMa: fittedModel not in class of</span>
 <span class="co">#&gt; supported models. Absolutely no guarantee that this will work!</span>
-<span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html">plot</a></span>(<span class="kw">resids_mod</span>)
-</pre></div>
+<span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html">plot</a></span><span class="op">(</span><span class="va">resids_mod</span><span class="op">)</span></pre></div>
 <p><img src="phyr_example_empirical_files/figure-html/call_dharma_mod-1.png" width="90%"></p>
 </div>
 <div id="goodness-of-fit" class="section level2">
@@ -320,16 +306,14 @@
 <a href="#goodness-of-fit" class="anchor"></a>Goodness of Fit</h2>
 <p>Another question about our model is simply how well it fits the data. A metric appealing in its simplicity is the classic R<sup>2</sup> metric, which purports to estimate the proportion of the variance in the response explained by the model predictors. Once again, though, when using non-Gaussian errors this can become a bit tricky. An additional complication is created by model with random effects. Given that random effects are very flexible model components (for example, nothing stops you from fitting a random effect for each observation in your dataset), a straight-up calculation of variance explains isn’t meaningful. That said, methods that can produce a useful R<sup>2</sup> metric in the complex situation have been developed. The <a href="https://github.com/arives/rr2">package <code>rr2</code></a> is able to calculate several flavors of R<sup>2</sup>, and supports <code>phyr</code>’s <code>pglmm</code> model object. Let’s try it!</p>
 <div class="sourceCode" id="cb15"><pre class="downlit">
-<span class="kw">rr2</span>::<span class="fu"><a href="https://rdrr.io/pkg/rr2/man/R2.html">R2</a></span>(<span class="kw">mod</span>)
-<span class="co">#&gt; Models of class pglmm do not have a R2_resid method.</span>
-<span class="co">#&gt;    R2_lik   R2_pred </span>
-<span class="co">#&gt; 0.1784547 0.4444387</span>
-<span class="kw">rr2</span>::<span class="fu"><a href="https://rdrr.io/pkg/rr2/man/R2.html">R2</a></span>(<span class="kw">mod_bayes</span>)
-<span class="co">#&gt; Models of class pglmm do not have a R2_resid method.</span>
-<span class="co">#&gt; Models of class pglmm with bayes = TRUE do not have a R2_lik method.</span>
+<span class="fu">rr2</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/rr2/man/R2.html">R2</a></span><span class="op">(</span><span class="va">mod</span><span class="op">)</span>
+<span class="co">#&gt; Models of class communityPGLMM (binomial) only have R2.pred method.</span>
 <span class="co">#&gt;   R2_pred </span>
-<span class="co">#&gt; 0.4577102</span>
-</pre></div>
+<span class="co">#&gt; 0.4444387</span>
+<span class="fu">rr2</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/rr2/man/R2.html">R2</a></span><span class="op">(</span><span class="va">mod_bayes</span><span class="op">)</span>
+<span class="co">#&gt; Models of class communityPGLMM (binomial) only have R2.pred method.</span>
+<span class="co">#&gt;   R2_pred </span>
+<span class="co">#&gt; 0.4577095</span></pre></div>
 <p>There we go! R<sup>2</sup> = 0.44 for <code>mod</code> and R<sup>2</sup> = 0.46 for <code>mod_bayes</code>! We can think of this as saying roughly 44% (or 46%) of our response’s variance has been explained by our model, taking into account the various sources of covariance we modeled, subject to a boatload of assumption and caveats of course. That’s handy! See <a href="https://academic.oup.com/sysbio/article/68/2/234/5098616">Ives (2018)</a> for the full description of how this R<sup>2</sup> works.</p>
 </div>
 <div id="auc-specificity-and-true-skill-statistics-tss" class="section level2">
@@ -337,62 +321,59 @@
 <a href="#auc-specificity-and-true-skill-statistics-tss" class="anchor"></a>AUC, Specificity, and True Skill Statistics (TSS)</h2>
 <p>Assessments of predictive accuracy of Species Distribution Models are generally based on confusion matrices that record the numbers of true positive, false positive, true negative, and false negative. Such matrices are straightforward to construct for models providing presence-absence predictions, which is true for most SDMs. Commonly used measures for SDMs include Specificity (true negative rate), Sensitivity (true positive rate), True Skill Statistic (TSS = Sensitivity + Specificity - 1), and area under the receiver operating characteristic (ROC) curve (AUC) (<a href="https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/j.1365-2664.2006.01214.x">Allouche et al. 2006</a>). Combining the observed values with the predictions generated by the <code><a href="../reference/pglmm_predicted_values.html">pglmm_predicted_values()</a></code> function, we can calculate such measures to evaluate the performance of our models.</p>
 <div class="sourceCode" id="cb16"><pre class="downlit">
-<span class="kw">pred_mod</span> <span class="op">=</span> <span class="kw">phyr</span>::<span class="fu"><a href="../reference/pglmm_predicted_values.html">pglmm_predicted_values</a></span>(<span class="kw">mod</span>)<span class="op">$</span><span class="kw">Y_hat</span>
-<span class="kw">obs_mod</span> <span class="op">=</span> <span class="kw">mod</span><span class="op">$</span><span class="kw">data</span><span class="op">$</span><span class="kw">pres</span>
-<span class="kw">roc_mod</span> <span class="op">&lt;-</span> <span class="kw">pROC</span>::<span class="fu"><a href="https://rdrr.io/pkg/pROC/man/roc.html">roc</a></span>(<span class="kw">obs_mod</span>, <span class="kw">pred_mod</span>, percent = <span class="kw">T</span>, direction = <span class="st">"&lt;"</span>, levels = <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span>(<span class="fl">0</span>,<span class="fl">1</span>))
-(<span class="kw">AUC</span> <span class="op">=</span> <span class="kw">pROC</span>::<span class="fu"><a href="https://rdrr.io/pkg/pROC/man/auc.html">auc</a></span>(<span class="kw">roc_mod</span>))
+<span class="va">pred_mod</span> <span class="op">=</span> <span class="fu">phyr</span><span class="fu">::</span><span class="fu"><a href="../reference/pglmm_predicted_values.html">pglmm_predicted_values</a></span><span class="op">(</span><span class="va">mod</span><span class="op">)</span><span class="op">$</span><span class="va">Y_hat</span>
+<span class="va">obs_mod</span> <span class="op">=</span> <span class="va">mod</span><span class="op">$</span><span class="va">data</span><span class="op">$</span><span class="va">pres</span>
+<span class="va">roc_mod</span> <span class="op">&lt;-</span> <span class="fu">pROC</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/pROC/man/roc.html">roc</a></span><span class="op">(</span><span class="va">obs_mod</span>, <span class="va">pred_mod</span>, percent <span class="op">=</span> <span class="cn">T</span>, direction <span class="op">=</span> <span class="st">"&lt;"</span>, levels <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="fl">0</span>,<span class="fl">1</span><span class="op">)</span><span class="op">)</span>
+<span class="op">(</span><span class="va">AUC</span> <span class="op">=</span> <span class="fu">pROC</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/pROC/man/auc.html">auc</a></span><span class="op">(</span><span class="va">roc_mod</span><span class="op">)</span><span class="op">)</span>
 <span class="co">#&gt; Area under the curve: 92.74%</span>
-(<span class="kw">roc_mod_2</span> <span class="op">&lt;-</span> <span class="kw">pROC</span>::<span class="fu"><a href="https://rdrr.io/pkg/pROC/man/coords.html">coords</a></span>(<span class="kw">roc_mod</span>, <span class="st">"best"</span>, ret = <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span>(<span class="st">"sens"</span>, <span class="st">"spec"</span>), transpose = <span class="kw">F</span>) <span class="op">/</span> <span class="fl">100</span>)
+<span class="op">(</span><span class="va">roc_mod_2</span> <span class="op">&lt;-</span> <span class="fu">pROC</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/pROC/man/coords.html">coords</a></span><span class="op">(</span><span class="va">roc_mod</span>, <span class="st">"best"</span>, ret <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="st">"sens"</span>, <span class="st">"spec"</span><span class="op">)</span>, transpose <span class="op">=</span> <span class="cn">F</span><span class="op">)</span> <span class="op">/</span> <span class="fl">100</span><span class="op">)</span>
 <span class="co">#&gt;   sensitivity specificity</span>
 <span class="co">#&gt; 1   0.8561404   0.8494337</span>
-(<span class="kw">TSS</span> <span class="op">=</span> <span class="kw">roc_mod_2</span>[<span class="fl">1</span>, <span class="st">"sensitivity"</span>] <span class="op">+</span> <span class="kw">roc_mod_2</span>[<span class="fl">1</span>, <span class="st">"specificity"</span>] <span class="op">-</span> <span class="fl">1</span>)
+<span class="op">(</span><span class="va">TSS</span> <span class="op">=</span> <span class="va">roc_mod_2</span><span class="op">[</span><span class="fl">1</span>, <span class="st">"sensitivity"</span><span class="op">]</span> <span class="op">+</span> <span class="va">roc_mod_2</span><span class="op">[</span><span class="fl">1</span>, <span class="st">"specificity"</span><span class="op">]</span> <span class="op">-</span> <span class="fl">1</span><span class="op">)</span>
 <span class="co">#&gt; [1] 0.7055741</span>
-<span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html">plot</a></span>(<span class="kw">ROCR</span>::<span class="fu"><a href="https://rdrr.io/pkg/ROCR/man/performance.html">performance</a></span>(<span class="kw">ROCR</span>::<span class="fu"><a href="https://rdrr.io/pkg/ROCR/man/prediction.html">prediction</a></span>(<span class="kw">pred_mod</span>, <span class="kw">obs_mod</span>), measure = <span class="st">"tpr"</span>, 
-                        x.measure = <span class="st">"fpr"</span>), main = <span class="st">"ROC Curve"</span>) <span class="co"># ROC curve</span>
-</pre></div>
+<span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html">plot</a></span><span class="op">(</span><span class="fu">ROCR</span><span class="fu">::</span><span class="fu"><a href="http://ipa-tys.github.io/ROCR/reference/performance.html">performance</a></span><span class="op">(</span><span class="fu">ROCR</span><span class="fu">::</span><span class="fu"><a href="http://ipa-tys.github.io/ROCR/reference/prediction.html">prediction</a></span><span class="op">(</span><span class="va">pred_mod</span>, <span class="va">obs_mod</span><span class="op">)</span>, measure <span class="op">=</span> <span class="st">"tpr"</span>, 
+                        x.measure <span class="op">=</span> <span class="st">"fpr"</span><span class="op">)</span>, main <span class="op">=</span> <span class="st">"ROC Curve"</span><span class="op">)</span> <span class="co"># ROC curve</span></pre></div>
 <p><img src="phyr_example_empirical_files/figure-html/perfML-1.png" width="672"></p>
 <p>We can see that the AUC is pretty high (0.9273677) with the model fitted with maximum likelihood framework (<code>mod</code>). True positive rates and true negative rates are also both reasonably high. What about the model fitted with Bayesian framework (<code>mod_bayes</code>)? Not surprising, the results are similar to those of <code>mod</code>.</p>
 <div class="sourceCode" id="cb17"><pre class="downlit">
-<span class="kw">pred_mod_bayes</span> <span class="op">=</span> <span class="kw">phyr</span>::<span class="fu"><a href="../reference/pglmm_predicted_values.html">pglmm_predicted_values</a></span>(<span class="kw">mod_bayes</span>)<span class="op">$</span><span class="kw">Y_hat</span>
-<span class="kw">obs_mod_bayes</span> <span class="op">=</span> <span class="kw">mod_bayes</span><span class="op">$</span><span class="kw">data</span><span class="op">$</span><span class="kw">pres</span>
-<span class="kw">roc_mod_bayes</span> <span class="op">&lt;-</span> <span class="kw">pROC</span>::<span class="fu"><a href="https://rdrr.io/pkg/pROC/man/roc.html">roc</a></span>(<span class="kw">obs_mod_bayes</span>, <span class="kw">pred_mod_bayes</span>, percent = <span class="kw">T</span>,
-                           direction = <span class="st">"&lt;"</span>, levels = <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span>(<span class="fl">0</span>,<span class="fl">1</span>))
-(<span class="kw">AUC_bayes</span> <span class="op">=</span> <span class="kw">pROC</span>::<span class="fu"><a href="https://rdrr.io/pkg/pROC/man/auc.html">auc</a></span>(<span class="kw">roc_mod_bayes</span>))
+<span class="va">pred_mod_bayes</span> <span class="op">=</span> <span class="fu">phyr</span><span class="fu">::</span><span class="fu"><a href="../reference/pglmm_predicted_values.html">pglmm_predicted_values</a></span><span class="op">(</span><span class="va">mod_bayes</span><span class="op">)</span><span class="op">$</span><span class="va">Y_hat</span>
+<span class="va">obs_mod_bayes</span> <span class="op">=</span> <span class="va">mod_bayes</span><span class="op">$</span><span class="va">data</span><span class="op">$</span><span class="va">pres</span>
+<span class="va">roc_mod_bayes</span> <span class="op">&lt;-</span> <span class="fu">pROC</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/pROC/man/roc.html">roc</a></span><span class="op">(</span><span class="va">obs_mod_bayes</span>, <span class="va">pred_mod_bayes</span>, percent <span class="op">=</span> <span class="cn">T</span>,
+                           direction <span class="op">=</span> <span class="st">"&lt;"</span>, levels <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="fl">0</span>,<span class="fl">1</span><span class="op">)</span><span class="op">)</span>
+<span class="op">(</span><span class="va">AUC_bayes</span> <span class="op">=</span> <span class="fu">pROC</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/pROC/man/auc.html">auc</a></span><span class="op">(</span><span class="va">roc_mod_bayes</span><span class="op">)</span><span class="op">)</span>
 <span class="co">#&gt; Area under the curve: 93.25%</span>
-(<span class="kw">roc_mod_bayes2</span> <span class="op">&lt;-</span> <span class="kw">pROC</span>::<span class="fu"><a href="https://rdrr.io/pkg/pROC/man/coords.html">coords</a></span>(<span class="kw">roc_mod_bayes</span>, <span class="st">"best"</span>, ret = <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span>(<span class="st">"sens"</span>, <span class="st">"spec"</span>),
-                           transpose = <span class="kw">F</span>) <span class="op">/</span> <span class="fl">100</span>)
+<span class="op">(</span><span class="va">roc_mod_bayes2</span> <span class="op">&lt;-</span> <span class="fu">pROC</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/pROC/man/coords.html">coords</a></span><span class="op">(</span><span class="va">roc_mod_bayes</span>, <span class="st">"best"</span>, ret <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="st">"sens"</span>, <span class="st">"spec"</span><span class="op">)</span>,
+                           transpose <span class="op">=</span> <span class="cn">F</span><span class="op">)</span> <span class="op">/</span> <span class="fl">100</span><span class="op">)</span>
 <span class="co">#&gt;   sensitivity specificity</span>
 <span class="co">#&gt; 1    0.877193   0.8387742</span>
-(<span class="kw">TSS_bayes</span> <span class="op">=</span> <span class="kw">roc_mod_bayes2</span>[<span class="fl">1</span>, <span class="st">"sensitivity"</span>] <span class="op">+</span> <span class="kw">roc_mod_bayes2</span>[<span class="fl">1</span>, <span class="st">"specificity"</span>] <span class="op">-</span> <span class="fl">1</span>)
+<span class="op">(</span><span class="va">TSS_bayes</span> <span class="op">=</span> <span class="va">roc_mod_bayes2</span><span class="op">[</span><span class="fl">1</span>, <span class="st">"sensitivity"</span><span class="op">]</span> <span class="op">+</span> <span class="va">roc_mod_bayes2</span><span class="op">[</span><span class="fl">1</span>, <span class="st">"specificity"</span><span class="op">]</span> <span class="op">-</span> <span class="fl">1</span><span class="op">)</span>
 <span class="co">#&gt; [1] 0.7159671</span>
-<span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html">plot</a></span>(<span class="kw">ROCR</span>::<span class="fu"><a href="https://rdrr.io/pkg/ROCR/man/performance.html">performance</a></span>(<span class="kw">ROCR</span>::<span class="fu"><a href="https://rdrr.io/pkg/ROCR/man/prediction.html">prediction</a></span>(<span class="kw">pred_mod_bayes</span>, <span class="kw">obs_mod_bayes</span>), measure = <span class="st">"tpr"</span>, 
-                        x.measure = <span class="st">"fpr"</span>), main = <span class="st">"ROC Curve"</span>) <span class="co"># ROC curve</span>
-</pre></div>
+<span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html">plot</a></span><span class="op">(</span><span class="fu">ROCR</span><span class="fu">::</span><span class="fu"><a href="http://ipa-tys.github.io/ROCR/reference/performance.html">performance</a></span><span class="op">(</span><span class="fu">ROCR</span><span class="fu">::</span><span class="fu"><a href="http://ipa-tys.github.io/ROCR/reference/prediction.html">prediction</a></span><span class="op">(</span><span class="va">pred_mod_bayes</span>, <span class="va">obs_mod_bayes</span><span class="op">)</span>, measure <span class="op">=</span> <span class="st">"tpr"</span>, 
+                        x.measure <span class="op">=</span> <span class="st">"fpr"</span><span class="op">)</span>, main <span class="op">=</span> <span class="st">"ROC Curve"</span><span class="op">)</span> <span class="co"># ROC curve</span></pre></div>
 <p><img src="phyr_example_empirical_files/figure-html/perfBayes-1.png" width="672"></p>
 <p>Now let’s compare the model that does not account for phylogenetic relationships, that is, the regular joint species distribution models.</p>
 <div class="sourceCode" id="cb18"><pre class="downlit">
-<span class="kw">mod_bayes_no_phy</span> <span class="op">&lt;-</span> <span class="kw">phyr</span>::<span class="fu"><a href="../reference/pglmm.html">pglmm</a></span>(<span class="kw">pres</span> <span class="op">~</span> <span class="kw">disturbance</span> <span class="op">+</span> (<span class="fl">1</span> <span class="op">|</span> <span class="kw">sp</span>) <span class="op">+</span> 
-                                  (<span class="fl">1</span> <span class="op">|</span> <span class="kw">site</span>) <span class="op">+</span> (<span class="kw">disturbance</span> <span class="op">|</span> <span class="kw">sp</span>), 
-                            data = <span class="kw">oldfield</span><span class="op">$</span><span class="kw">data</span>, 
-                            family = <span class="st">"binomial"</span>, bayes = <span class="kw">T</span>,
-                            prior = <span class="st">"pc.prior.auto"</span>)
+<span class="va">mod_bayes_no_phy</span> <span class="op">&lt;-</span> <span class="fu">phyr</span><span class="fu">::</span><span class="fu"><a href="../reference/pglmm.html">pglmm</a></span><span class="op">(</span><span class="va">pres</span> <span class="op">~</span> <span class="va">disturbance</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">sp</span><span class="op">)</span> <span class="op">+</span> 
+                                  <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="va">disturbance</span> <span class="op">|</span> <span class="va">sp</span><span class="op">)</span>, 
+                            data <span class="op">=</span> <span class="va">oldfield</span><span class="op">$</span><span class="va">data</span>, 
+                            family <span class="op">=</span> <span class="st">"binomial"</span>, bayes <span class="op">=</span> <span class="cn">T</span>,
+                            prior <span class="op">=</span> <span class="st">"pc.prior.auto"</span><span class="op">)</span>
 
-<span class="kw">pred_mod_bayes_no_phy</span> <span class="op">=</span> <span class="kw">phyr</span>::<span class="fu"><a href="../reference/pglmm_predicted_values.html">pglmm_predicted_values</a></span>(<span class="kw">mod_bayes_no_phy</span>)<span class="op">$</span><span class="kw">Y_hat</span>
-<span class="kw">obs_mod_bayes_no_phy</span> <span class="op">=</span> <span class="kw">mod_bayes_no_phy</span><span class="op">$</span><span class="kw">data</span><span class="op">$</span><span class="kw">pres</span>
-<span class="kw">roc_mod_bayes_no_phy</span> <span class="op">&lt;-</span> <span class="kw">pROC</span>::<span class="fu"><a href="https://rdrr.io/pkg/pROC/man/roc.html">roc</a></span>(<span class="kw">obs_mod_bayes_no_phy</span>, <span class="kw">pred_mod_bayes_no_phy</span>,
-                                  percent = <span class="kw">T</span>, direction = <span class="st">"&lt;"</span>, levels = <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span>(<span class="fl">0</span>,<span class="fl">1</span>))
-(<span class="kw">AUC_bayes_no_phy</span> <span class="op">=</span> <span class="kw">pROC</span>::<span class="fu"><a href="https://rdrr.io/pkg/pROC/man/auc.html">auc</a></span>(<span class="kw">roc_mod_bayes_no_phy</span>))
+<span class="va">pred_mod_bayes_no_phy</span> <span class="op">=</span> <span class="fu">phyr</span><span class="fu">::</span><span class="fu"><a href="../reference/pglmm_predicted_values.html">pglmm_predicted_values</a></span><span class="op">(</span><span class="va">mod_bayes_no_phy</span><span class="op">)</span><span class="op">$</span><span class="va">Y_hat</span>
+<span class="va">obs_mod_bayes_no_phy</span> <span class="op">=</span> <span class="va">mod_bayes_no_phy</span><span class="op">$</span><span class="va">data</span><span class="op">$</span><span class="va">pres</span>
+<span class="va">roc_mod_bayes_no_phy</span> <span class="op">&lt;-</span> <span class="fu">pROC</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/pROC/man/roc.html">roc</a></span><span class="op">(</span><span class="va">obs_mod_bayes_no_phy</span>, <span class="va">pred_mod_bayes_no_phy</span>,
+                                  percent <span class="op">=</span> <span class="cn">T</span>, direction <span class="op">=</span> <span class="st">"&lt;"</span>, levels <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="fl">0</span>,<span class="fl">1</span><span class="op">)</span><span class="op">)</span>
+<span class="op">(</span><span class="va">AUC_bayes_no_phy</span> <span class="op">=</span> <span class="fu">pROC</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/pROC/man/auc.html">auc</a></span><span class="op">(</span><span class="va">roc_mod_bayes_no_phy</span><span class="op">)</span><span class="op">)</span>
 <span class="co">#&gt; Area under the curve: 90.26%</span>
-(<span class="kw">roc_mod_bayes_no_phy2</span> <span class="op">&lt;-</span> <span class="kw">pROC</span>::<span class="fu"><a href="https://rdrr.io/pkg/pROC/man/coords.html">coords</a></span>(<span class="kw">roc_mod_bayes_no_phy</span>, <span class="st">"best"</span>, 
-                                       ret = <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span>(<span class="st">"sens"</span>, <span class="st">"spec"</span>), transpose = <span class="kw">F</span>) <span class="op">/</span> <span class="fl">100</span>)
+<span class="op">(</span><span class="va">roc_mod_bayes_no_phy2</span> <span class="op">&lt;-</span> <span class="fu">pROC</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/pROC/man/coords.html">coords</a></span><span class="op">(</span><span class="va">roc_mod_bayes_no_phy</span>, <span class="st">"best"</span>, 
+                                       ret <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="st">"sens"</span>, <span class="st">"spec"</span><span class="op">)</span>, transpose <span class="op">=</span> <span class="cn">F</span><span class="op">)</span> <span class="op">/</span> <span class="fl">100</span><span class="op">)</span>
 <span class="co">#&gt;   sensitivity specificity</span>
 <span class="co">#&gt; 1   0.8666667   0.8007995</span>
-(<span class="kw">TSS_bayes_no_phy</span> <span class="op">=</span> <span class="kw">roc_mod_bayes_no_phy2</span>[<span class="fl">1</span>, <span class="st">"sensitivity"</span>] <span class="op">+</span> 
-    <span class="kw">roc_mod_bayes_no_phy2</span>[<span class="fl">1</span>, <span class="st">"specificity"</span>] <span class="op">-</span> <span class="fl">1</span>)
+<span class="op">(</span><span class="va">TSS_bayes_no_phy</span> <span class="op">=</span> <span class="va">roc_mod_bayes_no_phy2</span><span class="op">[</span><span class="fl">1</span>, <span class="st">"sensitivity"</span><span class="op">]</span> <span class="op">+</span> 
+    <span class="va">roc_mod_bayes_no_phy2</span><span class="op">[</span><span class="fl">1</span>, <span class="st">"specificity"</span><span class="op">]</span> <span class="op">-</span> <span class="fl">1</span><span class="op">)</span>
 <span class="co">#&gt; [1] 0.6674661</span>
-<span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html">plot</a></span>(<span class="kw">ROCR</span>::<span class="fu"><a href="https://rdrr.io/pkg/ROCR/man/performance.html">performance</a></span>(<span class="kw">ROCR</span>::<span class="fu"><a href="https://rdrr.io/pkg/ROCR/man/prediction.html">prediction</a></span>(<span class="kw">pred_mod_bayes_no_phy</span>, <span class="kw">obs_mod_bayes_no_phy</span>), 
-                       measure = <span class="st">"tpr"</span>, x.measure = <span class="st">"fpr"</span>), main = <span class="st">"ROC Curve"</span>) <span class="co"># ROC curve</span>
-</pre></div>
+<span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html">plot</a></span><span class="op">(</span><span class="fu">ROCR</span><span class="fu">::</span><span class="fu"><a href="http://ipa-tys.github.io/ROCR/reference/performance.html">performance</a></span><span class="op">(</span><span class="fu">ROCR</span><span class="fu">::</span><span class="fu"><a href="http://ipa-tys.github.io/ROCR/reference/prediction.html">prediction</a></span><span class="op">(</span><span class="va">pred_mod_bayes_no_phy</span>, <span class="va">obs_mod_bayes_no_phy</span><span class="op">)</span>, 
+                       measure <span class="op">=</span> <span class="st">"tpr"</span>, x.measure <span class="op">=</span> <span class="st">"fpr"</span><span class="op">)</span>, main <span class="op">=</span> <span class="st">"ROC Curve"</span><span class="op">)</span> <span class="co"># ROC curve</span></pre></div>
 <p><img src="phyr_example_empirical_files/figure-html/perfBayesNoPhy-1.png" width="672"></p>
 <p>Including species’ phylogenetic relationships in the model indeed improved the model performance. After dropping the phylogenetic random terms from the model, <code>AUC</code> decreased from 0.9325 to 0.9026 and <code>TSS</code> decreased from 0.716 to 0.6675.</p>
 </div>
@@ -413,7 +394,7 @@
 </div>
 
 <div class="pkgdown">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/">pkgdown</a> 1.5.1.9000.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/">pkgdown</a> 1.6.1.</p>
 </div>
 
       </footer>

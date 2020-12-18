@@ -74,7 +74,7 @@ c(&quot;binomial&quot;,&quot;poisson&quot;), these values are in the transformed
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">phyr</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.0.3</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.1.0</span>
       </span>
     </div>
 
@@ -145,20 +145,20 @@ values of Y; for the generalized linear mixed model (family %in%
 c("binomial","poisson"), these values are in the transformed space.</p>
     </div>
 
-    <pre class="usage"><span class='fu'><a href='https://rdrr.io/pkg/phyr/man/pglmm-predicted-values.html'>pglmm_predicted_values</a></span>(
-  <span class='kw'>x</span>,
-  cpp = <span class='fl'>TRUE</span>,
-  gaussian.pred = <span class='fu'><a href='https://rdrr.io/r/base/c.html'>c</a></span>(<span class='st'>"nearest_node"</span>, <span class='st'>"tip_rm"</span>),
-  re.form = <span class='kw'>NULL</span>,
-  type = <span class='fu'><a href='https://rdrr.io/r/base/c.html'>c</a></span>(<span class='st'>"link"</span>, <span class='st'>"response"</span>),
-  <span class='kw'>...</span>
-)
+    <pre class="usage"><span class='fu'>pglmm_predicted_values</span><span class='op'>(</span>
+  <span class='va'>x</span>,
+  cpp <span class='op'>=</span> <span class='cn'>TRUE</span>,
+  gaussian.pred <span class='op'>=</span> <span class='fu'><a href='https://rdrr.io/r/base/c.html'>c</a></span><span class='op'>(</span><span class='st'>"nearest_node"</span>, <span class='st'>"tip_rm"</span><span class='op'>)</span>,
+  re.form <span class='op'>=</span> <span class='cn'>NULL</span>,
+  type <span class='op'>=</span> <span class='fu'><a href='https://rdrr.io/r/base/c.html'>c</a></span><span class='op'>(</span><span class='st'>"link"</span>, <span class='st'>"response"</span><span class='op'>)</span>,
+  <span class='va'>...</span>
+<span class='op'>)</span>
 
-<span class='fu'><a href='https://rdrr.io/pkg/phyr/man/pglmm-predicted-values.html'>communityPGLMM.predicted.values</a></span>(
-  <span class='kw'>x</span>,
-  cpp = <span class='fl'>TRUE</span>,
-  gaussian.pred = <span class='fu'><a href='https://rdrr.io/r/base/c.html'>c</a></span>(<span class='st'>"nearest_node"</span>, <span class='st'>"tip_rm"</span>)
-)</pre>
+<span class='fu'>communityPGLMM.predicted.values</span><span class='op'>(</span>
+  <span class='va'>x</span>,
+  cpp <span class='op'>=</span> <span class='cn'>TRUE</span>,
+  gaussian.pred <span class='op'>=</span> <span class='fu'><a href='https://rdrr.io/r/base/c.html'>c</a></span><span class='op'>(</span><span class='st'>"nearest_node"</span>, <span class='st'>"tip_rm"</span><span class='op'>)</span>
+<span class='op'>)</span></pre>
 
     <h2 class="hasAnchor" id="arguments"><a class="anchor" href="#arguments"></a>Arguments</h2>
     <table class="ref-arguments">
@@ -214,7 +214,7 @@ both fixed and random terms).</p>
 </div>
 
 <div class="pkgdown">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/">pkgdown</a> 1.5.1.9000.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/">pkgdown</a> 1.6.1.</p>
 </div>
 
       </footer>

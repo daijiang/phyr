@@ -76,7 +76,7 @@ save time." />
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">phyr</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.0.3</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.1.0</span>
       </span>
     </div>
 
@@ -149,93 +149,93 @@ data, formula, and family, etc. without actually fitting the model, which will
 save time.</p>
     </div>
 
-    <pre class="usage"><span class='fu'>pglmm_plot_ranef</span>(
-  formula = <span class='kw'>NULL</span>,
-  data = <span class='kw'>NULL</span>,
-  family = <span class='st'>"gaussian"</span>,
-  sp.var = <span class='st'>"sp"</span>,
-  site.var = <span class='st'>"site"</span>,
-  tree = <span class='kw'>NULL</span>,
-  tree_site = <span class='kw'>NULL</span>,
-  repulsion = <span class='fl'>FALSE</span>,
-  x = <span class='kw'>NULL</span>,
-  show.image = <span class='fl'>TRUE</span>,
-  show.sim.image = <span class='fl'>FALSE</span>,
-  random.effects = <span class='kw'>NULL</span>,
-  add.tree.sp = <span class='fl'>TRUE</span>,
-  add.tree.site = <span class='fl'>FALSE</span>,
-  cov_ranef = <span class='kw'>NULL</span>,
-  tree.panel.space = <span class='fl'>0.5</span>,
-  title.space = <span class='fl'>5</span>,
-  tree.size = <span class='fl'>3</span>,
-  <span class='kw'>...</span>
-)
+    <pre class="usage"><span class='fu'>pglmm_plot_ranef</span><span class='op'>(</span>
+  formula <span class='op'>=</span> <span class='cn'>NULL</span>,
+  data <span class='op'>=</span> <span class='cn'>NULL</span>,
+  family <span class='op'>=</span> <span class='st'>"gaussian"</span>,
+  sp.var <span class='op'>=</span> <span class='st'>"sp"</span>,
+  site.var <span class='op'>=</span> <span class='st'>"site"</span>,
+  tree <span class='op'>=</span> <span class='cn'>NULL</span>,
+  tree_site <span class='op'>=</span> <span class='cn'>NULL</span>,
+  repulsion <span class='op'>=</span> <span class='cn'>FALSE</span>,
+  x <span class='op'>=</span> <span class='cn'>NULL</span>,
+  show.image <span class='op'>=</span> <span class='cn'>TRUE</span>,
+  show.sim.image <span class='op'>=</span> <span class='cn'>FALSE</span>,
+  random.effects <span class='op'>=</span> <span class='cn'>NULL</span>,
+  add.tree.sp <span class='op'>=</span> <span class='cn'>TRUE</span>,
+  add.tree.site <span class='op'>=</span> <span class='cn'>FALSE</span>,
+  cov_ranef <span class='op'>=</span> <span class='cn'>NULL</span>,
+  tree.panel.space <span class='op'>=</span> <span class='fl'>0.5</span>,
+  title.space <span class='op'>=</span> <span class='fl'>5</span>,
+  tree.size <span class='op'>=</span> <span class='fl'>3</span>,
+  <span class='va'>...</span>
+<span class='op'>)</span>
 
-<span class='fu'>communityPGLMM.show.re</span>(
-  formula = <span class='kw'>NULL</span>,
-  data = <span class='kw'>NULL</span>,
-  family = <span class='st'>"gaussian"</span>,
-  sp.var = <span class='st'>"sp"</span>,
-  site.var = <span class='st'>"site"</span>,
-  tree = <span class='kw'>NULL</span>,
-  tree_site = <span class='kw'>NULL</span>,
-  repulsion = <span class='fl'>FALSE</span>,
-  x = <span class='kw'>NULL</span>,
-  show.image = <span class='fl'>TRUE</span>,
-  show.sim.image = <span class='fl'>FALSE</span>,
-  random.effects = <span class='kw'>NULL</span>,
-  add.tree.sp = <span class='fl'>TRUE</span>,
-  add.tree.site = <span class='fl'>FALSE</span>,
-  cov_ranef = <span class='kw'>NULL</span>,
-  tree.panel.space = <span class='fl'>0.5</span>,
-  title.space = <span class='fl'>5</span>,
-  tree.size = <span class='fl'>3</span>,
-  <span class='kw'>...</span>
-)
+<span class='fu'>communityPGLMM.show.re</span><span class='op'>(</span>
+  formula <span class='op'>=</span> <span class='cn'>NULL</span>,
+  data <span class='op'>=</span> <span class='cn'>NULL</span>,
+  family <span class='op'>=</span> <span class='st'>"gaussian"</span>,
+  sp.var <span class='op'>=</span> <span class='st'>"sp"</span>,
+  site.var <span class='op'>=</span> <span class='st'>"site"</span>,
+  tree <span class='op'>=</span> <span class='cn'>NULL</span>,
+  tree_site <span class='op'>=</span> <span class='cn'>NULL</span>,
+  repulsion <span class='op'>=</span> <span class='cn'>FALSE</span>,
+  x <span class='op'>=</span> <span class='cn'>NULL</span>,
+  show.image <span class='op'>=</span> <span class='cn'>TRUE</span>,
+  show.sim.image <span class='op'>=</span> <span class='cn'>FALSE</span>,
+  random.effects <span class='op'>=</span> <span class='cn'>NULL</span>,
+  add.tree.sp <span class='op'>=</span> <span class='cn'>TRUE</span>,
+  add.tree.site <span class='op'>=</span> <span class='cn'>FALSE</span>,
+  cov_ranef <span class='op'>=</span> <span class='cn'>NULL</span>,
+  tree.panel.space <span class='op'>=</span> <span class='fl'>0.5</span>,
+  title.space <span class='op'>=</span> <span class='fl'>5</span>,
+  tree.size <span class='op'>=</span> <span class='fl'>3</span>,
+  <span class='va'>...</span>
+<span class='op'>)</span>
 
-<span class='fu'>pglmm_plot_re</span>(
-  formula = <span class='kw'>NULL</span>,
-  data = <span class='kw'>NULL</span>,
-  family = <span class='st'>"gaussian"</span>,
-  sp.var = <span class='st'>"sp"</span>,
-  site.var = <span class='st'>"site"</span>,
-  tree = <span class='kw'>NULL</span>,
-  tree_site = <span class='kw'>NULL</span>,
-  repulsion = <span class='fl'>FALSE</span>,
-  x = <span class='kw'>NULL</span>,
-  show.image = <span class='fl'>TRUE</span>,
-  show.sim.image = <span class='fl'>FALSE</span>,
-  random.effects = <span class='kw'>NULL</span>,
-  add.tree.sp = <span class='fl'>TRUE</span>,
-  add.tree.site = <span class='fl'>FALSE</span>,
-  cov_ranef = <span class='kw'>NULL</span>,
-  tree.panel.space = <span class='fl'>0.5</span>,
-  title.space = <span class='fl'>5</span>,
-  tree.size = <span class='fl'>3</span>,
-  <span class='kw'>...</span>
-)
+<span class='fu'>pglmm_plot_re</span><span class='op'>(</span>
+  formula <span class='op'>=</span> <span class='cn'>NULL</span>,
+  data <span class='op'>=</span> <span class='cn'>NULL</span>,
+  family <span class='op'>=</span> <span class='st'>"gaussian"</span>,
+  sp.var <span class='op'>=</span> <span class='st'>"sp"</span>,
+  site.var <span class='op'>=</span> <span class='st'>"site"</span>,
+  tree <span class='op'>=</span> <span class='cn'>NULL</span>,
+  tree_site <span class='op'>=</span> <span class='cn'>NULL</span>,
+  repulsion <span class='op'>=</span> <span class='cn'>FALSE</span>,
+  x <span class='op'>=</span> <span class='cn'>NULL</span>,
+  show.image <span class='op'>=</span> <span class='cn'>TRUE</span>,
+  show.sim.image <span class='op'>=</span> <span class='cn'>FALSE</span>,
+  random.effects <span class='op'>=</span> <span class='cn'>NULL</span>,
+  add.tree.sp <span class='op'>=</span> <span class='cn'>TRUE</span>,
+  add.tree.site <span class='op'>=</span> <span class='cn'>FALSE</span>,
+  cov_ranef <span class='op'>=</span> <span class='cn'>NULL</span>,
+  tree.panel.space <span class='op'>=</span> <span class='fl'>0.5</span>,
+  title.space <span class='op'>=</span> <span class='fl'>5</span>,
+  tree.size <span class='op'>=</span> <span class='fl'>3</span>,
+  <span class='va'>...</span>
+<span class='op'>)</span>
 
-<span class='fu'>communityPGLMM.plot.re</span>(
-  formula = <span class='kw'>NULL</span>,
-  data = <span class='kw'>NULL</span>,
-  family = <span class='st'>"gaussian"</span>,
-  sp.var = <span class='st'>"sp"</span>,
-  site.var = <span class='st'>"site"</span>,
-  tree = <span class='kw'>NULL</span>,
-  tree_site = <span class='kw'>NULL</span>,
-  repulsion = <span class='fl'>FALSE</span>,
-  x = <span class='kw'>NULL</span>,
-  show.image = <span class='fl'>TRUE</span>,
-  show.sim.image = <span class='fl'>FALSE</span>,
-  random.effects = <span class='kw'>NULL</span>,
-  add.tree.sp = <span class='fl'>TRUE</span>,
-  add.tree.site = <span class='fl'>FALSE</span>,
-  cov_ranef = <span class='kw'>NULL</span>,
-  tree.panel.space = <span class='fl'>0.5</span>,
-  title.space = <span class='fl'>5</span>,
-  tree.size = <span class='fl'>3</span>,
-  <span class='kw'>...</span>
-)</pre>
+<span class='fu'>communityPGLMM.plot.re</span><span class='op'>(</span>
+  formula <span class='op'>=</span> <span class='cn'>NULL</span>,
+  data <span class='op'>=</span> <span class='cn'>NULL</span>,
+  family <span class='op'>=</span> <span class='st'>"gaussian"</span>,
+  sp.var <span class='op'>=</span> <span class='st'>"sp"</span>,
+  site.var <span class='op'>=</span> <span class='st'>"site"</span>,
+  tree <span class='op'>=</span> <span class='cn'>NULL</span>,
+  tree_site <span class='op'>=</span> <span class='cn'>NULL</span>,
+  repulsion <span class='op'>=</span> <span class='cn'>FALSE</span>,
+  x <span class='op'>=</span> <span class='cn'>NULL</span>,
+  show.image <span class='op'>=</span> <span class='cn'>TRUE</span>,
+  show.sim.image <span class='op'>=</span> <span class='cn'>FALSE</span>,
+  random.effects <span class='op'>=</span> <span class='cn'>NULL</span>,
+  add.tree.sp <span class='op'>=</span> <span class='cn'>TRUE</span>,
+  add.tree.site <span class='op'>=</span> <span class='cn'>FALSE</span>,
+  cov_ranef <span class='op'>=</span> <span class='cn'>NULL</span>,
+  tree.panel.space <span class='op'>=</span> <span class='fl'>0.5</span>,
+  title.space <span class='op'>=</span> <span class='fl'>5</span>,
+  tree.size <span class='op'>=</span> <span class='fl'>3</span>,
+  <span class='va'>...</span>
+<span class='op'>)</span></pre>
 
     <h2 class="hasAnchor" id="arguments"><a class="anchor" href="#arguments"></a>Arguments</h2>
     <table class="ref-arguments">
@@ -334,13 +334,14 @@ This can be useful to see how the phylogenetic information were included.</p></t
     <tr>
       <th>random.effects</th>
       <td><p>Optional pre-build list of random effects. If <code>NULL</code> (the default),
-the function <code>prep_dat_pglmm</code> will prepare the random effects for you from the information
+the function <code><a href='prep_dat_pglmm.html'>prep_dat_pglmm</a></code> will prepare the random effects for you from the information
 in <code>formula</code>, <code>data</code>, and <code>cov_ranef</code>. <code>random.effect</code> allows a list of
 pre-generated random effects terms to increase flexibility; for example, this makes it
 possible to construct models with both phylogenetic correlation and spatio-temporal autocorrelation.
 In preparing <code>random.effect</code>, make sure that the orders of rows and columns of
 covariance matrices in the list are the same as their corresponding group variables
-in the data.</p></td>
+in the data. Also, this should be <em>a list of lists</em>, e.g.
+<code>random.effects = list(re1 = list(matrix_a), re2 = list(1, sp = sp, covar = Vsp))</code>.</p></td>
     </tr>
     <tr>
       <th>add.tree.sp</th>
@@ -411,7 +412,7 @@ it is a grid object.</p>
 </div>
 
 <div class="pkgdown">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/">pkgdown</a> 1.5.1.9000.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/">pkgdown</a> 1.6.1.</p>
 </div>
 
       </footer>

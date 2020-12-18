@@ -72,7 +72,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">phyr</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.0.3</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.1.0</span>
       </span>
     </div>
 
@@ -138,10 +138,10 @@
     </div>
 
     <div class="ref-description">
-    <p>Calculate pairwise site PCD, users can specify expected values from <code><a href='https://rdrr.io/pkg/phyr/man/pcd_pred.html'>pcd_pred()</a></code>.</p>
+    <p>Calculate pairwise site PCD, users can specify expected values from <code><a href='pcd_pred.html'>pcd_pred()</a></code>.</p>
     </div>
 
-    <pre class="usage"><span class='fu'><a href='https://rdrr.io/pkg/phyr/man/pcd.html'>pcd</a></span>(<span class='kw'>comm</span>, <span class='kw'>tree</span>, expectation = <span class='kw'>NULL</span>, cpp = <span class='fl'>TRUE</span>, verbose = <span class='fl'>TRUE</span>, <span class='kw'>...</span>)</pre>
+    <pre class="usage"><span class='fu'>pcd</span><span class='op'>(</span><span class='va'>comm</span>, <span class='va'>tree</span>, expectation <span class='op'>=</span> <span class='cn'>NULL</span>, cpp <span class='op'>=</span> <span class='cn'>TRUE</span>, verbose <span class='op'>=</span> <span class='cn'>TRUE</span>, <span class='va'>...</span><span class='op'>)</span></pre>
 
     <h2 class="hasAnchor" id="arguments"><a class="anchor" href="#arguments"></a>Arguments</h2>
     <table class="ref-arguments">
@@ -156,7 +156,7 @@
     </tr>
     <tr>
       <th>expectation</th>
-      <td><p>nsp_pool, psv_bar, psv_pool, and nsr calculated from <code><a href='https://rdrr.io/pkg/phyr/man/pcd_pred.html'>pcd_pred()</a></code>.</p></td>
+      <td><p>nsp_pool, psv_bar, psv_pool, and nsr calculated from <code><a href='pcd_pred.html'>pcd_pred()</a></code>.</p></td>
     </tr>
     <tr>
       <th>cpp</th>
@@ -181,8 +181,9 @@
 The American Naturalist, 176(5), E128-E142.</p>
 
     <h2 class="hasAnchor" id="examples"><a class="anchor" href="#examples"></a>Examples</h2>
-    <pre class="examples"><div class='input'><span class='kw'>x1</span> <span class='op'>=</span> <span class='fu'><a href='https://rdrr.io/pkg/phyr/man/pcd_pred.html'>pcd_pred</a></span>(comm_1 = <span class='kw'>comm_a</span>, comm_2 = <span class='kw'>comm_b</span>, tree = <span class='kw'>phylotree</span>, reps = <span class='fl'>100</span>)
-<span class='fu'><a href='https://rdrr.io/pkg/phyr/man/pcd.html'>pcd</a></span>(comm = <span class='kw'>comm_a</span>, tree = <span class='kw'>phylotree</span>, expectation = <span class='kw'>x1</span>)</div><div class='output co'>#&gt; <span class='message'>Dropping tips from the phylogeny that are not in the community data</span></div><div class='output co'>#&gt; 1 2 3 4 5 6 7 8 9 10 11 12 13 14 </div><div class='output co'>#&gt; $PCD
+    <pre class="examples"><div class='input'><span class='va'>x1</span> <span class='op'>=</span> <span class='fu'><a href='pcd_pred.html'>pcd_pred</a></span><span class='op'>(</span>comm_1 <span class='op'>=</span> <span class='va'>comm_a</span>, comm_2 <span class='op'>=</span> <span class='va'>comm_b</span>, tree <span class='op'>=</span> <span class='va'>phylotree</span>, reps <span class='op'>=</span> <span class='fl'>100</span><span class='op'>)</span>
+<span class='fu'>pcd</span><span class='op'>(</span>comm <span class='op'>=</span> <span class='va'>comm_a</span>, tree <span class='op'>=</span> <span class='va'>phylotree</span>, expectation <span class='op'>=</span> <span class='va'>x1</span><span class='op'>)</span>
+</div><div class='output co'>#&gt; <span class='message'>Dropping tips from the phylogeny that are not in the community data</span></div><div class='output co'>#&gt; 1 2 3 4 5 6 7 8 9 10 11 12 13 14 </div><div class='output co'>#&gt; $PCD
 #&gt;           s3293     s3294     s3295     s3296     s3297     s3299     s3300
 #&gt; s3294 0.9386582                                                            
 #&gt; s3295 1.1165949 0.7075770                                                  
@@ -357,7 +358,7 @@ The American Naturalist, 176(5), E128-E142.</p>
 </div>
 
 <div class="pkgdown">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/">pkgdown</a> 1.5.1.9000.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/">pkgdown</a> 1.6.1.</p>
 </div>
 
       </footer>

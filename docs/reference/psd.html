@@ -73,7 +73,7 @@ phylogenetic species variability, richness, evenness and clustering for one or m
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">phyr</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.0.3</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.1.0</span>
       </span>
     </div>
 
@@ -143,38 +143,38 @@ phylogenetic species variability, richness, evenness and clustering for one or m
 phylogenetic species variability, richness, evenness and clustering for one or multiple communities.</p>
     </div>
 
-    <pre class="usage"><span class='fu'><a href='https://rdrr.io/pkg/phyr/man/psd.html'>psv</a></span>(
-  <span class='kw'>comm</span>,
-  <span class='kw'>tree</span>,
-  compute.var = <span class='fl'>TRUE</span>,
-  scale.vcv = <span class='fl'>TRUE</span>,
-  prune.tree = <span class='fl'>FALSE</span>,
-  cpp = <span class='fl'>TRUE</span>
-)
+    <pre class="usage"><span class='fu'>psv</span><span class='op'>(</span>
+  <span class='va'>comm</span>,
+  <span class='va'>tree</span>,
+  compute.var <span class='op'>=</span> <span class='cn'>TRUE</span>,
+  scale.vcv <span class='op'>=</span> <span class='cn'>TRUE</span>,
+  prune.tree <span class='op'>=</span> <span class='cn'>FALSE</span>,
+  cpp <span class='op'>=</span> <span class='cn'>TRUE</span>
+<span class='op'>)</span>
 
-<span class='fu'><a href='https://rdrr.io/pkg/phyr/man/psd.html'>psr</a></span>(
-  <span class='kw'>comm</span>,
-  <span class='kw'>tree</span>,
-  compute.var = <span class='fl'>TRUE</span>,
-  scale.vcv = <span class='fl'>TRUE</span>,
-  prune.tree = <span class='fl'>FALSE</span>,
-  cpp = <span class='fl'>TRUE</span>
-)
+<span class='fu'>psr</span><span class='op'>(</span>
+  <span class='va'>comm</span>,
+  <span class='va'>tree</span>,
+  compute.var <span class='op'>=</span> <span class='cn'>TRUE</span>,
+  scale.vcv <span class='op'>=</span> <span class='cn'>TRUE</span>,
+  prune.tree <span class='op'>=</span> <span class='cn'>FALSE</span>,
+  cpp <span class='op'>=</span> <span class='cn'>TRUE</span>
+<span class='op'>)</span>
 
-<span class='fu'><a href='https://rdrr.io/pkg/phyr/man/psd.html'>pse</a></span>(<span class='kw'>comm</span>, <span class='kw'>tree</span>, scale.vcv = <span class='fl'>TRUE</span>, prune.tree = <span class='fl'>FALSE</span>, cpp = <span class='fl'>TRUE</span>)
+<span class='fu'>pse</span><span class='op'>(</span><span class='va'>comm</span>, <span class='va'>tree</span>, scale.vcv <span class='op'>=</span> <span class='cn'>TRUE</span>, prune.tree <span class='op'>=</span> <span class='cn'>FALSE</span>, cpp <span class='op'>=</span> <span class='cn'>TRUE</span><span class='op'>)</span>
 
-<span class='fu'><a href='https://rdrr.io/pkg/phyr/man/psd.html'>psc</a></span>(<span class='kw'>comm</span>, <span class='kw'>tree</span>, scale.vcv = <span class='fl'>TRUE</span>, prune.tree = <span class='fl'>FALSE</span>)
+<span class='fu'>psc</span><span class='op'>(</span><span class='va'>comm</span>, <span class='va'>tree</span>, scale.vcv <span class='op'>=</span> <span class='cn'>TRUE</span>, prune.tree <span class='op'>=</span> <span class='cn'>FALSE</span><span class='op'>)</span>
 
-<span class='fu'><a href='https://rdrr.io/pkg/phyr/man/psd.html'>psv.spp</a></span>(<span class='kw'>comm</span>, <span class='kw'>tree</span>, scale.vcv = <span class='fl'>TRUE</span>, prune.tree = <span class='fl'>FALSE</span>, cpp = <span class='fl'>TRUE</span>)
+<span class='fu'>psv.spp</span><span class='op'>(</span><span class='va'>comm</span>, <span class='va'>tree</span>, scale.vcv <span class='op'>=</span> <span class='cn'>TRUE</span>, prune.tree <span class='op'>=</span> <span class='cn'>FALSE</span>, cpp <span class='op'>=</span> <span class='cn'>TRUE</span><span class='op'>)</span>
 
-<span class='fu'><a href='https://rdrr.io/pkg/phyr/man/psd.html'>psd</a></span>(
-  <span class='kw'>comm</span>,
-  <span class='kw'>tree</span>,
-  compute.var = <span class='fl'>TRUE</span>,
-  scale.vcv = <span class='fl'>TRUE</span>,
-  prune.tree = <span class='fl'>FALSE</span>,
-  cpp = <span class='fl'>TRUE</span>
-)</pre>
+<span class='fu'>psd</span><span class='op'>(</span>
+  <span class='va'>comm</span>,
+  <span class='va'>tree</span>,
+  compute.var <span class='op'>=</span> <span class='cn'>TRUE</span>,
+  scale.vcv <span class='op'>=</span> <span class='cn'>TRUE</span>,
+  prune.tree <span class='op'>=</span> <span class='cn'>FALSE</span>,
+  cpp <span class='op'>=</span> <span class='cn'>TRUE</span>
+<span class='op'>)</span></pre>
 
     <h2 class="hasAnchor" id="arguments"><a class="anchor" href="#arguments"></a>Arguments</h2>
     <table class="ref-arguments">
@@ -244,7 +244,8 @@ Phylogenetic measures of biodiversity. American Naturalist, 169, E68-E83</p>
     <p>Matthew Helmus <a href='mailto:mrhelmus@gmail.com'>mrhelmus@gmail.com</a></p>
 
     <h2 class="hasAnchor" id="examples"><a class="anchor" href="#examples"></a>Examples</h2>
-    <pre class="examples"><div class='input'><span class='fu'><a href='https://rdrr.io/pkg/phyr/man/psd.html'>psv</a></span>(comm = <span class='kw'>comm_a</span>, tree = <span class='kw'>phylotree</span>) </div><div class='output co'>#&gt;            PSVs SR        vars
+    <pre class="examples"><div class='input'><span class='fu'>psv</span><span class='op'>(</span>comm <span class='op'>=</span> <span class='va'>comm_a</span>, tree <span class='op'>=</span> <span class='va'>phylotree</span><span class='op'>)</span> 
+</div><div class='output co'>#&gt;            PSVs SR        vars
 #&gt; s3293        NA  1          NA
 #&gt; s3294 0.7294797  5 0.002882626
 #&gt; s3295 0.7937525  6 0.001787660
@@ -275,7 +276,7 @@ Phylogenetic measures of biodiversity. American Naturalist, 169, E68-E83</p>
 </div>
 
 <div class="pkgdown">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/">pkgdown</a> 1.5.1.9000.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/">pkgdown</a> 1.6.1.</p>
 </div>
 
       </footer>
