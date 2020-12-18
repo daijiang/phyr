@@ -7,7 +7,7 @@
 #' in which species occur within multiple sites (locations). 
 #' A Bayesian version of PGLMM uses the package \code{INLA}, 
 #' which is not available on CRAN yet. If you wish to use this option, 
-#' you must first install \code{INLA} from \url{http://www.r-inla.org/} by running
+#' you must first install \code{INLA} from \url{https://www.r-inla.org/} by running
 #' \code{install.packages('INLA', repos='https://www.math.ntnu.no/inla/R/stable')} in R.
 #'  
 #'

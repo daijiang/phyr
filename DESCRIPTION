@@ -13,7 +13,7 @@ Description: A collection of functions to do model-based phylogenetic analysis.
     to estimate correlations among functional traits while accounting for 
     phylogenetic relationships, and to fit phylogenetic generalized linear
     mixed models. The Bayesian phylogenetic generalized linear mixed models
-    are fitted with the 'INLA' package (<http://www.r-inla.org>).
+    are fitted with the 'INLA' package (<https://www.r-inla.org>).
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
