@@ -10,7 +10,7 @@
 #' @param df A data frame that includes the group variables, i.e., names of \code{x}.
 #' @return A named list, which includes the processed var-cov matrices of random terms.
 #' @noRd
-parse_conv_ranef = function(x, df){
+parse_conv_ranef = function(x, df, standardise = TRUE){
   if(is.null(names(x))) stop("conv_ranef list must have names")
   x2 = x
   out_list = lapply(1:length(x), function(i){
@@ -41,11 +41,13 @@ parse_conv_ranef = function(x, df){
         warning(paste0("Drop levels from the matrix that are not in the variable ", names(x)[i]), 
                 call. = FALSE, immediate. = TRUE)
       xx = xx[spl, spl] # same order
-      if(abs(det(xx) - 1) > 0.0001){
-        warning("The cov matrix is not standarized, we will do this now...", call. = FALSE, immediate. = TRUE)
-        xx <- xx/max(xx)
-        xx <- xx/exp(determinant(xx)$modulus[1]/nrow(xx))
-        if(abs(det(xx) - 1) > 0.0001) warning("Failed to standarized the cov matrix", call. = FALSE, immediate. = TRUE)
+      if(standardise) {
+        if(abs(det(xx) - 1) > 0.0001){
+          warning("The cov matrix is not standarized, we will do this now...", call. = FALSE, immediate. = TRUE)
+          xx <- xx/max(xx)
+          xx <- xx/exp(determinant(xx)$modulus[1]/nrow(xx))
+          if(abs(det(xx) - 1) > 0.0001) warning("Failed to standarized the cov matrix", call. = FALSE, immediate. = TRUE)
+        }
       }
       Vphy = xx
     }
@@ -54,6 +56,35 @@ parse_conv_ranef = function(x, df){
   })
   names(out_list) = names(x)
   list(updated_orgi_list = x2, cleaned_list = out_list)
+}
+
+prep_ancestral_data <- function(formula, data, cov_ranef, ancestral, return_cov = FALSE) {
+  anc_covs <- cov_ranef[ancestral]
+  
+  for(i in seq_along(anc_covs)) {
+    cnam <- names(anc_covs)[i]
+    node_names <- setdiff(rownames(anc_covs[[i]]), unique(data[ , cnam]))
+    bars <- unique(lme4::findbars(formula))
+    bars <- grep("[@]", bars, value = TRUE)
+    if(length(bars) > 0) {
+      fms = strsplit(grep(cnam, unlist(bars), value = TRUE), "[@]")
+      other <- lapply(fms, function(x) gsub("__", "", x[2]))
+      uniqs <- lapply(other, function(x) unique(data[ , x]))
+      uniqs <- c(list(node_names), uniqs)
+      names(uniqs) <- c(cnam, other)
+      new_data <- do.call(tidyr::expand_grid, uniqs)
+    } else {
+      new_data = dplyr::tibble(!!cnam := node_names)
+    }
+    data <- dplyr::bind_rows(data, new_data)
+  }
+  
+  if(return_cov) {
+    return(list(data, cov_ranef))
+  } else {
+    return(data)
+  }
+  
 }
 
 #' Prepare data for \code{pglmm}
@@ -67,7 +98,9 @@ parse_conv_ranef = function(x, df){
 #' @export
 prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE, 
                           prep.re.effects = TRUE, family = "gaussian",
-                          add.obs.re = TRUE, bayes = FALSE, bayes_nested_matrix_as_list = FALSE){
+                          add.obs.re = TRUE, bayes = FALSE, bayes_nested_matrix_as_list = FALSE,
+                          standardise_cov = TRUE){
+  
   fm = unique(lme4::findbars(formula))
   formula.nobars <- lme4::nobars(formula) # fixed terms
   
@@ -104,7 +137,8 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
                     paste(setdiff(grp_vars2, names(cov_ranef)), collapse = ", "), 
                     ") assigned to have specific cov matrix are not in cov_ranef"))
       }
-      cov_list = parse_conv_ranef(cov_ranef, data)
+      
+      cov_list = parse_conv_ranef(cov_ranef, data, standardise_cov)
       cov_ranef_list = cov_list$cleaned_list
       cov_ranef_updated = cov_list$updated_orgi_list
     } else {
@@ -449,12 +483,14 @@ get_design_matrix = function(formula, data, random.effects, na.action = NULL){
   }
   
   # if any X are NA, set corresponding Y to NA and reset X to zero (NA?)
-  if(any(is.na(X))){
-    for (j in 1:dim(X)[2]) {
-      naj <- is.na(X[, j])
-      Y[naj] <- NA
-      size[naj] <- NA
-      X[naj, ] <- NA
+  if(!bayes) {
+    if(any(is.na(X))){
+      for (j in 1:dim(X)[2]) {
+        naj <- is.na(X[, j])
+        Y[naj] <- NA
+        size[naj] <- NA
+        X[naj, ] <- NA
+      }
     }
   }
   
@@ -543,16 +579,18 @@ get_design_matrix = function(formula, data, random.effects, na.action = NULL){
   }
   
   # code to allow NAs in the data for either Y or X
-  if (any(is.na(Y))) {
-    pickY <- !is.na(Y)
-    Y <- Y[pickY]
-    size <- size[pickY]
-    X <- X[pickY, , drop = FALSE]
-    if (q.nonNested > 0) {
-      Zt <- Zt[, pickY]
-    }
-    if (q.Nested > 0) {
-      for (i in 1:q.Nested) nested[[i]] <- nested[[i]][pickY, pickY]
+  if(!bayes) {
+    if (any(is.na(Y))) {
+      pickY <- !is.na(Y)
+      Y <- Y[pickY]
+      size <- size[pickY]
+      X <- X[pickY, , drop = FALSE]
+      if (q.nonNested > 0) {
+        Zt <- Zt[, pickY]
+      }
+      if (q.Nested > 0) {
+        for (i in 1:q.Nested) nested[[i]] <- nested[[i]][pickY, pickY]
+      }
     }
   }
   
@@ -1406,4 +1444,15 @@ simulate.communityPGLMM <- function(object, nsim = 1, seed = NULL,
   }
   
   sim
+}
+
+bayes_invert <- function(x) {
+  tt <- solve(x)
+  tt[abs(tt) < .Machine$double.eps^0.5] <- 0
+  tt <- Matrix::Matrix(tt)
+  
+  rownames(tt) <- rownames(x)
+  colnames(tt) <- colnames(x)
+  
+  tt
 }
