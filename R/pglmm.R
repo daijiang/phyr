@@ -557,10 +557,10 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
       if(is_ancestral) {
         xx <- cov_ranef[[i]]
         Vphy <- MCMCglmm::inverseA(xx, nodes = "TIPS", scale = TRUE)$Ainv
-        gen_var <- (1 / Matrix::det(Vphy))^(1/ape::Ntip(xx))
+        gen_var <- 1 / exp(Matrix::determinant(Vphy)$modulus[1]/ape::Ntip(xx))
         Vprec <- MCMCglmm::inverseA(xx, nodes = "ALL", scale = TRUE)$Ainv
         Vprec <- Vprec * gen_var
-        Vphy <- solve(Vprec)
+        Vphy <- Matrix::solve(Vprec)
         rownames(Vphy) <- rownames(Vprec)
         colnames(Vphy) <- rownames(Vprec)
         cov_ranef[[i]] <- Vphy

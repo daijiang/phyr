@@ -1447,9 +1447,9 @@ simulate.communityPGLMM <- function(object, nsim = 1, seed = NULL,
 }
 
 bayes_invert <- function(x) {
-  tt <- solve(x)
+  tt <- Matrix::solve(x, sparse = TRUE)
   tt[abs(tt) < .Machine$double.eps^0.5] <- 0
-  tt <- Matrix::Matrix(tt)
+  #tt <- Matrix::Matrix(tt)
   
   rownames(tt) <- rownames(x)
   colnames(tt) <- colnames(x)
