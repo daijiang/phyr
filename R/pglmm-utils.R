@@ -8,13 +8,19 @@
 #' we will prune it and then convert it to a var-cov matrix assuming brownian motion evolution.
 #' We will also standardize all var-cov matrices to have determinant of one.
 #' @param df A data frame that includes the group variables, i.e., names of \code{x}.
+#' @param standardise Should covariance matrices be standardised to have a determinant 
+#' of 1?
 #' @return A named list, which includes the processed var-cov matrices of random terms.
 #' @noRd
 parse_conv_ranef = function(x, df, standardise = TRUE){
   if(is.null(names(x))) stop("conv_ranef list must have names")
   x2 = x
+  if(length(standardise) == 1) {
+    standardise <- rep(standardise, length(x))
+  }
   out_list = lapply(1:length(x), function(i){
     xx = x[[i]]
+    standardise <- standardise[i]
     spl = levels(df[, names(x)[i]])
     if("phylo" %in% class(xx)){
       # phylogeny
@@ -27,9 +33,13 @@ parse_conv_ranef = function(x, df, standardise = TRUE){
         xx = ape::drop.tip(xx, setdiff(xx$tip.label, spl))
       }
       Vphy <- ape::vcv(xx)
-      Vphy <- Vphy/max(Vphy)
-      Vphy <- Vphy/exp(determinant(Vphy)$modulus[1]/ape::Ntip(xx))
+      if(standardise) {
+        Vphy <- Vphy/max(Vphy)
+        Vphy <- Vphy/exp(determinant(Vphy)$modulus[1]/ape::Ntip(xx))
+      } 
+      
       Vphy = Vphy[spl, spl] # same order as species levels
+      
     }
     
     if(inherits(xx, c("matrix", "Matrix"))){
@@ -94,12 +104,18 @@ prep_ancestral_data <- function(formula, data, cov_ranef, ancestral, return_cov 
 #' 
 #' @inheritParams pglmm
 #' @param prep.re.effects Whether to prepare random effects for users.
+#' @param standardise_cov Should vovariance matrices be standardised to have a
+#' determinant of 1? Default is \code{TRUE}
+#' @param verbatim_mode Verbatim mode is for advanced users who want \code{pglmm}
+#' to interpret their formula verbatim, and not add anything they didn't put in
+#' themselves (e.g. a less opinionated version of \code{pglmm})
 #' @return A list with updated formula, random.effects, and updated cov_ranef.
 #' @export
 prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE, 
                           prep.re.effects = TRUE, family = "gaussian",
                           add.obs.re = TRUE, bayes = FALSE, bayes_nested_matrix_as_list = FALSE,
-                          standardise_cov = TRUE){
+                          standardise_cov = TRUE,
+                          verbatim_mode = FALSE){
   
   fm = unique(lme4::findbars(formula))
   formula.nobars <- lme4::nobars(formula) # fixed terms
@@ -177,7 +193,11 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
               stop(paste0("Cov matrix of variable ", coln, " not specified in cov_ranef."))
             xout_phy = list(1, d, covar = cov_ranef_list[[coln]])
             names(xout_phy)[2] = x2[3]
-            xout = list(xout_nonphy, xout_phy)
+            if(!verbatim_mode) {
+              xout = list(xout_nonphy, xout_phy)
+            } else {
+              xout = list(xout_phy)
+            }
           } else { # non phylogenetic random term
             d = data[, x2[3]] # extract the column
             xout = list(1, d, covar = diag(nlevels(d)))
@@ -438,7 +458,11 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
       x2 = as.character(x)
       x3 = paste0(x2[2], x2[1], x2[3])
       if(grepl("__$", x2[3]) & !grepl("@", x2[3])){ # 1|sp__
-        x4 = gsub("__$", "", x3)
+        if(!verbatim_mode) {
+          x4 = gsub("__$", "", x3)
+        } else {
+          x4 <- NULL
+        }
         return(c(x4, x3)) # 1|sp  1|sp__
       }
       x3
@@ -1447,12 +1471,26 @@ simulate.communityPGLMM <- function(object, nsim = 1, seed = NULL,
 }
 
 bayes_invert <- function(x) {
-  tt <- solve(x)
+  tt <- Matrix::solve(x, sparse = TRUE)
   tt[abs(tt) < .Machine$double.eps^0.5] <- 0
-  tt <- Matrix::Matrix(tt)
   
   rownames(tt) <- rownames(x)
   colnames(tt) <- colnames(x)
   
   tt
+}
+
+ancestral_covar <- function(phy, standardise = TRUE) {
+  if(standardise) {
+    Vphy <- MCMCglmm::inverseA(phy, nodes = "TIPS", scale = TRUE)$Ainv
+    gen_var <- 1 / exp(Matrix::determinant(Vphy)$modulus[1]/ape::Ntip(phy))
+  } else {
+    gen_var <- 1
+  }
+  Vprec <- MCMCglmm::inverseA(phy, nodes = "ALL", scale = TRUE)$Ainv
+  Vprec <- Vprec * gen_var
+  Vphy <- Matrix::solve(Vprec)
+  rownames(Vphy) <- rownames(Vprec)
+  colnames(Vphy) <- rownames(Vprec)
+  Vphy
 }

@@ -1,0 +1,234 @@
+---
+title: "ancestral_benchmark"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{ancestral_benchmark}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+This vignette tests how much speed up in `pglmm` models we can get using the `ancestral` mode. It also shows how to extract ancestral character estimates for site occupancy using this mode, and how to use it to model data when you have values for ancestral nodes as well as tips.
+
+First we create a function to simulate data with nested phylogenetic effects, that is, where occupancy across a set of sites has phylogenetic structure (specifically phylogenetic clustering in this case).
+
+```{r setup}
+library(phyr)
+library(ape)
+library(rbenchmark)
+library(ggplot2)
+
+set.seed(20012021)
+
+sim_phylo_comm <- function(nspp, nsite = 10, phy_nested_sd = 1, 
+                           phy_unnested_sd = 1, site_sd = 1,
+                           beta0 = 1, resid_sd = 1) {
+  
+  # construct phylogeny from 'ape'
+  phy <- rcoal(nspp)
+  phy <- compute.brlen(phy, method = "Grafen", power = 0.5)
+  # set up phylogenetic attraction covariance matrix which requires a nested covariance   matrix for phylogenetic attraction
+  Vphy <- vcv(phy)
+  Vphy <- Vphy / max(Vphy)
+  Vphy <- Vphy / exp(determinant(Vphy)$modulus[1] / nspp)
+  
+  # Perform a Cholesky decomposition of Vphy. This is used to generate phylogenetic
+  # signal: a vector of independent normal random variables, when multiplied by the
+  # transpose of the Cholesky deposition of Vphy will have covariance matrix
+  # equal to Vphy. Another way is to use mvtnorm package.
+  cholVnested = Matrix::t(Matrix::chol(kronecker(Matrix::Matrix(diag(1, nrow = nsite)), Matrix::Matrix(Vphy, sparse = TRUE)))) # nested component
+  
+  ## just phylogenetic effect
+  b0_sp <- rTraitCont(phy, sigma = phy_unnested_sd * Vphy[1,1]^.5) 
+  ## just site effect
+  b0_site <- rnorm(nsite, sd = site_sd)
+  
+  # set up data.frame for parameters
+  B <- data.frame(
+    spec = rep(rownames(Vphy), times = nsite),
+    site = rep(seq_len(nsite), each = nspp),
+    b0_sp = rep(b0_sp, times = nsite),
+    b0_site = rep(b0_site, each = nspp)
+  )
+  
+  y <- beta0 + B$b0_sp + B$b0_site +
+    as.matrix(cholVnested %*% Matrix::Matrix(rnorm(nsite * nspp, sd = phy_nested_sd),
+                                   sparse = TRUE)) +
+    rnorm(nspp * nsite, sd = resid_sd)
+  
+  list(phy = phy, data = cbind(y = y, B[ , c("spec", "site")]))
+  
+}
+
+test <- sim_phylo_comm(20)
+test$data
+plot(test$phy)
+```
+Okay, now we setup a series of simulation and fit models to each. We will try several different diversities as twe likely will only see speedups when there are many species. We will also compare the estimates using `ancestral` mode to the regular `phyr` mode to make sure they are consistent.
+
+```{r sim_and_fit} 
+
+n_tips <- c(10, 25, 50, 75, 100, 150, 200, 250, 300, 500)
+sims <- lapply(n_tips,
+               sim_phylo_comm)
+
+fit_and_bench <- function(sim) {
+  
+  bench <- rbenchmark::benchmark(
+    mod = {
+      mod <- pglmm(formula = y ~ 1 + (1 | spec__) +
+                     (1 | site) + (1 | spec__@site), 
+                   repulsion = F, family = "gaussian", 
+                   cov_ranef = list(spec = sim$phy), 
+                   data = sim$data, verbose = F, 
+                   bayes = T,
+                   prior = "pc.prior.auto")
+    },
+    
+    mod_anc = {
+      mod_anc <- pglmm(formula = y ~ 1 + (1 | spec__) +
+                     (1 | site) + (1 | spec__@site), 
+                   repulsion = F, family = "gaussian", 
+                   cov_ranef = list(spec = sim$phy), 
+                   data = sim$data, verbose = F, 
+                   bayes = T,
+                   prior = "pc.prior.auto",
+                   ancestral = "spec")
+    },
+    replications = 1,
+    columns = c("test", "replications", "elapsed",
+                "relative", "user.self", "sys.self")
+  )
+  print(length(sim$phy$tip.label))
+  list(bench = bench, mod = mod, mod_anc = mod_anc)
+}
+
+results <- lapply(sims,
+                  fit_and_bench)
+```
+Let's plot that:
+
+```{r plot_it}
+
+res_df <- lapply(seq_along(results), function(x) data.frame(method = c("Standard",
+                                                                       "Ancestral"),
+                                                 elapsed = results[[x]]$bench$elapsed,
+                                                 num_tips = n_tips[x]))
+
+res_df <- do.call(rbind, res_df)
+
+ggplot(res_df, aes(num_tips, elapsed)) +
+  geom_point(aes(colour = method), size = 2) +
+  geom_path(aes(colour = method)) +
+  theme_minimal()
+
+```
+
+That is much faster! Now let's see if the two methods produce similar results. We will just look at random effects estimates here.
+
+```{r compare_each}
+re_df_1 <- lapply(seq_along(results), function(x) data.frame(method = "Standard",
+                                      re = c(results[[x]]$mod$s2r,
+                                             results[[x]]$mod$s2n,
+                                             results[[x]]$mod$s2resid),
+                                      lower = c(results[[x]]$mod$s2r.ci[ , 1],
+                                                results[[x]]$mod$s2n.ci[ , 1],
+                                                results[[x]]$mod$s2resid.ci[ , 1]),
+                                      upper = c(results[[x]]$mod$s2r.ci[ , 2],
+                                                results[[x]]$mod$s2n.ci[ , 2],
+                                                results[[x]]$mod$s2resid.ci[ , 2]),
+                                      num_tips = n_tips[x],
+                                      effect = c(names(results[[x]]$mod$s2r),
+                                                 names(results[[x]]$mod$s2n),
+                                                 names(results[[x]]$mod$s2resid))))
+
+re_df_1 <- do.call(rbind, re_df_1)
+
+re_df_2 <- lapply(seq_along(results), function(x) data.frame(method = "Ancestral",
+                                      re = c(results[[x]]$mod_anc$s2r,
+                                             results[[x]]$mod_anc$s2n,
+                                             results[[x]]$mod_anc$s2resid),
+                                      lower = c(results[[x]]$mod_anc$s2r.ci[ , 1],
+                                                results[[x]]$mod_anc$s2n.ci[ , 1],
+                                                results[[x]]$mod_anc$s2resid.ci[ , 1]),
+                                      upper = c(results[[x]]$mod_anc$s2r.ci[ , 2],
+                                                results[[x]]$mod_anc$s2n.ci[ , 2],
+                                                results[[x]]$mod_anc$s2resid.ci[ , 2]),
+                                      num_tips = n_tips[x],
+                                      effect = c(names(results[[x]]$mod_anc$s2r),
+                                                 names(results[[x]]$mod_anc$s2n),
+                                                 names(results[[x]]$mod_anc$s2resid))))
+
+re_df_2 <- do.call(rbind, re_df_2)
+
+re_df <- rbind(re_df_1, re_df_2)
+
+ggplot(re_df, aes(effect, re)) +
+  geom_point(aes(colour = method), position = position_dodge(width = 0.5)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, colour = method),
+                position = position_dodge(width = 0.5)) +
+  facet_wrap(~ num_tips, ncol = 3, scales = "free_y") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = -90))
+```
+
+Okay, they produce very nearly identical results, so it looks like everything is good!
+Next, we show how to use the `ancestral` argument to model data where we have response data at internal nodes of the phylogeny. We will simulate a two independent traits along the phylogeny and then create a model where we test whether they are related, with and without accounting for the phylogeny.
+
+```{r sim_traits}
+set.seed(2322)
+
+phy_traits <- rcoal(50)
+phy_traits <- compute.brlen(phy_traits, method = "Grafen", power = 0.5)
+# Vphy_traits <- vcv(phy_traits)
+# Vphy_traits <- Vphy_traits / max(Vphy_traits)
+# Vphy_traits <- Vphy_traits / exp(determinant(Vphy_traits)$modulus[1] / 50)
+
+phy_traits$node.label <- paste0("Node", seq_len(phy_traits$Nnode))
+
+trait_1_sd <- 0.5
+trait_2_sd <- 0.25
+trait_1 <- rTraitCont(phy_traits, 
+                      sigma = trait_1_sd, 
+                      ancestor = TRUE)
+trait_2 <- rTraitCont(phy_traits, 
+                      sigma = trait_2_sd,
+                      ancestor = TRUE)
+
+trait_1 <- trait_1[-which(names(trait_1) == "Node1")]
+trait_2 <- trait_2[-which(names(trait_2) == "Node1")]
+
+summary
+plot(trait_2 ~ trait_1)
+abline(coef(lm(trait_2 ~ trait_1)))
+
+```
+
+Note we haven't put any relationship between our traits in the simulation, there is just a better chance of spuriously creating a correlation thanks to the structure from the phylogeny. Note also that using data from internal nodes exacerbates this problem. Just modelling the tips doesn't show as strong a relationship (though it is still there):
+
+```{r tips_only}
+summary(lm(trait_2[1:Ntip(phy_traits)] ~ trait_1[1:Ntip(phy_traits)]))
+```
+
+Now we fit using `pglmm` from `phyr`, and use the ancestral argument to try and estimate and account for phylogenetic structure in the node-level data. We use the `verbatim_mode` flag to tell `pglmm` to interpret our formula verbatim, otherwise it will add a species-level iid random effect automatically when we include a phylogenetic random effect, which we do not want here, since the residual is already at the species-level.
+
+```{r try_phyr}
+trait_df <- data.frame(trait_1 = trait_1, trait_2 = trait_2, 
+                       phy = names(trait_1))
+mod_traits <- pglmm(trait_2 ~ trait_1 + (1 | phy__),
+                    data = trait_df,
+                    cov_ranef = list(phy = phy_traits),
+                    ancestral = "phy",
+                    prior = "pc.prior.auto",
+                    bayes = TRUE,
+                    verbatim_mode = TRUE)
+
+summary(mod_traits)
+```
+
+So this has worked perfectly. The model that accounts for the phylogenetic structure in the node-level data has an estimate near zero and whose credible interval well overlaps zero, which is correct, since we simulated the two traits completely independently. Note also that the intercept estimate is better as well, since this should correspond roughly to the value at the root, which in our simulation was zero (according to the `rTraitCont` default). We can also see the estimate of the phylogenetic random effect has a standard deviation of about 0.23, which is very close to the true value we used in the simulation for the second trait (0.25).
