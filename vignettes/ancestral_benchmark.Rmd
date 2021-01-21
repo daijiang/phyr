@@ -73,7 +73,7 @@ Okay, now we setup a series of simulation and fit models to each. We will try se
 
 ```{r sim_and_fit} 
 
-n_tips <- c(10, 25, 50, 75, 100, 150, 200, 250, 300)
+n_tips <- c(10, 25, 50, 75, 100, 150, 200, 250, 300, 500)
 sims <- lapply(n_tips,
                sim_phylo_comm)
 
@@ -178,4 +178,57 @@ ggplot(re_df, aes(effect, re)) +
 ```
 
 Okay, they produce very nearly identical results, so it looks like everything is good!
+Next, we show how to use the `ancestral` argument to model data where we have response data at internal nodes of the phylogeny. We will simulate a two independent traits along the phylogeny and then create a model where we test whether they are related, with and without accounting for the phylogeny.
 
+```{r sim_traits}
+set.seed(2322)
+
+phy_traits <- rcoal(50)
+phy_traits <- compute.brlen(phy_traits, method = "Grafen", power = 0.5)
+# Vphy_traits <- vcv(phy_traits)
+# Vphy_traits <- Vphy_traits / max(Vphy_traits)
+# Vphy_traits <- Vphy_traits / exp(determinant(Vphy_traits)$modulus[1] / 50)
+
+phy_traits$node.label <- paste0("Node", seq_len(phy_traits$Nnode))
+
+trait_1_sd <- 0.5
+trait_2_sd <- 0.25
+trait_1 <- rTraitCont(phy_traits, 
+                      sigma = trait_1_sd, 
+                      ancestor = TRUE)
+trait_2 <- rTraitCont(phy_traits, 
+                      sigma = trait_2_sd,
+                      ancestor = TRUE)
+
+trait_1 <- trait_1[-which(names(trait_1) == "Node1")]
+trait_2 <- trait_2[-which(names(trait_2) == "Node1")]
+
+summary
+plot(trait_2 ~ trait_1)
+abline(coef(lm(trait_2 ~ trait_1)))
+
+```
+
+Note we haven't put any relationship between our traits in the simulation, there is just a better chance of spuriously creating a correlation thanks to the structure from the phylogeny. Note also that using data from internal nodes exacerbates this problem. Just modelling the tips doesn't show as strong a relationship (though it is still there):
+
+```{r tips_only}
+summary(lm(trait_2[1:Ntip(phy_traits)] ~ trait_1[1:Ntip(phy_traits)]))
+```
+
+Now we fit using `pglmm` from `phyr`, and use the ancestral argument to try and estimate and account for phylogenetic structure in the node-level data. We use the `verbatim_mode` flag to tell `pglmm` to interpret our formula verbatim, otherwise it will add a species-level iid random effect automatically when we include a phylogenetic random effect, which we do not want here, since the residual is already at the species-level.
+
+```{r try_phyr}
+trait_df <- data.frame(trait_1 = trait_1, trait_2 = trait_2, 
+                       phy = names(trait_1))
+mod_traits <- pglmm(trait_2 ~ trait_1 + (1 | phy__),
+                    data = trait_df,
+                    cov_ranef = list(phy = phy_traits),
+                    ancestral = "phy",
+                    prior = "pc.prior.auto",
+                    bayes = TRUE,
+                    verbatim_mode = TRUE)
+
+summary(mod_traits)
+```
+
+So this has worked perfectly. The model that accounts for the phylogenetic structure in the node-level data has an estimate near zero and whose credible interval well overlaps zero, which is correct, since we simulated the two traits completely independently. Note also that the intercept estimate is better as well, since this should correspond roughly to the value at the root, which in our simulation was zero (according to the `rTraitCont` default). We can also see the estimate of the phylogenetic random effect has a standard deviation of about 0.23, which is very close to the true value we used in the simulation for the second trait (0.25).

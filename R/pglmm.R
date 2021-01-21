@@ -229,6 +229,12 @@
 #' @param ancestral A character vector naming which elements of \code{cov_ranef} that should be converted to full ancestral covariance matrices. 
 #' This is only used if \code{bayes = TRUE}, and leads to a speed up with large phylogenies, and also allows predictions of the response for ancestors 
 #' (e.g. ancestral character estimates or ACEs).
+#' @param verbatim_mode Verbatim mode is for advanced users who want \code{pglmm}
+#' to interpret their formula verbatim, and not add anything they didn't put in
+#' themselves (e.g. a less opinionated version of \code{pglmm}). It also
+#' supresses automatic covariance matrix standardisation, and turns off
+#' automatically adding an observation-level random effect for certain
+#' families (so \code{add.obs.re} is ignored with \code{verbatim_mode = TRUE})
 #' @return An object (list) of class \code{communityPGLMM} with the following elements:
 #' \item{formula}{the formula for fixed effects}
 #' \item{formula_original}{the formula for both fixed effects and random effects}
@@ -497,19 +503,26 @@
 #' } 
 
 pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
-                           random.effects = NULL, REML = TRUE, 
-                           optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"),
-                           repulsion = FALSE, add.obs.re = TRUE, verbose = FALSE, 
-                           cpp = TRUE, bayes = FALSE, 
-                           s2.init = NULL, B.init = NULL, reltol = 10^-6, 
-                           maxit = 500, tol.pql = 10^-6, maxit.pql = 200,  
-                           marginal.summ = "mean", calc.DIC = TRUE, calc.WAIC = TRUE, prior = "inla.default", 
-                           prior_alpha = 0.1, prior_mu = 1, ML.init = FALSE,
-                           tree = NULL, tree_site = NULL, sp = NULL, site = NULL, bayes_options = NULL,
-                  bayes_nested_matrix_as_list = FALSE, ancestral = NULL
-                           ) {
+                  random.effects = NULL, REML = TRUE, 
+                  optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"),
+                  repulsion = FALSE, add.obs.re = TRUE, verbose = FALSE, 
+                  cpp = TRUE, bayes = FALSE, 
+                  s2.init = NULL, B.init = NULL, reltol = 10^-6, 
+                  maxit = 500, tol.pql = 10^-6, maxit.pql = 200,  
+                  marginal.summ = "mean", calc.DIC = TRUE, calc.WAIC = TRUE, prior = "inla.default", 
+                  prior_alpha = 0.1, prior_mu = 1, ML.init = FALSE,
+                  tree = NULL, tree_site = NULL, sp = NULL, site = NULL, bayes_options = NULL,
+                  bayes_nested_matrix_as_list = FALSE, ancestral = NULL,
+                  verbatim_mode = FALSE) {
 
   optimizer = match.arg(optimizer)
+  
+  if(verbatim_mode) {
+    standardise <- FALSE
+    add.obs.re <- FALSE
+  } else {
+    standardise <- TRUE
+  }
   
   if ((family %nin% c("gaussian", "binomial", "poisson")) & (bayes == FALSE)){
     stop("\nSorry, but only binomial, poisson and gaussian options are available for
@@ -550,27 +563,20 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
       }
     }
     
-    standardise <- FALSE
+    standardise <- rep(standardise, length(cov_ranef))
     
     for(i in seq_along(cov_ranef)) {
       is_ancestral <- names(cov_ranef)[i] %in% ancestral
       if(is_ancestral) {
-        xx <- cov_ranef[[i]]
-        Vphy <- MCMCglmm::inverseA(xx, nodes = "TIPS", scale = TRUE)$Ainv
-        gen_var <- 1 / exp(Matrix::determinant(Vphy)$modulus[1]/ape::Ntip(xx))
-        Vprec <- MCMCglmm::inverseA(xx, nodes = "ALL", scale = TRUE)$Ainv
-        Vprec <- Vprec * gen_var
-        Vphy <- Matrix::solve(Vprec)
-        rownames(Vphy) <- rownames(Vprec)
-        colnames(Vphy) <- rownames(Vprec)
+        Vphy <- ancestral_covar(cov_ranef[[i]], 
+                                standardise = !verbatim_mode)
         cov_ranef[[i]] <- Vphy
+        standardise[i] <- FALSE
       } 
     }
     
     data <- prep_ancestral_data(formula, data, cov_ranef, ancestral)
-  } else {
-    standardise <- FALSE
-  }
+  } 
   
   data = as.data.frame(data) # in case of tibbles
   fm_original = formula
@@ -585,7 +591,7 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
       if(is.null(tree) & !is.null(tree_site)) cov_ranef = list(site = tree_site) # column name must be site
       if(!is.null(tree) & !is.null(tree_site)) cov_ranef = list(sp = tree, site = tree_site)
     }
-    dat_prepared = prep_dat_pglmm(formula, data, cov_ranef, repulsion, prep_re, family, add.obs.re, bayes, bayes_nested_matrix_as_list, standardise)
+    dat_prepared = prep_dat_pglmm(formula, data, cov_ranef, repulsion, prep_re, family, add.obs.re, bayes, bayes_nested_matrix_as_list, standardise, verbatim_mode = verbatim_mode)
     formula = dat_prepared$formula
     random.effects = dat_prepared$random.effects
     cov_ranef_updated = dat_prepared$cov_ranef_updated
