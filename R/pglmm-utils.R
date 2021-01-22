@@ -74,19 +74,22 @@ prep_ancestral_data <- function(formula, data, cov_ranef, ancestral, return_cov 
   for(i in seq_along(anc_covs)) {
     cnam <- names(anc_covs)[i]
     node_names <- setdiff(rownames(anc_covs[[i]]), unique(data[ , cnam]))
-    bars <- unique(lme4::findbars(formula))
-    bars <- grep("[@]", bars, value = TRUE)
-    if(length(bars) > 0) {
-      fms = strsplit(grep(cnam, unlist(bars), value = TRUE), "[@]")
-      other <- lapply(fms, function(x) gsub("__", "", x[2]))
-      uniqs <- lapply(other, function(x) unique(data[ , x]))
-      uniqs <- c(list(node_names), uniqs)
-      names(uniqs) <- c(cnam, other)
-      new_data <- do.call(tidyr::expand_grid, uniqs)
-    } else {
-      new_data = dplyr::tibble(!!cnam := node_names)
-    }
-    data <- dplyr::bind_rows(data, new_data)
+    if(length(node_names) > 0) {
+      bars <- unique(lme4::findbars(formula))
+      bars <- grep("[@]", bars, value = TRUE)
+      if(length(bars) > 0) {
+        fms <- strsplit(grep(cnam, unlist(bars), value = TRUE), "[@]")
+        other <- lapply(fms, function(x) gsub("__", "", x[2]))
+        uniqs <- lapply(other, function(x) unique(data[ , x]))
+        uniqs <- c(list(node_names), uniqs)
+        names(uniqs) <- c(cnam, other)
+        new_data <- do.call(tidyr::expand_grid, uniqs)
+      } else {
+        new_data <- dplyr::tibble(!!cnam := node_names)
+      }
+      new_data <- dplyr::distinct(new_data)
+      data <- dplyr::bind_rows(data, new_data)
+    } 
   }
   
   if(return_cov) {

@@ -547,6 +547,8 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
     }
   }
   
+  data = as.data.frame(data) # in case of tibbles
+  
   ## add dummy data for ancestral nodes
   if(!is.null(ancestral)) {
 
@@ -577,8 +579,7 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
     
     data <- prep_ancestral_data(formula, data, cov_ranef, ancestral)
   } 
-  
-  data = as.data.frame(data) # in case of tibbles
+
   fm_original = formula
   prep_re = if(is.null(random.effects)) TRUE else FALSE
   if(prep_re) {
