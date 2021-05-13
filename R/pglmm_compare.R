@@ -289,7 +289,11 @@ pglmm_compare <- function(formula, family = "gaussian",
     data <- data[match(sp, phy$tip.label),]
   }
   
-  re.1 <- list(covar = vcv(phy))
+  Vphy <- ape::vcv(phy)
+  Vphy <- Vphy/max(Vphy)
+  Vphy <- Vphy/exp(determinant(Vphy)$modulus[1]/ape::Ntip(phy))
+  
+  re.1 <- list(covar = Vphy)
   
   z <- pglmm(formula = formula, data = data, family = family, 
              random.effects = list(re.1), REML = REML,
