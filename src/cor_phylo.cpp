@@ -71,12 +71,14 @@ double cor_phylo_LL(NumericVector par,
   arma::mat C = make_C(n, p, tau, d, Vphy, R);
   
   arma::mat V = make_V(C, MM);
+  if (V.has_nan() || V.has_inf()) return MAX_RETURN;
   double rcond_dbl = 0;
   rcond_dbl = arma::rcond(V);
   if (!arma::is_finite(rcond_dbl) || rcond_dbl < rcond_threshold) return MAX_RETURN;
   
   arma::mat iV = arma::inv(V);
   arma::mat denom = UU.t() * iV * UU;
+  if (denom.has_nan() || denom.has_inf()) return MAX_RETURN;
   rcond_dbl = arma::rcond(denom);
   if (!arma::is_finite(rcond_dbl) || rcond_dbl < rcond_threshold) return MAX_RETURN;
   
@@ -149,12 +151,20 @@ std::vector<double> return_rcond_vals(XPtr<LogLikInfo> ll_info) {
   
   arma::mat V = make_V(C, MM);
   double rcond_dbl = 0;
-  rcond_dbl = arma::rcond(V);
+  if (V.has_nan() || V.has_inf()) {
+    rcond_dbl = arma::datum::nan;
+  } else {
+    rcond_dbl = arma::rcond(V);
+  }
   rconds_out[0] = rcond_dbl;
   
   arma::mat iV = arma::inv(V);
   arma::mat denom = UU.t() * iV * UU;
-  rcond_dbl = arma::rcond(denom);
+  if (denom.has_nan() || denom.has_inf()) {
+    rcond_dbl = arma::datum::nan;
+  } else {
+    rcond_dbl = arma::rcond(denom);
+  }
   rconds_out[1] = rcond_dbl;
   
   return rconds_out;
