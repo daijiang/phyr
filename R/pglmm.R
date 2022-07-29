@@ -990,8 +990,10 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     Y <- Y[, 1] # success
     # update formula
     left_side = all.vars(update(formula, .~0))[1]
-    formula_bayes = as.formula(gsub(pattern = "^(cbind[(].*[)])",
-                                    replacement = left_side, x = deparse(formula)))
+    formula_bayes <- formula
+    formula_bayes[[2]] <- as.name(left_side)
+    # formula_bayes = as.formula(gsub(pattern = "^(cbind[(].*[)])",
+    #                                 replacement = left_side, x = deparse(formula)))
   } else {
     formula_bayes = formula
     Ntrials = NULL
