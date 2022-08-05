@@ -38,9 +38,11 @@ jobs:
           r-version: ${{ matrix.config.r }}
           http-user-agent: ${{ matrix.config.http-user-agent }}
           use-public-rspm: true
+          extra-repositories: "https://inla.r-inla-download.org/R/testing"
 
       - uses: r-lib/actions/setup-r-dependencies@v1
         with:
+          dependencies: '"all"'
           extra-packages: rcmdcheck
 
       - uses: r-lib/actions/check-r-package@v1

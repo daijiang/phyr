@@ -20,9 +20,11 @@ jobs:
       - uses: r-lib/actions/setup-r@v1
         with:
           use-public-rspm: true
+          extra-repositories: "https://inla.r-inla-download.org/R/testing"
 
       - uses: r-lib/actions/setup-r-dependencies@v1
         with:
+          dependencies: '"all"'
           extra-packages: covr
 
       - name: Test coverage
