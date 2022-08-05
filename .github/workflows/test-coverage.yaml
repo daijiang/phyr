@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      '_R_CHECK_LENGTH_1_LOGIC2_':FALSE
 
     steps:
       - uses: actions/checkout@v2

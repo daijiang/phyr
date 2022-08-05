@@ -46,3 +46,5 @@ jobs:
           extra-packages: rcmdcheck
 
       - uses: r-lib/actions/check-r-package@v2
+        env:
+          '_R_CHECK_LENGTH_1_LOGIC2_':FALSE
