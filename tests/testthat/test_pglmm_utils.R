@@ -1,4 +1,4 @@
-context("test utils functions for phylogenetic GLMMs")
+#context("test utils functions for phylogenetic GLMMs")
 
 test_that("ignore these tests when on CRAN since they are time consuming", {
   testthat::skip_on_cran()
@@ -47,9 +47,9 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   )
   
   # test predicted values
-  expect_equivalent(
+  expect_equal(
     phyr::pglmm_predicted_values(x2, gaussian.pred = 'tip_rm')$Y_hat, 
-    pez::communityPGLMM.predicted.values(x2, show.plot = FALSE)[, 1]
+    pez::communityPGLMM.predicted.values(x2, show.plot = FALSE)[, 1], ignore_attr = TRUE
   )
   
   # not equal because of different methods used

@@ -162,7 +162,7 @@
 // #                          mu, C, rcondflag, B.init, X, XX, est.B, y, n, b)
 // # xx2 = binpglmm_inter_while(est.B.m, oldest.B.m, B, tol.pql, iteration.m, maxit.pql, mu,
 // #                      C, rcondflag, B.init, X, XX, est.B, y, n, b)
-// # # testthat::expect_equivalent(xx1, xx2)
+// # # testthat::expect_equal(xx1, xx2)
 // # round(xx1$Z[,1], 5) == round(unname(xx2$Z[,1]), 5)
 // # xx1$B
 // # xx2$B

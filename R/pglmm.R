@@ -1195,6 +1195,9 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   if(is.null(argus$control.compute$config)) {
     argus$control.compute$config <- TRUE
   }
+  if(is.null(argus$control.compute$return.marginals.predictor)) {
+    argus$control.compute$return.marginals.predictor <- TRUE
+  }
   
   if(is.null(argus$control.predictor)) {
     argus$control.predictor = list(compute = TRUE, link = 1)
