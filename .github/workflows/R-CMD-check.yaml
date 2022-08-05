@@ -27,6 +27,7 @@ jobs:
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
+      _R_CHECK_LENGTH_1_LOGIC2_: FALSE
 
     steps:
       - uses: actions/checkout@v2
@@ -46,5 +47,3 @@ jobs:
           extra-packages: rcmdcheck
 
       - uses: r-lib/actions/check-r-package@v2
-        env:
-          '_R_CHECK_LENGTH_1_LOGIC2_':FALSE
