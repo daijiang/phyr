@@ -21,18 +21,18 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   dat = dplyr::filter(dat, sp %in% sample(unique(dat$sp), 5), site %in% sample(unique(dat$site), 8))
   
   test_fit_equal = function(m1, m2) {
-    expect_equal(m1$B, m2$B, ignore_attr = TRUE)
-    expect_equal(m1$B.se, m2$B.se, ignore_attr = TRUE)
-    expect_equal(m1$B.pvalue, m2$B.pvalue, ignore_attr = TRUE)
-    expect_equal(m1$ss, m2$ss, ignore_attr = TRUE)
-    expect_equal(m1$AIC, m2$AIC, ignore_attr = TRUE)
+    expect_equal(m1$B, m2$B, ignore_attr = TRUE, tolerance = 1e-3)
+    expect_equal(m1$B.se, m2$B.se, ignore_attr = TRUE, tolerance = 1e-3)
+    expect_equal(m1$B.pvalue, m2$B.pvalue, ignore_attr = TRUE, tolerance = 1e-3)
+    expect_equal(m1$ss, m2$ss, ignore_attr = TRUE, tolerance = 1e-3)
+    expect_equal(m1$AIC, m2$AIC, ignore_attr = TRUE, tolerance = 1e-3)
   }
   
   test_fit_equal2 = function(m1, m2) {
-    expect_equal(m1$B, m2$B, ignore_attr = TRUE)
-    expect_equal(m1$B.se, m2$B.se, ignore_attr = TRUE)
-    expect_equal(m1$B.pvalue, m2$B.pvalue, ignore_attr = TRUE)
-    expect_equal(m1$ss, m2$ss, ignore_attr = TRUE)
+    expect_equal(m1$B, m2$B, ignore_attr = TRUE, tolerance = 1e-3)
+    expect_equal(m1$B.se, m2$B.se, ignore_attr = TRUE, tolerance = 1e-3)
+    expect_equal(m1$B.pvalue, m2$B.pvalue, ignore_attr = TRUE, tolerance = 1e-3)
+    expect_equal(m1$ss, m2$ss, ignore_attr = TRUE, tolerance = 1e-3)
   }
   
   # poisson plmm
