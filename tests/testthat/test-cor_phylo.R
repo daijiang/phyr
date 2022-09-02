@@ -1,4 +1,4 @@
-context("test cor_phylo output")
+#context("test cor_phylo output")
 
 test_that("cor_phylo produces proper output", {
   
@@ -60,11 +60,12 @@ test_that("cor_phylo produces proper output", {
   
   # ----------------------------*
   
-  expect_is(phyr_cp, "cor_phylo")
-  expect_equivalent(names(phyr_cp), c("corrs", "d", "B", "B_cov", "logLik", "AIC",
+  expect_s3_class(phyr_cp, "cor_phylo")
+  expect_equal(names(phyr_cp), c("corrs", "d", "B", "B_cov", "logLik", "AIC",
                                       "BIC", "niter", "convcode", "rcond_vals",
                                       "bootstrap", "call"),
-                    label = "Names not correct.")
+                    label = "Names not correct.",
+               ignore_attr = TRUE)
   phyr_cp_names <- sapply(names(phyr_cp), function(x) class(phyr_cp[[x]]))
   expected_classes <- c(corrs = "matrix", d = "matrix", B = "matrix", B_cov = "matrix", 
                         logLik = "numeric", AIC = "numeric", BIC = "numeric", 
@@ -72,7 +73,7 @@ test_that("cor_phylo produces proper output", {
                         bootstrap = "list", call = "call")
   expect_class_equal <- function(par_name) {
     eval(bquote(expect_equal(class(phyr_cp[[.(par_name)]])[1], 
-                             expected_classes[[.(par_name)]])))
+                             expected_classes[[.(par_name)]], ignore_attr = TRUE)))
   }
   for (n_ in names(phyr_cp)) expect_class_equal(n_)
   
@@ -82,7 +83,7 @@ test_that("cor_phylo produces proper output", {
   
   expect_par_equal <- function(cp_par, ape_par = NULL) {
     if (is.null(ape_par)) ape_par <- cp_par
-    eval(bquote(expect_equivalent(phyr_cp[[.(cp_par)]], ape_cp[[.(ape_par)]])))
+    eval(bquote(expect_equal(phyr_cp[[.(cp_par)]], ape_cp[[.(ape_par)]], ignore_attr = TRUE)))
   }
   expect_par_equal("corrs", "cor.matrix")
   expect_par_equal("logLik")
@@ -112,11 +113,12 @@ test_that("cor_phylo produces proper output", {
                        REML = FALSE,
                        species = ~ species, method = "subplex")
   
-  expect_is(phyr_cp, "cor_phylo")
-  expect_equivalent(names(phyr_cp), c("corrs", "d", "B", "B_cov", "logLik", "AIC",
+  expect_s3_class(phyr_cp, "cor_phylo")
+  expect_equal(names(phyr_cp), c("corrs", "d", "B", "B_cov", "logLik", "AIC",
                                       "BIC", "niter", "convcode", "rcond_vals",
                                       "bootstrap", "call"),
-                    label = "Names not correct.")
+                    label = "Names not correct.", 
+               ignore_attr = TRUE)
   phyr_cp_names <- sapply(names(phyr_cp), function(x) class(phyr_cp[[x]]))
   expected_classes <- c(corrs = "matrix", d = "matrix", B = "matrix", B_cov = "matrix", 
                         logLik = "numeric", AIC = "numeric", BIC = "numeric", 

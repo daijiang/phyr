@@ -1,4 +1,4 @@
-context("test phylogenetic GLMMs")
+#context("test phylogenetic GLMMs")
 
 test_that("ignore these tests when on CRAN since they are time consuming", {
   testthat::skip_on_cran()
@@ -21,18 +21,18 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   dat = dplyr::filter(dat, sp %in% sample(unique(dat$sp), 5), site %in% sample(unique(dat$site), 8))
   
   test_fit_equal = function(m1, m2) {
-    expect_equivalent(m1$B, m2$B)
-    expect_equivalent(m1$B.se, m2$B.se)
-    expect_equivalent(m1$B.pvalue, m2$B.pvalue)
-    expect_equivalent(m1$ss, m2$ss)
-    expect_equivalent(m1$AIC, m2$AIC)
+    expect_equal(m1$B, m2$B, ignore_attr = TRUE, tolerance = 1e-3)
+    expect_equal(m1$B.se, m2$B.se, ignore_attr = TRUE, tolerance = 1e-3)
+    expect_equal(m1$B.pvalue, m2$B.pvalue, ignore_attr = TRUE, tolerance = 1e-3)
+    expect_equal(m1$ss, m2$ss, ignore_attr = TRUE, tolerance = 1e-3)
+    expect_equal(m1$AIC, m2$AIC, ignore_attr = TRUE, tolerance = 1e-3)
   }
   
   test_fit_equal2 = function(m1, m2) {
-    expect_equivalent(m1$B, m2$B)
-    expect_equivalent(m1$B.se, m2$B.se)
-    expect_equivalent(m1$B.pvalue, m2$B.pvalue)
-    expect_equivalent(m1$ss, m2$ss)
+    expect_equal(m1$B, m2$B, ignore_attr = TRUE, tolerance = 1e-3)
+    expect_equal(m1$B.se, m2$B.se, ignore_attr = TRUE, tolerance = 1e-3)
+    expect_equal(m1$B.pvalue, m2$B.pvalue, ignore_attr = TRUE, tolerance = 1e-3)
+    expect_equal(m1$ss, m2$ss, ignore_attr = TRUE, tolerance = 1e-3)
   }
   
   # poisson plmm
@@ -145,17 +145,17 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
       bayes = TRUE, ML.init = FALSE, family = "poisson")
     
     test_that("Bayesian communityPGLMM produced correct object", {
-      expect_is(test1_gaussian_bayes, "communityPGLMM")
-      # expect_is(test1_gaussian_bayes_noreml, 'communityPGLMM')
-      expect_is(test1_binomial_bayes, "communityPGLMM")
-      # expect_is(test1_binomial_bayes_noreml, 'communityPGLMM')
-      expect_is(test1_gaussian_bayes$inla.model, "inla")
-      expect_is(test1_binomial_bayes$inla.model, "inla")
+      expect_s3_class(test1_gaussian_bayes, "communityPGLMM")
+      # expect_s3_class(test1_gaussian_bayes_noreml, 'communityPGLMM')
+      expect_s3_class(test1_binomial_bayes, "communityPGLMM")
+      # expect_s3_class(test1_binomial_bayes_noreml, 'communityPGLMM')
+      expect_s3_class(test1_gaussian_bayes$inla.model, "inla")
+      expect_s3_class(test1_binomial_bayes$inla.model, "inla")
       expect_equal(length(test1_gaussian_bayes$random.effects), 
-                   length(c(test1_gaussian_bayes$s2n, test1_gaussian_bayes$s2r)))
+                   length(c(test1_gaussian_bayes$s2n, test1_gaussian_bayes$s2r)), ignore_attr = TRUE)
       expect_equal(length(test1_binomial_bayes$random.effects), 
-                   length(c(test1_binomial_bayes$s2n, test1_binomial_bayes$s2r)))
-      expect_equal(length(test1_gaussian_r$B), length(test1_gaussian_bayes$B))
+                   length(c(test1_binomial_bayes$s2n, test1_binomial_bayes$s2r)), ignore_attr = TRUE)
+      expect_equal(length(test1_gaussian_r$B), length(test1_gaussian_bayes$B), ignore_attr = TRUE)
     })
   }
   
@@ -164,7 +164,7 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   })
   
   test_that("cpp and r version phyr gave the same results: binomial", {
-    expect_equivalent(test2_binary_cpp, test2_binary_r)
+    expect_equal(test2_binary_cpp, test2_binary_r, ignore_attr = TRUE)
   })
   
   
@@ -176,13 +176,13 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   # })
   
   test_that("test predicted values of gaussian pglmm", {
-    expect_equivalent(
+    expect_equal(
       phyr::communityPGLMM.predicted.values(test1_gaussian_cpp, gaussian.pred = 'tip_rm')$Y_hat, 
-      pez::communityPGLMM.predicted.values(test1_gaussian_cpp, show.plot = FALSE)[, 1])
+      pez::communityPGLMM.predicted.values(test1_gaussian_cpp, show.plot = FALSE)[, 1], ignore_attr = TRUE)
   })
   
   # test_that("test predicted values of binary pglmm", {
-  #   expect_equivalent(phyr::communityPGLMM.predicted.values(test2_binary_cpp)$Y_hat, 
+  #   expect_equal(phyr::communityPGLMM.predicted.values(test2_binary_cpp)$Y_hat, 
   #                     pez::communityPGLMM.predicted.values(test2_binary_cpp, show.plot = FALSE))
   # }) # we changed the way to calculate predicted value for binary model in phyr (to mirror lme4)
   

@@ -1,4 +1,4 @@
-context("test phylogenetic community dissimilarity, pcd")
+#context("test phylogenetic community dissimilarity, pcd")
 
 test_that("testing pcd_pred, which calculate expectation of conditional PSV", {
     x1 = pcd_pred(comm_a, comm_b, tree = phylotree, reps = 100)
@@ -7,10 +7,10 @@ test_that("testing pcd_pred, which calculate expectation of conditional PSV", {
     expect_length(x1, 4)
     expect_type(x2, "list")
     expect_length(x2, 4)
-    expect_equivalent(x1$nsp_pool, x2$nsp_pool)
-    expect_equivalent(x1$psv_pool, x2$psv_pool)
-    expect_equivalent(x1$nsr, x2$nsr)
-    expect_equal(length(x1$psv_bar), length(x2$psv_bar))
+    expect_equal(x1$nsp_pool, x2$nsp_pool, ignore_attr = TRUE)
+    expect_equal(x1$psv_pool, x2$psv_pool, ignore_attr = TRUE)
+    expect_equal(x1$nsr, x2$nsr, ignore_attr = TRUE)
+    expect_equal(length(x1$psv_bar), length(x2$psv_bar), ignore_attr = TRUE)
 })
 
 test_that("testing pcd, which calculate pairwise site dissimilarity", {
@@ -19,7 +19,7 @@ test_that("testing pcd, which calculate pairwise site dissimilarity", {
     x4 = pcd(comm = comm_a, tree = phylotree, expectation = x1, cpp = FALSE)
     expect_type(x3, "list")
     expect_type(x4, "list")
-    expect_equivalent(x3, x4)
+    expect_equal(x3, x4, ignore_attr = TRUE)
 })
 
 test_that("testing pcd, without provide expectation", {
@@ -37,7 +37,7 @@ test_that("testing pcd, expectation based on one community", {
     x9 = picante::pcd(comm_a, phylotree, reps = 1000)
     expect_type(x7, "list")
     expect_type(x8, "list")
-    expect_equivalent(x7, x8)
-    expect_equal(x7$PCDc, x9$PCDc)  # non-phy component should be all the same
+    expect_equal(x7, x8, ignore_attr = TRUE)
+    expect_equal(x7$PCDc, x9$PCDc, ignore_attr = TRUE)  # non-phy component should be all the same
     # the phy part may not, because of the randomness
 })

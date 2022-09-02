@@ -121,7 +121,7 @@ if(optimizer == "bobyqa"){
                  verbose = verbose, optim_ll = TRUE, 
                  control = list("ftol_rel" = reltol, "xtol_rel" = 0.0001, "maxeval" = maxit)))
   
-  testthat::expect_equivalent(opt, opt1)
+  testthat::expect_equal(opt, opt1, ignore_attr = TRUE)
 }
 
 system.time({

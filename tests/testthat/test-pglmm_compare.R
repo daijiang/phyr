@@ -1,4 +1,4 @@
-context("test phylogenetic GLMMs for comparative data")
+#context("test phylogenetic GLMMs for comparative data")
 
 test_that("ignore these tests when on CRAN since they are time consuming", {
   library(ape)
