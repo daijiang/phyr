@@ -1,5 +1,10 @@
 // -*- mode: C++; c-indent-level: 4; c-basic-offset: 4; indent-tabs-mode: nil; -*-
 
+/*
+ Prevents the warning "solve(): system is singular; attempting approx solution"
+ */
+#define ARMA_WARN_LEVEL 1
+
 #include <RcppArmadillo.h>
 #include <numeric>
 #include <cmath>
