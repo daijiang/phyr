@@ -275,7 +275,7 @@ test_that("cor_phylo produces proper output", {
                   covariates = list(par2 ~ cov2a),
                   meas_errors = list(par1 ~ se1, par2 ~ se2),
                   data = data_list$data, phy = data_list$phy,
-                  species = ~ species, boot = 1, keep_boots = "all")
+                  species = ~ species, boot = 10, keep_boots = "all")
   
   # With matrices as input
   cp2 <- 
@@ -284,7 +284,7 @@ test_that("cor_phylo produces proper output", {
               meas_errors = M,
               species = data_list$data$species,
               phy = data_list$phy,
-              boot = 1, keep_boots = "all")
+              boot = 10, keep_boots = "all")
   
   cp_bci <- boot_ci(cp)
   cp_bci2 <- boot_ci(cp2)
@@ -297,9 +297,19 @@ test_that("cor_phylo produces proper output", {
   expect_output(print(cp), regexp = "Bootstrapped 95\\% CIs \\(.* reps\\):")
   expect_output(print(cp2), regexp = "Bootstrapped 95\\% CIs \\(.* reps\\):")
   
+  # Check that not all reps are the same:
+  for (n in c("corrs", "d", "B0")) {
+    expect_false(all(cp_bci[[n]][,1] == cp_bci[[n]][,2]))
+    expect_false(all(cp_bci2[[n]][,1] == cp_bci2[[n]][,2]))
+  }
+  expect_false(all(cp_bci$B_cov[lower.tri(cp_bci$B_cov)] == 
+                     cp_bci$B_cov[upper.tri(cp_bci$B_cov)]))
+  expect_false(all(cp_bci2$B_cov[lower.tri(cp_bci2$B_cov)] == 
+                     cp_bci2$B_cov[upper.tri(cp_bci2$B_cov)]))
+  
+  
   cp_refit <- refit_boots(cp)
   cp_refit2 <- refit_boots(cp2)
-  
   
   expect_output(print(cp_refit), "< Refits to cor_phylo bootstraps >")
   expect_output(print(cp_refit2), "< Refits to cor_phylo bootstraps >")

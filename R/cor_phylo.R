@@ -1094,8 +1094,8 @@ cor_phylo <- function(variates,
   # corrs, d, B, (previously B, B_se, B_zscore, and B_pvalue),
   #     B_cov, logLik, AIC, BIC
   output <- cor_phylo_cpp(X, U, M, Vphy, REML, constrain_d, lower_d, verbose,
-                          rcond_threshold, rel_tol, max_iter, method, no_corr, boot,
-                          keep_boots, sann)
+                          rcond_threshold, rel_tol, max_iter, method, no_corr, 
+                          boot, keep_boots, sann)
   # Taking care of row and column names:
   colnames(output$corrs) <- rownames(output$corrs) <- variate_names
   rownames(output$d) <- variate_names

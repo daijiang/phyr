@@ -12,14 +12,23 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // cor_phylo_LL
-double cor_phylo_LL(NumericVector par, SEXP xptr);
-RcppExport SEXP _phyr_cor_phylo_LL(SEXP parSEXP, SEXP xptrSEXP) {
+double cor_phylo_LL(NumericVector par, const arma::mat& XX, const arma::mat& UU, const arma::mat& MM, const arma::mat& Vphy, const arma::mat& tau, const bool& REML, const bool& constrain_d, const double& lower_d, const bool& verbose, const double& rcond_threshold);
+RcppExport SEXP _phyr_cor_phylo_LL(SEXP parSEXP, SEXP XXSEXP, SEXP UUSEXP, SEXP MMSEXP, SEXP VphySEXP, SEXP tauSEXP, SEXP REMLSEXP, SEXP constrain_dSEXP, SEXP lower_dSEXP, SEXP verboseSEXP, SEXP rcond_thresholdSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< NumericVector >::type par(parSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type xptr(xptrSEXP);
-    rcpp_result_gen = Rcpp::wrap(cor_phylo_LL(par, xptr));
+    Rcpp::traits::input_parameter< const arma::mat& >::type XX(XXSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type UU(UUSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type MM(MMSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type Vphy(VphySEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type tau(tauSEXP);
+    Rcpp::traits::input_parameter< const bool& >::type REML(REMLSEXP);
+    Rcpp::traits::input_parameter< const bool& >::type constrain_d(constrain_dSEXP);
+    Rcpp::traits::input_parameter< const double& >::type lower_d(lower_dSEXP);
+    Rcpp::traits::input_parameter< const bool& >::type verbose(verboseSEXP);
+    Rcpp::traits::input_parameter< const double& >::type rcond_threshold(rcond_thresholdSEXP);
+    rcpp_result_gen = Rcpp::wrap(cor_phylo_LL(par, XX, UU, MM, Vphy, tau, REML, constrain_d, lower_d, verbose, rcond_threshold));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -324,7 +333,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_phyr_cor_phylo_LL", (DL_FUNC) &_phyr_cor_phylo_LL, 2},
+    {"_phyr_cor_phylo_LL", (DL_FUNC) &_phyr_cor_phylo_LL, 11},
     {"_phyr_cor_phylo_cpp", (DL_FUNC) &_phyr_cor_phylo_cpp, 16},
     {"_phyr_set_seed", (DL_FUNC) &_phyr_set_seed, 1},
     {"_phyr_predict_cpp", (DL_FUNC) &_phyr_predict_cpp, 4},

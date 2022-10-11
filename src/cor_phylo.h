@@ -32,6 +32,8 @@ using namespace Rcpp;
 
 
 
+
+
 // Info to calculate the log-likelihood
 class LogLikInfo {
 public:
@@ -67,7 +69,7 @@ public:
   LogLikInfo(const arma::mat& X,
           const std::vector<arma::mat>& U,
           const arma::mat& M,
-          XPtr<LogLikInfo> other);
+          const LogLikInfo& other);
   // Copy constructor
   LogLikInfo(const LogLikInfo& ll_info2) {
     par0 = ll_info2.par0;
@@ -143,14 +145,17 @@ public:
   
   BootMats(const arma::mat& X_, const std::vector<arma::mat>& U_,
             const arma::mat& M_,
-            const arma::mat& B_, const arma::vec& d_, XPtr<LogLikInfo> ll_info);
+            const arma::mat& B_, const arma::vec& d_, 
+            const LogLikInfo& ll_info);
   
-  XPtr<LogLikInfo> iterate(XPtr<LogLikInfo> ll_info);
+  LogLikInfo iterate(const LogLikInfo& ll_info,
+                     const arma::vec& rnd_vec);
   
-  void one_boot(XPtr<LogLikInfo> ll_info, BootResults& br,
+  void one_boot(const LogLikInfo& ll_info, BootResults& br,
                 const uint_t& i, const double& rel_tol, const int& max_iter,
                 const std::string& method, const std::string& keep_boots,
-                const std::vector<double>& sann);
+                const std::vector<double>& sann,
+                const arma::vec& rnd_vec);
   
   
 private:
@@ -158,7 +163,7 @@ private:
   arma::mat X_pred;
 
   // Method for returning bootstrapped data
-  void boot_data(XPtr<LogLikInfo> ll_info, BootResults& br, const uint_t& i);
+  void boot_data(const int& convcode, BootResults& br, const uint_t& i);
 
 };
 
