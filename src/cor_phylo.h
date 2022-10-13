@@ -96,6 +96,29 @@ public:
 
 // Results from bootstrapping
 
+class OneBootResult {
+public:
+  arma::mat corrs;
+  arma::vec B0;
+  arma::mat B_cov;
+  arma::vec d;
+  arma::mat out_mat;
+  uint_t out_ind;
+  int out_code;
+  
+  OneBootResult(const uint_t& p, const uint_t& B_rows) 
+    : corrs(p, p, arma::fill::zeros), 
+      B0(B_rows, arma::fill::zeros), 
+      B_cov(B_rows, B_rows, arma::fill::zeros),
+      d(p, arma::fill::zeros), 
+      out_mat(), out_ind(), out_code() {};
+
+  
+};
+
+
+
+
 class BootResults {
 public:
   arma::cube corrs;
@@ -185,6 +208,36 @@ private:
  ***************************************************************************************
  ***************************************************************************************
  */
+
+
+
+/*
+ Returning useful error message if choleski decomposition fails:
+ */
+inline void safe_chol(arma::mat& L, std::string task) {
+  try {
+    L = arma::chol(L);
+  } catch(const std::runtime_error& re) {
+    std::string err_msg = static_cast<std::string>(re.what());
+    if (err_msg == "chol(): decomposition failed") {
+      std::string err_msg_out = "Choleski decomposition failed during " + task + ". ";
+      err_msg_out += "Changing the `constrain_d` argument to `TRUE`, and ";
+      err_msg_out += "using a different algorithm (`method` argument) can remedy this.";
+      throw(Rcpp::exception(err_msg_out.c_str(), false));
+    } else {
+      std::string err_msg_out = "Runtime error: \n" + err_msg;
+      throw(Rcpp::exception(err_msg_out.c_str(), false));
+    }
+  } catch(const std::exception& ex) {
+    std::string err_msg = static_cast<std::string>(ex.what());
+    stop("Error occurred: \n" + err_msg);
+  } catch(...) {
+    stop("Unknown failure occurred.");
+  }
+  return;
+}
+
+
 
 // Flexible power function needed for multiple functions below
 // a^b
@@ -440,6 +493,33 @@ inline arma::mat make_corrs(const arma::mat& R) {
   return corrs;
 }
 
+inline arma::mat make_iD(const LogLikInfo& ll_info, 
+                         const uint_t& p, 
+                         const arma::vec& d_) {
+  uint_t n = ll_info.Vphy.n_rows;
+  arma::mat L = make_L(ll_info.min_par, p);
+  arma::mat R = L.t() * L;
+  arma::mat C = make_C(n, p, ll_info.tau, d_, ll_info.Vphy, R);
+  arma::mat V = make_V(C, ll_info.MM);
+  arma::mat iD = V;
+  safe_chol(iD, "bootstrapping-matrices setup");
+  iD = iD.t();
+  return iD;
+}
+
+
+// Standardize Vphy matrix
+inline arma::mat clean_Vphy(const arma::mat& Vphy_) {
+  double n = static_cast<double>(Vphy_.n_rows);
+  arma::mat Vphy = Vphy_;
+  Vphy /= Vphy_.max();
+  double val, sign;
+  arma::log_det(val, sign, Vphy);
+  val = std::exp(val / n);
+  Vphy /= val;
+  return Vphy;
+}
+
 
 /*
  Make matrices of coefficient estimates and standard errors, and matrix of covariances.
@@ -490,32 +570,6 @@ inline void make_B_B_cov(arma::mat& B, arma::mat& B_cov, arma::vec& B0,
 }
 
 
-
-/*
- Returning useful error message if choleski decomposition fails:
- */
-inline void safe_chol(arma::mat& L, std::string task) {
-  try {
-    L = arma::chol(L);
-  } catch(const std::runtime_error& re) {
-    std::string err_msg = static_cast<std::string>(re.what());
-    if (err_msg == "chol(): decomposition failed") {
-      std::string err_msg_out = "Choleski decomposition failed during " + task + ". ";
-      err_msg_out += "Changing the `constrain_d` argument to `TRUE`, and ";
-      err_msg_out += "using a different algorithm (`method` argument) can remedy this.";
-      throw(Rcpp::exception(err_msg_out.c_str(), false));
-    } else {
-      std::string err_msg_out = "Runtime error: \n" + err_msg;
-      throw(Rcpp::exception(err_msg_out.c_str(), false));
-    }
-  } catch(const std::exception& ex) {
-    std::string err_msg = static_cast<std::string>(ex.what());
-    stop("Error occurred: \n" + err_msg);
-  } catch(...) {
-    stop("Unknown failure occurred.");
-  }
-  return;
-}
 
 
 

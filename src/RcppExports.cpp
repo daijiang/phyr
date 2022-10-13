@@ -33,15 +33,15 @@ BEGIN_RCPP
 END_RCPP
 }
 // cor_phylo_cpp
-List cor_phylo_cpp(const arma::mat& X, const std::vector<arma::mat>& U, const arma::mat& M, const arma::mat& Vphy_, const bool& REML, const bool& constrain_d, const double& lower_d, const bool& verbose, const double& rcond_threshold, const double& rel_tol, const int& max_iter, const std::string& method, const bool& no_corr, const uint_fast32_t& boot, const std::string& keep_boots, const std::vector<double>& sann);
-RcppExport SEXP _phyr_cor_phylo_cpp(SEXP XSEXP, SEXP USEXP, SEXP MSEXP, SEXP Vphy_SEXP, SEXP REMLSEXP, SEXP constrain_dSEXP, SEXP lower_dSEXP, SEXP verboseSEXP, SEXP rcond_thresholdSEXP, SEXP rel_tolSEXP, SEXP max_iterSEXP, SEXP methodSEXP, SEXP no_corrSEXP, SEXP bootSEXP, SEXP keep_bootsSEXP, SEXP sannSEXP) {
+List cor_phylo_cpp(const arma::mat& X, const std::vector<arma::mat>& U, const arma::mat& M, const arma::mat& Vphy, const bool& REML, const bool& constrain_d, const double& lower_d, const bool& verbose, const double& rcond_threshold, const double& rel_tol, const int& max_iter, const std::string& method, const bool& no_corr, const std::vector<double>& sann);
+RcppExport SEXP _phyr_cor_phylo_cpp(SEXP XSEXP, SEXP USEXP, SEXP MSEXP, SEXP VphySEXP, SEXP REMLSEXP, SEXP constrain_dSEXP, SEXP lower_dSEXP, SEXP verboseSEXP, SEXP rcond_thresholdSEXP, SEXP rel_tolSEXP, SEXP max_iterSEXP, SEXP methodSEXP, SEXP no_corrSEXP, SEXP sannSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const arma::mat& >::type X(XSEXP);
     Rcpp::traits::input_parameter< const std::vector<arma::mat>& >::type U(USEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type M(MSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type Vphy_(Vphy_SEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type Vphy(VphySEXP);
     Rcpp::traits::input_parameter< const bool& >::type REML(REMLSEXP);
     Rcpp::traits::input_parameter< const bool& >::type constrain_d(constrain_dSEXP);
     Rcpp::traits::input_parameter< const double& >::type lower_d(lower_dSEXP);
@@ -51,10 +51,48 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const int& >::type max_iter(max_iterSEXP);
     Rcpp::traits::input_parameter< const std::string& >::type method(methodSEXP);
     Rcpp::traits::input_parameter< const bool& >::type no_corr(no_corrSEXP);
-    Rcpp::traits::input_parameter< const uint_fast32_t& >::type boot(bootSEXP);
-    Rcpp::traits::input_parameter< const std::string& >::type keep_boots(keep_bootsSEXP);
     Rcpp::traits::input_parameter< const std::vector<double>& >::type sann(sannSEXP);
-    rcpp_result_gen = Rcpp::wrap(cor_phylo_cpp(X, U, M, Vphy_, REML, constrain_d, lower_d, verbose, rcond_threshold, rel_tol, max_iter, method, no_corr, boot, keep_boots, sann));
+    rcpp_result_gen = Rcpp::wrap(cor_phylo_cpp(X, U, M, Vphy, REML, constrain_d, lower_d, verbose, rcond_threshold, rel_tol, max_iter, method, no_corr, sann));
+    return rcpp_result_gen;
+END_RCPP
+}
+// one_boot_cpp
+List one_boot_cpp(const arma::vec& rnd_vec, const arma::vec& min_par, const arma::mat& B, const arma::vec& d, const std::string& keep_boots, const arma::mat& X, const std::vector<arma::mat>& U, const arma::mat& M, const arma::mat& Vphy, const bool& REML, const bool& constrain_d, const double& lower_d, const bool& verbose, const double& rcond_threshold, const double& rel_tol, const int& max_iter, const std::string& method, const bool& no_corr, const std::vector<double>& sann);
+RcppExport SEXP _phyr_one_boot_cpp(SEXP rnd_vecSEXP, SEXP min_parSEXP, SEXP BSEXP, SEXP dSEXP, SEXP keep_bootsSEXP, SEXP XSEXP, SEXP USEXP, SEXP MSEXP, SEXP VphySEXP, SEXP REMLSEXP, SEXP constrain_dSEXP, SEXP lower_dSEXP, SEXP verboseSEXP, SEXP rcond_thresholdSEXP, SEXP rel_tolSEXP, SEXP max_iterSEXP, SEXP methodSEXP, SEXP no_corrSEXP, SEXP sannSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::vec& >::type rnd_vec(rnd_vecSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type min_par(min_parSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type B(BSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type d(dSEXP);
+    Rcpp::traits::input_parameter< const std::string& >::type keep_boots(keep_bootsSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type X(XSEXP);
+    Rcpp::traits::input_parameter< const std::vector<arma::mat>& >::type U(USEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type M(MSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type Vphy(VphySEXP);
+    Rcpp::traits::input_parameter< const bool& >::type REML(REMLSEXP);
+    Rcpp::traits::input_parameter< const bool& >::type constrain_d(constrain_dSEXP);
+    Rcpp::traits::input_parameter< const double& >::type lower_d(lower_dSEXP);
+    Rcpp::traits::input_parameter< const bool& >::type verbose(verboseSEXP);
+    Rcpp::traits::input_parameter< const double& >::type rcond_threshold(rcond_thresholdSEXP);
+    Rcpp::traits::input_parameter< const double& >::type rel_tol(rel_tolSEXP);
+    Rcpp::traits::input_parameter< const int& >::type max_iter(max_iterSEXP);
+    Rcpp::traits::input_parameter< const std::string& >::type method(methodSEXP);
+    Rcpp::traits::input_parameter< const bool& >::type no_corr(no_corrSEXP);
+    Rcpp::traits::input_parameter< const std::vector<double>& >::type sann(sannSEXP);
+    rcpp_result_gen = Rcpp::wrap(one_boot_cpp(rnd_vec, min_par, B, d, keep_boots, X, U, M, Vphy, REML, constrain_d, lower_d, verbose, rcond_threshold, rel_tol, max_iter, method, no_corr, sann));
+    return rcpp_result_gen;
+END_RCPP
+}
+// organize_boots
+List organize_boots(List orig_list);
+RcppExport SEXP _phyr_organize_boots(SEXP orig_listSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type orig_list(orig_listSEXP);
+    rcpp_result_gen = Rcpp::wrap(organize_boots(orig_list));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -334,7 +372,9 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_phyr_cor_phylo_LL", (DL_FUNC) &_phyr_cor_phylo_LL, 11},
-    {"_phyr_cor_phylo_cpp", (DL_FUNC) &_phyr_cor_phylo_cpp, 16},
+    {"_phyr_cor_phylo_cpp", (DL_FUNC) &_phyr_cor_phylo_cpp, 14},
+    {"_phyr_one_boot_cpp", (DL_FUNC) &_phyr_one_boot_cpp, 19},
+    {"_phyr_organize_boots", (DL_FUNC) &_phyr_organize_boots, 1},
     {"_phyr_set_seed", (DL_FUNC) &_phyr_set_seed, 1},
     {"_phyr_predict_cpp", (DL_FUNC) &_phyr_predict_cpp, 4},
     {"_phyr_pcd2_loop", (DL_FUNC) &_phyr_pcd2_loop, 7},

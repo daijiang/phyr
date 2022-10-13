@@ -16,13 +16,29 @@ cor_phylo_LL <- function(par, XX, UU, MM, Vphy, tau, REML, constrain_d, lower_d,
 #' @inheritParams cor_phylo
 #' @param method the `method` input to `cor_phylo`.
 #' 
-#' @return a list containing output information, to later be coerced to a `cor_phylo`
-#'   object by the `cor_phylo` function.
+#' @return a list containing output information, to later be coerced to a 
+#'   `cor_phylo` object by the `cor_phylo` function.
 #' @noRd
 #' @name cor_phylo_cpp
 #' 
-cor_phylo_cpp <- function(X, U, M, Vphy_, REML, constrain_d, lower_d, verbose, rcond_threshold, rel_tol, max_iter, method, no_corr, boot, keep_boots, sann) {
-    .Call(`_phyr_cor_phylo_cpp`, X, U, M, Vphy_, REML, constrain_d, lower_d, verbose, rcond_threshold, rel_tol, max_iter, method, no_corr, boot, keep_boots, sann)
+cor_phylo_cpp <- function(X, U, M, Vphy, REML, constrain_d, lower_d, verbose, rcond_threshold, rel_tol, max_iter, method, no_corr, sann) {
+    .Call(`_phyr_cor_phylo_cpp`, X, U, M, Vphy, REML, constrain_d, lower_d, verbose, rcond_threshold, rel_tol, max_iter, method, no_corr, sann)
+}
+
+#' Inner function to do one bootstrapping rep.
+#' 
+#' The arguments before `X` are needed in this function but not in
+#' `cor_phylo_cpp`, while the arguments starting at `X` are all those required
+#' in `cor_phylo_cpp`.
+#'
+#' @noRd
+#' 
+one_boot_cpp <- function(rnd_vec, min_par, B, d, keep_boots, X, U, M, Vphy, REML, constrain_d, lower_d, verbose, rcond_threshold, rel_tol, max_iter, method, no_corr, sann) {
+    .Call(`_phyr_one_boot_cpp`, rnd_vec, min_par, B, d, keep_boots, X, U, M, Vphy, REML, constrain_d, lower_d, verbose, rcond_threshold, rel_tol, max_iter, method, no_corr, sann)
+}
+
+organize_boots <- function(orig_list) {
+    .Call(`_phyr_organize_boots`, orig_list)
 }
 
 set_seed <- function(seed) {

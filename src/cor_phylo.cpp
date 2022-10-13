@@ -23,17 +23,17 @@ using namespace Rcpp;
 
 
 /*
- ***************************************************************************************
- ***************************************************************************************
- ***************************************************************************************
- ***************************************************************************************
+ *******************************************************************************
+ *******************************************************************************
+ *******************************************************************************
+ *******************************************************************************
  
  Log likelihood function
  
- ***************************************************************************************
- ***************************************************************************************
- ***************************************************************************************
- ***************************************************************************************
+ *******************************************************************************
+ *******************************************************************************
+ *******************************************************************************
+ *******************************************************************************
  */
 
 
@@ -177,17 +177,17 @@ std::vector<double> return_rcond_vals(const LogLikInfo& ll_info) {
 
 
 /*
- ***************************************************************************************
- ***************************************************************************************
- ***************************************************************************************
- ***************************************************************************************
+ *******************************************************************************
+ *******************************************************************************
+ *******************************************************************************
+ *******************************************************************************
  
  Fit using nlopt
  
- ***************************************************************************************
- ***************************************************************************************
- ***************************************************************************************
- ***************************************************************************************
+ *******************************************************************************
+ *******************************************************************************
+ *******************************************************************************
+ *******************************************************************************
  */
 
 /*
@@ -344,17 +344,17 @@ void fit_cor_phylo_R(LogLikInfo& ll_info,
 
 
 /*
- ***************************************************************************************
- ***************************************************************************************
- ***************************************************************************************
- ***************************************************************************************
+ *******************************************************************************
+ *******************************************************************************
+ *******************************************************************************
+ *******************************************************************************
  
  Other functions
  
- ***************************************************************************************
- ***************************************************************************************
- ***************************************************************************************
- ***************************************************************************************
+ *******************************************************************************
+ *******************************************************************************
+ *******************************************************************************
+ *******************************************************************************
  */
 
 /*-
@@ -578,28 +578,11 @@ inline void main_output(arma::mat& corrs, arma::mat& B, arma::mat& B_cov, arma::
 List cp_get_output(const arma::mat& X,
                    const std::vector<arma::mat>& U,
                    const arma::mat& M,
-                   const LogLikInfo& ll_info,
-                   const double& rel_tol,
-                   const int& max_iter,
-                   const std::string& method,
-                   const uint_t& boot,
-                   const std::string& keep_boots,
-                   const std::vector<double>& sann) {
+                   const LogLikInfo& ll_info) {
 
   
   uint_t n = X.n_rows;
   uint_t p = X.n_cols;
-  
-  
-  /*
-   Not sure why, but if I generate random numbers inside the bootstrap
-   loop below, then it just keeps using the same vector of random numbers
-   over and over. If I generate them here, it works fine.
-   */
-  arma::mat rnds_mat(n * p, boot);
-  for (uint_t i = 0; i < (n * p); i++) {
-    for (uint_t b = 0; b < boot; b++) rnds_mat(i, b) = R::rnorm(0.0, 1.0);
-  }
   
   /*
    Get the main output from cor_phylo: correlations, coefficient estimates, 
@@ -631,27 +614,6 @@ List cp_get_output(const arma::mat& X,
   
   std::vector<double> rcond_vals = return_rcond_vals(ll_info);
   
-  List boot_list = List::create();
-  if (boot > 0) {
-    // `BootMats` stores matrices that we'll need for bootstrapping
-    BootMats bm(X, U, M, B, d, ll_info);
-    BootResults br(p, B.n_rows, boot);
-    for (uint_t b = 0; b < boot; b++) {
-      Rcpp::checkUserInterrupt();
-      bm.one_boot(ll_info, br, b, rel_tol, max_iter, method, keep_boots, 
-                  sann, rnds_mat.col(b));
-    }
-    std::vector<NumericMatrix> boot_out_mats(br.out_inds.size());
-    for (uint_t i = 0; i < br.out_inds.size(); i++) {
-      boot_out_mats[i] = wrap(br.out_mats[i]);
-    }
-    boot_list = List::create(_["corrs"] = br.corrs, _["d"] = br.d,
-                             _["B0"] = br.B0, _["B_cov"] = br.B_cov,
-                             _["inds"] = br.out_inds,
-                             _["convcodes"] = br.out_codes,
-                             _["mats"] = boot_out_mats);
-  }
-  
   // Now the final output list
   List out = List::create(
     _["corrs"] = corrs,
@@ -664,7 +626,8 @@ List cp_get_output(const arma::mat& X,
     _["niter"] = ll_info.iters,
     _["convcode"] = ll_info.convcode,
     _["rcond_vals"] = rcond_vals,
-    _["bootstrap"] = boot_list
+    _["min_par"] = ll_info.min_par,
+    _["bootstrap"] = List::create()
   );
   
   return out;
@@ -683,8 +646,8 @@ List cp_get_output(const arma::mat& X,
 //' @inheritParams cor_phylo
 //' @param method the `method` input to `cor_phylo`.
 //' 
-//' @return a list containing output information, to later be coerced to a `cor_phylo`
-//'   object by the `cor_phylo` function.
+//' @return a list containing output information, to later be coerced to a 
+//'   `cor_phylo` object by the `cor_phylo` function.
 //' @noRd
 //' @name cor_phylo_cpp
 //' 
@@ -692,7 +655,7 @@ List cp_get_output(const arma::mat& X,
 List cor_phylo_cpp(const arma::mat& X,
                    const std::vector<arma::mat>& U,
                    const arma::mat& M,
-                   const arma::mat& Vphy_,
+                   const arma::mat& Vphy,
                    const bool& REML,
                    const bool& constrain_d,
                    const double& lower_d,
@@ -702,13 +665,11 @@ List cor_phylo_cpp(const arma::mat& X,
                    const int& max_iter,
                    const std::string& method,
                    const bool& no_corr,
-                   const uint_fast32_t& boot,
-                   const std::string& keep_boots,
                    const std::vector<double>& sann) {
   
 
   // LogLikInfo is C++ class to use for organizing info for optimizing
-  LogLikInfo ll_info(X, U, M, Vphy_, REML, no_corr, constrain_d, 
+  LogLikInfo ll_info(X, U, M, Vphy, REML, no_corr, constrain_d, 
                      lower_d, verbose, rcond_threshold);
 
   /*
@@ -724,11 +685,166 @@ List cor_phylo_cpp(const arma::mat& X,
   
   // Retrieve output from `ll_info` object and convert to list
   // Also do bootstrapping if desired
-  List output = cp_get_output(X, U, M, ll_info, rel_tol, max_iter, method,
-                              boot, keep_boots, sann);
+  List output = cp_get_output(X, U, M, ll_info);
   
   return output;
   
+}
+
+//' Inner function to do one bootstrapping rep.
+//' 
+//' The arguments before `X` are needed in this function but not in
+//' `cor_phylo_cpp`, while the arguments starting at `X` are all those required
+//' in `cor_phylo_cpp`.
+//'
+//' @noRd
+//' 
+//[[Rcpp::export]]
+List one_boot_cpp(const arma::vec& rnd_vec,
+                  const arma::vec& min_par,
+                  const arma::mat& B,
+                  const arma::vec& d,
+                  const std::string& keep_boots,
+                  const arma::mat& X,
+                  const std::vector<arma::mat>& U,
+                  const arma::mat& M,
+                  const arma::mat& Vphy,
+                  const bool& REML,
+                  const bool& constrain_d,
+                  const double& lower_d,
+                  const bool& verbose,
+                  const double& rcond_threshold,
+                  const double& rel_tol,
+                  const int& max_iter,
+                  const std::string& method,
+                  const bool& no_corr,
+                  const std::vector<double>& sann) {
+  
+  uint_t n = X.n_rows;
+  uint_t p = X.n_cols;
+  
+  LogLikInfo ll_info(X, U, M, Vphy, REML, no_corr, constrain_d, 
+                     lower_d, verbose, rcond_threshold);
+  ll_info.min_par = min_par;
+  
+  // Matrix to simulate error with phylogenetic signal
+  arma::mat iD = make_iD(ll_info, p, d);
+  
+  // For predicted X values (i.e., without error)
+  arma::mat pred_X = ll_info.UU.t();
+  arma::rowvec tmp = B.col(0).t();
+  pred_X = tmp * pred_X;
+  pred_X = pred_X.t();
+  pred_X.reshape(n, p);
+  
+  // Add error with phylogenetic signal (rnd_vec should be ~ N(0,1)):
+  arma::mat rnd_X = iD * rnd_vec;
+  rnd_X.reshape(n, p);
+  for (uint_t i = 0; i < p; i++) {
+    double sd_ = arma::stddev(X.col(i));
+    rnd_X.col(i) *= sd_;
+  }
+  arma::mat new_X = pred_X + rnd_X;
+  
+  // Object to store info for new fit
+  LogLikInfo ll_info_new(new_X, U, M, ll_info);
+  
+  /*
+   Do the fitting.
+   Methods "nelder-mead-r" and "sann" use R's `stats::optim`.
+   Otherwise, use nlopt.
+   */
+  if (method == "nelder-mead-r" || method == "sann") {
+    // Do the fitting:
+    fit_cor_phylo_R(ll_info_new, rel_tol, max_iter, method, sann);
+  } else {
+    // Same thing for nlopt version
+    fit_cor_phylo_nlopt(ll_info_new, rel_tol, max_iter, method);
+  }
+  
+  // Primary output objects:
+  arma::mat new_corrs;
+  arma::mat new_B;
+  arma::mat new_B_cov;
+  arma::vec new_d;
+  main_output(new_corrs, new_B, new_B_cov, new_d, ll_info_new, new_X, U);
+  
+  List boot_list = List::create(_["corrs"] = new_corrs, 
+                                _["d"] = new_d,
+                                _["B0"] = new_B.col(0), 
+                                _["B_cov"] = new_B_cov,
+                                _["convcodes"] = ll_info_new.convcode);
+  
+  // Determine whether convergence failed, and save simulated data if specified
+  bool failed = ll_info_new.convcode != 0;
+  if (keep_boots == "all" || (keep_boots == "fail" && failed)) {
+    boot_list["mats"] = new_X;
+  } else if (keep_boots == "fail" && !failed) {
+    // Add filler matrix if only keeping failed reps and this one succeeded
+    boot_list["mats"] = arma::mat(0,0);
+  }
+  
+  return boot_list;
+  
+}
+
+
+// Organize bootstrap output.
+//[[Rcpp::export]]
+List organize_boots(List orig_list) {
+  
+  uint_t n_boots = orig_list.size();
+  
+  // Get some basic info from the first bootstrap
+  List front_boot(orig_list[0]);
+  bool has_mats = front_boot.containsElementNamed("mats");
+  uint_t p = as<NumericMatrix>(front_boot["corrs"]).nrow();
+  uint_t B_rows = as<NumericVector>(front_boot["B0"]).size();
+  
+  arma::cube corrs(p, p, n_boots);
+  arma::mat d(p, n_boots);
+  arma::mat B0(B_rows, n_boots);
+  arma::cube B_cov(B_rows, B_rows, n_boots);
+  arma::Col<int> convcodes(n_boots);
+  List mats;
+  if (has_mats) mats = List(n_boots);
+  
+  arma::mat corrs_i;
+  arma::vec B0_i;
+  arma::mat B_cov_i;
+  arma::vec d_i;
+  NumericMatrix mats_i;
+  
+  for (uint_t i = 0; i < n_boots; i++) {
+    
+    List boot_i(orig_list[i]);
+    
+    corrs_i = as<arma::mat>(boot_i["corrs"]);
+    B0_i = as<arma::vec>(boot_i["B0"]);
+    B_cov_i = as<arma::mat>(boot_i["B_cov"]);
+    d_i = as<arma::vec>(boot_i["d"]);
+    
+    corrs.slice(i) = corrs_i;
+    B0.col(i) = B0_i;
+    B_cov.slice(i) = B_cov_i;
+    d.col(i) = d_i;
+    convcodes(i) = as<int>(boot_i["convcodes"]);
+    
+    if (has_mats) {
+      mats_i = as<NumericMatrix>(boot_i["mats"]);
+      mats(i) = mats_i;
+    }
+    
+  }
+  
+  List new_list = List::create(_["corrs"] = corrs,
+                               _["d"] = d,
+                               _["B0"] = B0, 
+                               _["B_cov"] = B_cov,
+                               _["convcodes"] = convcodes,
+                               _["mats"] = mats);
+  
+  return new_list;
 }
 
 
@@ -738,20 +854,18 @@ List cor_phylo_cpp(const arma::mat& X,
 
 
 
-
-
 /*
- ***************************************************************************************
- ***************************************************************************************
- ***************************************************************************************
- ***************************************************************************************
+ *******************************************************************************
+ *******************************************************************************
+ *******************************************************************************
+ *******************************************************************************
  
  Bootstrapping functions
  
- ***************************************************************************************
- ***************************************************************************************
- ***************************************************************************************
- ***************************************************************************************
+ *******************************************************************************
+ *******************************************************************************
+ *******************************************************************************
+ *******************************************************************************
  */
 
 
@@ -767,14 +881,8 @@ BootMats::BootMats(const arma::mat& X_,
   uint_t n = ll_info.Vphy.n_rows;
   uint_t p = X.n_cols;
   
-  arma::mat L = make_L(ll_info.min_par, p);
-  arma::mat R = L.t() * L;
-  arma::mat C = make_C(n, p, ll_info.tau, d_, ll_info.Vphy, R);
-  arma::mat V = make_V(C, ll_info.MM);
-  iD = V;
-  safe_chol(iD, "bootstrapping-matrices setup");
-  iD = iD.t();
-  
+  iD = make_iD(ll_info, p, d_);
+
   // For predicted X values (i.e., without error)
   X_pred = ll_info.UU.t();
   arma::rowvec tmp = B_.col(0).t();
@@ -834,7 +942,7 @@ void BootMats::one_boot(const LogLikInfo& ll_info, BootResults& br,
                         const arma::vec& rnd_vec) {
   
   // Generate new data
-  LogLikInfo new_ll_info = iterate(ll_info, rnd_vec);
+  LogLikInfo ll_info_new = iterate(ll_info, rnd_vec);
   
   /*
    Do the fitting.
@@ -843,23 +951,23 @@ void BootMats::one_boot(const LogLikInfo& ll_info, BootResults& br,
    */
   if (method == "nelder-mead-r" || method == "sann") {
     // Do the fitting:
-    fit_cor_phylo_R(new_ll_info, rel_tol, max_iter, method, sann);
+    fit_cor_phylo_R(ll_info_new, rel_tol, max_iter, method, sann);
   } else {
     // Same thing for nlopt version
-    fit_cor_phylo_nlopt(new_ll_info, rel_tol, max_iter, method);
+    fit_cor_phylo_nlopt(ll_info_new, rel_tol, max_iter, method);
   }
   // Determine whether convergence failed:
-  bool failed = new_ll_info.convcode != 0;
+  bool failed = ll_info_new.convcode != 0;
   
   if (keep_boots == "all" || (keep_boots == "fail" && failed)) {
-    boot_data(new_ll_info.convcode, br, i);
+    boot_data(ll_info_new.convcode, br, i);
   }
 
   arma::mat corrs;
   arma::mat B;
   arma::mat B_cov;
   arma::vec d;
-  main_output(corrs, B, B_cov, d, new_ll_info, X_new, U);
+  main_output(corrs, B, B_cov, d, ll_info_new, X_new, U);
 
   // Add values to BootResults
   br.insert_values(i, corrs, B.col(0), B_cov, d);

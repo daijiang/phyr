@@ -34,7 +34,7 @@ Imports:
     latticeExtra,
     tidyr
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.1.1
+RoxygenNote: 7.2.1
 LinkingTo:
     Rcpp, RcppArmadillo
 Suggests: 
@@ -52,7 +52,8 @@ Suggests:
     ggplot2,
     ggridges,
     DHARMa,
-    rr2
+    rr2,
+    future.apply
 VignetteBuilder: knitr
 URL: https://daijiang.github.io/phyr/, https://github.com/daijiang/phyr/
 BugReports: https://github.com/daijiang/phyr/issues
