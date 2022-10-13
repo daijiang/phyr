@@ -18,7 +18,8 @@
 If \code{NULL}, include all random effects and the conditional modes of those random effects will be included in the deterministic part of the simulation (i.e Xb + Zu);
 if \code{NA} or \code{~0}, include no random effects and new values will be chosen for each group based on the estimated random-effects variances (i.e. Xb + Zu * u_random).}
 
-\item{...}{optional additional arguments: none are used at present.}
+\item{...}{optional additional arguments (none are used in
+    \code{.simulateFormula})}
 }
 \description{
 Note that this function currently only works for model fit with \code{bayes = TRUE}

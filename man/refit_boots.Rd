@@ -17,6 +17,10 @@ This is useful if you want to try refitting only a portion of bootstrap
 replicates.
 By passing \code{NULL}, it refits all bootstrap replicates present in
 \code{cp_obj$bootstrap$mats}.
+If, in the original call to \code{cor_phylo}, \code{keep_boots} was set to
+\code{"fail"}, then any successful replicates cannot be refit here.
+An error will be thrown if you use \code{inds} to request a successful rep
+to be refit when \code{keep_boots} was set to \code{"fail"}.
 Any bootstrap replicates not present in \code{inds} will have \code{NA} in the output
 object.
 Defaults to \code{NULL}.}
@@ -34,15 +38,15 @@ A \code{cp_refits} object, which is a list of \code{cor_phylo} objects
 corresponding to each matrix in \verb{<original cor_phylo object>$bootstrap$mats}.
 }
 \description{
-This function is to be called on a \code{cor_phylo} object if when one or more bootstrap
+This function is to be called on a \code{cor_phylo} object if one or more bootstrap
 replicates fail to converge.
 It allows the user to change parameters for the optimizer to get it to converge.
 One or more of the resulting \code{cp_refits} object(s) can be supplied to
 \code{boot_ci} along with the original \code{cor_phylo} object to calculate confidence
 intervals from only bootstrap replicates that converged.
 }
-\section{Methods (by generic)}{
+\section{Functions}{
 \itemize{
-\item \code{print}: prints \code{cp_refits} objects
-}}
+\item \code{print(cp_refits)}: prints \code{cp_refits} objects
 
+}}

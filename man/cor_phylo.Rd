@@ -125,15 +125,19 @@ Increasing this threshold makes the optimization process more strongly
 and with estimates that are nonsensical.
 Defaults to \code{1e-10}.}
 
-\item{boot}{Number of parametric bootstrap replicates. Defaults to \code{0}.}
+\item{boot}{Number of parametric bootstrap replicates.
+Bootstrapping can be run in parallel if \code{future.apply} is
+installed and if \code{future::plan(...)} is run before the call
+to \code{cor_phylo}. See the documentation for \code{future::plan}
+for the various options. Defaults to \code{0}.}
 
-\item{keep_boots}{Character specifying when to output data (indices, convergence codes,
+\item{keep_boots}{Character specifying when to output data (convergence codes
 and simulated variate data) from bootstrap replicates.
 This is useful for troubleshooting when one or more bootstrap replicates
 fails to converge or outputs ridiculous results.
 Setting this to \code{"all"} keeps all \code{boot} parameter sets,
-\code{"fail"} keeps parameter sets from replicates that failed to converge,
-and \code{"none"} keeps no parameter sets.
+\code{"fail"} keeps sets from replicates that failed to converge,
+and \code{"none"} keeps no sets.
 Defaults to \code{"fail"}.}
 
 \item{mod}{\code{cor_phylo} object that was run with the \code{boot} argument > 0.}
@@ -192,14 +196,12 @@ If they are listed as \code{NaN}, then one or more of the matrices contains
 \item{\code{bootstrap}}{A list of bootstrap output, which is simply \code{list()} if
 \code{boot = 0}. If \code{boot > 0}, then the list contains fields for
 estimates of correlations (\code{corrs}), phylogenetic signals (\code{d}),
-coefficients (\code{B0}), and coefficient covariances (\code{B_cov}).
-It also contains the following information about the bootstrap replicates:
-a vector of indices relating each set of information to the bootstrapped
-estimates (\code{inds}),
-convergence codes (\code{convcodes}), and
-matrices of the bootstrapped parameters in the order they appear in the input
-argument (\code{mats});
-these three fields will be empty if \code{keep_boots == "none"}.
+coefficients (\code{B0}), and coefficient covariances (\code{B_cov}), plus
+a vector of convergence codes (\code{convcodes}).
+Depending on the value of \code{keep_boots}, this list may also contain a
+list of matrices containing the bootstrapped parameter sets (\code{mats}).
+If \code{keep_boots == "fail"}, then \code{mats} will contain a \verb{<0 x 0 matrix>}
+for rep(s) that succeed.
 To view bootstrapped confidence intervals, use \code{boot_ci}.}
 
 \code{boot_ci} returns a list of confidence intervals with the following fields:
@@ -228,11 +230,11 @@ independent variables affecting each variate.
 }
 \section{Methods (by generic)}{
 \itemize{
-\item \code{boot_ci}: returns bootstrapped confidence intervals from a \code{cor_phylo} object
+\item \code{boot_ci(cor_phylo)}: returns bootstrapped confidence intervals from a \code{cor_phylo} object
 
-\item \code{print}: prints \code{cor_phylo} objects
+\item \code{print(cor_phylo)}: prints \code{cor_phylo} objects
+
 }}
-
 \section{Walkthrough}{
 
 For the case of two variables, the function estimates parameters for the model of

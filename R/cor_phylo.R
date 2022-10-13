@@ -733,14 +733,18 @@ sim_cor_phylo_variates <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, 
 #'   "bounce away" from badly conditioned matrices and can help with convergence
 #'   and with estimates that are nonsensical.
 #'   Defaults to `1e-10`.
-#' @param boot Number of parametric bootstrap replicates. Defaults to `0`.
-#' @param keep_boots Character specifying when to output data (indices, convergence codes,
+#' @param boot Number of parametric bootstrap replicates. 
+#'     Bootstrapping can be run in parallel if `future.apply` is
+#'     installed and if `future::plan(...)` is run before the call
+#'     to `cor_phylo`. See the documentation for `future::plan`
+#'     for the various options. Defaults to `0`.
+#' @param keep_boots Character specifying when to output data (convergence codes
 #'   and simulated variate data) from bootstrap replicates.
 #'   This is useful for troubleshooting when one or more bootstrap replicates
 #'   fails to converge or outputs ridiculous results.
 #'   Setting this to `"all"` keeps all `boot` parameter sets,
-#'   `"fail"` keeps parameter sets from replicates that failed to converge,
-#'   and `"none"` keeps no parameter sets.
+#'   `"fail"` keeps sets from replicates that failed to converge,
+#'   and `"none"` keeps no sets.
 #'   Defaults to `"fail"`.
 #' 
 #'
@@ -779,14 +783,12 @@ sim_cor_phylo_variates <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, 
 #'   \item{`bootstrap`}{A list of bootstrap output, which is simply `list()` if
 #'     `boot = 0`. If `boot > 0`, then the list contains fields for 
 #'     estimates of correlations (`corrs`), phylogenetic signals (`d`),
-#'     coefficients (`B0`), and coefficient covariances (`B_cov`).
-#'     It also contains the following information about the bootstrap replicates: 
-#'     a vector of indices relating each set of information to the bootstrapped
-#'     estimates (`inds`),
-#'     convergence codes (`convcodes`), and
-#'     matrices of the bootstrapped parameters in the order they appear in the input
-#'     argument (`mats`);
-#'     these three fields will be empty if `keep_boots == "none"`.
+#'     coefficients (`B0`), and coefficient covariances (`B_cov`), plus 
+#'     a vector of convergence codes (`convcodes`).
+#'     Depending on the value of `keep_boots`, this list may also contain a 
+#'     list of matrices containing the bootstrapped parameter sets (`mats`).
+#'     If `keep_boots == "fail"`, then `mats` will contain a `<0 x 0 matrix>` 
+#'     for rep(s) that succeed.
 #'     To view bootstrapped confidence intervals, use `boot_ci`.}
 #' 
 #' @export
@@ -1053,9 +1055,10 @@ cor_phylo <- function(variates,
     for (n in names(sann_options)) sann[n] <- sann_options[[n]]
   }
 
-  keep_boots <- match.arg(keep_boots)
+  keep_boots <- match.arg(keep_boots, c("fail", "none", "all"))
   
-  method <- match.arg(method)
+  method <- match.arg(method, c("nelder-mead-r", "bobyqa", "subplex",
+                                "nelder-mead-nlopt", "sann"))
 
   call_ <- match.call()
   # So it doesn't show the whole function if using do.call:
@@ -1095,7 +1098,7 @@ cor_phylo <- function(variates,
   #     B_cov, logLik, AIC, BIC
   output <- cor_phylo_cpp(X, U, M, Vphy, REML, constrain_d, lower_d, verbose,
                           rcond_threshold, rel_tol, max_iter, method, no_corr, 
-                          boot, keep_boots, sann)
+                          sann)
   # Taking care of row and column names:
   colnames(output$corrs) <- rownames(output$corrs) <- variate_names
   rownames(output$d) <- variate_names
@@ -1103,17 +1106,47 @@ cor_phylo <- function(variates,
   rownames(output$B) <- cp_get_row_names(variate_names, U)
   colnames(output$B) <- c("Estimate", "SE", "Z-score", "P-value")
   colnames(output$B_cov) <- rownames(output$B_cov) <- cp_get_row_names(variate_names, U)
-
-  # Ordering output matrices back to original order (bc they were previously
-  # reordered based on the phylogeny)
-  if (length(output$bootstrap$mats) > 0) {
-    order_ <- match(spp_vec, rownames(Vphy))
-    for (i in 1:length(output$bootstrap$mats)) {
-      output$bootstrap$mats[[i]] <-
-        output$bootstrap$mats[[i]][order_, , drop = FALSE]
+  
+  if (boot > 0) {
+    .boot_fun <- function(i) {
+      .rnd_vec <- rnorm(nrow(Vphy) * ncol(X))
+      .bo <- one_boot_cpp(.rnd_vec,
+                          output$min_par, output$B, output$d, keep_boots,
+                          X, U, M, Vphy, REML, constrain_d, lower_d, verbose,
+                          rcond_threshold, rel_tol, max_iter, method, no_corr, 
+                          sann)
+      return(.bo)
     }
+    if (requireNamespace("future.apply", quietly = TRUE)) {
+      boot_list <- future.apply::future_lapply(1:boot, FUN = .boot_fun, 
+                                               future.seed = TRUE)
+    } else {
+      boot_list <- lapply(1:boot, FUN = .boot_fun)
+    }
+    
+    output$bootstrap <- organize_boots(boot_list)
+    
+    if (keep_boots == "none") {
+      output$bootstrap$mats <- NULL
+    } else {
+      # Ordering output matrices back to original order (bc they were previously
+      # reordered based on the phylogeny)
+      order_ <- match(spp_vec, rownames(Vphy))
+      for (i in 1:length(output$bootstrap$mats)) {
+        if (nrow(output$bootstrap$mats[[i]]) > 0) {
+          output$bootstrap$mats[[i]] <-
+            output$bootstrap$mats[[i]][order_, , drop = FALSE]
+        }
+      }
+    }
+    
   }
 
+
+  # This was only useful to pass between `cor_phylo_cpp` and `one_boot_cpp`.
+  # It'll just be confusing outside that context.
+  output$min_par <- NULL
+  
   output <- c(output, list(call = call_))
   class(output) <- "cor_phylo"
   
@@ -1127,7 +1160,7 @@ cor_phylo <- function(variates,
 
 #' Refit bootstrap replicates that failed to converge in a call to `cor_phylo`
 #'
-#' This function is to be called on a `cor_phylo` object if when one or more bootstrap
+#' This function is to be called on a `cor_phylo` object if one or more bootstrap
 #' replicates fail to converge.
 #' It allows the user to change parameters for the optimizer to get it to converge.
 #' One or more of the resulting `cp_refits` object(s) can be supplied to
@@ -1141,6 +1174,10 @@ cor_phylo <- function(variates,
 #'     replicates.
 #'     By passing `NULL`, it refits all bootstrap replicates present in 
 #'     `cp_obj$bootstrap$mats`.
+#'     If, in the original call to `cor_phylo`, `keep_boots` was set to
+#'     `"fail"`, then any successful replicates cannot be refit here.
+#'     An error will be thrown if you use `inds` to request a successful rep
+#'     to be refit when `keep_boots` was set to `"fail"`.
 #'     Any bootstrap replicates not present in `inds` will have `NA` in the output
 #'     object.
 #'     Defaults to `NULL`.
@@ -1164,13 +1201,29 @@ refit_boots <- function(cp_obj, inds = NULL, ...) {
          "have been bootstrapped (i.e., called with boot > 0).",
          call. = FALSE)
   }
+  if (is.null(cp_obj$bootstrap$mats)) {
+    stop("\nFunction refit_boots only applies to `cor_phylo` objects that ",
+         "have been bootstrapped with `keep_boots` = \"fail\" or \"all\".",
+         call. = FALSE)
+  }
+  if (all(sapply(cp_obj$bootstrap$mats, nrow) == 0)) {
+    stop("\nYou are trying to use `refit_boots` on a `cor_phylo` object that ",
+         "was bootstrapped with `keep_boots` = \"fail\", but where none of ",
+         "the replicates failed. Either run it again with `keep_boots` = ",
+         "\"all\" or don't bother refitting any replicates. ",
+         "There is no obvious need to.", call. = FALSE)
+  }
   if (is.null(inds)) {
-    inds <- 1:length(cp_obj$bootstrap$inds)
+    # Only choose those reps where a simulated matrix was returned
+    inds <- which(sapply(cp_obj$bootstrap$mats, nrow) > 0)
   } else {
-    if (any(inds < 1) | any(inds > length(cp_obj$bootstrap$inds))) {
+    if (any(inds < 1) | any(inds > length(cp_obj$bootstrap$mats))) {
       stop("\nThe `inds` argument must only contain integers > 0 and <= ",
-           "length(cp_obj$bootstrap$inds)",
-           call. = FALSE)
+           "length(cp_obj$bootstrap$mats)", call. = FALSE)
+    }
+    if (any(sapply(cp_obj$bootstrap$mats[inds], nrow) == 0)) {
+      stop("\nThe `inds` argument must only refer to objects inside ",
+           "cp_obj$bootstrap$mats with >0 rows.", call. = FALSE)
     }
   }
   
@@ -1225,7 +1278,7 @@ refit_boots <- function(cp_obj, inds = NULL, ...) {
     new_call[[x]] <- new_args[[x]]
   }
   
-  new_cps <- as.list(rep(NA, length(cp_obj$bootstrap$inds)))
+  new_cps <- as.list(rep(NA, length(cp_obj$bootstrap$mats)))
   
   for (i in inds) {
     
@@ -1336,21 +1389,12 @@ boot_ci.cor_phylo <- function(mod, refits = NULL, alpha = 0.05, ...) {
          "longer.", call. = FALSE)
   }
   # Indices for failed convergences:
-  orig_fail <- mod$bootstrap$inds[mod$bootstrap$convcodes != 0]
+  fails <- which(mod$bootstrap$convcodes != 0)
   # Data to be estimated:
   corrs <- mod$bootstrap$corrs
   d <- mod$bootstrap$d
   B0 <- mod$bootstrap$B0
   B_cov <- mod$bootstrap$B_cov
-  
-  
-  fails <- mod$bootstrap$inds[mod$bootstrap$convcodes != 0]
-  
-  corrs <- mod$bootstrap$corrs
-  d <- mod$bootstrap$d
-  B0 <- mod$bootstrap$B0
-  B_cov <- mod$bootstrap$B_cov
-  
   
   # ----------------*
   # Dealing with failed convergences:
@@ -1374,20 +1418,18 @@ boot_ci.cor_phylo <- function(mod, refits = NULL, alpha = 0.05, ...) {
       # If just one input, make it a list so it can be treated the same:
       if (inherits(refits, "cp_refits")) refits <- list(refits)
       # Add estimates from refits when they didn't converge in original:
-      fails_to_keep <- !logical(length(fails))
-      for (i in 1:length(fails)) {
-        bi <- which(mod$bootstrap$inds == fails[i])
-        ei <- mod$bootstrap$inds[bi]
+      fails_to_keep <- rep(TRUE, length(fails))  # which to keep as failed
+      for (fi in 1:length(fails)) {
+        i <- fails[fi]
         for (j in 1:length(refits)) {
-          if (inherits(refits[[j]][[bi]], "cor_phylo")) {
-            if (refits[[j]][[bi]]$convcode == 0) {
-              corrs[,,ei] <- refits[[j]][[bi]]$corrs
-              d[,ei] <- refits[[j]][[bi]]$d
-              B0[,ei] <- refits[[j]][[bi]]$B[,1]
-              B_cov[,,ei] <- refits[[j]][[bi]]$B_cov
-              fails_to_keep[i] <- FALSE
-              break
-            }
+          re_ji <- refits[[j]][[i]]
+          if (inherits(re_ji, "cor_phylo") && re_ji$convcode == 0) {
+            corrs[,,i] <- re_ji$corrs
+            d[,i] <- re_ji$d
+            B0[,i] <- re_ji$B[,1]
+            B_cov[,,i] <- re_ji$B_cov
+            fails_to_keep[fi] <- FALSE
+            break
           }
         }
       }
