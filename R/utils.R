@@ -8,6 +8,7 @@ NULL
 #' @importFrom methods as show is hasArg
 #' @importFrom graphics par image
 #' @importFrom dplyr "%>%"
+#' @importFrom utils compareVersion packageVersion
 #' @import stats
 NULL
 

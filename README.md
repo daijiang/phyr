@@ -11,12 +11,10 @@ status](https://codecov.io/gh/daijiang/phyr/branch/master/graph/badge.svg)](http
 To install this package:
 
 ``` r
+dinstall.packages("phyr", repos = 'https://daijiang.r-universe.dev')
+
+# or
 devtools::install_github("daijiang/phyr")
-# or install from binary file (may not be the latest version)
-# macOS
-install.packages("https://raw.githubusercontent.com/daijiang/phyr/master/phyr_1.0.3.tgz", repos = NULL)
-# Windows
-install.packages("https://raw.githubusercontent.com/daijiang/phyr/master/phyr_0.1.6.zip", repos = NULL)
 ```
 
 # Main functions
