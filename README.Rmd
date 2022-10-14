@@ -25,7 +25,10 @@ knitr::opts_chunk$set(
 To install this package:
 
 ```{r eval = F}
-install.packages("phyr", repos = 'https://daijiang.r-universe.dev')
+options(repos = c(
+  phyr = 'https://daijiang.r-universe.dev',
+  CRAN = 'https://cloud.r-project.org'))
+install.packages('phyr')
 
 # or
 devtools::install_github("daijiang/phyr")

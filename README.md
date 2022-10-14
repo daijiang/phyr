@@ -11,7 +11,10 @@ status](https://codecov.io/gh/daijiang/phyr/branch/master/graph/badge.svg)](http
 To install this package:
 
 ``` r
-dinstall.packages("phyr", repos = 'https://daijiang.r-universe.dev')
+options(repos = c(
+  phyr = 'https://daijiang.r-universe.dev',
+  CRAN = 'https://cloud.r-project.org'))
+install.packages('phyr')
 
 # or
 devtools::install_github("daijiang/phyr")
