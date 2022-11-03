@@ -689,8 +689,8 @@ communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian",
   s <- as.vector(array(s2.init^0.5, dim = c(1, q)))
   
   if(cpp){
-    if(is.null(St)) St = as(matrix(0, 0, 0), "dgTMatrix")
-    if(is.null(Zt)) Zt = as(matrix(0, 0, 0), "dgTMatrix")
+    if(is.null(St)) St = as(matrix(0, 0, 0), "TsparseMatrix")
+    if(is.null(Zt)) Zt = as(matrix(0, 0, 0), "TsparseMatrix")
     out_res = pglmm_gaussian_internal_cpp(par = s, X, Y, Zt, St, nested, REML, 
                                           verbose, optimizer, maxit, 
                                           reltol, q, n, p, pi)
@@ -790,8 +790,8 @@ communityPGLMM.glmm <- function(formula, data = list(), family = "binomial",
   ss <- as.vector(array(s2.init^0.5, dim = c(1, q)))
   
   if(cpp){
-    if(is.null(St)) St = as(matrix(0, 0, 0), "dgTMatrix")
-    if(is.null(Zt)) Zt = as(matrix(0, 0, 0), "dgTMatrix")
+    if(is.null(St)) St = as(matrix(0, 0, 0), "TsparseMatrix")
+    if(is.null(Zt)) Zt = as(matrix(0, 0, 0), "TsparseMatrix")
     internal_res = pglmm_internal_cpp(X = X, Y = Y, Zt = Zt, St = St, 
                                       nested = nested, REML = REML, verbose = verbose, 
                                       n = n, p = p, q = q, maxit = maxit, 
@@ -802,7 +802,7 @@ communityPGLMM.glmm <- function(formula, data = list(), family = "binomial",
     B = internal_res$B
     row.names(B) = colnames(X)
     ss = internal_res$ss[,1]
-    iV = as(internal_res$iV, "dgCMatrix")
+    iV = as(internal_res$iV, "CsparseMatrix")
     mu = internal_res$mu
     row.names(mu) = 1:nrow(mu)
     H = internal_res$H

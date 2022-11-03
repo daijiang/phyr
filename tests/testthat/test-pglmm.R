@@ -164,7 +164,7 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   })
   
   test_that("cpp and r version phyr gave the same results: binomial", {
-    expect_equal(test2_binary_cpp, test2_binary_r, ignore_attr = TRUE)
+    test_fit_equal(test2_binary_cpp, test2_binary_r)
   })
   
   

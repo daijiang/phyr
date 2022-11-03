@@ -176,12 +176,12 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
             }
           
             # # message("Nested term without specify phylogeny, use identity matrix instead")
-            # xout = list(as(diag(nrow(data)), "dgCMatrix"))
+            # xout = list(as(diag(nrow(data)), "CsparseMatrix"))
             # xout = list(xout)
             
             n_dim = length(unique(data[, colns[1]]))
             n_dim2 = length(unique(data[, colns[2]]))
-            xout = as(kronecker(diag(n_dim2), diag(n_dim)), "dgCMatrix")
+            xout = as(kronecker(diag(n_dim2), diag(n_dim)), "CsparseMatrix")
             # put names back
             rownames(xout) = colnames(xout) = paste(
               rep(unique(as.character(data[, colns[2]])), each = n_dim),
@@ -195,9 +195,9 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
             if(grepl("__", sp_or_site[1]) & !grepl("__", sp_or_site[2])){ # sp__@site
               n_dim = nlevels(data[, colns[2]])
               if(repulsion[nested_repul_i]){
-                xout = as(kronecker(diag(n_dim), solve(cov_ranef_list[[colns[1]]])), "dgCMatrix")
+                xout = as(kronecker(diag(n_dim), solve(cov_ranef_list[[colns[1]]])), "CsparseMatrix")
               } else {
-                xout = as(kronecker(diag(n_dim), cov_ranef_list[[colns[1]]]), "dgCMatrix")
+                xout = as(kronecker(diag(n_dim), cov_ranef_list[[colns[1]]]), "CsparseMatrix")
               }
               # put names back
               rownames(xout) = colnames(xout) = paste(
@@ -213,9 +213,9 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
             if(!grepl("__", sp_or_site[1]) & grepl("__", sp_or_site[2])){ # sp@site__
               n_dim = length(unique(data[, colns[1]]))
               if(repulsion[nested_repul_i]){
-                xout = as(kronecker(solve(cov_ranef_list[[colns[2]]]), diag(n_dim)), "dgCMatrix")
+                xout = as(kronecker(solve(cov_ranef_list[[colns[2]]]), diag(n_dim)), "CsparseMatrix")
               } else {
-                xout = as(kronecker(cov_ranef_list[[colns[2]]], diag(n_dim)), "dgCMatrix")
+                xout = as(kronecker(cov_ranef_list[[colns[2]]], diag(n_dim)), "CsparseMatrix")
               }
               
               # put names back
@@ -245,7 +245,7 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
               }
               nested_repul_i <<- nested_repul_i + 1
               
-              xout = as(kronecker(Vphy_site2, Vphy2), "dgCMatrix")
+              xout = as(kronecker(Vphy_site2, Vphy2), "CsparseMatrix")
               # put names back
               rownames(xout) = colnames(xout) = paste(
                 rep(rownames(cov_ranef_list[[colns[2]]]), each = nrow(cov_ranef_list[[colns[1]]])),
@@ -307,15 +307,15 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
           
           if(!grepl("__", x2[3])){ # no phylogenetic term; e.g. x|sp@site
             # message("Nested term without specify phylogeny, use identity matrix instead")
-            xout = list(d, as(diag(nrow(data)), "dgCMatrix"))
+            xout = list(d, as(diag(nrow(data)), "CsparseMatrix"))
             xout = list(xout)
           } else { # has phylogenetic term; x|sp__@site; x|sp__@site__; x|sp@site__
             if(grepl("__", sp_or_site[1]) & !grepl("__", sp_or_site[2])){ # x|sp__@site
               n_dim = nlevels(data[, colns[2]])
               if(repulsion[nested_repul_i]){
-                xout = as(kronecker(diag(n_dim), solve(cov_ranef_list[[colns[1]]])), "dgCMatrix")
+                xout = as(kronecker(diag(n_dim), solve(cov_ranef_list[[colns[1]]])), "CsparseMatrix")
               } else {
-                xout = as(kronecker(diag(n_dim), cov_ranef_list[[colns[1]]]), "dgCMatrix")
+                xout = as(kronecker(diag(n_dim), cov_ranef_list[[colns[1]]]), "CsparseMatrix")
               }
               # put names back
               rownames(xout) = colnames(xout) = paste(
@@ -331,9 +331,9 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
             if(!grepl("__", sp_or_site[1]) & grepl("__", sp_or_site[2])){ # x|sp@site__
               n_dim = length(unique(data[, colns[1]]))
               if(repulsion[nested_repul_i]){
-                xout = as(kronecker(solve(cov_ranef_list[[colns[2]]]), diag(n_dim)), "dgCMatrix")
+                xout = as(kronecker(solve(cov_ranef_list[[colns[2]]]), diag(n_dim)), "CsparseMatrix")
               } else {
-                xout = as(kronecker(cov_ranef_list[[colns[2]]], diag(n_dim)), "dgCMatrix")
+                xout = as(kronecker(cov_ranef_list[[colns[2]]], diag(n_dim)), "CsparseMatrix")
               }
               
               # put names back
@@ -363,7 +363,7 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
               }
               nested_repul_i <<- nested_repul_i + 1
               
-              xout = as(kronecker(Vphy_site2, Vphy2), "dgCMatrix")
+              xout = as(kronecker(Vphy_site2, Vphy2), "CsparseMatrix")
               # put names back
               rownames(xout) = colnames(xout) = paste(
                 rep(rownames(cov_ranef_list[[colns[2]]]), each = nrow(cov_ranef_list[[colns[1]]])),
@@ -416,7 +416,7 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
         is.array(model.response(model.frame(formula.nobars, data = data, na.action = NULL))))){
       if(add.obs.re){
         message("We add an observation-level random term '1|obs' for poisson and binomial data.")
-        random.effects[[length(random.effects) + 1]] <- list(as(diag(nrow(data)), "dgCMatrix"))
+        random.effects[[length(random.effects) + 1]] <- list(as(diag(nrow(data)), "CsparseMatrix"))
         names(random.effects)[length(random.effects)] <- "1|obs"
       } else {
         if(no_obs_re) message("For poisson and binomial data, it would be a good idea to add an observation-level random term (add.obs.re = TRUE).")
@@ -494,7 +494,7 @@ get_design_matrix = function(formula, data, random.effects, na.action = NULL){
           stop("random term with length 1 is not a cov matrix")
         }
         # if(nrow(covM) != nrow(X)) stop("random term with length 1 has different number of rows") # Nas problems
-        if(!inherits(covM, "Matrix")) covM = as(covM, "dgCMatrix") # to make cpp work, as cpp use sp_mat type
+        if(!inherits(covM, "Matrix")) covM = as(covM, "CsparseMatrix") # to make cpp work, as cpp use sp_mat type
         nested[[jj]] = covM
       }
       
@@ -518,7 +518,7 @@ get_design_matrix = function(formula, data, random.effects, na.action = NULL){
         # Z.2 <- t(Z.2)
         # use Z.2 to mask non-nested Z.1
         # nested[[jj]] <- (t(Z.1) %*% Z.1) * (t(Z.2) %*% Z.2)
-        nested[[jj]] <- as(crossprod(Z.1) * tcrossprod(Z.2), "dgCMatrix")
+        nested[[jj]] <- as(crossprod(Z.1) * tcrossprod(Z.2), "CsparseMatrix")
       }
     }
   }
@@ -535,8 +535,8 @@ get_design_matrix = function(formula, data, random.effects, na.action = NULL){
       Zt[count:(count + St.lengths[i] - 1), ] <- Ztt[[i]]
       count <- count + St.lengths[i]
     }
-    St <- as(St, "dgTMatrix")
-    Zt <- as(Zt, "dgTMatrix")
+    St <- as(St, "TsparseMatrix")
+    Zt <- as(Zt, "TsparseMatrix")
   } else {
     St <- NULL # for cpp
     Zt <- NULL
@@ -570,7 +570,7 @@ pglmm_gaussian_LL_calc = function(par, X, Y, Zt, St, nested = NULL,
     q.nonNested <- dim(St)[1]
     sr <- Re(par[1:q.nonNested])
     iC = as.vector(matrix(sr, nrow = 1) %*% St)
-    iC <- as(diag(iC), "dsCMatrix")
+    iC <- as(diag(iC), "sparseMatrix")
     Ut <- iC %*% Zt
     U <- t(Ut)
   } else {
@@ -587,21 +587,21 @@ pglmm_gaussian_LL_calc = function(par, X, Y, Zt, St, nested = NULL,
   }
   
   if (q.Nested == 0) {
-    iA <- as(diag(n), "dsCMatrix")
-    Ishort <- as(diag(nrow(Ut)), "dsCMatrix")
+    iA <- as(diag(n), "sparseMatrix")
+    Ishort <- as(diag(nrow(Ut)), "sparseMatrix")
     Ut.iA.U <- Ut %*% U
     # Ut.iA.U <- tcrossprod(Ut)
     # Woodbury identity
     iV <- iA - U %*% solve(Ishort + Ut.iA.U) %*% Ut
     # iV <- iA - crossprod(Ut, solve(Ishort + Ut.iA.U)) %*% Ut
   } else {
-    A <- as(diag(n), "dsCMatrix")
+    A <- as(diag(n), "sparseMatrix")
     for (j in 1:q.Nested) {
       A <- A + sn[j]^2 * nested[[j]]
     }
     iA <- solve(A)
     if (q.nonNested > 0) {
-      Ishort <- as(diag(nrow(Ut)), "dsCMatrix")
+      Ishort <- as(diag(nrow(Ut)), "sparseMatrix")
       Ut.iA.U <- Ut %*% iA %*% U
       # Ut.iA.U <- tcrossprod(Ut %*% iA, Ut)
       iV <- iA - iA %*% U %*% solve(Ishort + Ut.iA.U) %*% Ut %*% iA
@@ -694,7 +694,7 @@ pglmm.iV.logdetV <- function(par, Zt, St, mu, nested, logdet = TRUE, family, siz
     q.nonNested <- dim(St)[1]
     sr <- Re(par[1:q.nonNested])
     iC = as.vector(matrix(sr, nrow = 1) %*% St)
-    iC <- as(diag(iC), "dsCMatrix")
+    iC <- as(diag(iC), "sparseMatrix")
     Ut <- iC %*% Zt
     U <- t(Ut)
   } else {
@@ -710,9 +710,9 @@ pglmm.iV.logdetV <- function(par, Zt, St, mu, nested, logdet = TRUE, family, siz
   }
   
   if (q.Nested == 0) {
-   if(family == 'binomial') iA <- as(diag(as.vector(size * mu * (1 - mu))), "dgCMatrix")
-   if(family == 'poisson') iA <- as(diag(as.vector(mu)), "dgCMatrix")
-    Ishort <- as(diag(nrow(Ut)), "dsCMatrix")
+   if(family == 'binomial') iA <- as(diag(as.vector(size * mu * (1 - mu))), "CsparseMatrix")
+   if(family == 'poisson') iA <- as(diag(as.vector(mu)), "CsparseMatrix")
+    Ishort <- as(diag(nrow(Ut)), "sparseMatrix")
     Ut.iA.U <- Ut %*% iA %*% U
     # Woodbury identity
     iV <- iA - iA %*% U %*% solve(Ishort + Ut.iA.U) %*% Ut %*% iA
@@ -723,15 +723,15 @@ pglmm.iV.logdetV <- function(par, Zt, St, mu, nested, logdet = TRUE, family, siz
         logdetV <- 2 * sum(log(diag(chol(Ishort + Ut.iA.U)))) - determinant(iA)$modulus[1]
     }
   } else {
-    if(family == 'binomial') A <- as(diag(as.vector(1/(size * mu * (1 - mu)))), "dgCMatrix")
-    if(family == 'poisson') A <- as(diag(as.vector(1/mu)), "dgCMatrix")
+    if(family == 'binomial') A <- as(diag(as.vector(1/(size * mu * (1 - mu)))), "CsparseMatrix")
+    if(family == 'poisson') A <- as(diag(as.vector(1/mu)), "CsparseMatrix")
     for (j in 1:q.Nested) {
       A <- A + sn[j]^2 * nested[[j]]
     }
     iA <- solve(A)
     
     if (q.nonNested > 0) {
-      Ishort <- as(diag(nrow(Ut)), "dsCMatrix")
+      Ishort <- as(diag(nrow(Ut)), "sparseMatrix")
       Ut.iA.U <- Ut %*% iA %*% U
       iV <- iA - iA %*% U %*% solve(Ishort + Ut.iA.U) %*% Ut %*% iA
     } else {
@@ -758,7 +758,7 @@ pglmm.V <- function(par, Zt, St, mu, nested, family, size) {
     q.nonNested <- dim(St)[1]
     sr <- Re(par[1:q.nonNested])
     iC = as.vector(matrix(sr, nrow = 1) %*% St)
-    iC <- as(diag(iC), "dsCMatrix")
+    iC <- as(diag(iC), "sparseMatrix")
     Ut <- iC %*% Zt
     U <- t(Ut)
   } else {

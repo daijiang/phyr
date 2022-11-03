@@ -23,7 +23,7 @@ plot_data <- function(x, sp.var = "sp", site.var = "site",
   Y <- reshape(W, v.names = "Y", idvar = "sp", timevar = "site", direction = "wide")
   row.names(Y) = Y$sp
   Y <- Y[, -1]
-  y = as(as.matrix(Y), "dgCMatrix")
+  y = as(as.matrix(Y), "CsparseMatrix")
   p = image(y, xlab = ifelse(site.var == "site", "Site", site.var), 
             ylab = ifelse(sp.var == "sp", "Species", sp.var), 
             sub = "", useAbs = FALSE, main = "Observed value",
@@ -42,7 +42,7 @@ plot_data <- function(x, sp.var = "sp", site.var = "site",
     Y2 <- reshape(W2, v.names = "Y", idvar = "sp", timevar = "site", direction = "wide")
     row.names(Y2) = Y2$sp
     Y2 <- Y2[, -1]
-    y2 = as(as.matrix(Y2), "dgCMatrix")
+    y2 = as(as.matrix(Y2), "CsparseMatrix")
     p2 = image(y2, xlab = ifelse(site.var == "site", "Site", site.var), 
                ylab = ifelse(sp.var == "sp", "Species", sp.var), 
                main = "Predicted value",
