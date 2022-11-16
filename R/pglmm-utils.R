@@ -965,16 +965,14 @@ summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") -
                 "WAIC" = unname(x$WAIC))
     print(logLik, digits = digits)
   } else {
-    if (x$family == "gaussian") {
-      logLik = x$logLik
-      AIC = x$AIC
-      BIC = x$BIC
-      
-      names(logLik) = "logLik"
-      names(AIC) = "AIC"
-      names(BIC) = "BIC"
-      print(c(logLik, AIC, BIC), digits = digits)
-    }
+    logLik = x$logLik
+    AIC = x$AIC
+    BIC = x$BIC
+    
+    names(logLik) = "logLik"
+    names(AIC) = "AIC"
+    names(BIC) = "BIC"
+    print(c(logLik, AIC, BIC), digits = digits)
   }
   
   if(grepl("zeroinflated", x$family)) {
