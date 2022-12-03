@@ -799,8 +799,10 @@ pglmm.V <- function(par, Zt, St, mu, nested, family, size) {
 # End pglmm.V
 
 #' \code{pglmm_profile_LRT} tests statistical significance of the 
-#' phylogenetic random effect of binomial models on 
-#' species slopes using a likelihood ratio test.
+#' phylogenetic random effect using profile likelihoods when bayes = F. 
+#' The resulting p-values are conditional on the fixed 
+#' estimates of the other parameters, in contrast to a standard 
+#' likelihood ratio test.
 #' 
 #' @rdname pglmm-profile-LRT
 #' @param x A fitted model with class communityPGLMM and family "binomial".
@@ -816,14 +818,19 @@ pglmm_profile_LRT <- function(x, re.number = 0, cpp = TRUE) {
   par[re.number] <- 0
   df <- length(re.number)
   
-  if(cpp){
-    LL <- pglmm_LL_cpp(par = x$ss, H = x$H, X = x$X, Zt = x$Zt, St = x$St, 
-                       mu = x$mu, nested = x$nested, REML = x$REML, verbose = FALSE,
-                       family = x$family, totalSize = x$size)
+  if (x$family == "gaussian") {
+    LL <- pglmm_gaussian_LL_calc(par = x$ss, X = x$X, Y = x$Y, Zt = x$Zt, 
+            St = x$St, nested = x$nested, REML = x$REML, verbose = F, optim_ll = TRUE)
   } else {
-    LL <- pglmm.LL(par = x$ss, H = x$H, X = x$X, Zt = x$Zt, St = x$St, 
-                   mu = x$mu, nested = x$nested, REML = x$REML, verbose = FALSE, 
-                   family = x$family, size = x$size)
+    if (cpp) {
+      LL <- pglmm_LL_cpp(par = x$ss, H = x$H, X = x$X, Zt = x$Zt, 
+             St = x$St, mu = x$mu, nested = x$nested, REML = x$REML, verbose = FALSE, 
+              family = x$family, totalSize = x$size)
+    } else {
+      LL <- pglmm.LL(par = x$ss, H = x$H, X = x$X, Zt = x$Zt, 
+              St = x$St, mu = x$mu, nested = x$nested, REML = x$REML, verbose = FALSE,  
+              family = x$family, size = x$size)
+    }
   }
   
   if (x$REML) {
@@ -832,14 +839,19 @@ pglmm_profile_LRT <- function(x, re.number = 0, cpp = TRUE) {
     logLik <- -0.5 * n * log(2 * pi) - LL
   }
   
-  if(cpp){
-    LL0 <- pglmm_LL_cpp(par = par, H = x$H, X = x$X, Zt = x$Zt, St = x$St, 
-                        mu = x$mu, nested = x$nested, REML = x$REML, verbose = FALSE,
-                        family = x$family, totalSize = x$size)
+  if (x$family == "gaussian") {
+    LL0 <- pglmm_gaussian_LL_calc(par = par, X = x$X, Y = x$Y, Zt = x$Zt, 
+              St = x$St, nested = x$nested, REML = x$REML, verbose = F, optim_ll = TRUE)
   } else {
-    LL0 <- pglmm.LL(par = par, H = x$H, X = x$X, Zt = x$Zt, St = x$St, 
-                    mu = x$mu, nested = x$nested, REML = x$REML, verbose = FALSE, 
-                    family = x$family, size = x$size)
+    if (cpp) {
+      LL0 <- pglmm_LL_cpp(par = par, H = x$H, X = x$X, Zt = x$Zt, St = x$St, 
+              mu = x$mu, nested = x$nested, REML = x$REML, verbose = FALSE, 
+              family = x$family, totalSize = x$size)
+    } else {
+      LL0 <- pglmm.LL(par = par, H = x$H, X = x$X, Zt = x$Zt, St = x$St, 
+              mu = x$mu, nested = x$nested, REML = x$REML, verbose = FALSE, 
+              family = x$family, size = x$size)
+    }
   }
   
   if (x$REML) {
@@ -849,10 +861,12 @@ pglmm_profile_LRT <- function(x, re.number = 0, cpp = TRUE) {
   }
   
   P.H0.s2 <- pchisq(2 * (logLik - logLik0), df = df, lower.tail = FALSE)/2
-  if (P.H0.s2 > 0.499) P.H0.s2 <- 1
+  if (P.H0.s2 > 0.499) 
+    P.H0.s2 <- 1
   
   list(LR = logLik - logLik0, df = df, Pr = P.H0.s2)
 }
+
 
 #' @export
 #' @rdname pglmm-profile-LRT
@@ -861,6 +875,7 @@ communityPGLMM.profile.LRT = function(x, re.number = 0, cpp = TRUE){
   .Deprecated("pglmm_profile_LRT")
   pglmm_profile_LRT(x, re.number, cpp)
 }
+
 
 #' \code{pglmm_matrix_structure} produces the entire
 #' covariance matrix structure (V) when you specify random effects.

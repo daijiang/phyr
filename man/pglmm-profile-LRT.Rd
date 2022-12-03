@@ -4,8 +4,10 @@
 \alias{pglmm_profile_LRT}
 \alias{communityPGLMM.profile.LRT}
 \title{\code{pglmm_profile_LRT} tests statistical significance of the
-phylogenetic random effect of binomial models on
-species slopes using a likelihood ratio test.}
+phylogenetic random effect using profile likelihoods when bayes = F.
+The resulting p-values are conditional on the fixed
+estimates of the other parameters, in contrast to a standard
+likelihood ratio test.}
 \usage{
 pglmm_profile_LRT(x, re.number = 0, cpp = TRUE)
 
@@ -23,6 +25,8 @@ A list of likelihood, df, and p-value.
 }
 \description{
 \code{pglmm_profile_LRT} tests statistical significance of the
-phylogenetic random effect of binomial models on
-species slopes using a likelihood ratio test.
+phylogenetic random effect using profile likelihoods when bayes = F.
+The resulting p-values are conditional on the fixed
+estimates of the other parameters, in contrast to a standard
+likelihood ratio test.
 }
