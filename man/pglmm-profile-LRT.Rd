@@ -3,20 +3,16 @@
 \name{pglmm_profile_LRT}
 \alias{pglmm_profile_LRT}
 \alias{communityPGLMM.profile.LRT}
-\title{\code{pglmm_profile_LRT} tests statistical significance of the
-phylogenetic random effect using profile likelihoods when bayes = F.
-The resulting p-values are conditional on the fixed
-estimates of the other parameters, in contrast to a standard
-likelihood ratio test.}
+\title{Testing statistical significance of random effect}
 \usage{
 pglmm_profile_LRT(x, re.number = 0, cpp = TRUE)
 
 communityPGLMM.profile.LRT(x, re.number = 0, cpp = TRUE)
 }
 \arguments{
-\item{x}{A fitted model with class communityPGLMM and family "binomial".}
+\item{x}{A fitted model with class communityPGLMM with \code{bayes = FALSE}.}
 
-\item{re.number}{Which random term to test? Can be a vector with length >1}
+\item{re.number}{Which random term to test? Can be a vector with length >1.}
 
 \item{cpp}{Whether to use C++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE}.}
 }

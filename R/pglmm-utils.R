@@ -798,6 +798,8 @@ pglmm.V <- function(par, Zt, St, mu, nested, family, size) {
 }
 # End pglmm.V
 
+#' Testing statistical significance of random effect
+#' 
 #' \code{pglmm_profile_LRT} tests statistical significance of the 
 #' phylogenetic random effect using profile likelihoods when bayes = F. 
 #' The resulting p-values are conditional on the fixed 
@@ -805,13 +807,14 @@ pglmm.V <- function(par, Zt, St, mu, nested, family, size) {
 #' likelihood ratio test.
 #' 
 #' @rdname pglmm-profile-LRT
-#' @param x A fitted model with class communityPGLMM and family "binomial".
-#' @param re.number Which random term to test? Can be a vector with length >1
+#' @param x A fitted model with class communityPGLMM with `bayes = FALSE`.
+#' @param re.number Which random term to test? Can be a vector with length >1.
 #' @inheritParams pglmm
 #' @return A list of likelihood, df, and p-value.
 #' @export
 #' 
 pglmm_profile_LRT <- function(x, re.number = 0, cpp = TRUE) {
+  if(x$bayes) stop("pglmm_profile_LRT only works with models fitted with `bayes = FALSE`")
   n <- dim(x$X)[1]
   p <- dim(x$X)[2]
   par <- x$ss

@@ -32,7 +32,7 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   
   # test significance of random term
   pglmm_profile_LRT(x1, 1)
-  expect_error(pglmm_profile_LRT(x2, 1))
+  pglmm_profile_LRT(x2, 1)
   expect_error(pglmm_profile_LRT(x3, 1))
   
   # test design matrix
