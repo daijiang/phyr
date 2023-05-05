@@ -1358,10 +1358,11 @@ predict.communityPGLMM <- function(object, newdata = NULL, ...) {
 #' @param ntry Number of times to retry simulation in the case of `NA` values. Only applies
 #' to models fit with `bayes = TRUE`. If there are still `NA`s after `ntry` times, the 
 #' simulated values will be returned (with `NA`s) with a warning. If you keep getting `NA`s try
-#' rerunning with `joint = TRUE`, which simulates in a slower but more stable way.
-#' @param full If `TRUE`, simulation will be done with an approximation of the full
-#' joint posterior (rather than the marginal posterior, which is the default). 
-#' This method is much slower but is often more stable, and is technically more accurate.
+#' rerunning with `full = TRUE`, which simulates in a slower but more stable way.
+#' @param full If `TRUE`, and the model was fit using `bayes = TRUE`, then the simulation will be done 
+#' with an approximation of the full joint posterior (rather than the marginal posterior, 
+#' which is the default). This method is much slower but is often more stable, and is 
+#' technically more accurate.
 #'
 #' @export
 #'
@@ -1470,7 +1471,7 @@ bayes_simulate <- function(object, nsim = 250, re.form, ntry = 5, full = FALSE) 
       }
       
       if(any(missing)) {
-        warning("Simulation resulted in some NA values after ", ntry, " tries. Consider increasing ntry or using joint = TRUE")
+        warning("Simulation resulted in some NA values after ", ntry, " tries. Consider increasing ntry or using full = TRUE")
       }
       
       sim <- do.call(cbind, sim)  
@@ -1549,7 +1550,7 @@ bayes_simulate <- function(object, nsim = 250, re.form, ntry = 5, full = FALSE) 
         }
           
         if(any(missing)) {
-          warning("Simulation resulted in some NA values after ", ntry, " tries. Consider increasing ntry or using joint = TRUE")
+          warning("Simulation resulted in some NA values after ", ntry, " tries. Consider increasing ntry or using full = TRUE")
         }
           
         sim <- do.call(cbind, sim) 
