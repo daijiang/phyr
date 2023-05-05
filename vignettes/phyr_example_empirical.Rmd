@@ -39,20 +39,12 @@ head(oldfield$data, 40)
 
 With these data we are interested in asking whether there is phylogenetic structure in the distribution of these species, as well as whether disturbance has any overall effects. To do this we will specify two different phylogenetic effects in our `pglmm`, which uses a syntax similar to `lmer` and `glmer` in the `lme4` package for specifying random effects. We also include site-level random effects to account for the paired design of the experiment. We will start by modeling just presence and absence of species (a binomial model). Note this model will take a while when using maximum likelihood (the Bayesian method is much faster). This is the full model specification:
 
-```{r gen_raneff, eval=!file.exists("~/Documents/pglmm_mod_vignette.rds")}
+```{r gen_raneff}
 mod <- phyr::pglmm(pres ~ disturbance + (1 | sp__) + (1 | site) + 
                      (disturbance | sp__) + (1 | sp__@site), 
                    data = oldfield$data, 
                    cov_ranef = list(sp = oldfield$phy),
                    family = "binomial")
-```
-
-```{r saveMod, echo=FALSE, eval=!file.exists("~/Documents/pglmm_mod_vignette.rds")}
-saveRDS(mod, "~/Documents/pglmm_mod_vignette.rds")
-```
-
-```{r readMod, echo=FALSE}
-mod <- readRDS("~/Documents/pglmm_mod_vignette.rds")
 ```
 
 Here, we specified an overall phylogenetic effect using `sp__`, which also automatically includes a nonphylogenetic i.i.d. effect of species. `phyr` finds the linked phylogenetic data because we specified the phylogeny in the `cov_ranef` argument, giving it the name `sp` which matches `sp__` but without the underscores. We can include any number of phylogenies or covariance matrices in this way, allowing us to model multiple sources of covariance in one model. In this example, however, we will stick to one phylogeny to cover the basics of how to run `pglmm` models. We use the same phylogeny to model a second phylogenetic random effect, which is specified as `sp__@site`. This is a "nested" phylogenetic effect. This means that we are fitting an effect that had covariance proportional to the species phylogeny, but independently for each site (or "nested" in sites). We've also included a disturbance-by-phylogenetic species effect (`(disturbance | sp__)`), which estimates the degree to which occurrence in disturbed vs. undisturbed habitat has a phylogenetic signal. Like the main `sp__` effect, the disturbance-by-`sp__` effect also includes an nonphylogenetic species-by-disturbance interaction. Let's look at the results:
@@ -76,7 +68,7 @@ t(LRTs)
 
 This result shows that the nested phylogenetic effect is statistically significant. What does this mean? A model where the within-site distributions of species are explained by the phylogenetic covariance of species implies a 'phylogenetic attraction' or 'phylogenetic clustering' effect, in which closely related species are more likely to be found together in the same community. In the original analysis of these data using traditional community phylogenetics methods (null model based) found that the disturbed sites were phylogenetically clustered but undisturbed sites were not. If the data are split in this way, and each split modeled separately, does this result hold up?
 
-```{r split_model, eval=!file.exists("~/Documents/pglmm_mod_disturb_vignette.rds")}
+```{r split_model)}
 mod_disturbed <- phyr::pglmm(pres ~ (1 | sp__) + (1 | sp__@site) + 
                                (1 | site), 
                              data = oldfield$data %>%
@@ -91,18 +83,6 @@ mod_undisturbed <- phyr::pglmm(pres ~ (1 | sp__) + (1 | sp__@site) +
                                cov_ranef = list(sp = oldfield$phy),
                                family = "binomial")
 ```
-
-```{r save_disturb_mod, echo=FALSE, eval=!file.exists("~/Documents/pglmm_mod_disturb_vignette.rds")}
-saveRDS(mod_disturbed, "~/Documents/pglmm_mod_disturb_vignette.rds")
-saveRDS(mod_undisturbed, "~/Documents/pglmm_mod_undisturb_vignette.rds")
-```
-
-
-```{r echo=FALSE}
-mod_disturbed <- readRDS("~/Documents/pglmm_mod_disturb_vignette.rds")
-mod_undisturbed <- readRDS("~/Documents/pglmm_mod_undisturb_vignette.rds")
-```
-
 
 ```{r split_model2}
 cat("Disturbed phylogenetic clustering test:\n")
@@ -147,7 +127,7 @@ What we are looking for is that the posterior distribution mode is well away fro
 The next thing we might want to check is whether assumptions of the model are met by the data. The typical way to do this is by plotting and/or analyzing the model residuals. In non-Gaussian models such as this one, this can be less straightforward. However, `phyr` output supports the `DHARMa` package, which can generated a generalized type of residual known as randomized quantile residuals (or sometimes Dunn-Smyth residuals). These can be calculated and inspected for nearly any error distribution. We can produce standard diagnostic plots for our `pglmm` model by simply calling `DHARMa::simulateResiduals` on the model object.
 
 ```{r call_dharma, fig.width=16, fig.height=9, out.width="90%"}
-resids <- DHARMa::simulateResiduals(mod_bayes, plot = FALSE)
+resids <- DHARMa::simulateResiduals(mod_bayes, plot = FALSE, ntry = 50)
 plot(resids)
 ```
 

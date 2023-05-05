@@ -1,10 +1,15 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
+<!-- [![Travis build status](https://travis-ci.org/daijiang/phyr.svg?branch=master)](https://travis-ci.org/daijiang/phyr) [![Coverage status](https://codecov.io/gh/daijiang/phyr/branch/master/graph/badge.svg)](https://codecov.io/gh/daijiang/phyr) -->
 
-[![Travis build
-status](https://travis-ci.org/daijiang/phyr.svg?branch=master)](https://travis-ci.org/daijiang/phyr)
-[![Coverage
-status](https://codecov.io/gh/daijiang/phyr/branch/master/graph/badge.svg)](https://codecov.io/gh/daijiang/phyr)
+# phyr <img src="man/figures/logo.png" align="right" height="138" />
+
+<!-- badges: start -->
+
+[![R-CMD-check](https://github.com/daijiang/phyr/workflows/R-CMD-check/badge.svg)](https://github.com/daijiang/phyr/actions)
+[![Codecov test
+coverage](https://codecov.io/gh/daijiang/phyr/branch/master/graph/badge.svg)](https://app.codecov.io/gh/daijiang/phyr?branch=master)
+<!-- badges: end -->
 
 # Installation
 
@@ -36,16 +41,15 @@ The phyr package has three groups of functions:
     syntax that allows straightforward model set up, a faster version of
     maximum likelihood implementation via c++, and a Bayesian model
     fitting framework based on INLA.
-      - We hope the model formula proposed here can be used to
-        standardize PGLMMs set up across different tools (e.g. `brms`
-        for Stan).
-      - PGLMM for comparative data (`pglmm.compare`), which was originally 
-        from `ape::binaryPGLMM()` but has more features.
+    - We hope the model formula proposed here can be used to standardize
+      PGLMMs set up across different tools (e.g. `brms` for Stan).
+    - PGLMM for comparative data (`pglmm.compare`), which was originally
+      from `ape::binaryPGLMM()` but has more features.
 
 # Usage examples of `pglmm()`
 
 `pglmm` use similar syntax as `lme4::lmer` to specify random terms: add
-`__` (two underscores) at the end of grouping variable (e.g. `sp`) to
+`__` (two underscores) at the end of grouping variable (e.g. `sp`) to
 specify both phylogenetic and non-phylogenetic random terms; use
 `(1|sp__@site)` to specify nested term (i.e. species phylogenetic matrix
 `V_sp` nested within the diagonal of site matrix `I_site`) to test
@@ -53,13 +57,13 @@ phylogenetic overdispersion or underdispersion. This should be the most
 commonly used one and is equal to `kronecker(I_site, V_sp)`.
 
 We can also use a second phylogeny for bipartite questions. For example,
-`(1|parasite@host__)` will be converted to `kronecker(V_host,
-I_parasite)`; `(1|parasite__@host__)` will be converted to
-`kronecker(V_host, V_parasite)`.
+`(1|parasite@host__)` will be converted to
+`kronecker(V_host, I_parasite)`; `(1|parasite__@host__)` will be
+converted to `kronecker(V_host, V_parasite)`.
 
 For details about model formula, see documentation `?phyr::pglmm`. More
-application examples can be found in [Ives 2018
-Chapter 4](https://leanpub.com/correlateddata).
+application examples can be found in [Ives 2018 Chapter
+4](https://leanpub.com/correlateddata).
 
 ``` r
 library(phyr)
@@ -67,6 +71,7 @@ library(phyr)
 
 ``` r
 library(dplyr)
+## Warning: package 'dplyr' was built under R version 4.2.2
 ## 
 ## Attaching package: 'dplyr'
 ## The following objects are masked from 'package:stats':
@@ -101,6 +106,7 @@ test1 = phyr::pglmm(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site),
                     data = dat, family = "gaussian", REML = FALSE,
                     cov_ranef = list(sp = phylotree))
 ## Warning: Drop species from the phylogeny that are not in the variable sp
+## as(<matrix>, "dgTMatrix") is deprecated since Matrix 1.5-0; do as(as(as(., "dMatrix"), "generalMatrix"), "TsparseMatrix") instead
 test1
 ## Linear mixed model fit by maximum likelihood
 ## 
@@ -160,23 +166,25 @@ z_bipartite
 ## Call:freq ~ 1 + shade
 ## 
 ## logLik    AIC    BIC 
-## -466.0  952.1  974.8 
+## -459.0  938.1  960.8 
 ## 
 ## Random effects:
-##                Variance  Std.Dev
-## 1|sp          1.648e-02 0.128377
-## 1|sp__        1.173e+00 1.082923
-## 1|site        2.792e-02 0.167098
-## 1|site__      8.659e-03 0.093052
-## 1|sp__@site   1.965e+00 1.401671
-## 1|sp@site__   7.968e-02 0.282273
-## 1|sp__@site__ 8.041e-05 0.008967
-## residual      9.625e-01 0.981064
+##                Variance   Std.Dev
+## 1|sp          4.430e-06 2.105e-03
+## 1|sp__        7.747e-01 8.801e-01
+## 1|site        4.978e-09 7.055e-05
+## 1|site__      1.199e-02 1.095e-01
+## 1|sp__@site   1.676e-05 4.094e-03
+## 1|sp@site__   1.570e-06 1.253e-03
+## 1|sp__@site__ 1.487e-06 1.219e-03
+## residual      3.250e+00 1.803e+00
 ## 
 ## Fixed effects:
-##                 Value Std.Error  Zscore Pvalue
-## (Intercept) -0.127328  0.815075 -0.1562 0.8759
-## shade        0.019393  0.011889  1.6311 0.1029
+##                  Value  Std.Error  Zscore    Pvalue    
+## (Intercept) -0.2613149  0.5749455 -0.4545 0.6494662    
+## shade        0.0226565  0.0068289  3.3177 0.0009075 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ```
 
 # Licenses
@@ -190,7 +198,9 @@ Contributions are welcome. You can provide comments and feedback or ask
 questions by filing an issue on Github
 [here](https://github.com/daijiang/phyr/issues) or making pull requests.
 
-
 # Code of conduct
 
-Please note that the 'phyr' project is released with a [Contributor Code of Conduct](https://github.com/daijiang/phyr/blob/master/CODE_OF_CONDUCT.md). By contributing to this project, you agree to abide by its terms.
+Please note that the ‘phyr’ project is released with a [Contributor Code
+of
+Conduct](https://github.com/daijiang/phyr/blob/master/CODE_OF_CONDUCT.md).
+By contributing to this project, you agree to abide by its terms.
