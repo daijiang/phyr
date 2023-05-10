@@ -52,6 +52,22 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
     pez::communityPGLMM.predicted.values(x2, show.plot = FALSE)[, 1], ignore_attr = TRUE
   )
   
+  # test simulation
+  sims_x1 <- simulate(x1, 250)
+  sims_x2 <- simulate(x2, 250)
+  sims_x3 <- simulate(x3, 250)
+  sims_x4 <- simulate(x4, 250)
+  
+  expect_identical(dim(sims_x1), c(225L, 250L))
+  expect_identical(dim(sims_x2), c(225L, 250L))
+  expect_identical(dim(sims_x3), c(225L, 250L))
+  expect_identical(dim(sims_x4), c(225L, 250L))
+  
+  expect_type(sims_x1, "integer")
+  expect_type(sims_x2, "double")
+  expect_type(sims_x3, "double")
+  expect_type(sims_x4, "integer")
+  
   # not equal because of different methods used
   phyr::pglmm_predicted_values(x1)$Y_hat
   pez::communityPGLMM.predicted.values(x1, show.plot = FALSE) 

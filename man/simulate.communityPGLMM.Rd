@@ -4,7 +4,15 @@
 \alias{simulate.communityPGLMM}
 \title{Simulate from a communityPGLMM object}
 \usage{
-\method{simulate}{communityPGLMM}(object, nsim = 1, seed = NULL, re.form = NULL, ...)
+\method{simulate}{communityPGLMM}(
+  object,
+  nsim = 1,
+  seed = NULL,
+  re.form = NULL,
+  ntry = 5,
+  full = FALSE,
+  ...
+)
 }
 \arguments{
 \item{object}{A fitted model object with class 'communityPGLMM'.}
@@ -18,9 +26,19 @@
 If \code{NULL}, include all random effects and the conditional modes of those random effects will be included in the deterministic part of the simulation (i.e Xb + Zu);
 if \code{NA} or \code{~0}, include no random effects and new values will be chosen for each group based on the estimated random-effects variances (i.e. Xb + Zu * u_random).}
 
+\item{ntry}{Number of times to retry simulation in the case of \code{NA} values. Only applies
+to models fit with \code{bayes = TRUE}. If there are still \code{NA}s after \code{ntry} times, the
+simulated values will be returned (with \code{NA}s) with a warning. If you keep getting \code{NA}s try
+rerunning with \code{full = TRUE}, which simulates in a slower but more stable way.}
+
+\item{full}{If \code{TRUE}, and the model was fit using \code{bayes = TRUE}, then the simulation will be done
+with an approximation of the full joint posterior (rather than the marginal posterior,
+which is the default). This method is much slower but is often more stable, and is
+technically more accurate.}
+
 \item{...}{optional additional arguments (none are used in
     \code{.simulateFormula})}
 }
 \description{
-Note that this function currently only works for model fit with \code{bayes = TRUE}
+Simulate from a communityPGLMM object
 }

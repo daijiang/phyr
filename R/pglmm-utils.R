@@ -1350,18 +1350,24 @@ predict.communityPGLMM <- function(object, newdata = NULL, ...) {
 
 #' Simulate from a communityPGLMM object
 #'
-#' Note that this function currently only works for model fit with \code{bayes = TRUE}
-#'
 #' @inheritParams lme4::simulate.merMod
 #' @param re.form (formula, `NULL`, or `NA`) specify which random effects to condition on when predicting. 
 #' If `NULL`, include all random effects and the conditional modes of those random effects will be included in the deterministic part of the simulation (i.e Xb + Zu); 
 #' if `NA` or `~0`, include no random effects and new values will be chosen for each group based on the estimated random-effects variances (i.e. Xb + Zu * u_random).
 #' @param object A fitted model object with class 'communityPGLMM'.
+#' @param ntry Number of times to retry simulation in the case of `NA` values. Only applies
+#' to models fit with `bayes = TRUE`. If there are still `NA`s after `ntry` times, the 
+#' simulated values will be returned (with `NA`s) with a warning. If you keep getting `NA`s try
+#' rerunning with `full = TRUE`, which simulates in a slower but more stable way.
+#' @param full If `TRUE`, and the model was fit using `bayes = TRUE`, then the simulation will be done 
+#' with an approximation of the full joint posterior (rather than the marginal posterior, 
+#' which is the default). This method is much slower but is often more stable, and is 
+#' technically more accurate.
 #'
 #' @export
 #'
 simulate.communityPGLMM <- function(object, nsim = 1, seed = NULL, 
-                                    re.form = NULL, ...) {
+                                    re.form = NULL, ntry = 5, full = FALSE, ...) {
   if(!is.null(seed)) set.seed(seed)
   
   #sim <- INLA::inla.posterior.sample(nsim, object$inla.model)
@@ -1399,27 +1405,167 @@ simulate.communityPGLMM <- function(object, nsim = 1, seed = NULL,
       sim <- apply(mu_sim, MARGIN = 2, FUN = function(x) rbinom(length(x), Ntrials, x))
     }
   } else { # beyes version
-    if(deparse(re.form) == "~0" | deparse(re.form) == "NA")
-      warning("re.form = NULL is the only option for bayes models at this moment",
-              immediate. = TRUE)
-    mu_sim <- do.call(rbind, lapply(object$inla.model$marginals.fitted.values, 
-                                    INLA::inla.rmarginal, n = nsim)) %>%
-      as.data.frame()
     
-    if(object$bayes && object$family == "binomial" && 
-       !is.null(object$inla.model$Ntrials)) {
-      Ntrials <- object$inla.model$Ntrials
-    } else {
-      Ntrials <- 1
-    }
+    sim <- bayes_simulate(object, nsim = nsim, re.form = re.form, ntry = ntry, full = full)
     
-    sim <- switch(object$family,
-                  binomial = lapply(mu_sim, function(x) rbinom(length(x), Ntrials, x)),
-                  poisson = lapply(mu_sim, function(x) rpois(length(x), x))
-    )
-    
-    sim <- do.call(cbind, sim)
   }
   
   sim
+}
+
+bayes_simulate <- function(object, nsim = 250, re.form, ntry = 5, full = FALSE) {
+  
+  if(object$bayes && object$family == "binomial" && 
+     !is.null(object$inla.model$Ntrials)) {
+    Ntrials <- object$inla.model$Ntrials
+  } else {
+    Ntrials <- 1
+  }
+  
+  if(is.null(re.form)){
+    if(full) {
+      
+      fam <- family(object)
+      
+      mu_sim <- INLA::inla.posterior.sample(nsim, object$inla.model,
+                                            selection = list(Predictor = 0))
+      mu_sim <- lapply(mu_sim, function(x) fam$linkinv(x$latent))
+      
+      sim <- switch(object$family,
+                    binomial = lapply(mu_sim, function(x) rbinom(length(x), Ntrials, x)),
+                    poisson = lapply(mu_sim, function(x) rpois(length(x), x)),
+                    mu_sim
+      )
+      
+      sim <- do.call(cbind, sim) 
+      
+    } else {
+      
+      mu_sim <- do.call(rbind, lapply(object$inla.model$marginals.fitted.values, 
+                                    INLA::inla.rmarginal, n = nsim)) %>%
+        as.data.frame()
+      
+      sim <- switch(object$family,
+                    binomial = lapply(mu_sim, function(x) rbinom(length(x), Ntrials, x)),
+                    poisson = lapply(mu_sim, function(x) rpois(length(x), x)),
+                    mu_sim
+      )
+      
+      missing <- sapply(sim, function(x) any(is.na(x)))
+      
+      if(any(missing) && ntry > 0) {
+        for(i in seq_len(ntry)) {
+          mu_sim[missing] <- do.call(rbind, lapply(object$inla.model$marginals.fitted.values, 
+                                      INLA::inla.rmarginal, n = sum(missing))) %>%
+            as.data.frame()
+          sim[missing] <- switch(object$family,
+                                 binomial = lapply(mu_sim[missing], function(x) rbinom(length(x), Ntrials, x)),
+                                 poisson = lapply(mu_sim[missing], function(x) rpois(length(x), x)),
+                                 mu_sim
+          )
+          missing <- sapply(sim, function(x) any(is.na(x)))
+          if(!any(missing)) {
+            break
+          }
+        }
+      }
+      
+      if(any(missing)) {
+        warning("Simulation resulted in some NA values after ", ntry, " tries. Consider increasing ntry or using full = TRUE")
+      }
+      
+      sim <- do.call(cbind, sim)  
+      
+    }
+    
+    
+  } else {
+    
+    if(deparse(re.form) == "~0" | deparse(re.form) == "NA"){
+        
+      # condition on none of the random effects
+      if(full) {
+        
+        fam <- family(object)
+        
+        beta_names <- rownames(object$inla.model$summary.fixed)
+        selection <- as.list(rep(0, length(beta_names)))
+        names(selection) <- beta_names
+        beta_sim <- INLA::inla.posterior.sample(nsim, object$inla.model,
+                                                selection = selection)
+        
+        beta_sim <- sapply(beta_sim, function(x) fam$linkinv(x$latent))
+        
+        mu_sim <- (object$X %*% beta_sim) %>%
+          as.data.frame()
+        
+        mu_sim <- lapply(mu_sim, fam$linkinv)
+
+        sim <- switch(object$family,
+                      binomial = lapply(mu_sim, function(x) rbinom(length(x), Ntrials, x)),
+                      poisson = lapply(mu_sim, function(x) rpois(length(x), x)),
+                      mu_sim
+                      )
+        
+        sim <- do.call(cbind, sim) 
+        
+      } else {
+        
+        fam <- family(object)
+        
+        beta_sim <- do.call(cbind, lapply(object$inla.model$marginals.fixed,
+                                          INLA::inla.rmarginal, n = nsim)) 
+        
+        mu_sim <- (object$X %*% t(beta_sim)) %>%
+          as.data.frame()
+        
+        mu_sim <- lapply(mu_sim, fam$linkinv)
+
+        sim <- switch(object$family,
+                      binomial = lapply(mu_sim, function(x) rbinom(length(x), Ntrials, x)),
+                      poisson = lapply(mu_sim, function(x) rpois(length(x), x)),
+                      mu_sim
+                      )
+        
+        missing <- sapply(sim, function(x) any(is.na(x)))
+      
+        if(any(missing) && ntry > 0) {
+          for(i in seq_len(ntry)) {
+            beta_sim[missing, ] <- do.call(cbind, lapply(object$inla.model$marginals.fixed,
+                                                         INLA::inla.rmarginal, n = sum(missing))) 
+            mu_sim[missing] <- (object$X %*% t(beta_sim[missing, , drop = FALSE])) %>%
+              as.data.frame() %>%
+              lapply(fam$linkinv)
+            
+            sim[missing] <- switch(object$family,
+                                   binomial = lapply(mu_sim[missing], function(x) rbinom(length(x), Ntrials, x)),
+                                   poisson = lapply(mu_sim[missing], function(x) rpois(length(x), x)),
+                                   mu_sim
+            )
+            missing <- sapply(sim, function(x) any(is.na(x)))
+            if(!any(missing)) {
+              break
+            }
+          }
+        }
+          
+        if(any(missing)) {
+          warning("Simulation resulted in some NA values after ", ntry, " tries. Consider increasing ntry or using full = TRUE")
+        }
+          
+        sim <- do.call(cbind, sim) 
+        
+      }
+        
+        
+    } else {
+        
+      stop("Formula for random effects to condition on currently is not supported yet")
+      
+    }
+    
+  }
+  
+  sim
+  
 }

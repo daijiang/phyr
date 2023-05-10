@@ -6,6 +6,12 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Plot random terms of communityPGLMM • phyr</title>
+<!-- favicons --><link rel="icon" type="image/png" sizes="16x16" href="../favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32x32.png">
+<link rel="apple-touch-icon" type="image/png" sizes="180x180" href="../apple-touch-icon.png">
+<link rel="apple-touch-icon" type="image/png" sizes="120x120" href="../apple-touch-icon-120x120.png">
+<link rel="apple-touch-icon" type="image/png" sizes="76x76" href="../apple-touch-icon-76x76.png">
+<link rel="apple-touch-icon" type="image/png" sizes="60x60" href="../apple-touch-icon-60x60.png">
 <!-- jquery --><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script><!-- Bootstrap --><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.4.1/css/bootstrap.min.css" integrity="sha256-bZLfwXAP04zRMK2BjiO8iu9pf4FbLqX6zitd+tIvLhE=" crossorigin="anonymous">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.4.1/js/bootstrap.min.js" integrity="sha256-nuL8/2cJ5NDSSwnKD8VqreErSWHtnEP9E7AySL+1ev4=" crossorigin="anonymous"></script><!-- bootstrap-toc --><link rel="stylesheet" href="../bootstrap-toc.css">
 <script src="../bootstrap-toc.js"></script><!-- Font Awesome icons --><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.1/css/all.min.css" integrity="sha256-mmgLkCYLUQbXn0B1SRqzHar6dCnv9oZFPEC1g1cwlkk=" crossorigin="anonymous">
@@ -13,12 +19,15 @@
 <!-- clipboard.js --><script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.6/clipboard.min.js" integrity="sha256-inc5kl9MA1hkeYUt+EC3BhlIgyp/2jDIyBLS6k3UxPI=" crossorigin="anonymous"></script><!-- headroom.js --><script src="https://cdnjs.cloudflare.com/ajax/libs/headroom/0.11.0/headroom.min.js" integrity="sha256-AsUX4SJE1+yuDu5+mAVzJbuYNPHj/WroHuZ8Ir/CkE0=" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/headroom/0.11.0/jQuery.headroom.min.js" integrity="sha256-ZX/yNShbjqsohH1k95liqY9Gd8uOiE1S4vZc+9KQ1K4=" crossorigin="anonymous"></script><!-- pkgdown --><link href="../pkgdown.css" rel="stylesheet">
 <script src="../pkgdown.js"></script><meta property="og:title" content="Plot random terms of communityPGLMM">
 <meta property="og:description" content="phyr">
+<meta property="og:image" content="/logo.png">
 <!-- mathjax --><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js" integrity="sha256-nvJJv9wWKEm88qvoQl9ekL2J+k/RWIsaSScxxlsrv8k=" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/config/TeX-AMS-MML_HTMLorMML.js" integrity="sha256-84DKXVJXs0/F8OTMzX4UR909+jtl4G7SPypPavF+GfA=" crossorigin="anonymous"></script><!--[if lt IE 9]>
 <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
 <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
 <![endif]-->
 </head>
 <body data-spy="scroll" data-target="#toc">
+    
+
     <div class="container template-article">
       <header><div class="navbar navbar-default navbar-fixed-top" role="navigation">
   <div class="container">
@@ -31,23 +40,17 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">phyr</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="Released version">1.1.0</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.1.2</span>
       </span>
     </div>
 
     <div id="navbar" class="navbar-collapse collapse">
       <ul class="nav navbar-nav">
 <li>
-  <a href="../index.html">
-    <span class="fas fa fas fa-home fa-lg"></span>
-     
-  </a>
-</li>
-<li>
   <a href="../reference/index.html">Reference</a>
 </li>
 <li class="dropdown">
-  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
     Articles
      
     <span class="caret"></span>
@@ -73,8 +76,8 @@
       </ul>
 <ul class="nav navbar-nav navbar-right">
 <li>
-  <a href="https://github.com/daijiang/phyr/">
-    <span class="fab fa fab fa-github fa-lg"></span>
+  <a href="https://github.com/daijiang/phyr/" class="external-link">
+    <span class="fab fa-github fa-lg"></span>
      
   </a>
 </li>
@@ -88,261 +91,337 @@
 
       
 
-      </header><script src="plot-re_files/header-attrs-2.3/header-attrs.js"></script><div class="row">
+      </header><div class="row">
   <div class="col-md-9 contents">
     <div class="page-header toc-ignore">
       <h1 data-toc-skip>Plot random terms of communityPGLMM</h1>
-                        <h4 class="author">Daijiang Li</h4>
+                        <h4 data-toc-skip class="author">Daijiang
+Li</h4>
             
-            <h4 class="date">2020-12-17</h4>
+            <h4 data-toc-skip class="date">2023-05-05</h4>
       
-      <small class="dont-index">Source: <a href="https://github.com/daijiang/phyr/blob/master/vignettes/plot-re.Rmd"><code>vignettes/plot-re.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/daijiang/phyr/blob/HEAD/vignettes/plot-re.Rmd" class="external-link"><code>vignettes/plot-re.Rmd</code></a></small>
       <div class="hidden name"><code>plot-re.Rmd</code></div>
 
     </div>
 
     
     
-<p>This vignette will show how to visualize the var-covariance matrix of random terms for <code>communityPGLMM</code> models.</p>
-<div id="main-function" class="section level1">
-<h1 class="hasAnchor">
-<a href="#main-function" class="anchor"></a>Main function</h1>
-<p>The main function to use is <code><a href="../reference/pglmm_plot_ranef.html">phyr::pglmm_plot_re()</a></code> (alias: <code><a href="../reference/pglmm_plot_ranef.html">phyr::pglmm_plot_ranef()</a></code>, <code><a href="../reference/pglmm_plot_ranef.html">phyr::communityPGLMM.show.re()</a></code>, <code><a href="../reference/pglmm_plot_ranef.html">phyr::communityPGLMM.plot.re()</a></code>). Here are the arguments of this function:</p>
-<div class="sourceCode" id="cb1"><pre class="downlit">
-<span class="fu"><a href="https://rdrr.io/r/base/args.html">args</a></span><span class="op">(</span><span class="fu">phyr</span><span class="fu">::</span><span class="va"><a href="../reference/pglmm_plot_ranef.html">pglmm_plot_re</a></span><span class="op">)</span>
-<span class="co">## function (formula = NULL, data = NULL, family = "gaussian", sp.var = "sp", </span>
-<span class="co">##     site.var = "site", tree = NULL, tree_site = NULL, repulsion = FALSE, </span>
-<span class="co">##     x = NULL, show.image = TRUE, show.sim.image = FALSE, random.effects = NULL, </span>
-<span class="co">##     add.tree.sp = TRUE, add.tree.site = FALSE, cov_ranef = NULL, </span>
-<span class="co">##     tree.panel.space = 0.5, title.space = 5, tree.size = 3, ...) </span>
-<span class="co">## NULL</span></pre></div>
+<p>This vignette will show how to visualize the var-covariance matrix of
+random terms for <code>communityPGLMM</code> models.</p>
+<div class="section level2">
+<h2 id="main-function">Main function<a class="anchor" aria-label="anchor" href="#main-function"></a>
+</h2>
+<p>The main function to use is <code><a href="../reference/pglmm-plot-re.html">phyr::pglmm_plot_re()</a></code>
+(alias: <code><a href="../reference/pglmm-plot-re.html">phyr::pglmm_plot_ranef()</a></code>,
+<code><a href="../reference/pglmm-plot-re.html">phyr::communityPGLMM.show.re()</a></code>,
+<code><a href="../reference/pglmm-plot-re.html">phyr::communityPGLMM.plot.re()</a></code>). Here are the arguments of
+this function:</p>
+<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/args.html" class="external-link">args</a></span><span class="op">(</span><span class="fu">phyr</span><span class="fu">::</span><span class="va"><a href="../reference/pglmm-plot-re.html">pglmm_plot_re</a></span><span class="op">)</span></span>
+<span><span class="co">## function (formula = NULL, data = NULL, family = "gaussian", sp.var = "sp", </span></span>
+<span><span class="co">##     site.var = "site", tree = NULL, tree_site = NULL, repulsion = FALSE, </span></span>
+<span><span class="co">##     x = NULL, show.image = TRUE, show.sim.image = FALSE, random.effects = NULL, </span></span>
+<span><span class="co">##     add.tree.sp = TRUE, add.tree.site = FALSE, cov_ranef = NULL, </span></span>
+<span><span class="co">##     tree.panel.space = 0.5, title.space = 5, tree.size = 3, ...) </span></span>
+<span><span class="co">## NULL</span></span></code></pre></div>
 <p>Some brief explanation of arguments:</p>
 <ul>
 <li>
-<code>x</code>: a model with class communityPGLMM, if it is specified, then all other argument before x will be ignored.</li>
+<code>x</code>: a model with class communityPGLMM, if it is
+specified, then all other argument before x will be ignored.</li>
 <li>
-<code>show.image</code> (<code>TRUE</code> or <code>FALSE</code>): whether to plot the var-cov matrix of random terms?</li>
+<code>show.image</code> (<code>TRUE</code> or <code>FALSE</code>):
+whether to plot the var-cov matrix of random terms?</li>
 <li>
-<code>show.sim.image</code> (<code>TRUE</code> or <code>FALSE</code>): whether to plot simulated site by species matrix for all random terms?</li>
+<code>show.sim.image</code> (<code>TRUE</code> or
+<code>FALSE</code>): whether to plot simulated site by species matrix
+for all random terms?</li>
 <li>
-<code>add.tree.sp</code> (<code>TRUE</code> or <code>FALSE</code>): when <code>show.sim.image = TRUE</code>, whether to add a phylogeny of species at the top of each matrix plot?</li>
+<code>add.tree.sp</code> (<code>TRUE</code> or <code>FALSE</code>):
+when <code>show.sim.image = TRUE</code>, whether to add a phylogeny of
+species at the top of each matrix plot?</li>
 <li>
-<code>add.tree.site</code> (<code>TRUE</code> or <code>FALSE</code>): when <code>show.sim.image = TRUE</code>, whether to add a phylogeny of sites at the right of each matrix plot? This can be useful for bipartite problems (e.g. pollinators (species) and plants (sites)).</li>
+<code>add.tree.site</code> (<code>TRUE</code> or
+<code>FALSE</code>): when <code>show.sim.image = TRUE</code>, whether to
+add a phylogeny of sites at the right of each matrix plot? This can be
+useful for bipartite problems (e.g. pollinators (species) and plants
+(sites)).</li>
 <li>
-<code>tree.size</code> (default is 3): the height of the phylogenies to plot, unit is number of lines.</li>
+<code>tree.size</code> (default is 3): the height of the phylogenies
+to plot, unit is number of lines.</li>
 </ul>
-<p>This function will return a hidden list, which includes all the var-cov matrices of random terms, simulated site by species matrices, individual plots, and all plots in one figure for both var-cov matrices and simulated ones. Therefore, we can extract specific plots and then update them or generate new figure with <code><a href="https://rdrr.io/pkg/gridExtra/man/arrangeGrob.html">gridExtra::grid.arrange()</a></code>. This is because all generated plots are based on <code>lattice</code> package and are all <code>grid</code> object. Therefore, we can also use <code><a href="https://rdrr.io/pkg/gridExtra/man/arrangeGrob.html">gridExtra::arrangeGrob()</a></code> to put multiple plots in one figure and then use <code><a href="https://ggplot2.tidyverse.org/reference/ggsave.html">ggplot2::ggsave()</a></code> to save it as external file (e.g. PDF). Of course, <code><a href="https://rdrr.io/r/grDevices/pdf.html">pdf()</a></code> and <code><a href="https://rdrr.io/r/grDevices/dev.html">dev.off()</a></code> will also work.</p>
+<p>This function will return a hidden list, which includes all the
+var-cov matrices of random terms, simulated site by species matrices,
+individual plots, and all plots in one figure for both var-cov matrices
+and simulated ones. Therefore, we can extract specific plots and then
+update them or generate new figure with
+<code><a href="https://rdrr.io/pkg/gridExtra/man/arrangeGrob.html" class="external-link">gridExtra::grid.arrange()</a></code>. This is because all generated
+plots are based on <code>lattice</code> package and are all
+<code>grid</code> object. Therefore, we can also use
+<code><a href="https://rdrr.io/pkg/gridExtra/man/arrangeGrob.html" class="external-link">gridExtra::arrangeGrob()</a></code> to put multiple plots in one
+figure and then use <code><a href="https://ggplot2.tidyverse.org/reference/ggsave.html" class="external-link">ggplot2::ggsave()</a></code> to save it as
+external file (e.g. PDF). Of course, <code><a href="https://rdrr.io/r/grDevices/pdf.html" class="external-link">pdf()</a></code> and
+<code><a href="https://rdrr.io/r/grDevices/dev.html" class="external-link">dev.off()</a></code> will also work.</p>
 </div>
-<div id="simulate-data" class="section level1">
-<h1 class="hasAnchor">
-<a href="#simulate-data" class="anchor"></a>Simulate data</h1>
-<p>Now, let’s show how to use this function to help us understanding better the random terms.</p>
-<div class="sourceCode" id="cb2"><pre class="downlit">
-<span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="http://ape-package.ird.fr/">ape</a></span><span class="op">)</span>
-<span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://daijiang.github.io/phyr/">phyr</a></span><span class="op">)</span>
-<span class="fu"><a href="https://rdrr.io/r/base/message.html">suppressPackageStartupMessages</a></span><span class="op">(</span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org">dplyr</a></span><span class="op">)</span><span class="op">)</span>
-
-<span class="fu"><a href="https://rdrr.io/r/base/Random.html">set.seed</a></span><span class="op">(</span><span class="fl">12345</span><span class="op">)</span>
-<span class="va">nspp</span> <span class="op">&lt;-</span> <span class="fl">7</span>
-<span class="va">nsite</span> <span class="op">&lt;-</span> <span class="fl">5</span>
-<span class="co"># Simulate a phylogeny that has a lot of phylogenetic signal (power = 1.3)</span>
-<span class="va">phy</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/ape/man/compute.brlen.html">compute.brlen</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/ape/man/rtree.html">rtree</a></span><span class="op">(</span>n <span class="op">=</span> <span class="va">nspp</span><span class="op">)</span>, method <span class="op">=</span> <span class="st">"Grafen"</span>, power <span class="op">=</span> <span class="fl">1.3</span><span class="op">)</span>
-<span class="co"># Simulate species means</span>
-<span class="va">sd.sp</span> <span class="op">&lt;-</span> <span class="fl">1</span>
-<span class="va">mean.sp</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/ape/man/rTraitCont.html">rTraitCont</a></span><span class="op">(</span><span class="va">phy</span>, model <span class="op">=</span> <span class="st">"BM"</span>, sigma <span class="op">=</span> <span class="va">sd.sp</span><span class="op">^</span><span class="fl">2</span><span class="op">)</span>
-<span class="va">Y.sp</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html">rep</a></span><span class="op">(</span><span class="va">mean.sp</span>, times <span class="op">=</span> <span class="va">nsite</span><span class="op">)</span>
-<span class="co"># Phylogenetically correlated response of species to env</span>
-<span class="va">sd.trait</span> <span class="op">&lt;-</span> <span class="fl">1</span>
-<span class="va">trait</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/ape/man/rTraitCont.html">rTraitCont</a></span><span class="op">(</span><span class="va">phy</span>, model <span class="op">=</span> <span class="st">"BM"</span>, sigma <span class="op">=</span> <span class="va">sd.trait</span><span class="op">)</span>
-<span class="va">trait</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html">rep</a></span><span class="op">(</span><span class="va">trait</span>, times <span class="op">=</span> <span class="va">nsite</span><span class="op">)</span>
-<span class="co"># Simulate site means</span>
-<span class="va">sd.site</span> <span class="op">&lt;-</span> <span class="fl">1</span>
-<span class="va">mean.site</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html">rnorm</a></span><span class="op">(</span><span class="va">nsite</span>, sd <span class="op">=</span> <span class="va">sd.site</span><span class="op">)</span>
-<span class="va">Y.site</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html">rep</a></span><span class="op">(</span><span class="va">mean.site</span>, each <span class="op">=</span> <span class="va">nspp</span><span class="op">)</span>
-<span class="co"># Site-specific environmental variation</span>
-<span class="va">sd.env</span> <span class="op">&lt;-</span> <span class="fl">1</span>
-<span class="va">env</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html">rnorm</a></span><span class="op">(</span><span class="va">nsite</span>, sd <span class="op">=</span> <span class="va">sd.env</span><span class="op">)</span>
-<span class="co"># Generate covariance matrix for phylogenetic attraction</span>
-<span class="va">sd.attract</span> <span class="op">&lt;-</span> <span class="fl">1</span>
-<span class="va">Vphy</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/ape/man/vcv.phylo.html">vcv</a></span><span class="op">(</span><span class="va">phy</span><span class="op">)</span>
-<span class="va">Vphy</span> <span class="op">&lt;-</span> <span class="va">Vphy</span> <span class="op">/</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/det.html">det</a></span><span class="op">(</span><span class="va">Vphy</span><span class="op">)</span> <span class="op">^</span> <span class="op">(</span><span class="fl">1</span> <span class="op">/</span> <span class="va">nspp</span><span class="op">)</span><span class="op">)</span>
-<span class="va">V.attract</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/kronecker.html">kronecker</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/diag.html">diag</a></span><span class="op">(</span>nrow <span class="op">=</span> <span class="va">nsite</span>, ncol <span class="op">=</span> <span class="va">nsite</span><span class="op">)</span>, <span class="va">Vphy</span><span class="op">)</span>
-<span class="va">Y.attract</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/array.html">array</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/t.html">t</a></span><span class="op">(</span><span class="fu">mvtnorm</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/mvtnorm/man/Mvnorm.html">rmvnorm</a></span><span class="op">(</span>n <span class="op">=</span> <span class="fl">1</span>, sigma <span class="op">=</span> <span class="va">sd.attract</span> <span class="op">^</span> <span class="fl">2</span> <span class="op">*</span> <span class="va">V.attract</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>
-<span class="co"># Residual errors</span>
-<span class="va">sd.e</span> <span class="op">&lt;-</span> <span class="fl">1</span>
-<span class="va">Y.e</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html">rnorm</a></span><span class="op">(</span><span class="va">nspp</span> <span class="op">*</span> <span class="va">nsite</span>, sd <span class="op">=</span> <span class="va">sd.e</span><span class="op">)</span>
-<span class="co"># Construct the dataset</span>
-<span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html">data.frame</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html">rep</a></span><span class="op">(</span><span class="va">phy</span><span class="op">$</span><span class="va">tip.label</span>, times <span class="op">=</span> <span class="va">nsite</span><span class="op">)</span>, 
-                site <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html">rep</a></span><span class="op">(</span><span class="fl">1</span><span class="op">:</span><span class="va">nsite</span>, each <span class="op">=</span> <span class="va">nspp</span><span class="op">)</span>,
-                env <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html">rep</a></span><span class="op">(</span><span class="va">env</span>, each <span class="op">=</span> <span class="va">nspp</span><span class="op">)</span><span class="op">)</span>
-<span class="co"># Simulate abundance data</span>
-<span class="va">d</span><span class="op">$</span><span class="va">Y</span> <span class="op">&lt;-</span> <span class="va">Y.sp</span> <span class="op">+</span> <span class="va">Y.attract</span> <span class="op">+</span> <span class="va">trait</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">env</span> <span class="op">+</span> <span class="va">Y.e</span>
-<span class="fu"><a href="https://rdrr.io/r/utils/head.html">head</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span>
-<span class="co">##   sp site       env          Y</span>
-<span class="co">## 1 t4    1 -1.060266 -1.3475684</span>
-<span class="co">## 2 t2    1 -1.060266  1.2422030</span>
-<span class="co">## 3 t5    1 -1.060266 -1.2711509</span>
-<span class="co">## 4 t3    1 -1.060266  1.8940820</span>
-<span class="co">## 5 t6    1 -1.060266  1.5771805</span>
-<span class="co">## 6 t7    1 -1.060266  0.3308875</span>
-
-<span class="co"># fit a model</span>
-<span class="va">mod_1</span> <span class="op">=</span> <span class="fu"><a href="../reference/pglmm.html">pglmm</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">env</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="va">env</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span>,
-              data <span class="op">=</span> <span class="va">d</span>, cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span><span class="op">)</span>
-<span class="fu"><a href="https://rdrr.io/r/base/summary.html">summary</a></span><span class="op">(</span><span class="va">mod_1</span><span class="op">)</span>
-<span class="co">## Linear mixed model fit by restricted maximum likelihood</span>
-<span class="co">## </span>
-<span class="co">## Call:Y ~ 1 + env</span>
-<span class="co">## </span>
-<span class="co">## logLik    AIC    BIC </span>
-<span class="co">## -64.34 146.68 150.38 </span>
-<span class="co">## </span>
-<span class="co">## Random effects:</span>
-<span class="co">##              Variance   Std.Dev</span>
-<span class="co">## 1|sp        2.085e-06 0.0014439</span>
-<span class="co">## 1|sp__      4.218e-01 0.6494991</span>
-<span class="co">## 1|site      1.235e-07 0.0003515</span>
-<span class="co">## env|sp      1.209e-06 0.0010993</span>
-<span class="co">## env|sp__    5.434e-01 0.7371383</span>
-<span class="co">## 1|sp__@site 1.375e-01 0.3707606</span>
-<span class="co">## residual    1.885e+00 1.3729463</span>
-<span class="co">## </span>
-<span class="co">## Fixed effects:</span>
-<span class="co">##               Value Std.Error Zscore Pvalue</span>
-<span class="co">## (Intercept) 0.83092   0.63742 1.3036 0.1924</span>
-<span class="co">## env         0.75052   0.68819 1.0906 0.2755</span></pre></div>
+<div class="section level2">
+<h2 id="simulate-data">Simulate data<a class="anchor" aria-label="anchor" href="#simulate-data"></a>
+</h2>
+<p>Now, let’s show how to use this function to help us understanding
+better the random terms.</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="http://ape-package.ird.fr/" class="external-link">ape</a></span><span class="op">)</span></span>
+<span><span class="co">## Warning: package 'ape' was built under R version 4.2.2</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://daijiang.github.io/phyr/" class="external-link">phyr</a></span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/message.html" class="external-link">suppressPackageStartupMessages</a></span><span class="op">(</span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">## Warning: package 'dplyr' was built under R version 4.2.2</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">12345</span><span class="op">)</span></span>
+<span><span class="va">nspp</span> <span class="op">&lt;-</span> <span class="fl">7</span></span>
+<span><span class="va">nsite</span> <span class="op">&lt;-</span> <span class="fl">5</span></span>
+<span><span class="co"># Simulate a phylogeny that has a lot of phylogenetic signal (power = 1.3)</span></span>
+<span><span class="va">phy</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/ape/man/compute.brlen.html" class="external-link">compute.brlen</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/ape/man/rtree.html" class="external-link">rtree</a></span><span class="op">(</span>n <span class="op">=</span> <span class="va">nspp</span><span class="op">)</span>, method <span class="op">=</span> <span class="st">"Grafen"</span>, power <span class="op">=</span> <span class="fl">1.3</span><span class="op">)</span></span>
+<span><span class="co"># Simulate species means</span></span>
+<span><span class="va">sd.sp</span> <span class="op">&lt;-</span> <span class="fl">1</span></span>
+<span><span class="va">mean.sp</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/ape/man/rTraitCont.html" class="external-link">rTraitCont</a></span><span class="op">(</span><span class="va">phy</span>, model <span class="op">=</span> <span class="st">"BM"</span>, sigma <span class="op">=</span> <span class="va">sd.sp</span><span class="op">^</span><span class="fl">2</span><span class="op">)</span></span>
+<span><span class="va">Y.sp</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="va">mean.sp</span>, times <span class="op">=</span> <span class="va">nsite</span><span class="op">)</span></span>
+<span><span class="co"># Phylogenetically correlated response of species to env</span></span>
+<span><span class="va">sd.trait</span> <span class="op">&lt;-</span> <span class="fl">1</span></span>
+<span><span class="va">trait</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/ape/man/rTraitCont.html" class="external-link">rTraitCont</a></span><span class="op">(</span><span class="va">phy</span>, model <span class="op">=</span> <span class="st">"BM"</span>, sigma <span class="op">=</span> <span class="va">sd.trait</span><span class="op">)</span></span>
+<span><span class="va">trait</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="va">trait</span>, times <span class="op">=</span> <span class="va">nsite</span><span class="op">)</span></span>
+<span><span class="co"># Simulate site means</span></span>
+<span><span class="va">sd.site</span> <span class="op">&lt;-</span> <span class="fl">1</span></span>
+<span><span class="va">mean.site</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">nsite</span>, sd <span class="op">=</span> <span class="va">sd.site</span><span class="op">)</span></span>
+<span><span class="va">Y.site</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="va">mean.site</span>, each <span class="op">=</span> <span class="va">nspp</span><span class="op">)</span></span>
+<span><span class="co"># Site-specific environmental variation</span></span>
+<span><span class="va">sd.env</span> <span class="op">&lt;-</span> <span class="fl">1</span></span>
+<span><span class="va">env</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">nsite</span>, sd <span class="op">=</span> <span class="va">sd.env</span><span class="op">)</span></span>
+<span><span class="co"># Generate covariance matrix for phylogenetic attraction</span></span>
+<span><span class="va">sd.attract</span> <span class="op">&lt;-</span> <span class="fl">1</span></span>
+<span><span class="va">Vphy</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/ape/man/vcv.phylo.html" class="external-link">vcv</a></span><span class="op">(</span><span class="va">phy</span><span class="op">)</span></span>
+<span><span class="va">Vphy</span> <span class="op">&lt;-</span> <span class="va">Vphy</span> <span class="op">/</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/det.html" class="external-link">det</a></span><span class="op">(</span><span class="va">Vphy</span><span class="op">)</span> <span class="op">^</span> <span class="op">(</span><span class="fl">1</span> <span class="op">/</span> <span class="va">nspp</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">V.attract</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/kronecker.html" class="external-link">kronecker</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span>nrow <span class="op">=</span> <span class="va">nsite</span>, ncol <span class="op">=</span> <span class="va">nsite</span><span class="op">)</span>, <span class="va">Vphy</span><span class="op">)</span></span>
+<span><span class="va">Y.attract</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/array.html" class="external-link">array</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="fu">mvtnorm</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/mvtnorm/man/Mvnorm.html" class="external-link">rmvnorm</a></span><span class="op">(</span>n <span class="op">=</span> <span class="fl">1</span>, sigma <span class="op">=</span> <span class="va">sd.attract</span> <span class="op">^</span> <span class="fl">2</span> <span class="op">*</span> <span class="va">V.attract</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co"># Residual errors</span></span>
+<span><span class="va">sd.e</span> <span class="op">&lt;-</span> <span class="fl">1</span></span>
+<span><span class="va">Y.e</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">nspp</span> <span class="op">*</span> <span class="va">nsite</span>, sd <span class="op">=</span> <span class="va">sd.e</span><span class="op">)</span></span>
+<span><span class="co"># Construct the dataset</span></span>
+<span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="va">phy</span><span class="op">$</span><span class="va">tip.label</span>, times <span class="op">=</span> <span class="va">nsite</span><span class="op">)</span>, </span>
+<span>                site <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">1</span><span class="op">:</span><span class="va">nsite</span>, each <span class="op">=</span> <span class="va">nspp</span><span class="op">)</span>,</span>
+<span>                env <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="va">env</span>, each <span class="op">=</span> <span class="va">nspp</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co"># Simulate abundance data</span></span>
+<span><span class="va">d</span><span class="op">$</span><span class="va">Y</span> <span class="op">&lt;-</span> <span class="va">Y.sp</span> <span class="op">+</span> <span class="va">Y.attract</span> <span class="op">+</span> <span class="va">trait</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">env</span> <span class="op">+</span> <span class="va">Y.e</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span></span>
+<span><span class="co">##   sp site       env          Y</span></span>
+<span><span class="co">## 1 t4    1 -1.060266 -1.3475684</span></span>
+<span><span class="co">## 2 t2    1 -1.060266  1.2422030</span></span>
+<span><span class="co">## 3 t5    1 -1.060266 -1.2711509</span></span>
+<span><span class="co">## 4 t3    1 -1.060266  1.8940820</span></span>
+<span><span class="co">## 5 t6    1 -1.060266  1.5771805</span></span>
+<span><span class="co">## 6 t7    1 -1.060266  0.3308875</span></span>
+<span></span>
+<span><span class="co"># fit a model</span></span>
+<span><span class="va">mod_1</span> <span class="op">=</span> <span class="fu"><a href="../reference/pglmm.html">pglmm</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">env</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="va">env</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span>,</span>
+<span>              data <span class="op">=</span> <span class="va">d</span>, cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">## as(&lt;matrix&gt;, "dgTMatrix") is deprecated since Matrix 1.5-0; do as(as(as(., "dMatrix"), "generalMatrix"), "TsparseMatrix") instead</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod_1</span><span class="op">)</span></span>
+<span><span class="co">## Linear mixed model fit by restricted maximum likelihood</span></span>
+<span><span class="co">## </span></span>
+<span><span class="co">## Call:Y ~ 1 + env</span></span>
+<span><span class="co">## </span></span>
+<span><span class="co">## logLik    AIC    BIC </span></span>
+<span><span class="co">## -64.34 146.68 150.38 </span></span>
+<span><span class="co">## </span></span>
+<span><span class="co">## Random effects:</span></span>
+<span><span class="co">##              Variance   Std.Dev</span></span>
+<span><span class="co">## 1|sp        2.085e-06 0.0014439</span></span>
+<span><span class="co">## 1|sp__      4.218e-01 0.6494991</span></span>
+<span><span class="co">## 1|site      1.235e-07 0.0003515</span></span>
+<span><span class="co">## env|sp      1.209e-06 0.0010993</span></span>
+<span><span class="co">## env|sp__    5.434e-01 0.7371383</span></span>
+<span><span class="co">## 1|sp__@site 1.375e-01 0.3707606</span></span>
+<span><span class="co">## residual    1.885e+00 1.3729463</span></span>
+<span><span class="co">## </span></span>
+<span><span class="co">## Fixed effects:</span></span>
+<span><span class="co">##               Value Std.Error Zscore Pvalue</span></span>
+<span><span class="co">## (Intercept) 0.83092   0.63742 1.3036 0.1924</span></span>
+<span><span class="co">## env         0.75052   0.68819 1.0906 0.2755</span></span></code></pre></div>
 </div>
-<div id="var-cov-matrices-of-random-terms" class="section level1">
-<h1 class="hasAnchor">
-<a href="#var-cov-matrices-of-random-terms" class="anchor"></a>Var-cov matrices of random terms</h1>
-<div id="plot-var-cov-matrices-of-all-random-terms-in-one-figure" class="section level2">
-<h2 class="hasAnchor">
-<a href="#plot-var-cov-matrices-of-all-random-terms-in-one-figure" class="anchor"></a>Plot var-cov matrices of all random terms in one figure</h2>
-<div class="sourceCode" id="cb3"><pre class="downlit">
-<span class="co"># plot var-cov matrices of random terms</span>
-<span class="va">mod1re</span> <span class="op">=</span> <span class="fu"><a href="../reference/pglmm_plot_ranef.html">pglmm_plot_re</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">env</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="va">env</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span>,
-                       data <span class="op">=</span> <span class="va">d</span>, cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span>, show.image <span class="op">=</span> <span class="cn">TRUE</span>, 
-                       show.sim.image <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></pre></div>
+<div class="section level2">
+<h2 id="var-cov-matrices-of-random-terms">Var-cov matrices of random terms<a class="anchor" aria-label="anchor" href="#var-cov-matrices-of-random-terms"></a>
+</h2>
+<div class="section level3">
+<h3 id="plot-var-cov-matrices-of-all-random-terms-in-one-figure">Plot var-cov matrices of all random terms in one figure<a class="anchor" aria-label="anchor" href="#plot-var-cov-matrices-of-all-random-terms-in-one-figure"></a>
+</h3>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># plot var-cov matrices of random terms</span></span>
+<span><span class="va">mod1re</span> <span class="op">=</span> <span class="fu"><a href="../reference/pglmm-plot-re.html">pglmm_plot_re</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">env</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="va">env</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span>,</span>
+<span>                       data <span class="op">=</span> <span class="va">d</span>, cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span>, show.image <span class="op">=</span> <span class="cn">TRUE</span>, </span>
+<span>                       show.sim.image <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
 <p><img src="plot-re_files/figure-html/unnamed-chunk-2-1.png" width="100%" style="display: block; margin: auto;"></p>
-<p>In the above plot, we can see that some of the panels are black-white but some have colors. This is because, by default, if a matrix has both positive and negative values, then the function will use red-blue color and will draw a key for that (use <code>colorkey = FALSE</code> to suppress it). If a matrix does not have negative values, then the function will use black/white color (use <code>useAbs = FALSE</code> to use color instead, and use <code>colorkey = FALSE</code> to suppress key if wanted). In both cases, value 0 will be white so that the structure of the var-cov matrix can be easier to see.</p>
-<div class="sourceCode" id="cb4"><pre class="downlit">
-<span class="co"># all use color with useAbs = FALSE</span>
-<span class="fu"><a href="../reference/pglmm_plot_ranef.html">pglmm_plot_re</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">env</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="va">env</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span>,
-              data <span class="op">=</span> <span class="va">d</span>, cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span>, show.image <span class="op">=</span> <span class="cn">TRUE</span>, 
-              show.sim.image <span class="op">=</span> <span class="cn">FALSE</span>, useAbs <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></pre></div>
+<p>In the above plot, we can see that some of the panels are black-white
+but some have colors. This is because, by default, if a matrix has both
+positive and negative values, then the function will use red-blue color
+and will draw a key for that (use <code>colorkey = FALSE</code> to
+suppress it). If a matrix does not have negative values, then the
+function will use black/white color (use <code>useAbs = FALSE</code> to
+use color instead, and use <code>colorkey = FALSE</code> to suppress key
+if wanted). In both cases, value 0 will be white so that the structure
+of the var-cov matrix can be easier to see.</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># all use color with useAbs = FALSE</span></span>
+<span><span class="fu"><a href="../reference/pglmm-plot-re.html">pglmm_plot_re</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">env</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="va">env</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span>,</span>
+<span>              data <span class="op">=</span> <span class="va">d</span>, cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span>, show.image <span class="op">=</span> <span class="cn">TRUE</span>, </span>
+<span>              show.sim.image <span class="op">=</span> <span class="cn">FALSE</span>, useAbs <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
 <p><img src="plot-re_files/figure-html/unnamed-chunk-3-1.png" width="100%" style="display: block; margin: auto;"></p>
-<p>For the above plot, notice that for <code>1|sp</code> and <code>1|site</code>, all values are either 1 or 0 even though we have a range in the key. We can suppress the key with <code>colorkey = FALSE</code>.</p>
-<div class="sourceCode" id="cb5"><pre class="downlit">
-<span class="co"># suppress key with colorkey = FALSE</span>
-<span class="fu"><a href="../reference/pglmm_plot_ranef.html">pglmm_plot_re</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">env</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="va">env</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span>,
-              data <span class="op">=</span> <span class="va">d</span>, cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span>, show.image <span class="op">=</span> <span class="cn">TRUE</span>, 
-              show.sim.image <span class="op">=</span> <span class="cn">FALSE</span>, useAbs <span class="op">=</span> <span class="cn">FALSE</span>, colorkey <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></pre></div>
+<p>For the above plot, notice that for <code>1|sp</code> and
+<code>1|site</code>, all values are either 1 or 0 even though we have a
+range in the key. We can suppress the key with
+<code>colorkey = FALSE</code>.</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># suppress key with colorkey = FALSE</span></span>
+<span><span class="fu"><a href="../reference/pglmm-plot-re.html">pglmm_plot_re</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">env</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="va">env</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span>,</span>
+<span>              data <span class="op">=</span> <span class="va">d</span>, cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span>, show.image <span class="op">=</span> <span class="cn">TRUE</span>, </span>
+<span>              show.sim.image <span class="op">=</span> <span class="cn">FALSE</span>, useAbs <span class="op">=</span> <span class="cn">FALSE</span>, colorkey <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
 <p><img src="plot-re_files/figure-html/unnamed-chunk-4-1.png" width="100%" style="display: block; margin: auto;"></p>
-<p>We can also just use <code>colorkey = FALSE</code> and still use black/white color for matrices that do not have negative values (without setting <code>useAbs</code>).</p>
-<div class="sourceCode" id="cb6"><pre class="downlit">
-<span class="co"># suppress colorkey, let the function decide whether use color or not</span>
-<span class="fu"><a href="../reference/pglmm_plot_ranef.html">pglmm_plot_re</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">env</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="va">env</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span>,
-              data <span class="op">=</span> <span class="va">d</span>, cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span>, show.image <span class="op">=</span> <span class="cn">TRUE</span>, 
-              show.sim.image <span class="op">=</span> <span class="cn">FALSE</span>, colorkey <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></pre></div>
+<p>We can also just use <code>colorkey = FALSE</code> and still use
+black/white color for matrices that do not have negative values (without
+setting <code>useAbs</code>).</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># suppress colorkey, let the function decide whether use color or not</span></span>
+<span><span class="fu"><a href="../reference/pglmm-plot-re.html">pglmm_plot_re</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">env</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="va">env</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span>,</span>
+<span>              data <span class="op">=</span> <span class="va">d</span>, cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span>, show.image <span class="op">=</span> <span class="cn">TRUE</span>, </span>
+<span>              show.sim.image <span class="op">=</span> <span class="cn">FALSE</span>, colorkey <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
 <p><img src="plot-re_files/figure-html/unnamed-chunk-5-1.png" width="100%" style="display: block; margin: auto;"></p>
 <p>To make all plots black or white, use <code>useAbs = TRUE</code>.</p>
-<div class="sourceCode" id="cb7"><pre class="downlit">
-<span class="co"># all black and white</span>
-<span class="fu"><a href="../reference/pglmm_plot_ranef.html">pglmm_plot_re</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">env</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="va">env</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span>,
-              data <span class="op">=</span> <span class="va">d</span>, cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span>, show.image <span class="op">=</span> <span class="cn">TRUE</span>, 
-              show.sim.image <span class="op">=</span> <span class="cn">FALSE</span>, useAbs <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></pre></div>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># all black and white</span></span>
+<span><span class="fu"><a href="../reference/pglmm-plot-re.html">pglmm_plot_re</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">env</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="va">env</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span>,</span>
+<span>              data <span class="op">=</span> <span class="va">d</span>, cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span>, show.image <span class="op">=</span> <span class="cn">TRUE</span>, </span>
+<span>              show.sim.image <span class="op">=</span> <span class="cn">FALSE</span>, useAbs <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
 <p><img src="plot-re_files/figure-html/unnamed-chunk-6-1.png" width="100%" style="display: block; margin: auto;"></p>
 </div>
-<div id="individual-plots-for-var-cov-matrices" class="section level2">
-<h2 class="hasAnchor">
-<a href="#individual-plots-for-var-cov-matrices" class="anchor"></a>Individual plots for var-cov matrices</h2>
-<p>Instead of plotting all var-cov matrices in one figure, we can also select the ones we are interested and then work from there.</p>
-<div class="sourceCode" id="cb8"><pre class="downlit">
-<span class="fu"><a href="https://rdrr.io/r/base/names.html">names</a></span><span class="op">(</span><span class="va">mod1re</span><span class="op">)</span>
-<span class="co">## [1] "vcv"               "sim"               "tree"             </span>
-<span class="co">## [4] "plt_re_list"       "plt_sim_list"      "plt_re_all_in_one"</span></pre></div>
-<p>So, the data of var-cov matrices are saved as <code>mod1re$vcv</code>, which is a list. We can use this list to plot the random terms in other ways, using either the base R or ggplot2 package.</p>
-<div class="sourceCode" id="cb9"><pre class="downlit">
-<span class="fu"><a href="https://rdrr.io/r/base/names.html">names</a></span><span class="op">(</span><span class="va">mod1re</span><span class="op">$</span><span class="va">vcv</span><span class="op">)</span>
-<span class="co">## [1] "1|sp"        "1|sp__"      "1|site"      "env|sp"      "env|sp__"   </span>
-<span class="co">## [6] "1|sp__@site"</span></pre></div>
-<p>The individual plots are saved as <code>mod1re$plt_re_list</code>, which is also a list.</p>
-<div class="sourceCode" id="cb10"><pre class="downlit">
-<span class="fu"><a href="https://rdrr.io/r/base/names.html">names</a></span><span class="op">(</span><span class="va">mod1re</span><span class="op">$</span><span class="va">plt_re_list</span><span class="op">)</span>
-<span class="co">## [1] "1|sp"        "1|sp__"      "1|site"      "env|sp"      "env|sp__"   </span>
-<span class="co">## [6] "1|sp__@site"</span>
-<span class="va">mod1re</span><span class="op">$</span><span class="va">plt_re_list</span><span class="op">[[</span><span class="fl">6</span><span class="op">]</span><span class="op">]</span></pre></div>
+<div class="section level3">
+<h3 id="individual-plots-for-var-cov-matrices">Individual plots for var-cov matrices<a class="anchor" aria-label="anchor" href="#individual-plots-for-var-cov-matrices"></a>
+</h3>
+<p>Instead of plotting all var-cov matrices in one figure, we can also
+select the ones we are interested and then work from there.</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">mod1re</span><span class="op">)</span></span>
+<span><span class="co">## [1] "vcv"               "sim"               "tree"             </span></span>
+<span><span class="co">## [4] "plt_re_list"       "plt_sim_list"      "plt_re_all_in_one"</span></span></code></pre></div>
+<p>So, the data of var-cov matrices are saved as
+<code>mod1re$vcv</code>, which is a list. We can use this list to plot
+the random terms in other ways, using either the base R or ggplot2
+package.</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">mod1re</span><span class="op">$</span><span class="va">vcv</span><span class="op">)</span></span>
+<span><span class="co">## [1] "1|sp"        "1|sp__"      "1|site"      "env|sp"      "env|sp__"   </span></span>
+<span><span class="co">## [6] "1|sp__@site"</span></span></code></pre></div>
+<p>The individual plots are saved as <code>mod1re$plt_re_list</code>,
+which is also a list.</p>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">mod1re</span><span class="op">$</span><span class="va">plt_re_list</span><span class="op">)</span></span>
+<span><span class="co">## [1] "1|sp"        "1|sp__"      "1|site"      "env|sp"      "env|sp__"   </span></span>
+<span><span class="co">## [6] "1|sp__@site"</span></span>
+<span><span class="va">mod1re</span><span class="op">$</span><span class="va">plt_re_list</span><span class="op">[[</span><span class="fl">6</span><span class="op">]</span><span class="op">]</span></span></code></pre></div>
 <p><img src="plot-re_files/figure-html/unnamed-chunk-9-1.png" width="50%" style="display: block; margin: auto;"></p>
-<p>The individual plots were generated using <code>Matrix::image()</code>, which used <code><a href="https://rdrr.io/pkg/lattice/man/levelplot.html">lattice::levelplot()</a></code> as the back bone function.</p>
-<div class="sourceCode" id="cb11"><pre class="downlit">
-<span class="fu">Matrix</span><span class="fu">::</span><span class="fu">image</span><span class="op">(</span><span class="va">mod1re</span><span class="op">$</span><span class="va">vcv</span><span class="op">[[</span><span class="fl">6</span><span class="op">]</span><span class="op">]</span>, xlab <span class="op">=</span> <span class="st">""</span>, ylab <span class="op">=</span> <span class="st">""</span>, sub <span class="op">=</span> <span class="st">""</span>, main <span class="op">=</span> <span class="st">"1|sp__@site"</span><span class="op">)</span></pre></div>
+<p>The individual plots were generated using
+<code>Matrix::image()</code>, which used
+<code><a href="https://rdrr.io/pkg/lattice/man/levelplot.html" class="external-link">lattice::levelplot()</a></code> as the back bone function.</p>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">Matrix</span><span class="fu">::</span><span class="fu">image</span><span class="op">(</span><span class="va">mod1re</span><span class="op">$</span><span class="va">vcv</span><span class="op">[[</span><span class="fl">6</span><span class="op">]</span><span class="op">]</span>, xlab <span class="op">=</span> <span class="st">""</span>, ylab <span class="op">=</span> <span class="st">""</span>, sub <span class="op">=</span> <span class="st">""</span>, main <span class="op">=</span> <span class="st">"1|sp__@site"</span><span class="op">)</span></span></code></pre></div>
 <p><img src="plot-re_files/figure-html/unnamed-chunk-10-1.png" width="50%" style="display: block; margin: auto;"></p>
-<p>We can also pick the ones that we are interested in and put them in one figure. For example, suppose that we are only interested in those with phylogenetic relationships. That is, <code>1|sp__</code>, <code>env|sp__</code>, and <code>1|sp__@site</code>.</p>
-<div class="sourceCode" id="cb12"><pre class="downlit">
-<span class="fu">gridExtra</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/gridExtra/man/arrangeGrob.html">grid.arrange</a></span><span class="op">(</span>grobs <span class="op">=</span> <span class="va">mod1re</span><span class="op">$</span><span class="va">plt_re_list</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">5</span>, <span class="fl">6</span><span class="op">)</span><span class="op">]</span>, nrow <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></pre></div>
+<p>We can also pick the ones that we are interested in and put them in
+one figure. For example, suppose that we are only interested in those
+with phylogenetic relationships. That is, <code>1|sp__</code>,
+<code>env|sp__</code>, and <code>1|sp__@site</code>.</p>
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">gridExtra</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/gridExtra/man/arrangeGrob.html" class="external-link">grid.arrange</a></span><span class="op">(</span>grobs <span class="op">=</span> <span class="va">mod1re</span><span class="op">$</span><span class="va">plt_re_list</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">5</span>, <span class="fl">6</span><span class="op">)</span><span class="op">]</span>, nrow <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span></code></pre></div>
 <p><img src="plot-re_files/figure-html/unnamed-chunk-11-1.png" width="100%" style="display: block; margin: auto;"></p>
-<p>To save this plot, we can wrap the above line of code within <code><a href="https://rdrr.io/r/grDevices/pdf.html">pdf()</a></code> and <code><a href="https://rdrr.io/r/grDevices/dev.html">dev.off()</a></code>.</p>
+<p>To save this plot, we can wrap the above line of code within
+<code><a href="https://rdrr.io/r/grDevices/pdf.html" class="external-link">pdf()</a></code> and <code><a href="https://rdrr.io/r/grDevices/dev.html" class="external-link">dev.off()</a></code>.</p>
 </div>
 </div>
-<div id="simulated-site-by-species-matrix-for-random-terms" class="section level1">
-<h1 class="hasAnchor">
-<a href="#simulated-site-by-species-matrix-for-random-terms" class="anchor"></a>Simulated site by species matrix for random terms</h1>
-<p>For each random term, we can simulate some values for all data points. We can reshape this long format into a site by species matrix. By plotting this site by species matrix, we can see what does “closely related species have similar abundance (within or across sites)” mean.</p>
-<div id="plot-simulated-matrices-of-all-random-terms-in-one-figure" class="section level2">
-<h2 class="hasAnchor">
-<a href="#plot-simulated-matrices-of-all-random-terms-in-one-figure" class="anchor"></a>Plot simulated matrices of all random terms in one figure</h2>
-<div class="sourceCode" id="cb13"><pre class="downlit">
-<span class="co"># plot simulated matrices of random terms</span>
-<span class="va">mod1sim</span> <span class="op">=</span> <span class="fu"><a href="../reference/pglmm_plot_ranef.html">pglmm_plot_re</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">env</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="va">env</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span>,
-                        data <span class="op">=</span> <span class="va">d</span>, cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span>, show.image <span class="op">=</span> <span class="cn">FALSE</span>, 
-                        show.sim.image <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></pre></div>
+<div class="section level2">
+<h2 id="simulated-site-by-species-matrix-for-random-terms">Simulated site by species matrix for random terms<a class="anchor" aria-label="anchor" href="#simulated-site-by-species-matrix-for-random-terms"></a>
+</h2>
+<p>For each random term, we can simulate some values for all data
+points. We can reshape this long format into a site by species matrix.
+By plotting this site by species matrix, we can see what does “closely
+related species have similar abundance (within or across sites)”
+mean.</p>
+<div class="section level3">
+<h3 id="plot-simulated-matrices-of-all-random-terms-in-one-figure">Plot simulated matrices of all random terms in one figure<a class="anchor" aria-label="anchor" href="#plot-simulated-matrices-of-all-random-terms-in-one-figure"></a>
+</h3>
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># plot simulated matrices of random terms</span></span>
+<span><span class="va">mod1sim</span> <span class="op">=</span> <span class="fu"><a href="../reference/pglmm-plot-re.html">pglmm_plot_re</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">env</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="va">env</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span>,</span>
+<span>                        data <span class="op">=</span> <span class="va">d</span>, cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span>, show.image <span class="op">=</span> <span class="cn">FALSE</span>, </span>
+<span>                        show.sim.image <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
 <p><img src="plot-re_files/figure-html/unnamed-chunk-12-1.png" width="100%" style="display: block; margin: auto;"></p>
-<p>For the <code>1|sp__</code> panel, we can see that closely related species have similar value across all sites. While the `<code>|sp__@site</code> panel shows that closely related species within each site have similar values.</p>
-<p>By default, we added a phylogeny for species at the top of each panel when we show the simulated site by species matrices. This can be suppressed with <code>add.tree.sp = FALSE</code>.</p>
-<div class="sourceCode" id="cb14"><pre class="downlit">
-<span class="fu"><a href="../reference/pglmm_plot_ranef.html">pglmm_plot_re</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">env</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="va">env</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span>,
-              data <span class="op">=</span> <span class="va">d</span>, cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span>, show.image <span class="op">=</span> <span class="cn">FALSE</span>, 
-              show.sim.image <span class="op">=</span> <span class="cn">TRUE</span>, add.tree.sp <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></pre></div>
+<p>For the <code>1|sp__</code> panel, we can see that closely related
+species have similar value across all sites. While the
+`<code>|sp__@site</code> panel shows that closely related species within
+each site have similar values.</p>
+<p>By default, we added a phylogeny for species at the top of each panel
+when we show the simulated site by species matrices. This can be
+suppressed with <code>add.tree.sp = FALSE</code>.</p>
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/pglmm-plot-re.html">pglmm_plot_re</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">env</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="va">env</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span>,</span>
+<span>              data <span class="op">=</span> <span class="va">d</span>, cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span>, show.image <span class="op">=</span> <span class="cn">FALSE</span>, </span>
+<span>              show.sim.image <span class="op">=</span> <span class="cn">TRUE</span>, add.tree.sp <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
 <p><img src="plot-re_files/figure-html/unnamed-chunk-13-1.png" width="100%" style="display: block; margin: auto;"></p>
-<p>Again, we can remove the keys with <code>colorkey = FALSE</code>. We can also use <code>useAbs</code> to force using color for all panels.</p>
-<div class="sourceCode" id="cb15"><pre class="downlit">
-<span class="fu"><a href="../reference/pglmm_plot_ranef.html">pglmm_plot_re</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">env</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="va">env</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span>,
-              data <span class="op">=</span> <span class="va">d</span>, cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span>, show.image <span class="op">=</span> <span class="cn">FALSE</span>,
-              show.sim.image <span class="op">=</span> <span class="cn">TRUE</span>, add.tree.sp <span class="op">=</span> <span class="cn">TRUE</span>,
-              colorkey <span class="op">=</span> <span class="cn">FALSE</span>, useAbs <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></pre></div>
+<p>Again, we can remove the keys with <code>colorkey = FALSE</code>. We
+can also use <code>useAbs</code> to force using color for all
+panels.</p>
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/pglmm-plot-re.html">pglmm_plot_re</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">env</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="va">env</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span>,</span>
+<span>              data <span class="op">=</span> <span class="va">d</span>, cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span>, show.image <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>              show.sim.image <span class="op">=</span> <span class="cn">TRUE</span>, add.tree.sp <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>              colorkey <span class="op">=</span> <span class="cn">FALSE</span>, useAbs <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
 <p><img src="plot-re_files/figure-html/unnamed-chunk-14-1.png" width="100%" style="display: block; margin: auto;"></p>
 </div>
-<div id="individual-plots-for-simulated-site-by-species-matrix" class="section level2">
-<h2 class="hasAnchor">
-<a href="#individual-plots-for-simulated-site-by-species-matrix" class="anchor"></a>Individual plots for simulated site by species matrix</h2>
-<div class="sourceCode" id="cb16"><pre class="downlit">
-<span class="fu"><a href="https://rdrr.io/r/base/names.html">names</a></span><span class="op">(</span><span class="va">mod1sim</span><span class="op">)</span>
-<span class="co">## [1] "vcv"                "sim"                "tree"              </span>
-<span class="co">## [4] "plt_re_list"        "plt_sim_list"       "plt_sim_all_in_one"</span></pre></div>
-<p>The individual simulated matrices are saved as <code>mod1sim$sim</code> and individual plots are saved as <code>mod1sim$plt_sim_list</code>. We can use the same approach to select our own plots as those of var-cov matrices.</p>
-<p>We can control the space between the phylogeny and the matrix plot with <code>key.top</code> argument in <code><a href="https://rdrr.io/pkg/lattice/man/levelplot.html">lattice::levelplot()</a></code>, which has a default value of 1 (line).</p>
-<div class="sourceCode" id="cb17"><pre class="downlit">
-<span class="fu">gridExtra</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/gridExtra/man/arrangeGrob.html">grid.arrange</a></span><span class="op">(</span>grobs <span class="op">=</span> <span class="va">mod1sim</span><span class="op">$</span><span class="va">plt_sim_list</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">6</span><span class="op">)</span><span class="op">]</span>, nrow <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></pre></div>
+<div class="section level3">
+<h3 id="individual-plots-for-simulated-site-by-species-matrix">Individual plots for simulated site by species matrix<a class="anchor" aria-label="anchor" href="#individual-plots-for-simulated-site-by-species-matrix"></a>
+</h3>
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">mod1sim</span><span class="op">)</span></span>
+<span><span class="co">## [1] "vcv"                "sim"                "tree"              </span></span>
+<span><span class="co">## [4] "plt_re_list"        "plt_sim_list"       "plt_sim_all_in_one"</span></span></code></pre></div>
+<p>The individual simulated matrices are saved as
+<code>mod1sim$sim</code> and individual plots are saved as
+<code>mod1sim$plt_sim_list</code>. We can use the same approach to
+select our own plots as those of var-cov matrices.</p>
+<p>We can control the space between the phylogeny and the matrix plot
+with <code>key.top</code> argument in <code><a href="https://rdrr.io/pkg/lattice/man/levelplot.html" class="external-link">lattice::levelplot()</a></code>,
+which has a default value of 1 (line).</p>
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">gridExtra</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/gridExtra/man/arrangeGrob.html" class="external-link">grid.arrange</a></span><span class="op">(</span>grobs <span class="op">=</span> <span class="va">mod1sim</span><span class="op">$</span><span class="va">plt_sim_list</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">6</span><span class="op">)</span><span class="op">]</span>, nrow <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span></code></pre></div>
 <p><img src="plot-re_files/figure-html/unnamed-chunk-16-1.png" width="100%" style="display: block; margin: auto;"></p>
-<div class="sourceCode" id="cb18"><pre class="downlit">
-<span class="fu">gridExtra</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/gridExtra/man/arrangeGrob.html">grid.arrange</a></span><span class="op">(</span>grobs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html">lapply</a></span><span class="op">(</span><span class="va">mod1sim</span><span class="op">$</span><span class="va">plt_sim_list</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">6</span><span class="op">)</span><span class="op">]</span>, 
-                                       <span class="va">update</span>, 
-                                       par.settings <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span><span class="op">(</span>layout.heights <span class="op">=</span> 
-                                                             <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span><span class="op">(</span>key.top <span class="op">=</span> <span class="fl">0.3</span>,
-                                                                  main <span class="op">=</span> <span class="fl">5</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>, 
-                        nrow <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></pre></div>
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">gridExtra</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/gridExtra/man/arrangeGrob.html" class="external-link">grid.arrange</a></span><span class="op">(</span>grobs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">mod1sim</span><span class="op">$</span><span class="va">plt_sim_list</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">6</span><span class="op">)</span><span class="op">]</span>, </span>
+<span>                                       <span class="va">update</span>, </span>
+<span>                                       par.settings <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>layout.heights <span class="op">=</span> </span>
+<span>                                                             <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>key.top <span class="op">=</span> <span class="fl">0.3</span>,</span>
+<span>                                                                  main <span class="op">=</span> <span class="fl">5</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>, </span>
+<span>                        nrow <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span></code></pre></div>
 <p><img src="plot-re_files/figure-html/unnamed-chunk-16-2.png" width="100%" style="display: block; margin: auto;"></p>
 </div>
-<div id="fitted-model-as-input" class="section level2">
-<h2 class="hasAnchor">
-<a href="#fitted-model-as-input" class="anchor"></a>Fitted model as input</h2>
-<p>If you don’t have the model fitted, then the above way with specified formula, data, etc. can save you lots of time. Because it won’t actually fit the model, instead, it only return and plot the variance-cov matrices of random terms. However, if you already have the model fitted, you can just use the model as the input.</p>
-<div class="sourceCode" id="cb19"><pre class="downlit">
-<span class="fu"><a href="../reference/pglmm_plot_ranef.html">pglmm_plot_re</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">mod_1</span>, show.image <span class="op">=</span> <span class="cn">FALSE</span>, show.sim.image <span class="op">=</span> <span class="cn">TRUE</span>, 
-              add.tree.sp <span class="op">=</span> <span class="cn">TRUE</span>, colorkey <span class="op">=</span> <span class="cn">FALSE</span>, useAbs <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></pre></div>
+<div class="section level3">
+<h3 id="fitted-model-as-input">Fitted model as input<a class="anchor" aria-label="anchor" href="#fitted-model-as-input"></a>
+</h3>
+<p>If you don’t have the model fitted, then the above way with specified
+formula, data, etc. can save you lots of time. Because it won’t actually
+fit the model, instead, it only return and plot the variance-cov
+matrices of random terms. However, if you already have the model fitted,
+you can just use the model as the input.</p>
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/pglmm-plot-re.html">pglmm_plot_re</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">mod_1</span>, show.image <span class="op">=</span> <span class="cn">FALSE</span>, show.sim.image <span class="op">=</span> <span class="cn">TRUE</span>, </span>
+<span>              add.tree.sp <span class="op">=</span> <span class="cn">TRUE</span>, colorkey <span class="op">=</span> <span class="cn">FALSE</span>, useAbs <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
 <p><img src="plot-re_files/figure-html/unnamed-chunk-17-1.png" width="100%" style="display: block; margin: auto;"></p>
-<div class="sourceCode" id="cb20"><pre class="downlit">
-<span class="fu"><a href="../reference/pglmm_plot_ranef.html">communityPGLMM.show.re</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">mod_1</span>, show.image <span class="op">=</span> <span class="cn">TRUE</span>, show.sim.image <span class="op">=</span> <span class="cn">FALSE</span>, useAbs <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></pre></div>
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/pglmm-plot-re.html">communityPGLMM.show.re</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">mod_1</span>, show.image <span class="op">=</span> <span class="cn">TRUE</span>, show.sim.image <span class="op">=</span> <span class="cn">FALSE</span>, useAbs <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
 <p><img src="plot-re_files/figure-html/unnamed-chunk-17-2.png" width="100%" style="display: block; margin: auto;"></p>
 </div>
 </div>
@@ -359,11 +438,13 @@
 
 
       <footer><div class="copyright">
-  <p>Developed by Anthony Ives, Russell Dinnage, Lucas A. Nell, Matthew Helmus, Daijiang Li.</p>
+  <p></p>
+<p>Developed by Anthony Ives, Russell Dinnage, Lucas A. Nell, Matthew Helmus, Daijiang Li.</p>
 </div>
 
 <div class="pkgdown">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/">pkgdown</a> 1.6.1.</p>
+  <p></p>
+<p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.6.</p>
 </div>
 
       </footer>
@@ -371,6 +452,8 @@
 
   
 
+
+  
 
   </body>
 </html>
