@@ -286,7 +286,7 @@ pglmm_compare <- function(formula, family = "gaussian",
   
   if(any(sp != phy$tip.label)){
     warning("\nThe data rows are resorted to match phy$tip.label")
-    data <- data[match(sp, phy$tip.label),]
+    data <- data[match(phy$tip.label, sp),]
   }
   
   Vphy <- ape::vcv(phy)
