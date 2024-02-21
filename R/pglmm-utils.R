@@ -32,6 +32,8 @@ parse_conv_ranef = function(x, df){
       Vphy = Vphy[spl, spl] # same order as species levels
     }
     
+    if(inherits(xx, "dist")) xx = as.matrix(xx)
+    
     if(inherits(xx, c("matrix", "Matrix"))){
       # already a cov matrix
       if(length(setdiff(spl, row.names(xx)))) 
