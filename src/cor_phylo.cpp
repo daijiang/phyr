@@ -71,13 +71,13 @@ double cor_phylo_LL(NumericVector par,
   if (V.has_nan() || V.has_inf()) return MAX_RETURN;
   double rcond_dbl = 0;
   rcond_dbl = arma::rcond(V);
-  if (!arma::is_finite(rcond_dbl) || rcond_dbl < rcond_threshold) return MAX_RETURN;
+  if (!std::isfinite(rcond_dbl) || rcond_dbl < rcond_threshold) return MAX_RETURN;
   
   arma::mat iV = arma::inv(V);
   arma::mat denom = UU.t() * iV * UU;
   if (denom.has_nan() || denom.has_inf()) return MAX_RETURN;
   rcond_dbl = arma::rcond(denom);
-  if (!arma::is_finite(rcond_dbl) || rcond_dbl < rcond_threshold) return MAX_RETURN;
+  if (!std::isfinite(rcond_dbl) || rcond_dbl < rcond_threshold) return MAX_RETURN;
   
   arma::mat num = UU.t() * iV * XX;
   arma::vec B0 = arma::solve(denom, num);
@@ -85,7 +85,7 @@ double cor_phylo_LL(NumericVector par,
   
   double logdetV, det_sign;
   arma::log_det(logdetV, det_sign, iV);
-  if (!arma::is_finite(logdetV)) return MAX_RETURN;
+  if (!std::isfinite(logdetV)) return MAX_RETURN;
   logdetV *= -1;
   
   double LL;
