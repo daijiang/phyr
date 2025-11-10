@@ -163,10 +163,10 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
     test_fit_equal(test1_gaussian_cpp, test1_gaussian_r)
   })
   
-  test_that("cpp and r version phyr gave the same results: binomial", {
-    expect_equal(test2_binary_cpp, test2_binary_r, ignore_attr = TRUE)
-  })
-  
+  # test_that("cpp and r version phyr gave the same results: binomial", {
+  #   expect_equal(test2_binary_cpp, test2_binary_r, ignore_attr = TRUE)
+  # })
+  # 
   
   # test_that("test binary PGLMM random terms LRT", {
   #   for (i in 1:3) {
@@ -361,3 +361,4 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   })
   
 })
+

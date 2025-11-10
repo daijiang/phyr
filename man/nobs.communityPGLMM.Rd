@@ -7,12 +7,12 @@
 \method{nobs}{communityPGLMM}(object, use.fallback = FALSE, ...)
 }
 \arguments{
-\item{object}{A fitted model object.}
+\item{object}{a fitted model object.}
 
 \item{use.fallback}{logical: should fallback methods be used to try to
     guess the value?}
 
-\item{...}{Further arguments to be passed to methods.}
+\item{...}{further arguments to be passed to methods.}
 }
 \description{
 Number of Observation in a communityPGLMM Model
