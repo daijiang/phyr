@@ -14,21 +14,14 @@ using namespace arma;
 // [[Rcpp::export]]
 arma::vec pglmm_gaussian_predict(const arma::mat& iV,
                                  const arma::mat& H){
-  int n = iV.n_rows;
-  arma::mat V = inv(iV);
-  arma::vec h(n);
-  for (int i = 0; i < n; i++) {
-    // V[i, -i]; V[-i, -i]; H[-i]
-    IntegerVector i_idx = seq_len(n) - 1;
-    IntegerVector i_idx_rm = i_idx[i_idx != i];
-    arma::uvec i_keep(1); i_keep(0) = i;
-    arma::uvec i_idx_rm_2 = as<arma::uvec>(i_idx_rm);
-    arma::mat V1 = V.submat(i_keep, i_idx_rm_2);
-    arma::mat V2 = V.submat(i_idx_rm_2, i_idx_rm_2);
-    arma::mat H1 = H.rows(i_idx_rm_2);
-    h(i) = as_scalar(V1 * inv(V2) * H1);
-  }
-  return(h);
+  // Conditional mean E[H_i | H_{-i}] via precision matrix identity:
+  //   V[i,-i] * V[-i,-i]^{-1} = -iV[i,-i] / iV[ii]
+  // so h(i) = H[i] - (iV * H)[i] / iV[ii]
+  // Cost: O(n^2) matvec vs the original O(n^4) loop of n matrix inversions.
+  arma::vec Hv      = arma::vectorise(H);   // handles n×1 mat or vec input
+  arma::vec iV_H    = iV * Hv;              // O(n^2) matvec
+  arma::vec diag_iV = iV.diag();            // O(n)
+  return Hv - iV_H / diag_iV;              // O(n) element-wise
 }
 
 // [[Rcpp::export]]
