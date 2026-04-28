@@ -700,8 +700,45 @@ List pglmm_internal_cpp(const arma::mat& X, const arma::vec& Y,
     }
     iV = iA_dense;
   } else {
-    List iv = pglmm_iV_logdetV_cpp(ss0, mu, Zt, St, nested, false, family, totalSize);
-    iV = mat(as<sp_mat>(iv["iV"]));
+    // Fallback: q_Nested>0 with q_nn>0 (nested+non-nested), or nested-only
+    // without block structure. Build A, Cholesky, dense iA via triangular
+    // solves, then dense Woodbury — no explicit inv(), no sparse conversion,
+    // no R-level List round-trip.
+    arma::vec pq_fin;
+    if(family=="binomial") pq_fin = 1.0/(totalSize % mu % (1.0-mu));
+    if(family=="poisson")  pq_fin = 1.0/mu;
+
+    arma::vec sn_fin(q_Nested);
+    for(int j = 0; j < q_Nested; ++j)
+      sn_fin[j] = std::abs((double)ss0[q_nn + j]);
+
+    arma::sp_mat A_sp;
+    if(family=="binomial") A_sp = sp_mat(diagmat(pq_fin));
+    if(family=="poisson")  A_sp = sp_mat(diagmat(1.0/mu));
+    for(int j = 0; j < q_Nested; ++j){
+      double snj2 = sn_fin[j] * sn_fin[j];
+      sp_mat nj = nested[j];
+      A_sp = A_sp + snj2 * nj;
+    }
+    arma::mat A1(A_sp);
+    arma::mat chol_A; arma::chol(chol_A, A1);
+    arma::mat Rlo = chol_A.t();   // lower L s.t. L*L' = A
+
+    // iA = A^{-1} via two batch triangular solves — O(n^3), no explicit inv()
+    arma::mat iA = arma::solve(arma::trimatl(Rlo), arma::eye(n, n));
+    iA           = arma::solve(arma::trimatu(chol_A), iA);
+
+    if(q_nn > 0){
+      arma::sp_mat Ut_sp = build_Ut_helper(ss0, St, Zt, q_nn);
+      arma::mat Ut_d = arma::mat(Ut_sp), U_d = Ut_d.t();
+      int Q = (int)Ut_d.n_rows;
+      // Dense Woodbury: iV = iA - (iA*U) * M * (iA*U)^T,  M=(I+Ut*iA*U)^{-1}
+      arma::mat B_fin = iA * U_d;                                   // n×Q
+      arma::mat M_fin = arma::inv_sympd(arma::eye(Q,Q) + Ut_d * B_fin);
+      iV = iA - B_fin * (M_fin * B_fin.t());
+    } else {
+      iV = iA;   // q_nn==0, nested-only non-block: iV = iA
+    }
   }
 
   return List::create(_["B"]=B, _["ss"]=ss0, _["iV"]=iV,
