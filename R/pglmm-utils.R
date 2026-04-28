@@ -183,7 +183,7 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
             
             n_dim = length(unique(data[, colns[1]]))
             n_dim2 = length(unique(data[, colns[2]]))
-            xout = as(kronecker(diag(n_dim2), diag(n_dim)), "dgCMatrix")
+            xout = as(as(kronecker(diag(n_dim2), diag(n_dim)), "generalMatrix"), "CsparseMatrix")
             # put names back
             rownames(xout) = colnames(xout) = paste(
               rep(unique(as.character(data[, colns[2]])), each = n_dim),
@@ -197,9 +197,9 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
             if(grepl("__", sp_or_site[1]) & !grepl("__", sp_or_site[2])){ # sp__@site
               n_dim = nlevels(data[, colns[2]])
               if(repulsion[nested_repul_i]){
-                xout = as(kronecker(diag(n_dim), solve(cov_ranef_list[[colns[1]]])), "dgCMatrix")
+                xout = as(as(kronecker(diag(n_dim), solve(cov_ranef_list[[colns[1]]])), "generalMatrix"), "CsparseMatrix")
               } else {
-                xout = as(kronecker(diag(n_dim), cov_ranef_list[[colns[1]]]), "dgCMatrix")
+                xout = as(as(kronecker(diag(n_dim), cov_ranef_list[[colns[1]]]), "generalMatrix"), "CsparseMatrix")
               }
               # put names back
               rownames(xout) = colnames(xout) = paste(
@@ -215,9 +215,9 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
             if(!grepl("__", sp_or_site[1]) & grepl("__", sp_or_site[2])){ # sp@site__
               n_dim = length(unique(data[, colns[1]]))
               if(repulsion[nested_repul_i]){
-                xout = as(kronecker(solve(cov_ranef_list[[colns[2]]]), diag(n_dim)), "dgCMatrix")
+                xout = as(as(kronecker(solve(cov_ranef_list[[colns[2]]]), diag(n_dim)), "generalMatrix"), "CsparseMatrix")
               } else {
-                xout = as(kronecker(cov_ranef_list[[colns[2]]], diag(n_dim)), "dgCMatrix")
+                xout = as(as(kronecker(cov_ranef_list[[colns[2]]], diag(n_dim)), "generalMatrix"), "CsparseMatrix")
               }
               
               # put names back
@@ -247,7 +247,7 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
               }
               nested_repul_i <<- nested_repul_i + 1
               
-              xout = as(kronecker(Vphy_site2, Vphy2), "dgCMatrix")
+              xout = as(as(kronecker(Vphy_site2, Vphy2), "generalMatrix"), "CsparseMatrix")
               # put names back
               rownames(xout) = colnames(xout) = paste(
                 rep(rownames(cov_ranef_list[[colns[2]]]), each = nrow(cov_ranef_list[[colns[1]]])),
@@ -315,9 +315,9 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
             if(grepl("__", sp_or_site[1]) & !grepl("__", sp_or_site[2])){ # x|sp__@site
               n_dim = nlevels(data[, colns[2]])
               if(repulsion[nested_repul_i]){
-                xout = as(kronecker(diag(n_dim), solve(cov_ranef_list[[colns[1]]])), "dgCMatrix")
+                xout = as(as(kronecker(diag(n_dim), solve(cov_ranef_list[[colns[1]]])), "generalMatrix"), "CsparseMatrix")
               } else {
-                xout = as(kronecker(diag(n_dim), cov_ranef_list[[colns[1]]]), "dgCMatrix")
+                xout = as(as(kronecker(diag(n_dim), cov_ranef_list[[colns[1]]]), "generalMatrix"), "CsparseMatrix")
               }
               # put names back
               rownames(xout) = colnames(xout) = paste(
@@ -333,9 +333,9 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
             if(!grepl("__", sp_or_site[1]) & grepl("__", sp_or_site[2])){ # x|sp@site__
               n_dim = length(unique(data[, colns[1]]))
               if(repulsion[nested_repul_i]){
-                xout = as(kronecker(solve(cov_ranef_list[[colns[2]]]), diag(n_dim)), "dgCMatrix")
+                xout = as(as(kronecker(solve(cov_ranef_list[[colns[2]]]), diag(n_dim)), "generalMatrix"), "CsparseMatrix")
               } else {
-                xout = as(kronecker(cov_ranef_list[[colns[2]]], diag(n_dim)), "dgCMatrix")
+                xout = as(as(kronecker(cov_ranef_list[[colns[2]]], diag(n_dim)), "generalMatrix"), "CsparseMatrix")
               }
               
               # put names back
@@ -365,7 +365,7 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
               }
               nested_repul_i <<- nested_repul_i + 1
               
-              xout = as(kronecker(Vphy_site2, Vphy2), "dgCMatrix")
+              xout = as(as(kronecker(Vphy_site2, Vphy2), "generalMatrix"), "CsparseMatrix")
               # put names back
               rownames(xout) = colnames(xout) = paste(
                 rep(rownames(cov_ranef_list[[colns[2]]]), each = nrow(cov_ranef_list[[colns[1]]])),
@@ -520,7 +520,7 @@ get_design_matrix = function(formula, data, random.effects, na.action = NULL){
         # Z.2 <- t(Z.2)
         # use Z.2 to mask non-nested Z.1
         # nested[[jj]] <- (t(Z.1) %*% Z.1) * (t(Z.2) %*% Z.2)
-        nested[[jj]] <- as(crossprod(Z.1) * tcrossprod(Z.2), "dgCMatrix")
+        nested[[jj]] <- as(as(crossprod(Z.1) * tcrossprod(Z.2), "generalMatrix"), "CsparseMatrix")
       }
     }
   }

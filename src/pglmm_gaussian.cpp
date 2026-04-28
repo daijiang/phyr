@@ -68,30 +68,38 @@ double pglmm_gaussian_LL_cpp(NumericVector par,
   arma::mat denom;  // X' iV X (p x p), needed for REML
 
   if (q_Nested == 0) {
-    // ---- non-nested only: A = I, Woodbury on Ut/U ----
-    // Already O(q^3) dominated — unchanged from original.
-    arma::sp_mat iA = sp_mat(n, n); iA.eye();
-    arma::sp_mat Ishort = sp_mat(Ut.n_rows, Ut.n_rows); Ishort.eye();
-    arma::sp_mat Ut_iA_U = Ut * U;
-    arma::mat Ishort_Ut_iA_U = mat(Ishort + Ut_iA_U);
-    arma::mat i_Ishort_Ut_iA_U = inv(Ishort_Ut_iA_U);
-    arma::sp_mat iV0 = iA - U * sp_mat(i_Ishort_Ut_iA_U) * Ut;
-    arma::mat iV(iV0);
+    // ---- non-nested only: A = I, matrix-free Woodbury (OPT-G0) ----
+    // iV = I - U*(I+Ut*U)^{-1}*Ut; never form n×n iV.
+    // iV*x = x - U*(M*(Ut*x)), O(n*Q) vs old O(n^2).
+    arma::mat Ut_d = arma::mat(Ut);   // Q × n
+    arma::mat U_d  = Ut_d.t();        // n × Q
+    int Q = (int)Ut_d.n_rows;
 
-    denom          = trans(X) * iV * X;
-    arma::mat num  = trans(X) * iV * Y;
-    arma::mat B    = solve(denom, num);
-    arma::vec H    = Y - X * B;
-    HiVH           = as_scalar(trans(H) * iV * H);
+    arma::mat IpUtU = arma::eye(Q, Q) + Ut_d * U_d;   // Q × Q
+    arma::mat M     = arma::inv_sympd(IpUtU);
 
-    // Sylvester identity
-    double signV;
-    log_det(logdetV, signV, Ishort_Ut_iA_U);
-    NumericVector logdetV1 = NumericVector::create(logdetV);
-    if(any(is_infinite(logdetV1))){
-      arma::mat lgm = chol(Ishort_Ut_iA_U);
-      logdetV = 2 * sum(log(lgm.diag()));
+    // logdetV = log|I + Ut*U|  (logdet(I_n)=0)
+    double signV; arma::log_det(logdetV, signV, IpUtU);
+    if (!std::isfinite(logdetV)) {
+      arma::mat lgm = arma::chol(IpUtU);
+      logdetV = 2.0 * arma::accu(arma::log(lgm.diag()));
     }
+
+    // iV*x helpers via Woodbury (no n×n matrix)
+    auto iV_vec = [&](const arma::vec& x) -> arma::vec {
+      return x - U_d * (M * (Ut_d * x));
+    };
+    auto iV_mat = [&](const arma::mat& A2) -> arma::mat {
+      return A2 - U_d * (M * (Ut_d * A2));
+    };
+
+    arma::mat iVX  = iV_mat(X);
+    denom          = X.t() * iVX;
+    arma::mat num  = X.t() * iV_vec(Y);
+    arma::mat B    = arma::solve(denom, num);
+    arma::vec H    = Y - X * B;
+    arma::vec iVH  = iV_vec(H);
+    HiVH           = arma::dot(H, iVH);
 
   } else {
     // ---- nested terms present ----
