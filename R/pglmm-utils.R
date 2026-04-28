@@ -537,8 +537,8 @@ get_design_matrix = function(formula, data, random.effects, na.action = NULL){
       Zt[count:(count + St.lengths[i] - 1), ] <- Ztt[[i]]
       count <- count + St.lengths[i]
     }
-    St <- as(St, "dgTMatrix")
-    Zt <- as(Zt, "dgTMatrix")
+    St <- as(St, "sparseMatrix")
+    Zt <- as(Zt, "sparseMatrix")
   } else {
     St <- NULL # for cpp
     Zt <- NULL
