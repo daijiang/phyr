@@ -178,7 +178,7 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
             }
           
             # # message("Nested term without specify phylogeny, use identity matrix instead")
-            # xout = list(as(diag(nrow(data)), "dgCMatrix"))
+            # xout = list(Matrix::Diagonal(nrow(data)))
             # xout = list(xout)
             
             n_dim = length(unique(data[, colns[1]]))
@@ -309,7 +309,7 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
           
           if(!grepl("__", x2[3])){ # no phylogenetic term; e.g. x|sp@site
             # message("Nested term without specify phylogeny, use identity matrix instead")
-            xout = list(d, as(diag(nrow(data)), "dgCMatrix"))
+            xout = list(d, Matrix::Diagonal(nrow(data)))
             xout = list(xout)
           } else { # has phylogenetic term; x|sp__@site; x|sp__@site__; x|sp@site__
             if(grepl("__", sp_or_site[1]) & !grepl("__", sp_or_site[2])){ # x|sp__@site
@@ -418,7 +418,7 @@ prep_dat_pglmm = function(formula, data, cov_ranef = NULL, repulsion = FALSE,
         is.array(model.response(model.frame(formula.nobars, data = data, na.action = NULL))))){
       if(add.obs.re){
         message("We add an observation-level random term '1|obs' for poisson and binomial data.")
-        random.effects[[length(random.effects) + 1]] <- list(as(diag(nrow(data)), "dgCMatrix"))
+        random.effects[[length(random.effects) + 1]] <- list(Matrix::Diagonal(nrow(data)))
         names(random.effects)[length(random.effects)] <- "1|obs"
       } else {
         if(no_obs_re) message("For poisson and binomial data, it would be a good idea to add an observation-level random term (add.obs.re = TRUE).")
@@ -572,7 +572,7 @@ pglmm_gaussian_LL_calc = function(par, X, Y, Zt, St, nested = NULL,
     q.nonNested <- dim(St)[1]
     sr <- Re(par[1:q.nonNested])
     iC = as.vector(matrix(sr, nrow = 1) %*% St)
-    iC <- as(diag(iC), "dsCMatrix")
+    iC <- Matrix::Diagonal(x = iC)
     Ut <- iC %*% Zt
     U <- t(Ut)
   } else {
@@ -589,21 +589,21 @@ pglmm_gaussian_LL_calc = function(par, X, Y, Zt, St, nested = NULL,
   }
   
   if (q.Nested == 0) {
-    iA <- as(diag(n), "dsCMatrix")
-    Ishort <- as(diag(nrow(Ut)), "dsCMatrix")
+    iA <- Matrix::Diagonal(n)
+    Ishort <- Matrix::Diagonal(nrow(Ut))
     Ut.iA.U <- Ut %*% U
     # Ut.iA.U <- tcrossprod(Ut)
     # Woodbury identity
     iV <- iA - U %*% solve(Ishort + Ut.iA.U) %*% Ut
     # iV <- iA - crossprod(Ut, solve(Ishort + Ut.iA.U)) %*% Ut
   } else {
-    A <- as(diag(n), "dsCMatrix")
+    A <- Matrix::Diagonal(n)
     for (j in 1:q.Nested) {
       A <- A + sn[j]^2 * nested[[j]]
     }
     iA <- solve(A)
     if (q.nonNested > 0) {
-      Ishort <- as(diag(nrow(Ut)), "dsCMatrix")
+      Ishort <- Matrix::Diagonal(nrow(Ut))
       Ut.iA.U <- Ut %*% iA %*% U
       # Ut.iA.U <- tcrossprod(Ut %*% iA, Ut)
       iV <- iA - iA %*% U %*% solve(Ishort + Ut.iA.U) %*% Ut %*% iA
@@ -696,7 +696,7 @@ pglmm.iV.logdetV <- function(par, Zt, St, mu, nested, logdet = TRUE, family, siz
     q.nonNested <- dim(St)[1]
     sr <- Re(par[1:q.nonNested])
     iC = as.vector(matrix(sr, nrow = 1) %*% St)
-    iC <- as(diag(iC), "dsCMatrix")
+    iC <- Matrix::Diagonal(x = iC)
     Ut <- iC %*% Zt
     U <- t(Ut)
   } else {
@@ -712,9 +712,9 @@ pglmm.iV.logdetV <- function(par, Zt, St, mu, nested, logdet = TRUE, family, siz
   }
   
   if (q.Nested == 0) {
-   if(family == 'binomial') iA <- as(diag(as.vector(size * mu * (1 - mu))), "dgCMatrix")
-   if(family == 'poisson') iA <- as(diag(as.vector(mu)), "dgCMatrix")
-    Ishort <- as(diag(nrow(Ut)), "dsCMatrix")
+   if(family == 'binomial') iA <- Matrix::Diagonal(x = as.vector(size * mu * (1 - mu)))
+   if(family == 'poisson') iA <- Matrix::Diagonal(x = as.vector(mu))
+    Ishort <- Matrix::Diagonal(nrow(Ut))
     Ut.iA.U <- Ut %*% iA %*% U
     # Woodbury identity
     iV <- iA - iA %*% U %*% solve(Ishort + Ut.iA.U) %*% Ut %*% iA
@@ -725,15 +725,15 @@ pglmm.iV.logdetV <- function(par, Zt, St, mu, nested, logdet = TRUE, family, siz
         logdetV <- 2 * sum(log(diag(chol(Ishort + Ut.iA.U)))) - determinant(iA)$modulus[1]
     }
   } else {
-    if(family == 'binomial') A <- as(diag(as.vector(1/(size * mu * (1 - mu)))), "dgCMatrix")
-    if(family == 'poisson') A <- as(diag(as.vector(1/mu)), "dgCMatrix")
+    if(family == 'binomial') A <- Matrix::Diagonal(x = as.vector(1/(size * mu * (1 - mu))))
+    if(family == 'poisson') A <- Matrix::Diagonal(x = as.vector(1/mu))
     for (j in 1:q.Nested) {
       A <- A + sn[j]^2 * nested[[j]]
     }
     iA <- solve(A)
     
     if (q.nonNested > 0) {
-      Ishort <- as(diag(nrow(Ut)), "dsCMatrix")
+      Ishort <- Matrix::Diagonal(nrow(Ut))
       Ut.iA.U <- Ut %*% iA %*% U
       iV <- iA - iA %*% U %*% solve(Ishort + Ut.iA.U) %*% Ut %*% iA
     } else {
@@ -760,7 +760,7 @@ pglmm.V <- function(par, Zt, St, mu, nested, family, size) {
     q.nonNested <- dim(St)[1]
     sr <- Re(par[1:q.nonNested])
     iC = as.vector(matrix(sr, nrow = 1) %*% St)
-    iC <- as(diag(iC), "dsCMatrix")
+    iC <- Matrix::Diagonal(x = iC)
     Ut <- iC %*% Zt
     U <- t(Ut)
   } else {
