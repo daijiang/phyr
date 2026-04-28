@@ -86,26 +86,45 @@ List pglmm_iV_logdetV_cpp(NumericVector par, arma::vec mu,
       }
     }
     arma::mat A1(A);
-    arma::sp_mat iA = sp_mat(inv(A1));
-    // Rcout << iA << " " ;
+
+    // OPT3: single Cholesky for both logdetA and iA, then matrix-det lemma
+    // for logdetV — eliminates the O(n^3) log_det(iV) call.
+    // iV is still materialised (needed by the mean-component BLUP update).
+    arma::mat chol_A;
+    bool chol_ok = arma::chol(chol_A, A1);  // upper R s.t. R'R = A
+    arma::sp_mat iA;
+    double logdetA = 0.0;
+    if (chol_ok) {
+      logdetA = 2.0 * arma::accu(arma::log(chol_A.diag()));
+      arma::mat Ri = arma::inv(arma::trimatu(chol_A));  // R^{-1} via BLAS dtrtri
+      iA = sp_mat(Ri * Ri.t());                          // A^{-1} = R^{-1}(R^{-1})'
+    } else {
+      // fallback: A not PD for these parameters
+      arma::mat iA1 = arma::inv(A1);
+      double sgn;
+      arma::log_det(logdetA, sgn, A1);
+      iA = sp_mat(iA1);
+    }
+
     if(q_nonNested > 0){
       arma::sp_mat Ishort = sp_mat(Ut.n_rows, Ut.n_rows); Ishort.eye();
       arma::sp_mat Ut_iA_U = Ut * iA * U;
       Ishort_Ut_iA_U = mat(Ishort + Ut_iA_U);
-      arma::mat i_Ishort_Ut_iA_U = inv(Ishort_Ut_iA_U);
+      arma::mat i_Ishort_Ut_iA_U = arma::inv_sympd(Ishort_Ut_iA_U);
       iV0 = iA - iA * U * sp_mat(i_Ishort_Ut_iA_U) * Ut * iA;
     } else {
       iV0 = iA;
     }
-    
-    arma::mat iV(iV0); // convert to dense matrix
+
     if(logdet){
-      log_det(logdetV, signV, iV); 
-      logdetV = -1 * logdetV;
-      NumericVector logdetV1 = NumericVector::create(logdetV);
-      if(any(is_infinite(logdetV1))){
-        arma::mat lgm = chol(iV);
-        logdetV = -2 * sum(log(lgm.diag()));
+      // Matrix-det lemma: log|V| = log|A| + log|I + Ut A^{-1} U|
+      // Replaces O(n^3) log_det(iV) with logdetA (free) + tiny q x q log-det.
+      if (q_nonNested > 0) {
+        double signV2;
+        log_det(logdetV, signV2, Ishort_Ut_iA_U);  // Q x Q, tiny
+        logdetV += logdetA;
+      } else {
+        logdetV = logdetA;  // V = A when no non-nested terms
       }
     }
   }
@@ -271,18 +290,21 @@ List pglmm_internal_cpp(const arma::mat& X, const arma::vec& Y,
       if(family == "binomial") Z = X * B + b + (Y/totalSize - mu)/(mu % (1 - mu));
       if(family == "poisson") Z = X * B + b + (Y - mu)/mu;
       
-      iV = mat(iV0); // convert to dense matrix
+      iV = mat(iV0); // dense iV needed for denom/num and for output
       arma::mat denom = trans(X) * iV * X;
       arma::mat num = trans(X) * iV * Z;
       B = solve(denom, num);
-      
+
       sp_mat V = pglmm_V(ss0, Zt, St, mu, nested, false, family, totalSize);
       vec diav = vectorise(1/(totalSize % mu % (1 - mu)));
       sp_mat iW;
       if(family == "binomial") iW = sp_mat(diagmat(diav));
       if(family == "poisson") iW = sp_mat(diagmat(1/mu));
       sp_mat C = V - iW;
-      b = mat(C) * mat(iV) * (Z - X * B);
+      // OPT4: associativity trick — C*(iV*r) is O(n^2) vs (C*iV)*r which is O(n^3).
+      // C is genuinely sparse (Kronecker structure); iV*r uses fast dense BLAS DGEMV.
+      arma::vec r = Z - X * B;
+      b = C * (iV * r);
       beta = join_vert(B, b);
       if(family == "binomial") mu = arma::exp(XX * beta) / (1 + arma::exp(XX * beta));
       if(family == "poisson") mu = arma::exp(XX * beta);
