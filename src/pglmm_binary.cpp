@@ -32,6 +32,30 @@ static int detect_n_sp(const arma::sp_mat& nj) {
   return cnt;
 }
 
+// Verify that nj is truly block-diagonal with blocks of size n_sp.
+// Two fast checks (both O(nnz) or better):
+//   1. Total nnz == n_site * n_sp^2  (rules out interleaved / ragged patterns)
+//   2. Column n_sp (first col of block 1) has no non-zeros in rows [0, n_sp)
+//      (column iterators are sorted by row, so this is a single comparison)
+// Returns false → fall back to full dense path; true → safe to use block Chol.
+static bool verify_block_structure(const arma::sp_mat& nj, int n_sp) {
+  arma::uword n       = nj.n_rows;
+  arma::uword nsp_u   = (arma::uword)n_sp;
+  arma::uword n_site_u = n / nsp_u;
+
+  // Check 1: exact nnz count for a pure block-diagonal matrix
+  if (nj.n_nonzero != n_site_u * nsp_u * nsp_u) return false;
+
+  // Check 2: only one block → trivially block-diagonal
+  if (n_site_u < 2) return true;
+
+  // Check 2: first non-zero row in column n_sp must be >= n_sp
+  arma::sp_mat::const_col_iterator it = nj.begin_col(nsp_u);
+  if (it != nj.end_col(nsp_u) && (int)it.row() < n_sp) return false;
+
+  return true;
+}
+
 // Compute block Cholesky factors for A_k = diag(pq_k) + nj_fixed[k];
 // returns logdetA = sum_k 2*sum(log(diag(R_k)))
 static double block_chol(std::vector<arma::mat>& chols,
@@ -343,14 +367,18 @@ List pglmm_internal_cpp(const arma::mat& X, const arma::vec& Y,
   int q_nn     = St.n_rows;
   int q_Nested = (int)nested.size();
 
-  // Detect block structure once (geometry doesn't change)
+  // Detect block structure once (geometry doesn't change).
+  // use_blk is only true when data are sorted site×species AND the nested
+  // matrix is genuinely block-diagonal; verify_block_structure guards against
+  // silently wrong results when data ordering doesn't match expectations.
   int n_sp = 0, n_site = 0;
   bool use_blk = false;
   if(q_Nested > 0){
     sp_mat nj0_sp = nested[0];   // implicit conversion
     n_sp   = detect_n_sp(nj0_sp);
     n_site = (n_sp > 0) ? n / n_sp : 0;
-    use_blk = (n_sp > 0 && n_sp * n_site == n);
+    use_blk = (n_sp > 0 && n_sp * n_site == n &&
+               verify_block_structure(nj0_sp, n_sp));
   }
 
   unsigned int iteration = 0;
