@@ -753,8 +753,19 @@ communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian",
   k <- p + q + 1
   AIC <- -2 * logLik + 2 * k
   BIC <- -2 * logLik + k * (log(n) - log(pi))
-  
-  results <- list(formula = formula, data = data, family = family, random.effects = random.effects, 
+
+  # Convergence check: nloptr success = 1-4; optim success = 0
+  if (optimizer == "Nelder-Mead") {
+    if (convcode != 0)
+      warning("Optimizer (Nelder-Mead) did not converge (convcode = ", convcode,
+              "). Estimates may be unreliable. Consider increasing maxit.")
+  } else {
+    if (convcode >= 5 || convcode < 0)
+      warning("Optimizer (", optimizer, ") did not converge (nloptr status = ", convcode,
+              "). Estimates may be unreliable. Consider increasing maxit.")
+  }
+
+  results <- list(formula = formula, data = data, family = family, random.effects = random.effects,
                   B = out$B, B.se = out$B.se, B.cov = out$B.cov, B.zscore = B.zscore, 
                   B.pvalue = B.pvalue, ss = ss, s2n = out$s2n, s2r = out$s2r,
                   s2resid = out$s2resid, logLik = logLik, AIC = AIC, BIC = BIC, 
@@ -960,8 +971,19 @@ communityPGLMM.glmm <- function(formula, data = list(), family = "binomial",
   B.se <- as.matrix(diag(B.cov))^0.5
   B.zscore <- B/B.se
   B.pvalue <- 2 * pnorm(abs(B/B.se), lower.tail = FALSE)
-  
-  results <- list(formula = formula, data = data, family = family, random.effects = random.effects, 
+
+  # Convergence check: nloptr success = 1-4; optim success = 0
+  if (optimizer == "Nelder-Mead") {
+    if (convcode != 0)
+      warning("Optimizer (Nelder-Mead) did not converge (convcode = ", convcode,
+              "). Estimates may be unreliable. Consider increasing maxit.")
+  } else {
+    if (convcode >= 5 || convcode < 0)
+      warning("Optimizer (", optimizer, ") did not converge (nloptr status = ", convcode,
+              "). Estimates may be unreliable. Consider increasing maxit.")
+  }
+
+  results <- list(formula = formula, data = data, family = family, random.effects = random.effects,
                   B = B, B.se = B.se, B.cov = B.cov, B.zscore = B.zscore, B.pvalue = B.pvalue, 
                   ss = ss, s2n = s2n, s2r = s2r, s2resid = NULL, logLik = logLik, AIC = AIC, 
                   BIC = BIC, REML = REML, bayes = FALSE, s2.init = s2.init, B.init = B.init, Y = Y, size = size, X = X, 
