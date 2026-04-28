@@ -232,138 +232,173 @@ double pglmm_gaussian_LL_cpp(NumericVector par,
 }
 
 // [[Rcpp::export]]
-List pglmm_gaussian_LL_calc_cpp(NumericVector par, 
-                                const arma::mat& X, const arma::vec& Y, 
-                                const arma::sp_mat& Zt, const arma::sp_mat& St, 
+List pglmm_gaussian_LL_calc_cpp(NumericVector par,
+                                const arma::mat& X, const arma::vec& Y,
+                                const arma::sp_mat& Zt, const arma::sp_mat& St,
                                 const List& nested, bool REML){
   int n = X.n_rows;
   int p = X.n_cols;
   int q_nonNested = St.n_rows;
-  arma::sp_mat Ut;
-  arma::sp_mat U;
+
+  // ---- build Ut / U ----
+  arma::sp_mat Ut, U;
   arma::rowvec sr;
   if(q_nonNested > 0){
-    IntegerVector idx = seq_len(q_nonNested) - 1; // c++ starts with 0
-    // uvec idx_uvec = as<uvec>(idx);
+    IntegerVector idx = seq_len(q_nonNested) - 1;
     NumericVector sr0 = par[idx];
     sr = real(as<rowvec>(sr0));
-    arma::mat iC0 = sr * St;
-    arma::vec iC1 = vectorise(iC0, 0); // extract by columns
-    arma::sp_mat iC = sp_mat(diagmat(iC1));
-    Ut = iC * Zt;
-    U = trans(Ut);
+    arma::vec iC1 = vectorise(sr * St, 0);
+    Ut = sp_mat(diagmat(iC1)) * Zt;
+    U  = trans(Ut);
   }
-  
+
   int q_Nested = nested.size();
-  
-  NumericVector sn; // pre-declare out of if{}
-  if (q_Nested > 0) {
+  NumericVector sn;
+  if(q_Nested > 0){
     IntegerVector idx2 = wrap(seq(q_nonNested, q_nonNested + q_Nested - 1));
     NumericVector sn0 = par[idx2];
-    rowvec sn1 = real(as<rowvec>(sn0));
-    sn = as<NumericVector>(wrap(sn1)); // no need to declare type again
-  } 
-  
-  arma::sp_mat iV0;
-  arma::mat Ishort_Ut_iA_U;
-  double logdetA = 0.0;  // in scope for log-det block below
-  if (q_Nested == 0){
-    arma::sp_mat iA = sp_mat(n, n); iA.eye();
-    arma::sp_mat Ishort = sp_mat(Ut.n_rows, Ut.n_rows); Ishort.eye();
-    arma::sp_mat Ut_iA_U = Ut * U;
-    // Woodbury identity
-    Ishort_Ut_iA_U = mat(Ishort + Ut_iA_U);
-    arma::mat i_Ishort_Ut_iA_U = inv(Ishort_Ut_iA_U);
-    iV0 = iA - U * sp_mat(i_Ishort_Ut_iA_U) * Ut;
+    sn = as<NumericVector>(wrap(real(as<rowvec>(sn0))));
+  }
+
+  // Branch-agnostic outputs
+  arma::vec B, H;
+  double HiVH = 0.0, s2resid = 0.0;
+  arma::mat denom_scaled;   // X'*(iV/s2resid)*X  for B_cov
+  arma::mat iV_scaled;      // full dense iV/s2resid returned to R
+
+  // ---- q_Nested == 0: A = I, matrix-free Woodbury (no n×n sparse) ----
+  if(q_Nested == 0){
+    arma::mat Ut_d = arma::mat(Ut);
+    arma::mat U_d  = Ut_d.t();
+    int Q = (int)Ut_d.n_rows;
+    arma::mat IpUtU = arma::eye(Q, Q) + Ut_d * U_d;
+    arma::mat M     = arma::inv_sympd(IpUtU);
+
+    auto iV_vec = [&](const arma::vec& x) -> arma::vec {
+      return x - U_d * (M * (Ut_d * x));
+    };
+    auto iV_mat_fn = [&](const arma::mat& A2) -> arma::mat {
+      return A2 - U_d * (M * (Ut_d * A2));
+    };
+
+    arma::mat iVX  = iV_mat_fn(X);
+    arma::mat denom = X.t() * iVX;                      // unscaled, for B
+    B               = arma::solve(denom, X.t() * iV_vec(Y));
+    H               = Y - X * B;
+    HiVH            = arma::dot(H, iV_vec(H));
+    s2resid         = REML ? HiVH / (n - p) : HiVH / n;
+
+    // Form full n×n iV/s2resid for return: (I - U*M*Ut) / s2resid
+    iV_scaled     = (arma::eye(n, n) - U_d * (M * Ut_d)) / s2resid;
+    denom_scaled  = X.t() * iV_scaled * X;
+
+  // ---- q_Nested > 0: Cholesky + triangular solves ----
   } else {
-    arma::sp_mat A = sp_mat(n, n); A.eye();
-    if (q_Nested == 1){
-      double snj = pow(sn[0], 2);
-      sp_mat nj = nested[0];
-      A = A + snj * nj;
-    } else {
-      for (int j = 0; j < q_Nested; j++) {
-        double snj = pow(sn[j], 2);
-        sp_mat nj = nested[j];
-        A = A + snj * nj;
-      }
+    arma::sp_mat A_sp = sp_mat(n, n); A_sp.eye();
+    for(int j = 0; j < q_Nested; ++j){
+      sp_mat nj = nested[j];
+      A_sp = A_sp + pow(sn[j], 2) * nj;
     }
-    arma::mat A1(A);
-    // OPT1: single Cholesky for both logdetA and iA
+    arma::mat A1(A_sp);
     arma::mat chol_A;
     bool chol_ok = arma::chol(chol_A, A1);
-    arma::sp_mat iA;
-    if (chol_ok) {
-      logdetA = 2.0 * arma::accu(arma::log(chol_A.diag()));
-      arma::mat Ri = arma::inv(trimatu(chol_A));
-      iA = sp_mat(Ri * Ri.t());
+
+    if(chol_ok){
+      arma::mat Rlo = chol_A.t();   // lower L s.t. L*L' = A
+
+      // Helper: solve A*out = RHS via stored Cholesky factors (O(n^2) per col)
+      auto trisolve_m = [&](const arma::mat& RHS) -> arma::mat {
+        arma::mat tmp = arma::solve(arma::trimatl(Rlo), RHS);
+        return arma::solve(arma::trimatu(chol_A), tmp);
+      };
+      auto trisolve_v = [&](const arma::vec& rhs) -> arma::vec {
+        arma::vec tmp = arma::solve(arma::trimatl(Rlo), rhs);
+        return arma::solve(arma::trimatu(chol_A), tmp);
+      };
+
+      arma::mat iA_X = trisolve_m(X);
+      arma::vec iA_Y = trisolve_v(Y);
+
+      if(q_nonNested > 0){
+        arma::mat U_d  = arma::mat(U);
+        arma::mat Ut_d = arma::mat(Ut);
+        int Q          = (int)Ut.n_rows;
+        arma::mat iA_U = trisolve_m(U_d);
+        arma::mat IpUtAU = arma::eye(Q, Q) + Ut_d * iA_U;
+        arma::mat M      = arma::inv_sympd(IpUtAU);
+
+        // iV*x = iA_x - iA_U*(M*(Ut*iA_x))
+        arma::mat iVX   = iA_X - iA_U * (M * (Ut_d * iA_X));
+        arma::vec iVY   = iA_Y - iA_U * (M * (Ut_d * iA_Y));
+        arma::mat denom = X.t() * iVX;
+        B               = arma::solve(denom, X.t() * iVY);
+        H               = Y - X * B;
+        arma::vec iA_H  = trisolve_v(H);
+        arma::vec iVH   = iA_H - iA_U * (M * (Ut_d * iA_H));
+        HiVH            = arma::dot(H, iVH);
+        s2resid         = REML ? HiVH / (n - p) : HiVH / n;
+
+        // Form full n×n iA via batch triangular solves, then dense Woodbury
+        // iV = iA - (iA*U)*M*(iA*U)^T   [B_fin = iA*U = iA_U when iA_U = solve(A,U)]
+        // Note: iA_U already computed above.
+        arma::mat iA_full = trisolve_m(arma::eye(n, n));
+        arma::mat iV_full = iA_full - iA_U * (M * iA_U.t());
+        iV_scaled    = iV_full / s2resid;
+        denom_scaled = X.t() * iV_scaled * X;
+
+      } else {
+        // q_nonNested == 0: iV = iA
+        arma::mat denom = iA_X.t() * X;
+        B               = arma::solve(denom, iA_X.t() * Y);
+        H               = Y - X * B;
+        arma::vec iA_H  = trisolve_v(H);
+        HiVH            = arma::dot(H, iA_H);
+        s2resid         = REML ? HiVH / (n - p) : HiVH / n;
+
+        arma::mat iA_full = trisolve_m(arma::eye(n, n));
+        iV_scaled    = iA_full / s2resid;
+        denom_scaled = X.t() * iV_scaled * X;
+      }
+
     } else {
+      // Cholesky failed (A not PD for these params): LU fallback
       arma::mat iA1 = arma::inv(A1);
-      double sgn;
-      arma::log_det(logdetA, sgn, A1);
-      iA = sp_mat(iA1);
-    }
-    if(q_nonNested > 0){
-      arma::sp_mat Ishort = sp_mat(Ut.n_rows, Ut.n_rows); Ishort.eye();
-      arma::sp_mat Ut_iA_U = Ut * iA * U;
-      Ishort_Ut_iA_U = mat(Ishort + Ut_iA_U);
-      arma::mat i_Ishort_Ut_iA_U = arma::inv_sympd(Ishort_Ut_iA_U);
-      iV0 = iA - iA * U * sp_mat(i_Ishort_Ut_iA_U) * Ut * iA;
-    } else {
-      iV0 = iA;
-    }
-  }
-
-  arma::mat iV(iV0); // convert to dense matrix
-  arma::mat denom = trans(X) * iV * X;
-  arma::mat num = trans(X) * iV * Y;
-  arma::mat B = solve(denom, num);
-  arma::vec H = Y - X * B;
-
-  // logdetV is computed but not returned; kept for consistency
-  double logdetV;
-  double signV;
-  if (q_Nested == 0) {
-    log_det(logdetV, signV, Ishort_Ut_iA_U);
-    NumericVector logdetV1 = NumericVector::create(logdetV);
-    if(any(is_infinite(logdetV1))){
-      arma::mat lgm = chol(Ishort_Ut_iA_U);
-      logdetV = 2 * sum(log(lgm.diag()));
-    }
-  } else {
-    // OPT1 (cont.): matrix-determinant lemma
-    if (q_nonNested > 0) {
-      log_det(logdetV, signV, Ishort_Ut_iA_U);
-      logdetV += logdetA;
-    } else {
-      logdetV = logdetA;
+      arma::sp_mat iA = sp_mat(iA1);
+      arma::sp_mat iV0;
+      if(q_nonNested > 0){
+        arma::sp_mat Ishort = sp_mat(Ut.n_rows, Ut.n_rows); Ishort.eye();
+        arma::mat IshUtAU = mat(Ishort + Ut * iA * U);
+        iV0 = iA - iA * U * sp_mat(arma::inv_sympd(IshUtAU)) * Ut * iA;
+      } else {
+        iV0 = iA;
+      }
+      arma::mat iV(iV0);
+      arma::mat denom = X.t() * iV * X;
+      B       = arma::solve(denom, X.t() * iV * Y);
+      H       = Y - X * B;
+      HiVH    = arma::as_scalar(H.t() * iV * H);
+      s2resid = REML ? HiVH / (n - p) : HiVH / n;
+      iV_scaled    = iV / s2resid;
+      denom_scaled = X.t() * iV_scaled * X;
     }
   }
 
-  double s2resid;
-  if(REML){
-    s2resid = as_scalar(trans(H) * iV * H) / (n - p);
-  } else {
-    s2resid = as_scalar(trans(H) * iV * H) / n;
-  }
-  
-  iV = iV/s2resid;
-  rowvec s2r = s2resid * pow(sr, 2);
+  rowvec s2r       = s2resid * pow(sr, 2);
   NumericVector s2n = s2resid * pow(sn, 2);
-  arma::mat B_cov = inv(trans(X) * iV * X);
-  arma::vec B_se = sqrt(B_cov.diag());
-  
+  arma::mat B_cov  = arma::inv_sympd(denom_scaled);
+  arma::vec B_se   = arma::sqrt(B_cov.diag());
+
   return List::create(
-    _["B"] = B,
-    _["B.se"] = B_se,
-    _["B.cov"] = B_cov,
-    _["sr"] = sr,
-    _["sn"] = sn,
-    _["s2n"] = s2n,
-    _["s2r"] = s2r,
+    _["B"]       = B,
+    _["B.se"]    = B_se,
+    _["B.cov"]   = B_cov,
+    _["sr"]      = sr,
+    _["sn"]      = sn,
+    _["s2n"]     = s2n,
+    _["s2r"]     = s2r,
     _["s2resid"] = s2resid,
-    _["iV"] = iV,
-    _["H"] = H
+    _["iV"]      = iV_scaled,
+    _["H"]       = H
   );
 }
 
