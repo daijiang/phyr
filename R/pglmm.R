@@ -92,7 +92,11 @@
 #'   Note that correlated random terms are not allowed. For example,
 #'   \code{(x|g)} will be the same as \code{(0 + x|g)} in the \code{lme4::lmer} syntax. However, 
 #'   \code{(x1 + x2|g)} won't work, so instead use  \code{(x1|g) + (x2|g)}.
-#' @param data A \code{\link{data.frame}} containing the variables named in formula. 
+#' @param data A \code{\link{data.frame}} containing the variables named in formula.
+#'   Rows where the response variable is \code{NA} are dropped before fitting; this
+#'   is equivalent to removing those rows from \code{data} manually before calling
+#'   \code{pglmm}. As a result, \code{pglmm(data_with_NAs)} and
+#'   \code{pglmm(data[!is.na(data$y), ])} produce identical estimates.
 #' @param family Either "gaussian" for a Linear Mixed Model, or 
 #'   "binomial" or "poisson" for Generalized Linear Mixed Models.
 #'   "family" should be specified as a character string (i.e., quoted). For binomial and 
@@ -534,6 +538,16 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
   data = as.data.frame(data) # in case of tibbles
   fm_original = formula
   prep_re = if(is.null(random.effects)) TRUE else FALSE
+
+  # Drop rows with NA in the response before building random effects structures.
+  # This ensures factor levels (and thus covariance matrices) are built only from
+  # rows that will actually be used, making fit(data_with_NAs) == fit(data_NAs_removed).
+  resp_vec <- tryCatch(
+    model.response(model.frame(lme4::nobars(formula), data, na.action = NULL)),
+    error = function(e) NULL)
+  if (!is.null(resp_vec) && any(is.na(resp_vec)))
+    data <- data[!is.na(resp_vec), , drop = FALSE]
+
   if(prep_re) {
     # to make old code work ...
     if(is.null(cov_ranef) & any(grepl("__", all.vars(formula)))){

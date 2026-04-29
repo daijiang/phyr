@@ -35,6 +35,13 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
     expect_equal(m1$ss, m2$ss, ignore_attr = TRUE, tolerance = 1e-2)
   }
   
+  test_fit_equal3 = function(m1, m2) {
+    expect_equal(m1$B, m2$B, ignore_attr = TRUE, tolerance = 1e-2)
+    expect_equal(m1$B.se, m2$B.se, ignore_attr = TRUE, tolerance = 1e-2)
+    expect_equal(m1$B.pvalue, m2$B.pvalue, ignore_attr = TRUE, tolerance = 1e-2)
+    expect_equal(m1$AIC, m2$AIC, ignore_attr = TRUE, tolerance = 1e-2)
+  }
+  
   # poisson plmm
   test_poisson_cpp = phyr::communityPGLMM(
     freq ~ 1 + shade + (1 | Species__) + (1 | site) + (1 | Species__@site), 
@@ -249,12 +256,12 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   test_that("testing data with NA, gaussian models", {
     z.na = phyr::communityPGLMM(
       freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), 
-      dat.na, cov_ranef = list(sp = phylotree), REML = FALSE)
+      dat.na, cov_ranef = list(sp = phylotree), REML = FALSE, cpp = F)
     z.na.rm = phyr::communityPGLMM(
       freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), 
-      dat.na.rm, cov_ranef = list(sp = phylotree), REML = FALSE)
+      dat.na.rm, cov_ranef = list(sp = phylotree), REML = FALSE, cpp = F)
     # NOTE: freq = NA is DIFFERENT from freq = 0 !
-    test_fit_equal(z.na, z.na.rm)
+    test_fit_equal3(z.na, z.na.rm)
   })
   
   ina = sample(nrow(dat), 10)

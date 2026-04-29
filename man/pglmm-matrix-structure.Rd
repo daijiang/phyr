@@ -48,7 +48,11 @@ Note that correlated random terms are not allowed. For example,
 \code{(x|g)} will be the same as \code{(0 + x|g)} in the \code{lme4::lmer} syntax. However,
 \code{(x1 + x2|g)} won't work, so instead use  \code{(x1|g) + (x2|g)}.}
 
-\item{data}{A \code{\link{data.frame}} containing the variables named in formula.}
+\item{data}{A \code{\link{data.frame}} containing the variables named in formula.
+Rows where the response variable is \code{NA} are dropped before fitting; this
+is equivalent to removing those rows from \code{data} manually before calling
+\code{pglmm}. As a result, \code{pglmm(data_with_NAs)} and
+\code{pglmm(data[!is.na(data$y), ])} produce identical estimates.}
 
 \item{family}{Either "gaussian" for a Linear Mixed Model, or
 "binomial" or "poisson" for Generalized Linear Mixed Models.
