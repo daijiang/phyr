@@ -1,407 +1,778 @@
 // -*- mode: C++; c-indent-level: 4; c-basic-offset: 4; indent-tabs-mode: nil; -*-
-
-// we only include RcppArmadillo.h which pulls Rcpp.h in for us
-#include "RcppArmadillo.h"
-
-// via the depends attribute we tell Rcpp to create hooks for
-// RcppArmadillo so that the build process will know what to do
-//
 // [[Rcpp::depends(RcppArmadillo)]]
-
+#include "RcppArmadillo.h"
 using namespace Rcpp;
 using namespace arma;
 
+// ============================================================
+// Internal helpers
+// ============================================================
+
+// Build Ut (Q×n sparse) from non-nested variance params + design matrices
+static arma::sp_mat build_Ut_helper(const NumericVector& par,
+                                    const arma::sp_mat& St,
+                                    const arma::sp_mat& Zt,
+                                    int q_nn) {
+  IntegerVector idx = seq_len(q_nn) - 1;
+  NumericVector sr0 = par[idx];
+  rowvec sr = real(as<rowvec>(sr0));
+  arma::vec  iC1 = vectorise(sr * St, 0);
+  arma::sp_mat iC = sp_mat(diagmat(iC1));
+  return iC * Zt;
+}
+
+// Count nnz in row 0 of a sparse matrix = block size for kron(I_ns, Vphy).
+// Uses element access (avoids const_row_iterator portability issues).
+static int detect_n_sp(const arma::sp_mat& nj) {
+  int cnt = 0;
+  for (arma::uword c = 0; c < nj.n_cols; ++c) {
+    if (nj.at(0, c) != 0.0) ++cnt;
+    else if (cnt > 0) break;   // first zero after non-zeros = end of block
+  }
+  return cnt;
+}
+
+// Verify that nj is truly block-diagonal with blocks of size n_sp.
+// Two fast checks (both O(nnz) or better):
+//   1. Total nnz == n_site * n_sp^2  (rules out interleaved / ragged patterns)
+//   2. Column n_sp (first col of block 1) has no non-zeros in rows [0, n_sp)
+//      (column iterators are sorted by row, so this is a single comparison)
+// Returns false → fall back to full dense path; true → safe to use block Chol.
+static bool verify_block_structure(const arma::sp_mat& nj, int n_sp) {
+  arma::uword n       = nj.n_rows;
+  arma::uword nsp_u   = (arma::uword)n_sp;
+  arma::uword n_site_u = n / nsp_u;
+
+  // Check 1: exact nnz count for a pure block-diagonal matrix
+  if (nj.n_nonzero != n_site_u * nsp_u * nsp_u) return false;
+
+  // Check 2: only one block → trivially block-diagonal
+  if (n_site_u < 2) return true;
+
+  // Check 2: first non-zero row in column n_sp must be >= n_sp
+  arma::sp_mat::const_col_iterator it = nj.begin_col(nsp_u);
+  if (it != nj.end_col(nsp_u) && (int)it.row() < n_sp) return false;
+
+  return true;
+}
+
+// Compute block Cholesky factors for A_k = diag(pq_k) + nj_fixed[k];
+// returns logdetA = sum_k 2*sum(log(diag(R_k)))
+static double block_chol(std::vector<arma::mat>& chols,
+                         const arma::vec& pq,
+                         const std::vector<arma::mat>& nj_fixed,
+                         int n_sp, int n_site) {
+  double logdetA = 0.0;
+  for (int k = 0; k < n_site; ++k) {
+    int s = k * n_sp;
+    arma::mat Ak = arma::diagmat(pq.subvec(s, s + n_sp - 1)) + nj_fixed[k];
+    if (!arma::chol(chols[k], Ak))
+      arma::chol(chols[k], Ak + 1e-10 * arma::eye(n_sp, n_sp));
+    logdetA += 2.0 * arma::accu(arma::log(chols[k].diag()));
+  }
+  return logdetA;
+}
+
+// ============================================================
+// pglmm_iV_logdetV_cpp  (unchanged public API)
+// ============================================================
 // [[Rcpp::export]]
 List pglmm_iV_logdetV_cpp(NumericVector par, arma::vec mu,
-                                const arma::sp_mat& Zt, const arma::sp_mat& St, 
-                                const List& nested, bool logdet,
-                                const std::string family, arma::vec totalSize){
-  int q_nonNested = St.n_rows;
-  arma::sp_mat Ut;
-  arma::sp_mat U;
-  if(q_nonNested > 0){
-    IntegerVector idx = seq_len(q_nonNested) - 1; // c++ starts with 0
-    // uvec idx_uvec = as<uvec>(idx);
+                           const arma::sp_mat& Zt, const arma::sp_mat& St,
+                           const List& nested, bool logdet,
+                           const std::string family, arma::vec totalSize){
+  int q_nn = St.n_rows;
+  arma::sp_mat Ut, U;
+  if(q_nn > 0){
+    IntegerVector idx = seq_len(q_nn) - 1;
     NumericVector sr0 = par[idx];
     rowvec sr = real(as<rowvec>(sr0));
-    arma::mat iC0 = sr * St;
-    arma::vec iC1 = vectorise(iC0, 0); // extract by columns
-    arma::sp_mat iC = sp_mat(diagmat(iC1));
-    Ut = iC * Zt;
-    U = trans(Ut);
+    arma::vec iC1 = vectorise(sr * St, 0);
+    Ut = sp_mat(diagmat(iC1)) * Zt;
+    U  = trans(Ut);
   }
-  
   int q_Nested = nested.size();
-  
-  NumericVector sn; // pre-declare out of if{}
-  if (q_Nested > 0) {
-    IntegerVector idx2 = wrap(seq(q_nonNested, q_nonNested + q_Nested - 1));
+  NumericVector sn;
+  if(q_Nested > 0){
+    IntegerVector idx2 = wrap(seq(q_nn, q_nn + q_Nested - 1));
     NumericVector sn0 = par[idx2];
     rowvec sn1 = real(as<rowvec>(sn0));
-    sn = as<NumericVector>(wrap(sn1)); // no need to declare type again
-  } 
-  
+    sn = as<NumericVector>(wrap(sn1));
+  }
+
   arma::sp_mat iV0;
   arma::mat Ishort_Ut_iA_U;
-  double logdetV;
-  double signV;
-  double logdetiA;
-  double signiA;
-  if (q_Nested == 0){ // then q_nonNested will not be 0, otherwise, no random terms
+  double logdetV = 0.0, signV, logdetiA, signiA;
+
+  if(q_Nested == 0){
     arma::vec pq = totalSize % mu % (1 - mu);
     arma::sp_mat iA;
     if(family == "binomial") iA = sp_mat(diagmat(pq));
-    if(family == "poisson") iA = sp_mat(diagmat(mu));
-    arma::sp_mat Ishort = sp_mat(Ut.n_rows, Ut.n_rows); Ishort.eye();
-    arma::sp_mat Ut_iA_U = Ut * iA * U;
-    // Woodbury identity
-    Ishort_Ut_iA_U = mat(Ishort + Ut_iA_U);
-    arma::mat i_Ishort_Ut_iA_U = inv(Ishort_Ut_iA_U);
-    iV0 = iA - iA * U * sp_mat(i_Ishort_Ut_iA_U) * Ut * iA;
-    arma::mat iV(iV0); // convert to dense matrix
+    if(family == "poisson")  iA = sp_mat(diagmat(mu));
+    arma::sp_mat Ishort(Ut.n_rows, Ut.n_rows); Ishort.eye();
+    Ishort_Ut_iA_U = mat(Ishort + Ut * iA * U);
+    arma::mat i_Ish = inv(Ishort_Ut_iA_U);
+    iV0 = iA - iA * U * sp_mat(i_Ish) * Ut * iA;
     if(logdet){
-      log_det(logdetV, signV, Ishort_Ut_iA_U); 
-      log_det(logdetiA, signiA, mat(iA)); 
-      logdetV = logdetV - logdetiA;
-      NumericVector logdetV1 = NumericVector::create(logdetV);
-      if(any(is_infinite(logdetV1))){
-        arma::mat lgm = chol(Ishort_Ut_iA_U);
-        logdetV = 2 * sum(log(lgm.diag())) - logdetiA;
+      log_det(logdetV, signV, Ishort_Ut_iA_U);
+      log_det(logdetiA, signiA, mat(iA));
+      logdetV -= logdetiA;
+      if(std::isinf(logdetV)){
+        arma::mat chol_Ish = arma::chol(Ishort_Ut_iA_U);
+        logdetV = 2*sum(log(chol_Ish.diag())) - logdetiA;
       }
     }
   } else {
-    arma::vec pq = 1 / (totalSize % mu % (1 - mu));
+    arma::vec pq = 1.0 / (totalSize % mu % (1 - mu));
     arma::sp_mat A;
     if(family == "binomial") A = sp_mat(diagmat(pq));
-    if(family == "poisson") A = sp_mat(diagmat(1 / mu));
-    if (q_Nested == 1){
-      double snj = pow(sn[0], 2);
-      sp_mat nj = nested[0];
-      A = A + snj * nj;
-    } else {
-      for (int j = 0; j < q_Nested; j++) {
-        double snj = pow(sn[j], 2);
-        sp_mat nj = nested[j];
-        A = A + snj * nj;
-      }
+    if(family == "poisson")  A = sp_mat(diagmat(1.0/mu));
+    for(int j = 0; j < q_Nested; ++j){
+      double snj2 = pow((double)sn[j], 2);
+      sp_mat nj = nested[j];   // implicit conversion — do not use as<>
+      A = A + snj2 * nj;
     }
     arma::mat A1(A);
-    arma::sp_mat iA = sp_mat(inv(A1));
-    // Rcout << iA << " " ;
-    if(q_nonNested > 0){
-      arma::sp_mat Ishort = sp_mat(Ut.n_rows, Ut.n_rows); Ishort.eye();
-      arma::sp_mat Ut_iA_U = Ut * iA * U;
-      Ishort_Ut_iA_U = mat(Ishort + Ut_iA_U);
-      arma::mat i_Ishort_Ut_iA_U = inv(Ishort_Ut_iA_U);
-      iV0 = iA - iA * U * sp_mat(i_Ishort_Ut_iA_U) * Ut * iA;
+    arma::mat chol_A; double logdetA = 0.0;
+    arma::sp_mat iA;
+    if(arma::chol(chol_A, A1)){
+      logdetA = 2.0 * arma::accu(arma::log(chol_A.diag()));
+      arma::mat Ri = arma::inv(arma::trimatu(chol_A));
+      iA = sp_mat(Ri * Ri.t());
+    } else {
+      double sgn; arma::log_det(logdetA, sgn, A1);
+      iA = sp_mat(arma::inv(A1));
+    }
+    if(q_nn > 0){
+      arma::sp_mat Ishort(Ut.n_rows, Ut.n_rows); Ishort.eye();
+      Ishort_Ut_iA_U = mat(Ishort + Ut * iA * U);
+      iV0 = iA - iA * U * sp_mat(arma::inv_sympd(Ishort_Ut_iA_U)) * Ut * iA;
     } else {
       iV0 = iA;
     }
-    
-    arma::mat iV(iV0); // convert to dense matrix
     if(logdet){
-      log_det(logdetV, signV, iV); 
-      logdetV = -1 * logdetV;
-      NumericVector logdetV1 = NumericVector::create(logdetV);
-      if(any(is_infinite(logdetV1))){
-        arma::mat lgm = chol(iV);
-        logdetV = -2 * sum(log(lgm.diag()));
+      if(q_nn > 0){
+        double s2; log_det(logdetV, s2, Ishort_Ut_iA_U);
+        logdetV += logdetA;
+      } else {
+        logdetV = logdetA;
       }
     }
   }
-  
-  if(logdet){
-    return List::create(
-      _["iV"] = iV0,
-      _["logdetV"] = logdetV
-    );
-  } else {
-    return List::create(_["iV"] = iV0);
-  }
+  if(logdet) return List::create(_["iV"]=iV0, _["logdetV"]=logdetV);
+  return List::create(_["iV"]=iV0);
 }
 
 // [[Rcpp::export]]
-arma::sp_mat pglmm_V(NumericVector par, const arma::sp_mat& Zt, 
-                           const arma::sp_mat& St, arma::vec mu, 
-                           const List& nested, bool missing_mu,
-                           const std::string family, arma::vec totalSize){
-  int q_nonNested = St.n_rows;
-  arma::sp_mat Ut;
-  arma::sp_mat U;
-  if(q_nonNested > 0){
-    IntegerVector idx = seq_len(q_nonNested) - 1; // c++ starts with 0
+arma::sp_mat pglmm_V(NumericVector par, const arma::sp_mat& Zt,
+                     const arma::sp_mat& St, arma::vec mu,
+                     const List& nested, bool missing_mu,
+                     const std::string family, arma::vec totalSize){
+  int q_nn = St.n_rows;
+  arma::sp_mat Ut, U;
+  if(q_nn > 0){
+    IntegerVector idx = seq_len(q_nn) - 1;
     NumericVector sr0 = par[idx];
     rowvec sr = real(as<rowvec>(sr0));
-    arma::mat iC0 = sr * St;
-    arma::vec iC1 = vectorise(iC0, 0); // extract by columns
-    arma::sp_mat iC = sp_mat(diagmat(iC1));
-    Ut = iC * Zt;
-    U = trans(Ut);
+    arma::vec iC1 = vectorise(sr * St, 0);
+    Ut = sp_mat(diagmat(iC1)) * Zt;
+    U  = trans(Ut);
   }
-  
   int q_Nested = nested.size();
-  NumericVector sn; // pre-declare out of if{}
-  if (q_Nested > 0) {
-    IntegerVector idx2 = wrap(seq(q_nonNested, q_nonNested + q_Nested - 1));
+  NumericVector sn;
+  if(q_Nested > 0){
+    IntegerVector idx2 = wrap(seq(q_nn, q_nn + q_Nested - 1));
     NumericVector sn0 = par[idx2];
     rowvec sn1 = real(as<rowvec>(sn0));
-    sn = as<NumericVector>(wrap(sn1)); // no need to declare type again
-  } 
-  
+    sn = as<NumericVector>(wrap(sn1));
+  }
   arma::mat iW;
   if(missing_mu){
     iW = mat(Zt.n_cols, Zt.n_cols, fill::zeros);
   } else {
-    arma::vec pq = 1 / (totalSize % mu % (1 - mu));
+    arma::vec pq = 1.0/(totalSize % mu % (1 - mu));
     if(family == "binomial") iW = diagmat(pq);
-    if(family == "poisson") iW = diagmat(1 / mu);
+    if(family == "poisson")  iW = diagmat(1.0/mu);
   }
-  
   arma::sp_mat A = sp_mat(iW);
-  if(q_Nested > 0){
-    if (q_Nested == 1){
-      double snj = pow(sn[0], 2);
-      sp_mat nj = nested[0];
-      A = A + snj * nj;
+  for(int j = 0; j < q_Nested; ++j){
+    double snj2 = pow((double)sn[j], 2);
+    sp_mat nj = nested[j];
+    A = A + snj2 * nj;
+  }
+  return (q_nn > 0) ? A + U * Ut : A;
+}
+
+// ============================================================
+// pglmm_LL_cpp: OPT5a (q_Nested==0) + OPT6a (block-diagonal A)
+// ============================================================
+// [[Rcpp::export]]
+double pglmm_LL_cpp(NumericVector par, const arma::vec& H,
+                    const arma::mat& X, const arma::sp_mat& Zt,
+                    const arma::sp_mat& St, const arma::vec& mu,
+                    const List& nested, bool REML, bool verbose,
+                    const std::string family, arma::vec totalSize){
+  par = abs(par);
+  int q_nn     = St.n_rows;
+  int q_Nested = (int)nested.size();
+  double LL    = 0.0;
+
+  // ---- OPT5a: q_Nested==0, diagonal iA ----
+  if(q_Nested == 0 && q_nn > 0){
+    arma::sp_mat Ut_sp = build_Ut_helper(par, St, Zt, q_nn);
+    arma::mat Ut_d = arma::mat(Ut_sp);
+    arma::mat U_d  = Ut_d.t();
+    int Q = (int)Ut_d.n_rows;
+
+    arma::vec W;
+    if(family=="binomial") W = totalSize % mu % (1.0-mu);
+    if(family=="poisson")  W = mu;
+
+    arma::mat WU = U_d; WU.each_col() %= W;
+    arma::mat IpUtWU = arma::eye(Q,Q) + Ut_d * WU;
+    arma::mat M = arma::inv_sympd(IpUtWU);
+
+    double lsign, logdetV;
+    arma::log_det(logdetV, lsign, IpUtWU);
+    logdetV -= arma::accu(arma::log(W));
+
+    arma::vec WH  = W % H;
+    arma::vec iVH = WH - WU * (M * (Ut_d * WH));
+
+    if(REML){
+      arma::mat WX = X; WX.each_col() %= W;
+      arma::mat iVX = WX - WU * (M * (Ut_d * WX));
+      double ld, sg; arma::log_det(ld, sg, X.t() * iVX);
+      LL = 0.5*(logdetV + arma::dot(H, iVH) + ld);
     } else {
-      for (int j = 0; j < q_Nested; j++) {
-        double snj = pow(sn[j], 2);
-        sp_mat nj = nested[j];
-        A = A + snj * nj;
+      LL = 0.5*(logdetV + arma::dot(H, iVH));
+    }
+
+  // ---- q_Nested>0: Gaussian-style triangular-solve path (no inv, no sp_mat, no List) ----
+  } else if(q_Nested > 0){
+    // Build A = diag(pq) + sum_j snj^2 * nj exactly as pglmm_iV_logdetV_cpp does,
+    // so logdetV is bit-identical to the original; then use triangular solves instead
+    // of inv()+sp_mat() to eliminate the redundant O(n^3) inversion.
+    arma::vec pq;
+    if(family=="binomial") pq = 1.0/(totalSize % mu % (1.0-mu));
+    if(family=="poisson")  pq = 1.0/mu;
+
+    NumericVector sn;
+    if(q_Nested > 0){
+      IntegerVector idx2 = wrap(seq(q_nn, q_nn + q_Nested - 1));
+      NumericVector sn0 = par[idx2];
+      rowvec sn1 = real(as<rowvec>(sn0));
+      sn = as<NumericVector>(wrap(sn1));
+    }
+
+    // Sparse A → dense (identical path to pglmm_iV_logdetV_cpp)
+    arma::sp_mat A_sp;
+    if(family=="binomial") A_sp = sp_mat(diagmat(pq));
+    if(family=="poisson")  A_sp = sp_mat(diagmat(1.0/mu));
+    for(int j = 0; j < q_Nested; ++j){
+      double snj2 = pow((double)sn[j], 2);
+      sp_mat nj = nested[j];
+      A_sp = A_sp + snj2 * nj;
+    }
+    arma::mat A1(A_sp);
+
+    arma::mat chol_A;
+    if(!arma::chol(chol_A, A1)){
+      return 1e15;   // not PD; optimizer will step away
+    }
+    arma::mat Rlo = chol_A.t();   // lower L s.t. L*L' = A
+    double logdetA = 2.0 * arma::accu(arma::log(chol_A.diag()));
+
+    // iA*H via two triangular solves (O(n^2), no explicit inversion)
+    arma::vec iA_H = arma::solve(arma::trimatl(Rlo), H);
+    iA_H = arma::solve(arma::trimatu(chol_A), iA_H);
+
+    double logdetV;
+    arma::vec iVH;
+
+    if(q_nn > 0){
+      arma::sp_mat Ut_sp = build_Ut_helper(par, St, Zt, q_nn);
+      arma::mat Ut_d = arma::mat(Ut_sp);
+      arma::mat U_d  = Ut_d.t();
+      int Q = (int)Ut_d.n_rows;
+
+      // iA*U
+      arma::mat iA_U = arma::solve(arma::trimatl(Rlo), U_d);
+      iA_U = arma::solve(arma::trimatu(chol_A), iA_U);
+
+      // M = (I + Ut*iA*U)^{-1}
+      arma::mat IpUtAU = arma::eye(Q, Q) + Ut_d * iA_U;
+      arma::mat M      = arma::inv_sympd(IpUtAU);
+
+      // iVH = iA_H - iA_U*(M*(Ut*iA_H))   [Woodbury, no n×n iV]
+      iVH = iA_H - iA_U * (M * (Ut_d * iA_H));
+
+      // logdetV = logdetA + log|I + Ut*iA*U|  (matrix-det lemma)
+      double sg; arma::log_det(logdetV, sg, IpUtAU);
+      logdetV += logdetA;
+
+      if(REML){
+        arma::mat iA_X = arma::solve(arma::trimatl(Rlo), X);
+        iA_X = arma::solve(arma::trimatu(chol_A), iA_X);
+        arma::mat iVX = iA_X - iA_U * (M * (Ut_d * iA_X));
+        double ld, sg2; arma::log_det(ld, sg2, X.t() * iVX);
+        LL = 0.5*(logdetV + arma::dot(H, iVH) + ld);
+      } else {
+        LL = 0.5*(logdetV + arma::dot(H, iVH));
+      }
+    } else {
+      // q_nn == 0: iV = iA
+      iVH     = iA_H;
+      logdetV = logdetA;
+      if(REML){
+        arma::mat iA_X = arma::solve(arma::trimatl(Rlo), X);
+        iA_X = arma::solve(arma::trimatu(chol_A), iA_X);
+        double ld, sg; arma::log_det(ld, sg, X.t() * iA_X);
+        LL = 0.5*(logdetV + arma::dot(H, iVH) + ld);
+      } else {
+        LL = 0.5*(logdetV + arma::dot(H, iVH));
       }
     }
   }
-  
-  arma::sp_mat V;
-  if(q_nonNested > 0){
-    V = A + U * Ut;
-  } else {
-    V = A;
-  }
-  
-  return V;
-}
 
-// [[Rcpp::export]]
-double pglmm_LL_cpp(NumericVector par, const arma::vec& H,
-                          const arma::mat& X, const arma::sp_mat& Zt, 
-                          const arma::sp_mat& St, const arma::vec& mu, 
-                          const List& nested, bool REML, bool verbose,
-                          const std::string family, arma::vec totalSize){
-  par = abs(par);
-  // unsigned int n = H.n_rows;
-  List iVdet = pglmm_iV_logdetV_cpp(par, mu, Zt, St, nested, true, family, totalSize);
-  sp_mat iV0 = as<sp_mat>(iVdet["iV"]);
-  mat iV = mat(iV0);
-  double logdetV = iVdet["logdetV"];
-  double LL;
-  if (REML) {
-    double logdetL, signL;
-    log_det(logdetL, signL, trans(X) * iV * X);
-    LL = 0.5 * (logdetV + as_scalar(trans(H) * iV * H) + logdetL);
-  } else {
-    LL = 0.5 * (logdetV + as_scalar(trans(H) * iV * H));
-  }
-  
-  if (verbose) Rcout << LL << " " << par << std::endl;
-  
+  if(verbose) Rcout << LL << " " << par << std::endl;
   return LL;
 }
 
-
+// ============================================================
+// pglmm_internal_cpp: OPT5b + OPT6b inner loops
+// ============================================================
 // [[Rcpp::export]]
 List pglmm_internal_cpp(const arma::mat& X, const arma::vec& Y,
-                               const arma::sp_mat& Zt, const arma::sp_mat& St,
-                               const List& nested, const bool REML, const bool verbose,
-                               const int n, const int p, const int q, const int maxit, 
-                               const double reltol, const double tol_pql, const double maxit_pql,
-                               const std::string optimizer, arma::mat B_init, arma::vec ss,
-                               const std::string family, arma::vec totalSize){
+                        const arma::sp_mat& Zt, const arma::sp_mat& St,
+                        const List& nested, const bool REML, const bool verbose,
+                        const int n, const int p, const int q, const int maxit,
+                        const double reltol, const double tol_pql,
+                        const double maxit_pql, const std::string optimizer,
+                        arma::mat B_init, arma::vec ss,
+                        const std::string family, arma::vec totalSize){
   Rcpp::checkUserInterrupt();
   mat B = B_init;
   mat b(n, 1, fill::zeros);
   mat beta = join_vert(B, b);
   vec mu;
-  if(family == "binomial") mu = arma::exp(X * B) / (1 + arma::exp(X * B));
-  if(family == "poisson") mu = arma::exp(X * B);
-  mat ix(n, n, fill::eye);
-  mat XX = join_horiz(X, ix);
-  
-  vec est_ss = ss;
-  vec est_B = B;
-  vec oldest_ss(size(ss));
-  oldest_ss.fill(1000000.0);
-  mat oldest_B(size(B));
-  oldest_B.fill(1000000.0);
-  
-  unsigned int iteration = 0, iteration_m;
-  double tol_pql2 = pow(tol_pql, 2);
-  double LL;
-  
-  NumericVector ss0 = wrap(ss); // to work with other functions
+  if(family=="binomial") mu = arma::exp(X*B)/(1+arma::exp(X*B));
+  if(family=="poisson")  mu = arma::exp(X*B);
+  mat XX = join_horiz(X, arma::eye(n,n));
+
+  vec est_ss = ss, est_B = B;
+  vec oldest_ss(ss.n_elem); oldest_ss.fill(1e6);
+  mat oldest_B(B.n_rows, B.n_cols); oldest_B.fill(1e6);
+
+  int q_nn     = St.n_rows;
+  int q_Nested = (int)nested.size();
+
+  // Detect block structure once (geometry doesn't change).
+  // use_blk is only true when data are sorted site×species AND the nested
+  // matrix is genuinely block-diagonal; verify_block_structure guards against
+  // silently wrong results when data ordering doesn't match expectations.
+  int n_sp = 0, n_site = 0;
+  bool use_blk = false;
+  if(q_Nested > 0){
+    sp_mat nj0_sp = nested[0];   // implicit conversion
+    n_sp   = detect_n_sp(nj0_sp);
+    n_site = (n_sp > 0) ? n / n_sp : 0;
+    use_blk = (n_sp > 0 && n_sp * n_site == n &&
+               verify_block_structure(nj0_sp, n_sp));
+  }
+
+  unsigned int iteration = 0;
+  double tol2 = tol_pql * tol_pql;
+  double LL   = 0.0;
+  NumericVector ss0 = wrap(ss);
   vec Z, H, niter;
-  int convcode;
+  int convcode = 0;
   mat iV;
-  
-  Rcpp::Environment stats("package:stats");
-  Rcpp::Function optim = stats["optim"];
+
+  Rcpp::Environment stats_env("package:stats");
+  Rcpp::Function optim_fn = stats_env["optim"];
   Rcpp::Environment nloptr_pkg = Rcpp::Environment::namespace_env("nloptr");
   Rcpp::Function nloptr = nloptr_pkg["nloptr"];
   Rcpp::Environment phyr_pkg = Rcpp::Environment::namespace_env("phyr");
   Rcpp::Function pglmm_LL_cpp2 = phyr_pkg["pglmm_LL_cpp"];
-  
-  while((as_scalar(trans(est_ss - oldest_ss) * (est_ss - oldest_ss)) > tol_pql2 ||
-        as_scalar(trans(est_B - oldest_B) * (est_B - oldest_B)) > tol_pql2) &&
+
+  // ==== outer PQL loop ====
+  while((as_scalar(trans(est_ss-oldest_ss)*(est_ss-oldest_ss)) > tol2 ||
+         as_scalar(trans(est_B -oldest_B )*(est_B -oldest_B )) > tol2) &&
         iteration <= maxit_pql){
-    oldest_ss = est_ss;
-    oldest_B = est_B;
-    vec est_B_m = B;
-    mat oldest_B_m(size(est_B));
-    oldest_B_m.fill(1000000.0);
-    iteration_m = 0;
+    oldest_ss = est_ss; oldest_B = est_B;
     Rcpp::checkUserInterrupt();
-    
-    // mean component
-    while(as_scalar(trans(est_B_m - oldest_B_m) * (est_B_m - oldest_B_m)) > tol_pql2 &&
-          iteration_m <= maxit_pql){
-      // Rcpp::checkUserInterrupt();
-      oldest_B_m = est_B_m;
-      List iv = pglmm_iV_logdetV_cpp(ss0, mu, Zt, St, nested, false, family, totalSize);
-      sp_mat iV0 = iv["iV"];
-      if(family == "binomial") Z = X * B + b + (Y/totalSize - mu)/(mu % (1 - mu));
-      if(family == "poisson") Z = X * B + b + (Y - mu)/mu;
-      
-      iV = mat(iV0); // convert to dense matrix
-      arma::mat denom = trans(X) * iV * X;
-      arma::mat num = trans(X) * iV * Z;
-      B = solve(denom, num);
-      
-      sp_mat V = pglmm_V(ss0, Zt, St, mu, nested, false, family, totalSize);
-      vec diav = vectorise(1/(totalSize % mu % (1 - mu)));
-      sp_mat iW;
-      if(family == "binomial") iW = sp_mat(diagmat(diav));
-      if(family == "poisson") iW = sp_mat(diagmat(1/mu));
-      sp_mat C = V - iW;
-      b = mat(C) * mat(iV) * (Z - X * B);
-      beta = join_vert(B, b);
-      if(family == "binomial") mu = arma::exp(XX * beta) / (1 + arma::exp(XX * beta));
-      if(family == "poisson") mu = arma::exp(XX * beta);
-      
-      est_B_m = B;
-      if(verbose) Rcout << "mean part: " << iteration_m << " " << trans(B) << std::endl;
-      ++iteration_m;
-      // Rcout << "mean part: " << iteration_m << " " << trans(B) << std::endl;
-      // Rcout << "            denom: " << denom << endl;
-      // Rcout << "            num: " << num << endl;
-      if(B.has_nan()) Rcpp::stop("Estimation of B failed. Check for lack of variation in Y. You could try with a smaller s2.init, but this might not help.");
-    } // end while for mean
-    
-    // variance component
-    if(family == "binomial") Z = X * B + b + (Y/totalSize - mu)/(mu % (1 - mu)); // B, b, mu all updated
-    if(family == "poisson") Z = X * B + b + (Y - mu)/mu;
+
+    unsigned int iteration_m = 0;
+    vec est_B_m = B;
+    mat oldest_B_m(B.n_rows, B.n_cols); oldest_B_m.fill(1e6);
+
+    // ==== inner mean loop — choose path based on structure ====
+
+    if(q_Nested == 0 && q_nn > 0){
+      // OPT5b: diagonal iA, never form n×n iV
+      arma::sp_mat Ut_sp = build_Ut_helper(ss0, St, Zt, q_nn);
+      arma::mat Ut_d = arma::mat(Ut_sp);
+      arma::mat U_d  = Ut_d.t();
+      int Q = (int)Ut_d.n_rows;
+
+      while(as_scalar(trans(est_B_m-oldest_B_m)*(est_B_m-oldest_B_m)) > tol2 &&
+            iteration_m <= maxit_pql){
+        oldest_B_m = est_B_m;
+
+        arma::vec W;
+        if(family=="binomial") W = totalSize % mu % (1.0-mu);
+        if(family=="poisson")  W = mu;
+
+        arma::mat WU = U_d; WU.each_col() %= W;
+        arma::mat M  = arma::inv_sympd(arma::eye(Q,Q) + Ut_d * WU);
+
+        if(family=="binomial") Z = X*B + b + (Y/totalSize-mu)/(mu%(1.0-mu));
+        if(family=="poisson")  Z = X*B + b + (Y-mu)/mu;
+
+        arma::mat WX = X; WX.each_col() %= W;
+        arma::mat iVX   = WX  - WU * (M * (Ut_d * WX));
+        arma::mat denom = X.t() * iVX;
+
+        arma::vec WZ  = W % Z;
+        arma::vec iVZ = WZ - WU * (M * (Ut_d * WZ));
+        arma::mat num = X.t() * iVZ;
+
+        B = solve(denom, num);
+
+        arma::vec r   = Z - X * B;
+        arma::vec Wr  = W % r;
+        arma::vec iVr = Wr - WU * (M * (Ut_d * Wr));
+        b = U_d * (Ut_d * iVr);
+
+        beta = join_vert(B, b);
+        if(family=="binomial") mu = arma::exp(XX*beta)/(1+arma::exp(XX*beta));
+        if(family=="poisson")  mu = arma::exp(XX*beta);
+        est_B_m = B;
+        if(verbose) Rcout << "mean part: " << iteration_m << " " << trans(B);
+        ++iteration_m;
+        if(B.has_nan()) Rcpp::stop("Estimation of B failed.");
+      }
+
+    } else if(q_Nested > 0 && use_blk && q_nn == 0){
+      // OPT6b: nested-only, block-diagonal A → block Cholesky (O(n_site*n_sp^3) vs O(n^3)).
+      // Restricted to q_nn==0: when q_nn>0 the Woodbury step amplifies tiny iA
+      // differences between block-Chol and full-Chol, causing ss divergence vs fallback.
+
+      // sn from current ss0 (fixed this outer iteration)
+      arma::vec sn_vec(q_Nested);
+      for(int j = 0; j < q_Nested; ++j)
+        sn_vec[j] = std::abs((double)ss0[q_nn + j]);
+
+      // Precompute nested fixed part per block (changes only when ss0 changes)
+      std::vector<arma::mat> nj_fixed(n_site,
+                                      arma::mat(n_sp, n_sp, arma::fill::zeros));
+      for(int j = 0; j < q_Nested; ++j){
+        double snj2 = sn_vec[j] * sn_vec[j];
+        sp_mat njsp = nested[j];   // implicit conversion
+        for(int k = 0; k < n_site; ++k){
+          int s = k * n_sp;
+          nj_fixed[k] += snj2 *
+            arma::mat(njsp(arma::span(s, s+n_sp-1), arma::span(s, s+n_sp-1)));
+        }
+      }
+
+      // Non-nested Ut/U (fixed this outer iteration)
+      arma::mat Ut_d, U_d;
+      int Q = 0;
+      if(q_nn > 0){
+        arma::sp_mat Ut_sp = build_Ut_helper(ss0, St, Zt, q_nn);
+        Ut_d = arma::mat(Ut_sp); U_d = Ut_d.t();
+        Q = (int)Ut_d.n_rows;
+      }
+
+      while(as_scalar(trans(est_B_m-oldest_B_m)*(est_B_m-oldest_B_m)) > tol2 &&
+            iteration_m <= maxit_pql){
+        oldest_B_m = est_B_m;
+
+        // pq changes with mu each inner step
+        arma::vec pq;
+        if(family=="binomial") pq = 1.0/(totalSize % mu % (1.0-mu));
+        if(family=="poisson")  pq = 1.0/mu;
+
+        // Block Cholesky: O(n_site × n_sp³) — speedup vs O(n³) full dense Chol
+        std::vector<arma::mat> chols(n_site);
+        block_chol(chols, pq, nj_fixed, n_sp, n_site);
+
+        // Assemble full dense block-diagonal iA from block Cholesky inverses
+        arma::mat iA_dense(n, n, arma::fill::zeros);
+        for(int k = 0; k < n_site; ++k){
+          int s = k * n_sp;
+          arma::mat Ri = arma::inv(arma::trimatu(chols[k]));
+          iA_dense(arma::span(s, s+n_sp-1), arma::span(s, s+n_sp-1)) = Ri * Ri.t();
+        }
+
+        // Woodbury → dense iV, replicating pglmm_iV_logdetV_cpp sparse path exactly
+        arma::mat iV_dense;
+        if(Q > 0){
+          // Use sparse iA (matches sp_mat(Ri*Ri.t()) in pglmm_iV_logdetV_cpp)
+          arma::sp_mat iA_sp = arma::sp_mat(iA_dense);
+          arma::sp_mat Ut_sp_loc = build_Ut_helper(ss0, St, Zt, q_nn);
+          arma::sp_mat U_sp_loc  = arma::trans(Ut_sp_loc);
+          arma::sp_mat Ish_sp((arma::uword)Q, (arma::uword)Q); Ish_sp.eye();
+          arma::mat Ish_UtAU = arma::mat(Ish_sp + Ut_sp_loc * iA_sp * U_sp_loc);
+          arma::sp_mat M_sp  = arma::sp_mat(arma::inv_sympd(Ish_UtAU));
+          arma::sp_mat iV0   = iA_sp - iA_sp * U_sp_loc * M_sp * Ut_sp_loc * iA_sp;
+          iV_dense = arma::mat(iV0);
+        } else {
+          iV_dense = iA_dense;
+        }
+
+        if(family=="binomial") Z = X*B + b + (Y/totalSize-mu)/(mu%(1.0-mu));
+        if(family=="poisson")  Z = X*B + b + (Y-mu)/mu;
+
+        arma::mat denom = X.t() * (iV_dense * X);
+        arma::mat num   = X.t() * (iV_dense * Z);
+        B = solve(denom, num);
+
+        arma::vec r    = Z - X * B;
+        arma::vec iV_r = iV_dense * r;
+
+        // b = (V - diag(pq)) * iV_r = sum_j snj^2 * nj * iV_r + U*Ut*iV_r
+        arma::vec b_vec(n, arma::fill::zeros);
+        for(int j = 0; j < q_Nested; ++j){
+          double snj2 = sn_vec[j] * sn_vec[j];
+          sp_mat njsp = nested[j];   // implicit conversion
+          b_vec += snj2 * (njsp * iV_r);
+        }
+        if(Q > 0) b_vec += U_d * (Ut_d * iV_r);
+        b = b_vec;
+
+        beta = join_vert(B, b);
+        if(family=="binomial") mu = arma::exp(XX*beta)/(1+arma::exp(XX*beta));
+        if(family=="poisson")  mu = arma::exp(XX*beta);
+        est_B_m = B;
+        if(verbose) Rcout << "mean part: " << iteration_m << " " << trans(B);
+        ++iteration_m;
+        if(B.has_nan()) Rcpp::stop("Estimation of B failed.");
+      }
+
+    } else {
+      // Fallback: triangular-solve path (same A construction as pglmm_iV_logdetV_cpp,
+      // but triangular solves instead of inv()+sp_mat — no n×n iV materialized).
+
+      // Extract sn (nested variances) from ss0 — fixed this outer iteration
+      arma::vec sn_fb(q_Nested);
+      {
+        IntegerVector idx2 = wrap(seq(q_nn, q_nn + q_Nested - 1));
+        NumericVector sn0 = ss0[idx2];
+        rowvec sn1 = real(as<rowvec>(sn0));
+        sn_fb = as<arma::vec>(wrap(sn1));
+      }
+      // Non-nested Ut/U from ss0
+      arma::mat Ut_fb, U_fb;
+      int Q_fb = 0;
+      if(q_nn > 0){
+        arma::sp_mat Ut_sp = build_Ut_helper(ss0, St, Zt, q_nn);
+        Ut_fb = arma::mat(Ut_sp); U_fb = Ut_fb.t();
+        Q_fb = (int)Ut_fb.n_rows;
+      }
+
+      while(as_scalar(trans(est_B_m-oldest_B_m)*(est_B_m-oldest_B_m)) > tol2 &&
+            iteration_m <= maxit_pql){
+        oldest_B_m = est_B_m;
+
+        // Build A sparse → dense (same path as pglmm_iV_logdetV_cpp)
+        arma::sp_mat A_sp;
+        if(family=="binomial") A_sp = sp_mat(diagmat(1.0/(totalSize%mu%(1.0-mu))));
+        if(family=="poisson")  A_sp = sp_mat(diagmat(1.0/mu));
+        for(int j = 0; j < q_Nested; ++j){
+          double snj2 = sn_fb[j] * sn_fb[j];
+          sp_mat nj = nested[j];
+          A_sp = A_sp + snj2 * nj;
+        }
+        arma::mat A1(A_sp);
+        arma::mat chol_A; arma::chol(chol_A, A1);
+        arma::mat Rlo = chol_A.t();
+
+        if(family=="binomial") Z = X*B + b + (Y/totalSize-mu)/(mu%(1.0-mu));
+        if(family=="poisson")  Z = X*B + b + (Y-mu)/mu;
+
+        // iA*X and iA*Z via triangular solves
+        arma::mat iA_X = arma::solve(arma::trimatl(Rlo), X);
+        iA_X = arma::solve(arma::trimatu(chol_A), iA_X);
+        arma::vec iA_Z = arma::solve(arma::trimatl(Rlo), Z);
+        iA_Z = arma::solve(arma::trimatu(chol_A), iA_Z);
+
+        arma::mat denom, iA_U_fb;
+        arma::mat M_fb;
+        if(Q_fb > 0){
+          iA_U_fb = arma::solve(arma::trimatl(Rlo), U_fb);
+          iA_U_fb = arma::solve(arma::trimatu(chol_A), iA_U_fb);
+          arma::mat IpUtAU = arma::eye(Q_fb,Q_fb) + Ut_fb * iA_U_fb;
+          M_fb  = arma::inv_sympd(IpUtAU);
+          arma::mat iVX = iA_X - iA_U_fb*(M_fb*(Ut_fb*iA_X));
+          arma::vec iVZ = iA_Z - iA_U_fb*(M_fb*(Ut_fb*iA_Z));
+          denom = X.t() * iVX;
+          arma::mat num = X.t() * iVZ;
+          B = arma::solve(denom, num);
+        } else {
+          denom = X.t() * iA_X;
+          arma::mat num = X.t() * iA_Z;
+          B = arma::solve(denom, num);
+        }
+
+        arma::vec r = Z - X * B;
+        arma::vec iA_r = arma::solve(arma::trimatl(Rlo), r);
+        iA_r = arma::solve(arma::trimatu(chol_A), iA_r);
+        arma::vec iV_r = (Q_fb > 0) ? iA_r - iA_U_fb*(M_fb*(Ut_fb*iA_r)) : iA_r;
+
+        // b = (V - iW)*iV_r = sum_j snj^2 * nj * iV_r + U*Ut*iV_r
+        arma::vec b_vec(n, arma::fill::zeros);
+        for(int j = 0; j < q_Nested; ++j){
+          double snj2 = sn_fb[j] * sn_fb[j];
+          sp_mat nj = nested[j];
+          b_vec += snj2 * (nj * iV_r);
+        }
+        if(Q_fb > 0) b_vec += U_fb * (Ut_fb * iV_r);
+        b = b_vec;
+
+        beta = join_vert(B, b);
+        if(family=="binomial") mu = arma::exp(XX*beta)/(1+arma::exp(XX*beta));
+        if(family=="poisson")  mu = arma::exp(XX*beta);
+        est_B_m = B;
+        if(verbose) Rcout << "mean part: " << iteration_m << " " << trans(B);
+        ++iteration_m;
+        if(B.has_nan()) Rcpp::stop("Estimation of B failed.");
+      }
+    }
+
+    // ==== variance component (outer optimiser) ====
+    if(family=="binomial") Z = X*B + b + (Y/totalSize-mu)/(mu%(1-mu));
+    if(family=="poisson")  Z = X*B + b + (Y-mu)/mu;
     H = Z - X * B;
-   
+
     Rcpp::List opt;
     if(optimizer == "Nelder-Mead"){
       if(q > 1){
-        opt = optim(_["par"] = ss0,
-                    _["fn"] = pglmm_LL_cpp2,
-                    _["H"] = H, _["X"] = X, _["Zt"] = Zt,
-                    _["St"] = St, _["mu"] = mu, _["nested"] = nested,
-                      _["REML"] = REML, _["verbose"] = verbose,
-                      _["family"] = family, _["totalSize"] = totalSize,
-                      _["method"] = "Nelder-Mead",
-                      _["control"] = List::create(_["maxit"] = maxit, _["reltol"] = reltol));
+        opt = optim_fn(_["par"]=ss0, _["fn"]=pglmm_LL_cpp2,
+                       _["H"]=H, _["X"]=X, _["Zt"]=Zt, _["St"]=St,
+                       _["mu"]=mu, _["nested"]=nested,
+                       _["REML"]=REML, _["verbose"]=verbose,
+                       _["family"]=family, _["totalSize"]=totalSize,
+                       _["method"]="Nelder-Mead",
+                       _["control"]=List::create(_["maxit"]=maxit,_["reltol"]=reltol));
       } else {
-        // opt = optim(_["par"] = ss0,
-        //             _["fn"] = Rcpp::InternalFunction(&plmm_binary_LL_cpp),
-        //             _["X"] = X, _["H"] = H, _["Zt"] = Zt,
-        //             _["St"] = St, _["nested"] = nested,
-        //             _["mu"] = mu, _["REML"] = REML, _["verbose"] = verbose,
-        //               _["method"] = "L-BFGS-B",
-        //               _["control"] = List::create(_["maxit"] = maxit, _["factr"] = reltol));
-        Rcpp::stop("With only 1 random term and cpp = TRUE, phyr cannot run the optimization yet. \n \
-                     Set optimizer to other options, e.g. nelder-mead-nlopt and re-run it. \n \
-                     Or you can turn cpp off with cpp = FALSE and re-run it.");
+        Rcpp::stop("With 1 random term and cpp=TRUE use a different optimizer.");
       }
     } else {
-      std::string nlopt_algor;
-      if (optimizer == "bobyqa") nlopt_algor = "NLOPT_LN_BOBYQA";
-      if (optimizer == "nelder-mead-nlopt") nlopt_algor = "NLOPT_LN_NELDERMEAD";
-      if (optimizer == "subplex") nlopt_algor = "NLOPT_LN_SBPLX";
-      List opts = List::create(_["algorithm"] = nlopt_algor,
-                               _["ftol_rel"] = reltol, _["ftol_abs"] = reltol,
-                               _["xtol_rel"] = 0.0001,
-                               _["maxeval"] = maxit);
-      List S0 = nloptr(_["x0"] = ss0,
-                       _["eval_f"] = pglmm_LL_cpp2,
-                       _["opts"] = opts, _["H"] = H, _["X"] = X, _["Zt"] = Zt,
-                       _["St"] = St, _["mu"] = mu, _["nested"] = nested,
-                         _["REML"] = REML, _["verbose"] = verbose,
-                         _["family"] = family, _["totalSize"] = totalSize);
-      opt = List::create(_["par"] = S0["solution"], _["value"] = S0["objective"], 
-                         _["counts"] = S0["iterations"], _["convergence"] = S0["status"], 
-                         _["message"] = S0["message"]);
+      std::string alg;
+      if(optimizer=="bobyqa")            alg="NLOPT_LN_BOBYQA";
+      if(optimizer=="nelder-mead-nlopt") alg="NLOPT_LN_NELDERMEAD";
+      if(optimizer=="subplex")           alg="NLOPT_LN_SBPLX";
+      List opts = List::create(_["algorithm"]=alg, _["ftol_rel"]=reltol,
+                               _["ftol_abs"]=reltol, _["xtol_rel"]=0.0001,
+                               _["maxeval"]=maxit);
+      List S0 = nloptr(_["x0"]=ss0, _["eval_f"]=pglmm_LL_cpp2, _["opts"]=opts,
+                       _["H"]=H, _["X"]=X, _["Zt"]=Zt, _["St"]=St,
+                       _["mu"]=mu, _["nested"]=nested,
+                       _["REML"]=REML, _["verbose"]=verbose,
+                       _["family"]=family, _["totalSize"]=totalSize);
+      opt = List::create(_["par"]=S0["solution"], _["value"]=S0["objective"],
+                         _["counts"]=S0["iterations"], _["convergence"]=S0["status"],
+                         _["message"]=S0["message"]);
     }
-      
-    arma::vec par_opt0 = abs(as<arma::vec>(opt["par"]));
-    ss0 = wrap(par_opt0);
-    LL = as_scalar(as<double>(opt["value"]));
+    arma::vec par0 = abs(as<arma::vec>(opt["par"]));
+    ss0      = wrap(par0);
+    LL       = as_scalar(as<double>(opt["value"]));
     convcode = as<int>(opt["convergence"]);
-    niter = as<arma::vec>(opt["counts"]);
-    
-    est_ss = par_opt0;
-    est_B = B;
+    niter    = as<arma::vec>(opt["counts"]);
+    est_ss   = par0; est_B = B;
     ++iteration;
     if(verbose) Rcout << "var part: " << iteration << " " << LL << std::endl;
-    // Rcout << "var part: " << iteration << " " << LL << " " << ss0 << std::endl;
-    // } // end opt
-  } // end while
-  
-  List out = List::create(
-    _["B"] = B, _["ss"] = ss0, 
-    _["iV"] = iV, _["mu"] = mu, _["H"] = H,
-      _["convcode"] = convcode,
-      _["niter"] = niter,
-      _["LL"] = LL
-  );
-  
-  return out;
+  } // end outer PQL
+
+  // ==== form final iV once (needed for downstream predict/simulate) ====
+  if(q_Nested == 0 && q_nn > 0){
+    arma::sp_mat Ut_sp = build_Ut_helper(ss0, St, Zt, q_nn);
+    arma::mat Ut_d = arma::mat(Ut_sp), U_d = Ut_d.t();
+    int Q = (int)Ut_d.n_rows;
+    arma::vec W;
+    if(family=="binomial") W = totalSize % mu % (1.0-mu);
+    if(family=="poisson")  W = mu;
+    arma::mat WU = U_d; WU.each_col() %= W;
+    arma::mat M  = arma::inv_sympd(arma::eye(Q,Q) + Ut_d * WU);
+    iV = -(WU * (M * WU.t())); iV.diag() += W;
+
+  } else if(q_Nested > 0 && use_blk && q_nn == 0){
+    // OPT6b final iV: nested-only, block-diagonal iA (no Woodbury needed)
+    arma::vec pq;
+    if(family=="binomial") pq = 1.0/(totalSize % mu % (1.0-mu));
+    if(family=="poisson")  pq = 1.0/mu;
+    arma::vec sn_vec(q_Nested);
+    for(int j = 0; j < q_Nested; ++j)
+      sn_vec[j] = std::abs((double)ss0[q_nn+j]);
+    std::vector<arma::mat> nj_fixed(n_site,
+                                    arma::mat(n_sp, n_sp, arma::fill::zeros));
+    for(int j = 0; j < q_Nested; ++j){
+      double snj2 = sn_vec[j] * sn_vec[j];
+      sp_mat njsp = nested[j];
+      for(int k = 0; k < n_site; ++k){
+        int s = k*n_sp;
+        nj_fixed[k] += snj2 *
+          arma::mat(njsp(arma::span(s,s+n_sp-1), arma::span(s,s+n_sp-1)));
+      }
+    }
+    std::vector<arma::mat> chols(n_site);
+    block_chol(chols, pq, nj_fixed, n_sp, n_site);
+    arma::mat iA_dense(n, n, arma::fill::zeros);
+    for(int k = 0; k < n_site; ++k){
+      int s = k*n_sp;
+      arma::mat Ri = arma::inv(arma::trimatu(chols[k]));
+      iA_dense(arma::span(s,s+n_sp-1), arma::span(s,s+n_sp-1)) = Ri*Ri.t();
+    }
+    iV = iA_dense;
+  } else {
+    // Fallback: q_Nested>0 with q_nn>0 (nested+non-nested), or nested-only
+    // without block structure. Build A, Cholesky, dense iA via triangular
+    // solves, then dense Woodbury — no explicit inv(), no sparse conversion,
+    // no R-level List round-trip.
+    arma::vec pq_fin;
+    if(family=="binomial") pq_fin = 1.0/(totalSize % mu % (1.0-mu));
+    if(family=="poisson")  pq_fin = 1.0/mu;
+
+    arma::vec sn_fin(q_Nested);
+    for(int j = 0; j < q_Nested; ++j)
+      sn_fin[j] = std::abs((double)ss0[q_nn + j]);
+
+    arma::sp_mat A_sp;
+    if(family=="binomial") A_sp = sp_mat(diagmat(pq_fin));
+    if(family=="poisson")  A_sp = sp_mat(diagmat(1.0/mu));
+    for(int j = 0; j < q_Nested; ++j){
+      double snj2 = sn_fin[j] * sn_fin[j];
+      sp_mat nj = nested[j];
+      A_sp = A_sp + snj2 * nj;
+    }
+    arma::mat A1(A_sp);
+    arma::mat chol_A; arma::chol(chol_A, A1);
+    arma::mat Rlo = chol_A.t();   // lower L s.t. L*L' = A
+
+    // iA = A^{-1} via two batch triangular solves — O(n^3), no explicit inv()
+    arma::mat iA = arma::solve(arma::trimatl(Rlo), arma::eye(n, n));
+    iA           = arma::solve(arma::trimatu(chol_A), iA);
+
+    if(q_nn > 0){
+      arma::sp_mat Ut_sp = build_Ut_helper(ss0, St, Zt, q_nn);
+      arma::mat Ut_d = arma::mat(Ut_sp), U_d = Ut_d.t();
+      int Q = (int)Ut_d.n_rows;
+      // Dense Woodbury: iV = iA - (iA*U) * M * (iA*U)^T,  M=(I+Ut*iA*U)^{-1}
+      arma::mat B_fin = iA * U_d;                                   // n×Q
+      arma::mat M_fin = arma::inv_sympd(arma::eye(Q,Q) + Ut_d * B_fin);
+      iV = iA - B_fin * (M_fin * B_fin.t());
+    } else {
+      iV = iA;   // q_nn==0, nested-only non-block: iV = iA
+    }
+  }
+
+  return List::create(_["B"]=B, _["ss"]=ss0, _["iV"]=iV,
+                      _["mu"]=mu, _["H"]=H,
+                      _["convcode"]=convcode, _["niter"]=niter, _["LL"]=LL);
 }
 
 // [[Rcpp::export]]
-int sexp_type(SEXP x){ 
-  return TYPEOF(x); 
-}
-
-
-/*** R
-# library(Matrix)
-# St = as(matrix(NA, 0, 0), "dgTMatrix")
-# Zt = as(matrix(NA, 0, 0), "dgTMatrix")
-# sexp_type(nested)
-# plmm_binary_iV_logdetV_cpp(ss, mu, Zt, St, nested, F)
-# plmm_binary_V(ss, Zt, St, mu, nested, F)
-# plmm_binary_LL_cpp(ss, mu, X, Zt, St, mu, nested, T, T)
-# internal_res = pglmm_binary_internal_cpp(X = X, Y = Y, Zt = Zt, St = St, 
-#                                          nested = nested, REML = REML, verbose = verbose, 
-#                                          n = n, p = p, q = q, maxit = maxit, 
-#                                          reltol = reltol, tol_pql = tol.pql, 
-#                                          maxit_pql = maxit.pql, optimizer = "bobyqa", 
-#                                          B_init = B.init, ss = ss)
-# phyr:::pglmm_binary_internal_cpp(X = X, Y = Y, Zt = Zt, St = St, 
-#                           nested = nested, REML = REML, verbose = verbose, 
-#                           n = n, p = p, q = q, maxit = maxit, 
-#                           reltol = reltol, tol_pql = tol.pql, 
-#                           maxit_pql = maxit.pql, optimizer = optimizer, 
-#                           B_init = B.init, ss = ss)
-# opt <- optim(fn = plmm.binary.LL, par = ss, H = H, X = X, Zt = Zt, St = St,
-#              mu = mu, nested = nested, REML = REML, verbose = verbose, 
-#              method = "Nelder-Mead", control = list(maxit = maxit, reltol = reltol))
-# opt2 <- optim(fn = plmm_binary_LL_cpp, par = ss, H = as.matrix(H), X = X, Zt = Zt, St = St,
-#              mu = mu, nested = nested, REML = REML, verbose = T,
-#              method = "Nelder-Mead", control = list(maxit = maxit, reltol = reltol))
-
-# plmm_binary_LL_cpp(ss, as.matrix(H), X, Zt,  St, mu,  nested, REML, verbose)
-# plmm_binary_LL_cpp(c(0.5, 0.5, 0.5, 0.5), as.matrix(H), X, Zt, St, mu, nested, REML = F, T)
-*/
+int sexp_type(SEXP x){ return TYPEOF(x); }

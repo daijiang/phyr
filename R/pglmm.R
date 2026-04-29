@@ -92,7 +92,11 @@
 #'   Note that correlated random terms are not allowed. For example,
 #'   \code{(x|g)} will be the same as \code{(0 + x|g)} in the \code{lme4::lmer} syntax. However, 
 #'   \code{(x1 + x2|g)} won't work, so instead use  \code{(x1|g) + (x2|g)}.
-#' @param data A \code{\link{data.frame}} containing the variables named in formula. 
+#' @param data A \code{\link{data.frame}} containing the variables named in formula.
+#'   Rows where the response variable is \code{NA} are dropped before fitting; this
+#'   is equivalent to removing those rows from \code{data} manually before calling
+#'   \code{pglmm}. As a result, \code{pglmm(data_with_NAs)} and
+#'   \code{pglmm(data[!is.na(data$y), ])} produce identical estimates.
 #' @param family Either "gaussian" for a Linear Mixed Model, or 
 #'   "binomial" or "poisson" for Generalized Linear Mixed Models.
 #'   "family" should be specified as a character string (i.e., quoted). For binomial and 
@@ -534,6 +538,16 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
   data = as.data.frame(data) # in case of tibbles
   fm_original = formula
   prep_re = if(is.null(random.effects)) TRUE else FALSE
+
+  # Drop rows with NA in the response before building random effects structures.
+  # This ensures factor levels (and thus covariance matrices) are built only from
+  # rows that will actually be used, making fit(data_with_NAs) == fit(data_NAs_removed).
+  resp_vec <- tryCatch(
+    model.response(model.frame(lme4::nobars(formula), data, na.action = NULL)),
+    error = function(e) NULL)
+  if (!is.null(resp_vec) && any(is.na(resp_vec)))
+    data <- data[!is.na(resp_vec), , drop = FALSE]
+
   if(prep_re) {
     # to make old code work ...
     if(is.null(cov_ranef) & any(grepl("__", all.vars(formula)))){
@@ -671,26 +685,23 @@ communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian",
   n <- nrow(X)
   q <- length(random.effects)
   
-  # Compute initial estimates assuming no phylogeny if not provided
-  if (!is.null(B.init) & length(B.init) != p) {
-    warning("B.init not correct length, so computed B.init using glm()")
+  # Compute initial estimates assuming no phylogeny if not provided.
+  # Call lm() at most once regardless of which combination of B.init/s2.init is NULL.
+  if (!is.null(B.init) && length(B.init) != p) {
+    warning("B.init not correct length, so computed B.init using lm()")
+    B.init <- NULL
   }
-  if ((is.null(B.init) | (!is.null(B.init) & length(B.init) != p)) & !is.null(s2.init)) {
-    B.init <- t(matrix(lm(formula = formula, data = data)$coefficients, ncol = p))
-  }
-  if (!is.null(B.init) & is.null(s2.init)) {
-    s2.init <- var(lm(formula = formula, data = data)$residuals)/q
-  }
-  if ((is.null(B.init) | (!is.null(B.init) & length(B.init) != p)) & is.null(s2.init)) {
-    B.init <- t(matrix(lm(formula = formula, data = data)$coefficients, ncol = p))
-    s2.init <- var(lm(formula = formula, data = data)$residuals)/q
+  if (is.null(B.init) || is.null(s2.init)) {
+    lm0    <- lm(formula = formula, data = data)
+    if (is.null(B.init))  B.init  <- t(matrix(lm0$coefficients, ncol = p))
+    if (is.null(s2.init)) s2.init <- var(lm0$residuals) / q
   }
   B <- B.init
   s <- as.vector(array(s2.init^0.5, dim = c(1, q)))
   
   if(cpp){
-    if(is.null(St)) St = as(matrix(0, 0, 0), "dgTMatrix")
-    if(is.null(Zt)) Zt = as(matrix(0, 0, 0), "dgTMatrix")
+    if(is.null(St)) St = as(matrix(0, 0, 0), "sparseMatrix")
+    if(is.null(Zt)) Zt = as(matrix(0, 0, 0), "sparseMatrix")
     out_res = pglmm_gaussian_internal_cpp(par = s, X, Y, Zt, St, nested, REML, 
                                           verbose, optimizer, maxit, 
                                           reltol, q, n, p, pi)
@@ -753,8 +764,19 @@ communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian",
   k <- p + q + 1
   AIC <- -2 * logLik + 2 * k
   BIC <- -2 * logLik + k * (log(n) - log(pi))
-  
-  results <- list(formula = formula, data = data, family = family, random.effects = random.effects, 
+
+  # Convergence check: nloptr success = 1-4; optim success = 0
+  if (optimizer == "Nelder-Mead") {
+    if (convcode != 0)
+      warning("Optimizer (Nelder-Mead) did not converge (convcode = ", convcode,
+              "). Estimates may be unreliable. Consider increasing maxit.")
+  } else {
+    if (convcode >= 5 || convcode < 0)
+      warning("Optimizer (", optimizer, ") did not converge (nloptr status = ", convcode,
+              "). Estimates may be unreliable. Consider increasing maxit.")
+  }
+
+  results <- list(formula = formula, data = data, family = family, random.effects = random.effects,
                   B = out$B, B.se = out$B.se, B.cov = out$B.cov, B.zscore = B.zscore, 
                   B.pvalue = B.pvalue, ss = ss, s2n = out$s2n, s2r = out$s2r,
                   s2resid = out$s2resid, logLik = logLik, AIC = AIC, BIC = BIC, 
@@ -790,8 +812,8 @@ communityPGLMM.glmm <- function(formula, data = list(), family = "binomial",
   ss <- as.vector(array(s2.init^0.5, dim = c(1, q)))
   
   if(cpp){
-    if(is.null(St)) St = as(matrix(0, 0, 0), "dgTMatrix")
-    if(is.null(Zt)) Zt = as(matrix(0, 0, 0), "dgTMatrix")
+    if(is.null(St)) St = as(matrix(0, 0, 0), "sparseMatrix")
+    if(is.null(Zt)) Zt = as(matrix(0, 0, 0), "sparseMatrix")
     internal_res = pglmm_internal_cpp(X = X, Y = Y, Zt = Zt, St = St, 
                                       nested = nested, REML = REML, verbose = verbose, 
                                       n = n, p = p, q = q, maxit = maxit, 
@@ -844,19 +866,19 @@ communityPGLMM.glmm <- function(formula, data = list(), family = "binomial",
         iV <- pglmm.iV.logdetV(par = ss, Zt = Zt, St = St, mu = mu, nested = nested, logdet = FALSE, family = family, size = size)$iV
         if(family == "binomial") Z <- X %*% B + b + (Y/size - mu)/(mu * (1 - mu))
         if(family == "poisson") Z <- X %*% B + b + (Y - mu)/mu
-        
+
         denom <- t(X) %*% iV %*% X
         num <- t(X) %*% iV %*% Z
         B <- solve(denom, matrix(num))
         B <- as.matrix(B)
-        
-        V = pglmm.V(par = ss, Zt = Zt, St = St, mu = mu, nested = nested, family = family, size = size)
-        
-        if(family == "binomial") iW <- diag(as.vector(1/(size * mu * (1 - mu))))
-        if(family == "poisson") iW <- diag(as.vector(1/mu))
-        C <- V - iW
-        
-        b <- C %*% iV %*% (Z - X %*% B)
+
+        # b = (V - iW) * iV * r = r - iW_vec * (iV * r)  [identity: V*iV = I]
+        # eliminates the separate pglmm.V() call and the double Ut/U rebuild
+        if(family == "binomial") iW_vec <- as.vector(1 / (size * mu * (1 - mu)))
+        if(family == "poisson")  iW_vec <- as.vector(1 / mu)
+        r    <- Z - X %*% B
+        iV_r <- as.matrix(iV %*% r)
+        b    <- r - iW_vec * iV_r
         beta <- rbind(B, matrix(b))
         if(family == "binomial") mu <- exp(XX %*% beta)/(1 + exp(XX %*% beta))
         if(family == "poisson") mu <- exp(XX %*% beta)
@@ -948,10 +970,18 @@ communityPGLMM.glmm <- function(formula, data = list(), family = "binomial",
   }
 
   if(!is.null(St) && all(dim(St) == 0)) St <- NULL
-  logLik <- logLik.glm + 
-    as.numeric(-LL + pglmm.LL(0 * ss, H = H, X = X, Zt = Zt, St = St, mu = mu, 
-                              nested = nested, REML = REML, family = family,
-                              size = size, verbose = verbose))
+  # LL at ss=0: V = iW (diagonal), iV = W, log|V| = -sum(log(W))
+  # Avoids a full pglmm.iV.logdetV call with all-zero params
+  W_null       <- if(family == "binomial") as.vector(size * mu * (1 - mu)) else as.vector(mu)
+  logdetV_null <- -sum(log(W_null))
+  HiVH_null    <- sum(as.vector(H)^2 * W_null)
+  if(REML) {
+    LL_null <- 0.5 * (logdetV_null + HiVH_null +
+                        as.numeric(determinant(crossprod(X * sqrt(W_null)))$modulus))
+  } else {
+    LL_null <- 0.5 * (logdetV_null + HiVH_null)
+  }
+  logLik <- logLik.glm + as.numeric(-LL + LL_null)
   k <- p + q + 1
   AIC <- -2 * logLik + 2 * k
   BIC <- -2 * logLik + k * (log(n) - log(pi))
@@ -960,8 +990,19 @@ communityPGLMM.glmm <- function(formula, data = list(), family = "binomial",
   B.se <- as.matrix(diag(B.cov))^0.5
   B.zscore <- B/B.se
   B.pvalue <- 2 * pnorm(abs(B/B.se), lower.tail = FALSE)
-  
-  results <- list(formula = formula, data = data, family = family, random.effects = random.effects, 
+
+  # Convergence check: nloptr success = 1-4; optim success = 0
+  if (optimizer == "Nelder-Mead") {
+    if (convcode != 0)
+      warning("Optimizer (Nelder-Mead) did not converge (convcode = ", convcode,
+              "). Estimates may be unreliable. Consider increasing maxit.")
+  } else {
+    if (convcode >= 5 || convcode < 0)
+      warning("Optimizer (", optimizer, ") did not converge (nloptr status = ", convcode,
+              "). Estimates may be unreliable. Consider increasing maxit.")
+  }
+
+  results <- list(formula = formula, data = data, family = family, random.effects = random.effects,
                   B = B, B.se = B.se, B.cov = B.cov, B.zscore = B.zscore, B.pvalue = B.pvalue, 
                   ss = ss, s2n = s2n, s2r = s2r, s2resid = NULL, logLik = logLik, AIC = AIC, 
                   BIC = BIC, REML = REML, bayes = FALSE, s2.init = s2.init, B.init = B.init, Y = Y, size = size, X = X, 
