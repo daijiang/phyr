@@ -806,6 +806,290 @@ pglmm.V <- function(par, Zt, St, mu, nested, family, size) {
 }
 # End pglmm.V
 
+# =========================================================================
+# Kronecker (compound-symmetry) path for balanced Gaussian pglmm
+#
+# For community data sorted by (site outer, sp inner) with balanced design
+# (every species observed at every site), the covariance matrix has the
+# compound-symmetry structure:
+#
+#   V_code = J_{n_site} ⊗ A_between + I_{n_site} ⊗ A_within
+#
+# where A_between = Σ_k sr_k² Cov_k  (non-nested sp-level terms)
+#       A_within  = I + Σ_k sn_k² Φ_k + alpha_site * J_{n_sp}^ones
+#                   (residual + nested terms + site rank-1)
+#
+# In the eigenbasis Q of the shared phylogenetic covariance:
+#   A_between → diag(d_between),  A_within → diag(d_diag) + alpha_site * vv'
+#
+# This decomposes the n×n Woodbury into O(n_sp) scalar operations per LL
+# evaluation, giving ~n_sp²/p² speedup over the standard path.
+# =========================================================================
+
+#' Set up precomputed quantities for the Kronecker Gaussian LL path
+#'
+#' Returns NULL if the Kronecker path is not applicable.
+#' @noRd
+pglmm_gaussian_kron_setup <- function(Y, X, n_sp, n_site, random.effects) {
+  n <- n_sp * n_site
+  p <- ncol(X)
+  if (length(Y) != n) return(NULL)
+
+  re_len        <- sapply(random.effects, length)
+  nonNested_idx <- which(re_len == 3L)
+  nested_idx    <- which(re_len %in% c(1L, 4L))
+  q_nonNested   <- length(nonNested_idx)
+  q_Nested      <- length(nested_idx)
+
+  # Require at least one nested term (otherwise standard path already fast)
+  if (q_Nested == 0L) return(NULL)
+
+  # Only handle length-1 nested entries (plain sparse covariance matrix)
+  if (any(re_len[nested_idx] != 1L)) return(NULL)
+
+  # Classify non-nested terms as "between" (sp-level) or "within_r1" (site-level)
+  between_idx   <- integer(0)
+  within_r1_idx <- integer(0)
+  for (i in nonNested_idx) {
+    nl <- nlevels(random.effects[[i]][[2]])
+    if      (nl == n_sp)   between_idx   <- c(between_idx,   i)
+    else if (nl == n_site) within_r1_idx <- c(within_r1_idx, i)
+    else                   return(NULL)   # unknown level count; fall back
+  }
+  within_d_idx <- nested_idx  # all nested terms are within-diagonal
+
+  # ---- Eigendecompose the shared phylogenetic covariance ----
+  # Priority: first non-identity between covariance, then first non-identity
+  # nested block (top-left n_sp x n_sp sub-block).
+  Vphy <- NULL
+  for (i in between_idx) {
+    cov_i <- as.matrix(random.effects[[i]][[3]])
+    if (!isTRUE(all.equal(cov_i, diag(n_sp),
+                          check.attributes = FALSE, tolerance = 1e-8))) {
+      Vphy <- cov_i; break
+    }
+  }
+  if (is.null(Vphy)) {
+    for (i in within_d_idx) {
+      M   <- random.effects[[i]][[1]]
+      blk <- as.matrix(M[seq_len(n_sp), seq_len(n_sp), drop = FALSE])
+      if (!isTRUE(all.equal(blk, diag(n_sp),
+                            check.attributes = FALSE, tolerance = 1e-8))) {
+        Vphy <- blk; break
+      }
+    }
+  }
+  if (is.null(Vphy)) Vphy <- diag(n_sp)   # all-identity: Q = I is fine
+
+  eig    <- eigen(Vphy, symmetric = TRUE)
+  Q      <- eig$vectors   # n_sp × n_sp orthogonal
+  lambda <- eig$values    # n_sp, descending
+
+  # v = Q' 1_{n_sp}: projection of site rank-1 term into Q basis
+  v <- drop(crossprod(Q, rep(1.0, n_sp)))
+
+  # ---- phi diagonals in Q basis: diag(Q' Cov Q) ----
+  phi_diag_fn <- function(Cov) colSums(Q * (Cov %*% Q))
+
+  # Always return a matrix (vapply returns a vector for length-1 lists)
+  phi_between <- matrix(
+    if (length(between_idx) > 0L)
+      vapply(between_idx,
+             function(i) phi_diag_fn(as.matrix(random.effects[[i]][[3]])),
+             numeric(n_sp))
+    else numeric(0L),
+    nrow = n_sp)                    # n_sp × length(between_idx)
+
+  phi_within_d <- matrix(
+    vapply(within_d_idx, function(i) {
+      M   <- random.effects[[i]][[1]]
+      blk <- as.matrix(M[seq_len(n_sp), seq_len(n_sp), drop = FALSE])
+      phi_diag_fn(blk)
+    }, numeric(n_sp)),
+    nrow = n_sp)                    # n_sp × q_Nested
+
+  # ---- Parameter position maps ----
+  between_sr_pos   <- match(between_idx,   nonNested_idx)  # positions in sr
+  within_r1_sr_pos <- match(within_r1_idx, nonNested_idx)  # positions in sr
+  within_d_sn_pos  <- seq_len(q_Nested)                    # all nested → sn
+
+  # ---- Precompute rotated data ----
+  # Data assumed sorted (site outer, sp inner): Y[1:n_sp] = site 1, etc.
+  Y_mat     <- matrix(Y, nrow = n_sp, ncol = n_site)
+  Ytil_mat  <- crossprod(Q, Y_mat)          # n_sp × n_site
+  Ytil_mean <- rowMeans(Ytil_mat)           # n_sp  (Q' site-mean Y)
+  Ytil_diff <- Ytil_mat - Ytil_mean         # n_sp × n_site (within-site deviations)
+
+  Xtil_mean <- matrix(0.0, n_sp, p)
+  Xtil_diff <- array(0.0, c(n_sp, n_site, p))
+  for (j in seq_len(p)) {
+    Xj            <- matrix(X[, j], nrow = n_sp, ncol = n_site)
+    Xtil_j        <- crossprod(Q, Xj)
+    Xtil_mean[, j]    <- rowMeans(Xtil_j)
+    Xtil_diff[, , j]  <- Xtil_j - Xtil_mean[, j]
+  }
+
+  list(
+    n_sp = n_sp, n_site = n_site, p = p, n = n,
+    q_nonNested = q_nonNested, q_Nested = q_Nested,
+    Q = Q, lambda = lambda, v = v,
+    phi_between  = phi_between,
+    phi_within_d = phi_within_d,
+    between_sr_pos   = between_sr_pos,
+    within_r1_sr_pos = within_r1_sr_pos,
+    within_d_sn_pos  = within_d_sn_pos,
+    Ytil_mean = Ytil_mean, Ytil_diff = Ytil_diff,
+    Xtil_mean = Xtil_mean, Xtil_diff = Xtil_diff,
+    Y = Y, X = X
+  )
+}
+
+# Apply (diag(d) + alpha * v v')^{-1} to vector or matrix M via Woodbury.
+# Precomputed: iDv = v / d, c_coef = alpha / (1 + alpha * sum(v * v/d))
+.apply_iDr1 <- function(M, d, iDv, c_coef) {
+  if (is.matrix(M))
+    M / d - c_coef * outer(iDv, drop(crossprod(iDv, M)))
+  else
+    M / d - c_coef * (iDv * sum(iDv * M))
+}
+
+#' Gaussian log-likelihood via Kronecker compound-symmetry decomposition
+#'
+#' All n×n matrix operations replaced by O(n_sp) scalar / O(n*p^2) loops.
+#' @noRd
+pglmm_gaussian_LL_kron <- function(par, setup, REML, verbose, optim_ll = TRUE) {
+  n_sp   <- setup$n_sp
+  n_site <- setup$n_site
+  p      <- setup$p
+  n      <- setup$n
+  v      <- setup$v
+
+  q_nn <- setup$q_nonNested
+  q_n  <- setup$q_Nested
+  sr   <- if (q_nn > 0L) Re(par[seq_len(q_nn)]) else numeric(0)
+  sn   <- if (q_n  > 0L) Re(par[q_nn + seq_len(q_n)]) else numeric(0)
+
+  # ---- Q-basis compound-symmetry components ----
+  # d_between[i] = Σ_k sr_k² phi_between[i,k]
+  d_between <- rep(0.0, n_sp)
+  for (j in seq_along(setup$between_sr_pos))
+    d_between <- d_between + sr[setup$between_sr_pos[j]]^2 * setup$phi_between[, j]
+
+  # d_diag[i] = 1 + Σ_k sn_k² phi_within_d[i,k]   (residual = 1)
+  d_diag <- rep(1.0, n_sp)
+  for (j in seq_along(setup$within_d_sn_pos))
+    d_diag <- d_diag + sn[setup$within_d_sn_pos[j]]^2 * setup$phi_within_d[, j]
+
+  # alpha_site: rank-1 site coefficient
+  alpha_site <- 0.0
+  for (j in seq_along(setup$within_r1_sr_pos))
+    alpha_site <- alpha_site + sr[setup$within_r1_sr_pos[j]]^2
+
+  if (any(d_diag <= 0) || anyNA(d_diag)) return(1e10)
+
+  # ---- D_within^{-1} via Woodbury ----
+  iDw_v  <- v / d_diag
+  denom_w <- 1.0 + alpha_site * sum(v * iDw_v)
+  if (denom_w <= 0) return(1e10)
+  c_w      <- alpha_site / denom_w
+  logdet_Dw <- sum(log(d_diag)) + log(denom_w)
+
+  # ---- C_1 = n_site * D_between + D_within ----
+  C1_diag <- n_site * d_between + d_diag
+  if (any(C1_diag <= 0)) return(1e10)
+  iC1_v  <- v / C1_diag
+  denom_1 <- 1.0 + alpha_site * sum(v * iC1_v)
+  if (denom_1 <= 0) return(1e10)
+  c_1     <- alpha_site / denom_1
+  logdet_C1 <- sum(log(C1_diag)) + log(denom_1)
+
+  # ---- log|V| = log|C_1| + (n_site-1) log|D_within| ----
+  logdetV <- logdet_C1 + (n_site - 1L) * logdet_Dw
+
+  # ---- GLS: X'V^{-1}X and X'V^{-1}Y ----
+  # V^{-1} decomposes as:
+  #   between: n_site * X̃_mean' C_1^{-1} X̃_mean
+  #   within:  Σ_k X̃_diff_k' D_w^{-1} X̃_diff_k
+  Xtil_mean <- setup$Xtil_mean
+  Ytil_mean <- setup$Ytil_mean
+  Ytil_diff <- setup$Ytil_diff
+  Xtil_diff <- setup$Xtil_diff
+
+  iC1_X  <- .apply_iDr1(Xtil_mean, C1_diag, iC1_v, c_1)   # n_sp × p
+  iC1_Y  <- .apply_iDr1(Ytil_mean, C1_diag, iC1_v, c_1)   # n_sp
+  XtViX  <- n_site * crossprod(Xtil_mean, iC1_X)            # p × p
+  XtViY  <- n_site * drop(crossprod(Xtil_mean, iC1_Y))      # p
+
+  for (k in seq_len(n_site)) {
+    Xk <- Xtil_diff[, k, , drop = FALSE]; dim(Xk) <- c(n_sp, p)
+    Yk <- Ytil_diff[, k]
+    iDw_Xk <- .apply_iDr1(Xk, d_diag, iDw_v, c_w)
+    iDw_Yk <- .apply_iDr1(Yk, d_diag, iDw_v, c_w)
+    XtViX  <- XtViX + crossprod(Xk, iDw_Xk)
+    XtViY  <- XtViY + drop(crossprod(Xk, iDw_Yk))
+  }
+
+  B <- tryCatch(solve(XtViX, XtViY), error = function(e) NULL)
+  if (is.null(B)) return(1e10)
+  B <- as.matrix(B)
+
+  # ---- Quadratic form H'V^{-1}H ----
+  H_mean <- Ytil_mean - drop(Xtil_mean %*% B)
+  iC1_H  <- .apply_iDr1(H_mean, C1_diag, iC1_v, c_1)
+  HtViH  <- n_site * sum(H_mean * iC1_H)
+
+  for (k in seq_len(n_site)) {
+    Xk <- Xtil_diff[, k, , drop = FALSE]; dim(Xk) <- c(n_sp, p)
+    Hk <- Ytil_diff[, k] - drop(Xk %*% B)
+    HtViH <- HtViH + sum(Hk * .apply_iDr1(Hk, d_diag, iDw_v, c_w))
+  }
+
+  s2resid <- HtViH / if (REML) (n - p) else n
+  if (s2resid <= 0) return(1e10)
+
+  # ---- Return LL for optimizer ----
+  if (optim_ll) {
+    LL <- if (REML)
+      0.5 * ((n - p) * log(s2resid) + logdetV + (n - p) + determinant(XtViX)$modulus[1])
+    else
+      0.5 * (n * log(s2resid) + logdetV + n)
+    if (verbose) show(c(as.numeric(LL), par))
+    return(as.numeric(LL))
+  }
+
+  # ---- Post-optimization: full results ----
+  # Reconstruct n×n iV = (1/s2resid) V_code^{-1} via compound-symmetry blocks.
+  # V_code^{-1} = (I ⊗ Q) block_V_rot^{-1} (I ⊗ Q)'
+  # Diagonal block = Q (D_w^{-1} - M_rot) Q',  off-diag block = -Q M_rot Q'
+  Dw_mat  <- diag(d_diag) + alpha_site * outer(v, v)
+  iDw_mat <- solve(Dw_mat)
+  if (max(abs(d_between)) < 1e-10) {
+    M_rot <- matrix(0.0, n_sp, n_sp)
+  } else {
+    Db_inv  <- diag(1 / pmax(d_between, 1e-10))
+    F_mat   <- Db_inv + n_site * iDw_mat
+    M_rot   <- iDw_mat %*% solve(F_mat) %*% iDw_mat
+  }
+  Q_iDw_Qt <- tcrossprod(Q %*% iDw_mat, Q)   # Q D_w^{-1} Q'
+  Q_M_Qt   <- tcrossprod(Q %*% M_rot,   Q)   # Q M_rot Q'
+  diag_blk <- Q_iDw_Qt - Q_M_Qt
+
+  iV_code  <- kronecker(diag(n_site), diag_blk) -
+              kronecker(matrix(1.0, n_site, n_site), Q_M_Qt)
+  iV       <- iV_code / s2resid
+
+  B_cov <- solve(as.matrix(XtViX)) * s2resid
+  B_se  <- sqrt(diag(B_cov))
+  s2r   <- s2resid * sr^2
+  s2n   <- s2resid * sn^2
+  H_full <- as.matrix(setup$Y - drop(setup$X %*% B))
+
+  list(B = B, B.se = as.matrix(B_se), B.cov = B_cov,
+       sr = sr, sn = sn, s2n = s2n, s2r = s2r,
+       s2resid = s2resid, H = H_full, iV = iV)
+}
+# End Kronecker Gaussian path
+
 #' Testing statistical significance of random effect
 #' 
 #' \code{pglmm_profile_LRT} tests statistical significance of the 

@@ -698,14 +698,45 @@ communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian",
     convcode = out_res$convcode
     niter = out_res$niter[,1]
   } else {# R version
+    # ---- Kronecker (compound-symmetry) path for balanced Gaussian data ----
+    # Applicable when: balanced design (n == n_sp * n_site), data sorted by
+    # (site outer, sp inner), and all random effects classifiable as between/within.
+    # Replaces O(n * Q^2) Woodbury with O(n * p^2) per LL eval.
+    use_kron   <- FALSE
+    kron_setup <- NULL
+    if (!is.null(sp) && !is.null(site)) {
+      n_sp_k   <- nlevels(sp)
+      n_site_k <- nlevels(site)
+      # Check balanced design and (if nested terms exist) that the first off-diagonal
+      # block of nested[[1]] is zero — confirms data is sorted (site outer, sp inner).
+      balanced_sorted <- (n == n_sp_k * n_site_k) && (n_site_k >= 2L)
+      if (balanced_sorted && length(nested) > 0L) {
+        off_blk <- nested[[1]][seq_len(n_sp_k), n_sp_k + seq_len(n_sp_k)]
+        balanced_sorted <- sum(abs(off_blk)) < 1e-10
+      }
+      if (balanced_sorted) {
+        kron_setup <- pglmm_gaussian_kron_setup(Y, X, n_sp_k, n_site_k, random.effects)
+        use_kron   <- !is.null(kron_setup)
+      }
+    }
+
+    # Build a unified LL function (closure) for both paths
+    if (use_kron) {
+      LL_fn <- function(par, REML, verbose, optim_ll)
+        pglmm_gaussian_LL_kron(par, kron_setup, REML, verbose, optim_ll)
+    } else {
+      LL_fn <- function(par, REML, verbose, optim_ll)
+        pglmm_gaussian_LL_calc(par, X, Y, Zt, St, nested, REML, verbose, optim_ll)
+    }
+
     if(optimizer == "Nelder-Mead"){
       if (q > 1) {
-        opt <- optim(fn = pglmm_gaussian_LL_calc, par = s, X = X, Y = Y, Zt = Zt, St = St, 
-                     nested = nested, REML = REML, verbose = verbose, 
+        opt <- optim(fn = LL_fn, par = s,
+                     REML = REML, verbose = verbose, optim_ll = TRUE,
                      method = "Nelder-Mead", control = list(maxit = maxit, reltol = reltol))
       } else {
-        opt <- optim(fn = pglmm_gaussian_LL_calc, par = s, X = X, Y = Y, Zt = Zt, St = St, 
-                     nested = nested, REML = REML, verbose = verbose,
+        opt <- optim(fn = LL_fn, par = s,
+                     REML = REML, verbose = verbose, optim_ll = TRUE,
                      method = "L-BFGS-B", control = list(maxit = maxit))
       }
     } else {
@@ -715,18 +746,17 @@ communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian",
       if (optimizer == "subplex") nlopt_algor = "NLOPT_LN_SBPLX"
       opts <- list("algorithm" = nlopt_algor, "ftol_rel" = reltol, "ftol_abs" = reltol,
                    "xtol_rel" = 0.0001, "maxeval" = maxit)
-      S0 <- nloptr::nloptr(x0 = s, eval_f = pglmm_gaussian_LL_calc, opts = opts, 
-                           X = X, Y = Y, Zt = Zt, St = St, nested = nested, 
+      S0 <- nloptr::nloptr(x0 = s, eval_f = LL_fn, opts = opts,
                            REML = REML, verbose = verbose, optim_ll = TRUE)
       opt = list(par = S0$solution, value = S0$objective, counts = S0$iterations,
                  convergence = S0$status, message = S0$message)
     }
-    
+
     convcode = opt$convergence
     niter = opt$counts
     par_opt <- abs(Re(opt$par))
     LL <- opt$value
-    out = pglmm_gaussian_LL_calc(par_opt, X, Y, Zt, St, nested, REML, verbose, optim_ll = FALSE)
+    out = LL_fn(par_opt, REML, verbose, optim_ll = FALSE)
     out$B.cov = as.matrix(out$B.cov)
     
     if (REML == TRUE) {
