@@ -671,19 +671,16 @@ communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian",
   n <- nrow(X)
   q <- length(random.effects)
   
-  # Compute initial estimates assuming no phylogeny if not provided
-  if (!is.null(B.init) & length(B.init) != p) {
-    warning("B.init not correct length, so computed B.init using glm()")
+  # Compute initial estimates assuming no phylogeny if not provided.
+  # Call lm() at most once regardless of which combination of B.init/s2.init is NULL.
+  if (!is.null(B.init) && length(B.init) != p) {
+    warning("B.init not correct length, so computed B.init using lm()")
+    B.init <- NULL
   }
-  if ((is.null(B.init) | (!is.null(B.init) & length(B.init) != p)) & !is.null(s2.init)) {
-    B.init <- t(matrix(lm(formula = formula, data = data)$coefficients, ncol = p))
-  }
-  if (!is.null(B.init) & is.null(s2.init)) {
-    s2.init <- var(lm(formula = formula, data = data)$residuals)/q
-  }
-  if ((is.null(B.init) | (!is.null(B.init) & length(B.init) != p)) & is.null(s2.init)) {
-    B.init <- t(matrix(lm(formula = formula, data = data)$coefficients, ncol = p))
-    s2.init <- var(lm(formula = formula, data = data)$residuals)/q
+  if (is.null(B.init) || is.null(s2.init)) {
+    lm0    <- lm(formula = formula, data = data)
+    if (is.null(B.init))  B.init  <- t(matrix(lm0$coefficients, ncol = p))
+    if (is.null(s2.init)) s2.init <- var(lm0$residuals) / q
   }
   B <- B.init
   s <- as.vector(array(s2.init^0.5, dim = c(1, q)))
@@ -855,19 +852,19 @@ communityPGLMM.glmm <- function(formula, data = list(), family = "binomial",
         iV <- pglmm.iV.logdetV(par = ss, Zt = Zt, St = St, mu = mu, nested = nested, logdet = FALSE, family = family, size = size)$iV
         if(family == "binomial") Z <- X %*% B + b + (Y/size - mu)/(mu * (1 - mu))
         if(family == "poisson") Z <- X %*% B + b + (Y - mu)/mu
-        
+
         denom <- t(X) %*% iV %*% X
         num <- t(X) %*% iV %*% Z
         B <- solve(denom, matrix(num))
         B <- as.matrix(B)
-        
-        V = pglmm.V(par = ss, Zt = Zt, St = St, mu = mu, nested = nested, family = family, size = size)
-        
-        if(family == "binomial") iW <- diag(as.vector(1/(size * mu * (1 - mu))))
-        if(family == "poisson") iW <- diag(as.vector(1/mu))
-        C <- V - iW
-        
-        b <- C %*% iV %*% (Z - X %*% B)
+
+        # b = (V - iW) * iV * r = r - iW_vec * (iV * r)  [identity: V*iV = I]
+        # eliminates the separate pglmm.V() call and the double Ut/U rebuild
+        if(family == "binomial") iW_vec <- as.vector(1 / (size * mu * (1 - mu)))
+        if(family == "poisson")  iW_vec <- as.vector(1 / mu)
+        r    <- Z - X %*% B
+        iV_r <- as.matrix(iV %*% r)
+        b    <- r - iW_vec * iV_r
         beta <- rbind(B, matrix(b))
         if(family == "binomial") mu <- exp(XX %*% beta)/(1 + exp(XX %*% beta))
         if(family == "poisson") mu <- exp(XX %*% beta)
@@ -959,10 +956,18 @@ communityPGLMM.glmm <- function(formula, data = list(), family = "binomial",
   }
 
   if(!is.null(St) && all(dim(St) == 0)) St <- NULL
-  logLik <- logLik.glm + 
-    as.numeric(-LL + pglmm.LL(0 * ss, H = H, X = X, Zt = Zt, St = St, mu = mu, 
-                              nested = nested, REML = REML, family = family,
-                              size = size, verbose = verbose))
+  # LL at ss=0: V = iW (diagonal), iV = W, log|V| = -sum(log(W))
+  # Avoids a full pglmm.iV.logdetV call with all-zero params
+  W_null       <- if(family == "binomial") as.vector(size * mu * (1 - mu)) else as.vector(mu)
+  logdetV_null <- -sum(log(W_null))
+  HiVH_null    <- sum(as.vector(H)^2 * W_null)
+  if(REML) {
+    LL_null <- 0.5 * (logdetV_null + HiVH_null +
+                        as.numeric(determinant(crossprod(X * sqrt(W_null)))$modulus))
+  } else {
+    LL_null <- 0.5 * (logdetV_null + HiVH_null)
+  }
+  logLik <- logLik.glm + as.numeric(-LL + LL_null)
   k <- p + q + 1
   AIC <- -2 * logLik + 2 * k
   BIC <- -2 * logLik + k * (log(n) - log(pi))

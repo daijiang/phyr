@@ -740,10 +740,16 @@ pglmm.iV.logdetV <- function(par, Zt, St, mu, nested, logdet = TRUE, family, siz
       iV <- iA
     }
     if(logdet){
-      # logdetV
-      logdetV <- -determinant(iV)$modulus[1]
-      if (is.infinite(logdetV)) 
-        logdetV <- -2 * sum(log(diag(chol(iV, pivot = TRUE))))
+      # Matrix-det lemma: log|V| = log|A| + log|I + Ut*iA*U|
+      # determinant(A) exploits sparse structure of A — O(nnz), not O(n^3).
+      # determinant(Ishort + Ut.iA.U) is Q x Q — cheap.
+      # Replaces determinant(iV) which requires O(n^3) dense LU on the full iV.
+      logdetA <- as.numeric(determinant(A)$modulus)
+      if(q.nonNested > 0) {
+        logdetV <- logdetA + as.numeric(determinant(Ishort + Ut.iA.U)$modulus)
+      } else {
+        logdetV <- logdetA   # V = A when q.nonNested = 0
+      }
     }
   }
   if(logdet){
