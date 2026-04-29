@@ -78,6 +78,7 @@ test2 = phyr::pglmm(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site),
                     cov_ranef = list(sp = phylotree))
 test2
 # bipartite
+set.seed(42)
 tree_site = ape::rtree(n = n_distinct(dat$site), tip.label = sort(unique(dat$site)))
 z_bipartite = phyr::pglmm(freq ~ 1 + shade + (1|sp__) + (1|site__) + 
                             (1|sp__@site) + (1|sp@site__) + (1|sp__@site__), 

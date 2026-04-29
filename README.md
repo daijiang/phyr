@@ -1,5 +1,6 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
+
 <!-- [![Travis build status](https://travis-ci.org/daijiang/phyr.svg?branch=master)](https://travis-ci.org/daijiang/phyr) [![Coverage status](https://codecov.io/gh/daijiang/phyr/branch/master/graph/badge.svg)](https://codecov.io/gh/daijiang/phyr) -->
 
 # phyr <img src="man/figures/logo.png" align="right" height="138" />
@@ -71,7 +72,6 @@ library(phyr)
 
 ``` r
 library(dplyr)
-## Warning: package 'dplyr' was built under R version 4.2.2
 ## 
 ## Attaching package: 'dplyr'
 ## The following objects are masked from 'package:stats':
@@ -106,7 +106,6 @@ test1 = phyr::pglmm(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site),
                     data = dat, family = "gaussian", REML = FALSE,
                     cov_ranef = list(sp = phylotree))
 ## Warning: Drop species from the phylogeny that are not in the variable sp
-## as(<matrix>, "dgTMatrix") is deprecated since Matrix 1.5-0; do as(as(as(., "dMatrix"), "generalMatrix"), "TsparseMatrix") instead
 test1
 ## Linear mixed model fit by maximum likelihood
 ## 
@@ -139,6 +138,8 @@ test2
 ## 
 ## Call:pa ~ 1 + shade
 ## 
+## logLik    AIC    BIC 
+## -122.7  259.5  275.4 
 ## 
 ## Random effects:
 ##              Variance  Std.Dev
@@ -154,6 +155,7 @@ test2
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 # bipartite
+set.seed(42)
 tree_site = ape::rtree(n = n_distinct(dat$site), tip.label = sort(unique(dat$site)))
 z_bipartite = phyr::pglmm(freq ~ 1 + shade + (1|sp__) + (1|site__) + 
                             (1|sp__@site) + (1|sp@site__) + (1|sp__@site__), 
@@ -166,23 +168,23 @@ z_bipartite
 ## Call:freq ~ 1 + shade
 ## 
 ## logLik    AIC    BIC 
-## -459.0  938.1  960.8 
+## -459.1  938.2  960.9 
 ## 
 ## Random effects:
-##                Variance   Std.Dev
-## 1|sp          4.430e-06 2.105e-03
-## 1|sp__        7.747e-01 8.801e-01
-## 1|site        4.978e-09 7.055e-05
-## 1|site__      1.199e-02 1.095e-01
-## 1|sp__@site   1.676e-05 4.094e-03
-## 1|sp@site__   1.570e-06 1.253e-03
-## 1|sp__@site__ 1.487e-06 1.219e-03
-## residual      3.250e+00 1.803e+00
+##                Variance  Std.Dev
+## 1|sp          1.384e-05 0.003720
+## 1|sp__        7.754e-01 0.880548
+## 1|site        5.821e-05 0.007630
+## 1|site__      1.988e-06 0.001410
+## 1|sp__@site   1.217e-04 0.011030
+## 1|sp@site__   1.057e-05 0.003252
+## 1|sp__@site__ 2.834e-05 0.005324
+## residual      3.265e+00 1.806988
 ## 
 ## Fixed effects:
 ##                  Value  Std.Error  Zscore    Pvalue    
-## (Intercept) -0.2613149  0.5749455 -0.4545 0.6494662    
-## shade        0.0226565  0.0068289  3.3177 0.0009075 ***
+## (Intercept) -0.2721716  0.5675835 -0.4795 0.6315637    
+## shade        0.0226914  0.0067322  3.3706 0.0007501 ***
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ```
