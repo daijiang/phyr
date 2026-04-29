@@ -6,3 +6,4 @@ inst/doc
 .DS_Store
 benchmark_results.rds
 benchmark_results.txt
+.claude
