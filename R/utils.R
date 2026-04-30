@@ -3,7 +3,7 @@
 NULL
 
 #' @importFrom ape read.tree write.tree drop.tip compute.brlen vcv.phylo vcv is.rooted
-#' @importClassesFrom Matrix RsparseMatrix dsCMatrix dgTMatrix
+#' @importClassesFrom Matrix dgCMatrix
 #' @importMethodsFrom Matrix t solve %*% determinant diag crossprod tcrossprod image
 #' @importFrom methods as show is hasArg
 #' @importFrom graphics par image

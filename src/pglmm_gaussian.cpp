@@ -480,8 +480,8 @@ Rcpp::List pglmm_gaussian_internal_cpp(NumericVector par,
 
 /*** R
 # pglmm_gaussian_predict(x$iV, x$H)
-# pglmm_gaussian_internal_cpp(par = s, X, Y, Zt = as(matrix(0, 0, 0), "dgTMatrix"), 
-#                             St = as(matrix(0, 0, 0), "dgTMatrix"), nested, REML, 
+# pglmm_gaussian_internal_cpp(par = s, X, Y, Zt = as(matrix(0, 0, 0), "sparseMatrix"),
+#                             St = as(matrix(0, 0, 0), "sparseMatrix"), nested, REML,
 #                             verbose, optimizer, maxit, 
 #                             reltol, q, n, p, pi)
 # res = pglmm_gaussian_internal_cpp(par = s, X, Y, Zt, St, nested, REML, 

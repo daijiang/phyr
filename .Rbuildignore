@@ -19,3 +19,6 @@
 ^\.github$
 ^CRAN-SUBMISSION$
 ^\.claude$
+^doc$
+^Meta$
+^\.positai$

@@ -7,3 +7,6 @@ inst/doc
 benchmark_results.rds
 benchmark_results.txt
 .claude
+/doc/
+/Meta/
+.positai
