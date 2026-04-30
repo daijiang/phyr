@@ -601,13 +601,14 @@ pglmm_gaussian_LL_calc = function(par, X, Y, Zt, St, nested = NULL,
     for (j in 1:q.Nested) {
       A <- A + sn[j]^2 * nested[[j]]
     }
-    iA <- solve(A)
+    # Use sparse Matrix operations: Matrix::solve exploits block-diagonal structure in A
+    # (e.g., kron(I_n_site, Vphy)) via CHOLMOD — O(n_site × n_sp³) vs O(n³) dense.
+    iA      <- Matrix::solve(A)
+    logdetA <- as.numeric(Matrix::determinant(A, logarithm = TRUE)$modulus)
     if (q.nonNested > 0) {
       Ishort <- Matrix::Diagonal(nrow(Ut))
       Ut.iA.U <- Ut %*% iA %*% U
-      # Ut.iA.U <- tcrossprod(Ut %*% iA, Ut)
       iV <- iA - iA %*% U %*% solve(Ishort + Ut.iA.U) %*% Ut %*% iA
-      # iV <- iA - tcrossprod(iA, Ut) %*% solve(Ishort + Ut.iA.U) %*% Ut %*% iA
     } else {
       iV <- iA
     }
@@ -627,11 +628,20 @@ pglmm_gaussian_LL_calc = function(par, X, Y, Zt, St, nested = NULL,
     if (is.infinite(logdetV)) 
       logdetV <- 2 * sum(log(diag(chol(Ishort + Ut.iA.U))))
   } else {
-    logdetV <- -determinant(iV)$modulus[1]
-    if (is.infinite(logdetV)) 
-      logdetV <- -2 * sum(log(diag(chol(iV, pivot = TRUE))))
-    if (is.infinite(logdetV)) 
-      return(10^10)
+    # OPT-B: matrix-det lemma — log|V| = log|A| + log|I + Ut A⁻¹ U| (O(Q³) vs O(n³) LU)
+    if (q.nonNested > 0) {
+      Ishort_Ut_iA_U <- as.matrix(Ishort + Ut.iA.U)
+      logdet_mid <- tryCatch(
+        determinant(Ishort_Ut_iA_U, logarithm = TRUE)$modulus[1],
+        error = function(e) Inf
+      )
+      if (is.infinite(logdet_mid))
+        logdet_mid <- 2 * sum(log(diag(chol(Ishort_Ut_iA_U))))
+      logdetV <- logdetA + logdet_mid
+    } else {
+      logdetV <- logdetA
+    }
+    if (is.infinite(logdetV)) return(10^10)
   }    
   
   if (REML == TRUE) {
@@ -661,7 +671,8 @@ pglmm_gaussian_LL_calc = function(par, X, Y, Zt, St, nested = NULL,
   iV <- iV/s2resid
   s2r <- s2resid * sr^2
   s2n <- s2resid * sn^2
-  B.cov <- solve(t(X) %*% iV %*% X)
+  # OPT-F: denom = X'iV_unscaled*X already computed; denom/s2resid = X'(iV/s2resid)*X
+  B.cov <- solve(denom / s2resid)
   B.se <- as.matrix(diag(B.cov))^0.5
   
   results <- list(B = B, B.se = B.se, B.cov = B.cov, sr = sr, sn = sn, s2n = s2n,

@@ -1,6 +1,7 @@
 // -*- mode: C++; c-indent-level: 4; c-basic-offset: 4; indent-tabs-mode: nil; -*-
 // [[Rcpp::depends(RcppArmadillo)]]
 #include "RcppArmadillo.h"
+#include "pglmm_utils.h"   // detect_n_sp, verify_block_structure, block_chol
 using namespace Rcpp;
 using namespace arma;
 
@@ -19,58 +20,6 @@ static arma::sp_mat build_Ut_helper(const NumericVector& par,
   arma::vec  iC1 = vectorise(sr * St, 0);
   arma::sp_mat iC = sp_mat(diagmat(iC1));
   return iC * Zt;
-}
-
-// Count nnz in row 0 of a sparse matrix = block size for kron(I_ns, Vphy).
-// Uses element access (avoids const_row_iterator portability issues).
-static int detect_n_sp(const arma::sp_mat& nj) {
-  int cnt = 0;
-  for (arma::uword c = 0; c < nj.n_cols; ++c) {
-    if (nj.at(0, c) != 0.0) ++cnt;
-    else if (cnt > 0) break;   // first zero after non-zeros = end of block
-  }
-  return cnt;
-}
-
-// Verify that nj is truly block-diagonal with blocks of size n_sp.
-// Two fast checks (both O(nnz) or better):
-//   1. Total nnz == n_site * n_sp^2  (rules out interleaved / ragged patterns)
-//   2. Column n_sp (first col of block 1) has no non-zeros in rows [0, n_sp)
-//      (column iterators are sorted by row, so this is a single comparison)
-// Returns false → fall back to full dense path; true → safe to use block Chol.
-static bool verify_block_structure(const arma::sp_mat& nj, int n_sp) {
-  arma::uword n       = nj.n_rows;
-  arma::uword nsp_u   = (arma::uword)n_sp;
-  arma::uword n_site_u = n / nsp_u;
-
-  // Check 1: exact nnz count for a pure block-diagonal matrix
-  if (nj.n_nonzero != n_site_u * nsp_u * nsp_u) return false;
-
-  // Check 2: only one block → trivially block-diagonal
-  if (n_site_u < 2) return true;
-
-  // Check 2: first non-zero row in column n_sp must be >= n_sp
-  arma::sp_mat::const_col_iterator it = nj.begin_col(nsp_u);
-  if (it != nj.end_col(nsp_u) && (int)it.row() < n_sp) return false;
-
-  return true;
-}
-
-// Compute block Cholesky factors for A_k = diag(pq_k) + nj_fixed[k];
-// returns logdetA = sum_k 2*sum(log(diag(R_k)))
-static double block_chol(std::vector<arma::mat>& chols,
-                         const arma::vec& pq,
-                         const std::vector<arma::mat>& nj_fixed,
-                         int n_sp, int n_site) {
-  double logdetA = 0.0;
-  for (int k = 0; k < n_site; ++k) {
-    int s = k * n_sp;
-    arma::mat Ak = arma::diagmat(pq.subvec(s, s + n_sp - 1)) + nj_fixed[k];
-    if (!arma::chol(chols[k], Ak))
-      arma::chol(chols[k], Ak + 1e-10 * arma::eye(n_sp, n_sp));
-    logdetA += 2.0 * arma::accu(arma::log(chols[k].diag()));
-  }
-  return logdetA;
 }
 
 // ============================================================
@@ -137,8 +86,8 @@ List pglmm_iV_logdetV_cpp(NumericVector par, arma::vec mu,
     arma::sp_mat iA;
     if(arma::chol(chol_A, A1)){
       logdetA = 2.0 * arma::accu(arma::log(chol_A.diag()));
-      arma::mat Ri = arma::inv(arma::trimatu(chol_A));
-      iA = sp_mat(Ri * Ri.t());
+      // OPT-E: chol2inv instead of inv(trimatu) + multiply
+      iA = sp_mat(phyr_chol2inv(chol_A));
     } else {
       double sgn; arma::log_det(logdetA, sgn, A1);
       iA = sp_mat(arma::inv(A1));
