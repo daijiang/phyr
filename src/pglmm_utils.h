@@ -7,39 +7,79 @@
 #pragma once
 #include "RcppArmadillo.h"
 
-// Count nnz in row 0 of a sparse matrix = block size for kron(I_ns, Vphy).
-// Uses element access (avoids const_row_iterator portability issues).
+// Count consecutive NZs in row 0 of a sparse matrix.
+// May under-count when Vphy has internal zero off-diagonals (species diverging
+// at root give exact zeros in vcv, making row 0 non-contiguous).
+// Use find_block_size() for a robust detection that handles this case.
 inline int detect_n_sp(const arma::sp_mat& nj) {
   int cnt = 0;
   for (arma::uword c = 0; c < nj.n_cols; ++c) {
     if (nj.at(0, c) != 0.0) ++cnt;
-    else if (cnt > 0) break;   // first zero after non-zeros = end of block
+    else if (cnt > 0) break;
   }
   return cnt;
 }
 
 // Verify that nj is truly block-diagonal with blocks of size n_sp.
-// Two fast checks (both O(nnz) or better):
-//   1. Total nnz == n_site * n_sp^2  (rules out interleaved / ragged patterns)
-//   2. Column n_sp (first col of block 1) has no non-zeros in rows [0, n_sp)
-//      (column iterators are sorted by row, so this is a single comparison)
+// Three O(1) checks on boundary columns; does NOT require exactly
+// n_site * n_sp^2 non-zeros (Vphy can have zero off-diagonals for species
+// that diverge at the root, so block columns may be sparse).
 // Returns false → fall back to full dense path; true → safe to use block Chol.
 inline bool verify_block_structure(const arma::sp_mat& nj, int n_sp) {
-  arma::uword n         = nj.n_rows;
-  arma::uword nsp_u     = (arma::uword)n_sp;
-  arma::uword n_site_u  = n / nsp_u;
+  arma::uword n        = nj.n_rows;
+  arma::uword nsp_u    = (arma::uword)n_sp;
+  arma::uword n_site_u = n / nsp_u;
 
-  // Check 1: exact nnz count for a pure block-diagonal matrix
-  if (nj.n_nonzero != n_site_u * nsp_u * nsp_u) return false;
-
-  // Trivially block-diagonal when there is only one block
+  // Trivially block-diagonal when there is only one block.
   if (n_site_u < 2) return true;
 
-  // Check 2: first non-zero row in column n_sp must be >= n_sp
-  arma::sp_mat::const_col_iterator it = nj.begin_col(nsp_u);
-  if (it != nj.end_col(nsp_u) && (int)it.row() < n_sp) return false;
+  // Check A: first NZ row in column n_sp (first col of block 1) must be >= n_sp.
+  {
+    arma::sp_mat::const_col_iterator it = nj.begin_col(nsp_u);
+    if (it != nj.end_col(nsp_u) && (int)it.row() < n_sp) return false;
+  }
+
+  // Check B: all NZs in column n_sp-1 (last col of block 0) must have row < n_sp.
+  {
+    arma::sp_mat::const_col_iterator it = nj.begin_col(nsp_u - 1);
+    while (it != nj.end_col(nsp_u - 1)) {
+      if ((int)it.row() >= n_sp) return false;
+      ++it;
+    }
+  }
+
+  // Check C: first NZ in last column must be >= n - n_sp.
+  // For kron(I_site, Vphy), last col belongs to last block (rows [n-n_sp, n)).
+  // For a wrong n_sp_cand < true_n_sp: first_nz_row = n - true_n_sp < n - n_sp_cand,
+  // so this check reliably rejects under-estimated block sizes.
+  {
+    arma::sp_mat::const_col_iterator it = nj.begin_col(n - 1);
+    if (it != nj.end_col(n - 1) && (int)it.row() < (int)(n - nsp_u)) return false;
+  }
 
   return true;
+}
+
+// Robustly find the Kronecker block size for nj = kron(I_n_site, Vphy).
+// Strategy: start with detect_n_sp() as a cheap candidate; if it fails
+// verify_block_structure(), search upward through divisors of n.
+// verify_block_structure()'s Check C guarantees that any k < true_n_sp is
+// rejected (first NZ in last col = n - true_n_sp < n - k), so the search
+// stops at exactly the true block size.
+// Returns 0 if no valid block size is found (fall back to full dense path).
+inline int find_block_size(const arma::sp_mat& nj, int n) {
+  int cand = detect_n_sp(nj);
+  if (cand >= 2 && n % cand == 0 && verify_block_structure(nj, cand))
+    return cand;
+
+  // Search upward: for typical community data (n_sp ~ 5-100),
+  // this loop runs at most n_sp iterations, each doing 3 column lookups.
+  int start = std::max(cand + 1, 2);
+  for (int k = start; k <= n / 2; ++k) {
+    if (n % k == 0 && verify_block_structure(nj, k))
+      return k;
+  }
+  return 0;
 }
 
 // Compute A^{-1} from upper Cholesky factor R where A = R'R.

@@ -324,10 +324,9 @@ List pglmm_internal_cpp(const arma::mat& X, const arma::vec& Y,
   bool use_blk = false;
   if(q_Nested > 0){
     sp_mat nj0_sp = nested[0];   // implicit conversion
-    n_sp   = detect_n_sp(nj0_sp);
+    n_sp   = find_block_size(nj0_sp, n);
     n_site = (n_sp > 0) ? n / n_sp : 0;
-    use_blk = (n_sp > 0 && n_sp * n_site == n &&
-               verify_block_structure(nj0_sp, n_sp));
+    use_blk = (n_sp > 0);
   }
 
   unsigned int iteration = 0;

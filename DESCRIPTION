@@ -36,7 +36,7 @@ Imports:
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 LinkingTo:
-    Rcpp, RcppArmadillo
+    Rcpp, RcppArmadillo, nloptr
 Suggests: 
     testthat,
     pez,
