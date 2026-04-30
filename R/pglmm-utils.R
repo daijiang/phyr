@@ -40,8 +40,8 @@ parse_conv_ranef = function(x, df){
         stop(paste0("Some levels of variable ", names(x)[i],  " not in the martix, 
                     please either drop these levels or update the matrix"))
       if(length(setdiff(row.names(xx), spl)))
-        warning(paste0("Drop levels from the matrix that are not in the variable ", names(x)[i]), 
-                call. = FALSE, immediate. = TRUE)
+        # warning(paste0("Drop levels from the matrix that are not in the variable ", names(x)[i]), 
+        #         call. = FALSE, immediate. = TRUE)
       xx = xx[spl, spl] # same order
       if(abs(det(xx) - 1) > 0.0001){
         warning("The cov matrix is not standarized, we will do this now...", call. = FALSE, immediate. = TRUE)
