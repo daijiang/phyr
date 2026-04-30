@@ -22,7 +22,7 @@ The purpose of this vignette is _not_ to provide detailed explanation of model s
 
 To fit a binomial model to a data frame with columns of success and failures (say named as `yes` and `no`, respectively), use
 
-```{r}
+```r
 pglmm(cbind(yes, no) ~ 1 + x, data = dat, family = 'binomial')
 ```
 
