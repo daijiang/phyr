@@ -87,7 +87,8 @@ so \code{add.obs.re = TRUE} by default.}
 
 \item{bayes}{Whether to fit a Bayesian version of the PGLMM using \code{r-inla}.}
 
-\item{bayes_nested_matrix_as_list}{For \code{bayes = TRUE}, prepare the nested terms as a list of length of 4 as the old way?}
+\item{bayes_nested_matrix_as_list}{For \code{bayes = TRUE}, prepare the nested terms as a list of length 4
+as the old way?}
 }
 \value{
 A list with updated formula, random.effects, and updated cov_ranef.
