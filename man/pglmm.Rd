@@ -301,10 +301,32 @@ This is set to NULL if \code{bayes = FALSE}}
 \item{B.cov}{approximate covariance matrix for the fixed effects regression coefficients}
 \item{B.zscore}{approximate Z scores for the fixed effects regression coefficients. This is set to NULL if \code{bayes = TRUE}}
 \item{B.pvalue}{approximate tests for the fixed effects regression coefficients being different from zero. This is set to NULL if \code{bayes = TRUE}}
-\item{ss}{standard deviations of the random effects for the covariance matrix \eqn{\sigma^2V}{sigma^2 V} for each random effect in order. For the linear mixed model, the residual variance is listed last.}
-\item{s2r}{random effects variances for non-nested random effects}
-\item{s2n}{random effects variances for nested random effects}
-\item{s2resid}{for linear mixed models, the residual variance}
+\item{ss}{standard deviations \eqn{\sigma_i}{sigma_i} of the random effects, where the covariance
+contribution of the \emph{i}th term is \eqn{\sigma_i^2 V_{i,\rm std}}{sigma_i^2 * V_i_std} and
+\eqn{V_{i,\rm std}}{V_i_std} is the det=1 standardized covariance matrix (see Details).
+Because the model is fit against the standardized matrix, \code{ss} values are
+\emph{not} absolute standard deviations on the original covariance scale.
+For variance inference use \code{s2r}, \code{s2n}, or \code{s2resid}; do \emph{not} use
+\code{ss^2} as a variance estimate. For the Gaussian model, the residual standard deviation
+is listed last.}
+\item{s2r}{variance parameters \eqn{\sigma_i^2}{sigma_i^2} for non-nested random effects,
+relative to the det=1 standardized covariance matrices (see Details). These are the
+recommended output for variance inference. To obtain the effective per-observation variance
+on a scale comparable across all random effects (including non-phylogenetic terms), multiply
+by \code{scale_factors}: \code{s2r * scale_factors[names(s2r)]}.}
+\item{s2n}{variance parameters for nested random effects; same scale as \code{s2r}.
+Use \code{s2n * scale_factors[names(s2n)]} for the comparable per-observation variance.}
+\item{s2resid}{for linear mixed models, the residual variance. The residual always uses an
+identity covariance matrix (\code{scale_factor = 1}), so \code{s2resid} is directly
+interpretable without any rescaling.}
+\item{scale_factors}{named numeric vector with one entry per random effect term. Each value is
+\code{mean(diag(V_std))}, the mean diagonal of the det=1 standardized covariance matrix for
+that term. For identity-based (non-phylogenetic) terms this equals 1, meaning \code{s2r} is
+already on an interpretable per-observation scale. For phylogenetic terms standardized from
+a correlation matrix, this equals \eqn{1 / \det(V_{\rm orig})^{1/n}}{1/det(V_orig)^(1/n)}
+and is typically \eqn{> 1}{> 1}. Multiplying \code{s2r[i] * scale_factors[i]} gives the
+average per-observation variance contribution of the \emph{i}th random effect, comparable
+across all terms in the model.}
 \item{s2r.ci}{Bayesian credible interval for random effects variances for non-nested random effects.
 This is set to NULL if \code{bayes = FALSE}}
 \item{s2n.ci}{Bayesian credible interval for random effects variances for nested random effects.
@@ -380,10 +402,25 @@ Or you can prepare the random terms manually (not recommended for simple models 
 
 \code{z <- pglmm(Y ~ X, data = data, family = "gaussian", random.effects = list(re.1, re.2))}
 
-The covariance matrix covar is standardized to have its determinant
-equal to 1. This in effect standardizes the interpretation of the
-scalar \eqn{\sigma^2}{sigma^2}. Although mathematically this is
-not required, it is a very good idea to standardize the predictor
+The covariance matrix \eqn{V}{V} is standardized to have determinant equal to 1 before fitting.
+Specifically, for an \eqn{n \times n}{n x n} covariance matrix \eqn{V}{V}, \code{pglmm} uses
+\eqn{V_{\rm std} = V / \det(V)^{1/n}}{V_std = V / det(V)^(1/n)}, which has \eqn{\det(V_{\rm std}) = 1}{det(V_std) = 1}.
+This ensures that the variance parameter \eqn{\sigma^2}{sigma^2} has a consistent scale regardless
+of the absolute magnitude of \eqn{V}{V}.
+
+\strong{Important for variance extraction:} the model is fit as \eqn{\sigma^2 V_{\rm std}}{sigma^2 * V_std},
+so the estimated \eqn{\sigma^2}{sigma^2} (stored in \code{s2r}, \code{s2n}, \code{s2resid}) is relative
+to the standardized matrix. To obtain the effective per-observation variance in units comparable across
+all random effects in the model, multiply by the scale factor:
+\deqn{\sigma^2_{\rm obs} = \sigma^2_{\rm std} \times \overline{\rm diag}(V_{\rm std})}{sigma2_obs = s2r * mean(diag(V_std))}
+where \eqn{\overline{\rm diag}(V_{\rm std})}{mean(diag(V_std))} is the mean diagonal of the
+standardized matrix. For identity-based (non-phylogenetic) terms this equals 1 and no adjustment
+is needed. The fitted model returns these scale factors directly as \code{scale_factors}:
+\code{s2r * scale_factors[names(s2r)]}. \code{ss} stores \eqn{\sqrt{\sigma^2_{\rm std}}}{sqrt(sigma2_std)}
+and is similarly relative to the standardized matrix; use \code{s2r}/\code{s2n}/\code{s2resid} for
+variance inference, not \code{ss^2}.
+
+Although mathematically this is not required, it is a very good idea to standardize the predictor
 (independent) variables to have mean 0 and variance 1. This will
 make the function more robust and improve the interpretation of the
 regression coefficients. For categorical (factor) predictor
@@ -410,204 +447,6 @@ As with the linear mixed model, it is a very good idea to
 standardize the predictor (independent) variables to have mean 0
 and variance 1. This will make the function more robust and improve
 the interpretation of the regression coefficients.
-}
-\examples{
-## Structure of examples:
-# First, a (brief) description of model types, and how they are specified
-# - these are *not* to be run 'as-is'; they show how models should be organised
-# Second, a run-through of how to simulate, and then analyse, data
-# - these *are* to be run 'as-is'; they show how to format and work with data
-
-\donttest{
-#############################################
-### Brief summary of models and their use ###
-#############################################
-## Model structures from Ives & Helmus (2011)
-if(FALSE){
-  # dat = data set for regression (note: must have a column "sp" and a column "site")
-  # phy = phylogeny of class "phylo"
-  # repulsion = to test phylogenetic repulsion or not
-  
-  # Model 1 (Eq. 1)
-  z <- pglmm(freq ~ sp + (1|site) + (1|sp__@site), data = dat, family = "binomial",
-             cov_ranef = list(sp = phy), REML = TRUE, verbose = TRUE, s2.init = .1)
-  
-  # Model 2 (Eq. 2)
-  z <- pglmm(freq ~ sp + X + (1|site) + (X|sp__), data = dat, family = "binomial",
-             cov_ranef = list(sp = phy), REML = TRUE, verbose = TRUE, s2.init = .1)
-  
-  # Model 3 (Eq. 3)
-  z <- pglmm(freq ~ sp*X + (1|site) + (1|sp__@site), data = dat, family = "binomial",
-             cov_ranef = list(sp = phy), REML = TRUE, verbose = TRUE, s2.init = .1)
-  
-  ## Model structure from Rafferty & Ives (2013) (Eq. 3)
-  # dat = data set
-  # phyPol = phylogeny for pollinators (pol)
-  # phyPlt = phylogeny for plants (plt)
-  
-  z <- pglmm(freq ~ pol * X + (1|pol__) + (1|plt__) + (1|pol__@plt) +
-               (1|pol@plt__) + (1|pol__@plt__),
-             data = dat, family = "binomial",
-             cov_ranef = list(pol = phyPol, plt = phyPlt),
-             REML = TRUE, verbose = TRUE, s2.init = .1)
-}
-
-#####################################################
-### Detailed analysis showing covariance matrices ###
-#####################################################
-
-# This is the example from section 4.3 in Ives, A. R. (2018) Mixed 
-# and phylogenetic models: a conceptual introduction to correlated data.
-
-library(ape)
-library(mvtnorm)
-
-# Investigating covariance matrices for different types of model structure
-nspp <- 6
-nsite <- 4
-
-# Simulate a phylogeny that has a lot of phylogenetic signal (power = 1.3)
-phy <- compute.brlen(rtree(n = nspp), method = "Grafen", power = 1.3)
-
-# Simulate species means
-sd.sp <- 1
-mean.sp <- rTraitCont(phy, model = "BM", sigma=sd.sp^2)
-
-# Replicate values of mean.sp over sites
-Y.sp <- rep(mean.sp, times=nsite)
-
-# Simulate site means
-sd.site <- 1
-mean.site <- rnorm(nsite, sd=sd.site)
-
-# Replicate values of mean.site over sp
-Y.site <- rep(mean.site, each=nspp)
-
-# Compute a covariance matrix for phylogenetic attraction
-sd.attract <- 1
-Vphy <- vcv(phy)
-
-# Standardize the phylogenetic covariance matrix to have determinant = 1. 
-# (For an explanation of this standardization, see subsection 4.3.1 in Ives (2018))
-Vphy <- Vphy/(det(Vphy)^(1/nspp))
-
-# Construct the overall covariance matrix for phylogenetic attraction. 
-# (For an explanation of Kronecker products, see subsection 4.3.1 in the book)
-V <- kronecker(diag(nrow = nsite, ncol = nsite), Vphy)
-Y.attract <- array(t(rmvnorm(n = 1, sigma = sd.attract^2*V)))
-
-# Simulate residual errors
-sd.e <- 1
-Y.e <- rnorm(nspp*nsite, sd = sd.e)
-
-# Construct the dataset
-d <- data.frame(sp = rep(phy$tip.label, times = nsite), 
-                site = rep(1:nsite, each = nspp))
-
-# Simulate abundance data
-d$Y <- Y.sp + Y.site + Y.attract + Y.e
-
-# Analyze the model
-pglmm(Y ~ 1 + (1|sp__) + (1|site) + (1|sp__@site), data = d, cov_ranef = list(sp = phy))
-
-# Display random effects: the function `pglmm_plot_ranef()` does what 
-# the name implies. You can set `show.image = TRUE` and `show.sim.image = TRUE` 
-# to see the matrices and simulations.
-re <- pglmm_plot_ranef(Y ~ 1 + (1|sp__) + (1|site) + (1|sp__@site), data = d, 
-                    cov_ranef = list(sp = phy), show.image = FALSE, 
-                    show.sim.image = FALSE)
-
-#################################################
-### Example of a bipartite phylogenetic model ###
-#################################################
-
-# Investigating covariance matrices for different types of model structure
-nspp <- 20
-nsite <- 15
-
-# Simulate a phylogeny that has a lot of phylogenetic signal (power = 1.3)
-phy.sp <- compute.brlen(rtree(n = nspp), method = "Grafen", power = 1.3)
-phy.site <- compute.brlen(rtree(n = nsite), method = "Grafen", power = 1.3)
-
-# Simulate species means
-mean.sp <- rTraitCont(phy.sp, model = "BM", sigma = 1)
-
-# Replicate values of mean.sp over sites
-Y.sp <- rep(mean.sp, times = nsite)
-
-# Simulate site means
-mean.site <- rTraitCont(phy.site, model = "BM", sigma = 1)
-
-# Replicate values of mean.site over sp
-Y.site <- rep(mean.site, each = nspp)
-
-# Generate covariance matrix for phylogenetic attraction among species
-sd.sp.attract <- 1
-Vphy.sp <- vcv(phy.sp)
-Vphy.sp <- Vphy.sp/(det(Vphy.sp)^(1/nspp))
-V.sp <- kronecker(diag(nrow = nsite, ncol = nsite), Vphy.sp)
-Y.sp.attract <- array(t(rmvnorm(n = 1, sigma = sd.sp.attract^2*V.sp)))
-# Generate covariance matrix for phylogenetic attraction among sites
-sd.site.attract <- 1
-Vphy.site <- vcv(phy.site)
-Vphy.site <- Vphy.site/(det(Vphy.site)^(1/nsite))
-V.site <- kronecker(Vphy.site, diag(nrow = nspp, ncol = nspp))
-Y.site.attract <- array(t(rmvnorm(n = 1, sigma = sd.site.attract^2*V.site)))
-
-# Generate covariance matrix for phylogenetic attraction of species:site interaction
-sd.sp.site.attract <- 1
-V.sp.site <- kronecker(Vphy.site, Vphy.sp)
-Y.sp.site.attract <- array(t(rmvnorm(n = 1, sigma = sd.sp.site.attract^2*V.sp.site)))
-
-# Simulate residual error
-sd.e <- 0.5
-Y.e <- rnorm(nspp*nsite, sd = sd.e)
-
-# Construct the dataset
-d <- data.frame(sp = rep(phy.sp$tip.label, times = nsite), 
-                site = rep(phy.site$tip.label, each = nspp))
-
-# Simulate abundance data
-d$Y <- Y.sp + Y.site + Y.sp.attract + Y.site.attract + Y.sp.site.attract + Y.e
-
-# Plot random effects covariance matrices and then add phylogenies
-# Note that, if show.image and show.sim are not specified, pglmm_plot_ranef() shows
-# the covariance matrices if nspp * nsite < 200 and shows simulations 
-# if nspp * nsite > 100
-re <- pglmm_plot_ranef(Y ~ 1 + (1|sp__) + (1|site__) + (1|sp__@site) + 
-                    (1|sp@site__) + (1|sp__@site__),
-                    data=d, cov_ranef = list(sp = phy.sp, site = phy.site))
-
-# This flips the phylogeny to match to covariance matrices
-rot.phy.site <- phy.site
-for(i in (nsite+1):(nsite+Nnode(phy.site))) 
-   rot.phy.site <- rotate(rot.phy.site, node = i)
-
-plot(phy.sp, main = "Species", direction = "upward")
-plot(rot.phy.site, main = "Site")
-
-# Analyze the simulated data and compute a P-value for the (1|sp__@site__) 
-# random effect using a LRT. It is often better to fit the reduced model before
-# the full model, because it s numerically easier to fit the reduced model, 
-# and then the parameter estimates from the reduced model can be given to the
-# full model. In this case, I have used the estimates of the random effects 
-# from the reduce model, mod.r$ss, as the initial estimates for the same 
-# parameters in the full model in the statement s2.init=c(mod.r$ss, 0.01)^2. 
-# The final 0.01 is for the last random effect in the full model, (1|sp__@site__). 
-# Note also that the output of the random effects from communityPGLMM(), mod.r$ss, 
-# are the standard deviations, so they have to be squared for use as initial 
-# values of variances in mod.f.
-
-mod.r <- pglmm(Y ~ 1 + (1|sp__) + (1|site__) + (1|sp__@site) + (1|sp@site__), 
-                        data = d, cov_ranef = list(sp = phy.sp, site = phy.site))
-mod.f <- pglmm(Y ~ 1 + (1|sp__) + (1|site__) + (1|sp__@site) + (1|sp@site__) + 
-               (1|sp__@site__), data = d, 
-               cov_ranef = list(sp = phy.sp, site = phy.site), 
-               s2.init = c(mod.r$ss, 0.01)^2)
-mod.f
-pvalue <- pchisq(2*(mod.f$logLik - mod.r$logLik), df = 1, lower.tail = FALSE)
-pvalue
-} 
 }
 \references{
 Ives, A. R. and M. R. Helmus. 2011. Generalized linear
