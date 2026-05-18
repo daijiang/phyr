@@ -12,7 +12,7 @@ pglmm(
   cov_ranef = NULL,
   random.effects = NULL,
   REML = TRUE,
-  optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"),
+  optimizer = NULL,
   repulsion = FALSE,
   add.obs.re = TRUE,
   verbose = FALSE,
@@ -36,7 +36,9 @@ pglmm(
   sp = NULL,
   site = NULL,
   bayes_options = NULL,
-  bayes_nested_matrix_as_list = FALSE
+  bayes_nested_matrix_as_list = FALSE,
+  posterior.sample = TRUE,
+  return.fitted.marginals = TRUE
 )
 
 communityPGLMM(
@@ -46,7 +48,7 @@ communityPGLMM(
   cov_ranef = NULL,
   random.effects = NULL,
   REML = TRUE,
-  optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"),
+  optimizer = NULL,
   repulsion = FALSE,
   add.obs.re = TRUE,
   verbose = FALSE,
@@ -70,7 +72,9 @@ communityPGLMM(
   sp = NULL,
   site = NULL,
   bayes_options = NULL,
-  bayes_nested_matrix_as_list = FALSE
+  bayes_nested_matrix_as_list = FALSE,
+  posterior.sample = TRUE,
+  return.fitted.marginals = TRUE
 )
 }
 \arguments{
@@ -136,8 +140,10 @@ in the data. Also, this should be \emph{a list of lists}, e.g.
 \item{REML}{Whether REML or ML is used for model fitting the random effects. Ignored if
 \code{bayes = TRUE}.}
 
-\item{optimizer}{nelder-mead-nlopt (default), bobyqa, Nelder-Mead, or subplex.
-Nelder-Mead is from the stats package and the other optimizers are from the nloptr package.
+\item{optimizer}{Optimizer to use. Options: \code{"lbfgs"} (L-BFGS with analytic gradient;
+default for Gaussian, also available for binomial/Poisson), \code{"nelder-mead-nlopt"}
+(default for binomial/Poisson), \code{"bobyqa"}, \code{"Nelder-Mead"}, or \code{"subplex"}.
+\code{"Nelder-Mead"} is from the stats package; all others are from the nloptr package.
 Ignored if \code{bayes = TRUE}.}
 
 \item{repulsion}{When there are nested random terms specified, \code{repulsion = FALSE} tests
@@ -255,13 +261,30 @@ pglmm` will try to standardize it for you. No longer used: keep here for compati
 
 \item{site}{No longer used: keep here for compatibility.}
 
-\item{bayes_options}{Additional options to pass to INLA for if \code{bayes = TRUE}. A named list where the names
-correspond to parameters in the \code{inla} function. One special option is \code{diagonal}: if an element in
-the options list is names \code{diagonal} this tells \code{INLA} to add its value to the diagonal of the random effects
-precision matrices. This can help with numerical stability if the model is ill-conditioned (if you get a lot of warnings,
-try setting this to \code{list(diagonal = 1e-4)}).}
+\item{bayes_options}{Additional options to pass to INLA when \code{bayes = TRUE}. A named list where the
+names correspond to parameters in the \code{inla} function. One special option is \code{diagonal}: if an
+element in the list is named \code{diagonal}, INLA adds its value to the diagonal of every random-effects
+precision matrix, which can help with numerical stability when the model is ill-conditioned (try
+\code{list(diagonal = 1e-4)} if you see many warnings). To use multiple CPU cores, pass
+\code{list(num.threads = 4)} (or however many cores are available); this is often the single most
+effective way to speed up INLA. Any \code{control.compute} entries supplied here override the defaults
+set by \code{posterior.sample} and \code{return.fitted.marginals}.}
 
-\item{bayes_nested_matrix_as_list}{For \code{bayes = TRUE}, prepare the nested terms as a list of length of 4 as the old way?}
+\item{bayes_nested_matrix_as_list}{For \code{bayes = TRUE}, prepare the nested terms as a list of length 4
+as the old way?}
+
+\item{posterior.sample}{Logical (default \code{TRUE}). Only used when \code{bayes = TRUE}. When
+\code{TRUE}, INLA stores the full joint posterior configuration
+(\code{control.compute = list(config = TRUE)}), which is required for \code{\link{simulate}} to work.
+Set to \code{FALSE} to skip this storage and speed up fitting when posterior simulation is not needed.}
+
+\item{return.fitted.marginals}{Logical (default \code{TRUE}). Only used when \code{bayes = TRUE}. When
+\code{TRUE}, INLA computes and returns the marginal posterior distributions of all fitted values
+(\code{control.compute = list(return.marginals.predictor = TRUE)}), which is required for
+\code{\link{simulate}} with \code{full = FALSE}. Set to \code{FALSE} to skip this computation and speed
+up fitting when simulation is not needed. If both \code{posterior.sample} and
+\code{return.fitted.marginals} are \code{FALSE}, INLA runs at maximum speed but \code{simulate()} will
+not work on the fitted model.}
 }
 \value{
 An object (list) of class \code{communityPGLMM} with the following elements:
