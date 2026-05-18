@@ -697,7 +697,17 @@ pglmm_gaussian_LL_calc <- function(par, X, Y, Zt, St, nested = NULL,
   s2r <- s2resid * sr^2
   s2n <- s2resid * sn^2
   # OPT-F: denom = X'iV_unscaled*X already computed; denom/s2resid = X'(iV/s2resid)*X
-  B.cov <- solve(denom / s2resid)
+  # Use as.matrix() to avoid Matrix::solve() dispatch, which calls .solve.checkCond()
+  # for matrix inversion and can throw on Ubuntu/OpenBLAS with near-singular denom.
+  denom_mat <- as.matrix(denom) / s2resid
+  B.cov <- tryCatch(
+    solve(denom_mat),
+    error = function(e) {
+      warning("Near-singular information matrix; standard errors are unreliable.",
+              call. = FALSE, immediate. = TRUE)
+      matrix(NA_real_, nrow(denom_mat), ncol(denom_mat))
+    }
+  )
   B.se <- as.matrix(diag(B.cov))^0.5
 
   results <- list(
