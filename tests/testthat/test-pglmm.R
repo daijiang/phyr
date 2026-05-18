@@ -169,6 +169,19 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   test_that("cpp and r version phyr gave the same results: gaussian", {
     test_fit_equal(test1_gaussian_cpp, test1_gaussian_r)
   })
+
+  # Bug fix: cpp=FALSE gaussian with default optimizer ("lbfgs") used to crash
+  # with "object 'nlopt_algor' not found" because the R fallback path had no
+  # branch for "lbfgs". Fixed by falling back to subplex when cpp=FALSE.
+  test_that("gaussian cpp=FALSE with default optimizer does not error", {
+    expect_no_error(
+      test1_gaussian_r_default <- phyr::communityPGLMM(
+        freq ~ 1 + shade + (1 | sp__) + (1 | Location) + (1 | sp__@site),
+        dat, cov_ranef = list(sp = phylotree), REML = FALSE,
+        cpp = FALSE)  # optimizer not set: default "lbfgs" falls back to subplex
+    )
+    test_fit_equal(test1_gaussian_r_default, test1_gaussian_r)
+  })
   
   # test_that("cpp and r version phyr gave the same results: binomial", {
   #   expect_equal(test2_binary_cpp, test2_binary_r, ignore_attr = TRUE)

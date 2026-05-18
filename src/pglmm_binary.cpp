@@ -947,7 +947,8 @@ List pglmm_internal_cpp(const arma::mat& X, const arma::vec& Y,
           A_sp = A_sp + snj2 * nj;
         }
         arma::mat A1(A_sp);
-        arma::mat chol_A; arma::chol(chol_A, A1);
+        arma::mat chol_A;
+        if (!arma::chol(chol_A, A1)) break;  // A not PD; use last valid estimates
         arma::mat Rlo = chol_A.t();
 
         if(family=="binomial") Z = X*B + b + (Y/totalSize-mu)/(mu%(1.0-mu));
@@ -1137,12 +1138,16 @@ List pglmm_internal_cpp(const arma::mat& X, const arma::vec& Y,
       A_sp = A_sp + snj2 * nj;
     }
     arma::mat A1(A_sp);
-    arma::mat chol_A; arma::chol(chol_A, A1);
-    arma::mat Rlo = chol_A.t();   // lower L s.t. L*L' = A
-
-    // iA = A^{-1} via two batch triangular solves — O(n^3), no explicit inv()
-    arma::mat iA = arma::solve(arma::trimatl(Rlo), arma::eye(n, n));
-    iA           = arma::solve(arma::trimatu(chol_A), iA);
+    arma::mat chol_A;
+    arma::mat iA;
+    if (arma::chol(chol_A, A1)) {
+      arma::mat Rlo = chol_A.t();   // lower L s.t. L*L' = A
+      // iA = A^{-1} via two batch triangular solves — O(n^3), no explicit inv()
+      iA = arma::solve(arma::trimatl(Rlo), arma::eye(n, n));
+      iA = arma::solve(arma::trimatu(chol_A), iA);
+    } else {
+      iA = arma::inv(A1);           // LU fallback (A not PD for final params)
+    }
 
     if(q_nn > 0){
       arma::sp_mat Ut_sp = build_Ut_helper(ss0, St, Zt, q_nn);

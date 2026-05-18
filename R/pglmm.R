@@ -128,9 +128,9 @@
 #'   `random.effects = list(re1 = list(matrix_a), re2 = list(1, sp = sp, covar = Vsp))`.
 #' @param REML Whether REML or ML is used for model fitting the random effects. Ignored if
 #'  \code{bayes = TRUE}.
-#' @param optimizer Optimizer to use. Options: \code{"lbfgs"} (L-BFGS with analytic gradient,
-#'   default for Gaussian), \code{"nelder-mead-nlopt"} (default for binomial/Poisson),
-#'   \code{"bobyqa"}, \code{"Nelder-Mead"}, or \code{"subplex"}.
+#' @param optimizer Optimizer to use. Options: \code{"lbfgs"} (L-BFGS with analytic gradient;
+#'   default for Gaussian, also available for binomial/Poisson), \code{"nelder-mead-nlopt"}
+#'   (default for binomial/Poisson), \code{"bobyqa"}, \code{"Nelder-Mead"}, or \code{"subplex"}.
 #'   \code{"Nelder-Mead"} is from the stats package; all others are from the nloptr package.
 #'   Ignored if \code{bayes = TRUE}.
 #' @param repulsion When there are nested random terms specified, \code{repulsion = FALSE} tests
@@ -734,6 +734,7 @@ communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian",
       if (optimizer == "bobyqa") nlopt_algor = "NLOPT_LN_BOBYQA"
       if (optimizer == "nelder-mead-nlopt") nlopt_algor = "NLOPT_LN_NELDERMEAD"
       if (optimizer == "subplex") nlopt_algor = "NLOPT_LN_SBPLX"
+      if (optimizer == "lbfgs") nlopt_algor = "NLOPT_LN_SBPLX"  # lbfgs needs cpp=TRUE; use subplex
       opts <- list("algorithm" = nlopt_algor, "ftol_rel" = reltol, "ftol_abs" = reltol,
                    "xtol_rel" = 0.0001, "maxeval" = maxit)
       S0 <- nloptr::nloptr(x0 = s, eval_f = pglmm_gaussian_LL_calc, opts = opts, 
@@ -918,6 +919,7 @@ communityPGLMM.glmm <- function(formula, data = list(), family = "binomial",
         if (optimizer == "bobyqa") nlopt_algor = "NLOPT_LN_BOBYQA"
         if (optimizer == "nelder-mead-nlopt") nlopt_algor = "NLOPT_LN_NELDERMEAD"
         if (optimizer == "subplex") nlopt_algor = "NLOPT_LN_SBPLX"
+        if (optimizer == "lbfgs") nlopt_algor = "NLOPT_LN_SBPLX"  # lbfgs needs cpp=TRUE; use subplex
         opts <- list("algorithm" = nlopt_algor, "ftol_rel" = reltol, "ftol_abs" = reltol,
                      "xtol_rel" = 0.0001, "maxeval" = maxit)
         S0 <- nloptr::nloptr(x0 = ss, eval_f = pglmm.LL, opts = opts,

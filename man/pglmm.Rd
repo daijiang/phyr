@@ -12,7 +12,7 @@ pglmm(
   cov_ranef = NULL,
   random.effects = NULL,
   REML = TRUE,
-  optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex", "lbfgs"),
+  optimizer = NULL,
   repulsion = FALSE,
   add.obs.re = TRUE,
   verbose = FALSE,
@@ -46,7 +46,7 @@ communityPGLMM(
   cov_ranef = NULL,
   random.effects = NULL,
   REML = TRUE,
-  optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex", "lbfgs"),
+  optimizer = NULL,
   repulsion = FALSE,
   add.obs.re = TRUE,
   verbose = FALSE,
@@ -136,8 +136,10 @@ in the data. Also, this should be \emph{a list of lists}, e.g.
 \item{REML}{Whether REML or ML is used for model fitting the random effects. Ignored if
 \code{bayes = TRUE}.}
 
-\item{optimizer}{nelder-mead-nlopt (default), bobyqa, Nelder-Mead, or subplex.
-Nelder-Mead is from the stats package and the other optimizers are from the nloptr package.
+\item{optimizer}{Optimizer to use. Options: \code{"lbfgs"} (L-BFGS with analytic gradient;
+default for Gaussian, also available for binomial/Poisson), \code{"nelder-mead-nlopt"}
+(default for binomial/Poisson), \code{"bobyqa"}, \code{"Nelder-Mead"}, or \code{"subplex"}.
+\code{"Nelder-Mead"} is from the stats package; all others are from the nloptr package.
 Ignored if \code{bayes = TRUE}.}
 
 \item{repulsion}{When there are nested random terms specified, \code{repulsion = FALSE} tests

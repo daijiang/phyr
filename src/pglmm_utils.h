@@ -103,8 +103,11 @@ inline double block_chol(std::vector<arma::mat>& chols,
   for (int k = 0; k < n_site; ++k) {
     int s = k * n_sp;
     arma::mat Ak = arma::diagmat(pq.subvec(s, s + n_sp - 1)) + nj_fixed[k];
-    if (!arma::chol(chols[k], Ak))
-      arma::chol(chols[k], Ak + 1e-10 * arma::eye(n_sp, n_sp));
+    if (!arma::chol(chols[k], Ak)) {
+      arma::mat Ak_j = Ak + 1e-10 * arma::eye(n_sp, n_sp);
+      if (!arma::chol(chols[k], Ak_j))
+        arma::chol(chols[k], Ak_j + 1e-6 * arma::eye(n_sp, n_sp));
+    }
     logdetA += 2.0 * arma::accu(arma::log(chols[k].diag()));
   }
   return logdetA;

@@ -951,10 +951,12 @@ Rcpp::List pglmm_gaussian_internal_cpp(NumericVector par,
     nlopt_set_xtol_rel(opt_c, 0.0001);
     nlopt_set_maxeval(opt_c, maxit);
 
-    // NLOPT_LD_LBFGS does not support bound constraints (it is unconstrained).
-    // Setting lower bounds would cause NLOPT_FAILURE (-1).  The LL objective is
-    // symmetric in the sign of variance-SD parameters (V depends on sd^2), so
-    // the optimizer can roam freely; abs() is applied to the solution below.
+    // No lower bounds needed for Gaussian: the concentrated LL is symmetric in
+    // the sign of each sd parameter (V depends on sd², so LL(x) = LL(-x)).
+    // The optimizer can roam freely in ℝ^q; abs() applied to the solution below
+    // always recovers the correct non-negative sd estimate.
+    // (Contrast: binary pql_ll_and_grad uses abs(x) internally but returns the
+    //  unsigned gradient, causing sign errors for x < 0 → bounds needed there.)
 
     std::vector<double> x_vec(par.begin(), par.end());
     double opt_val = 1e30;

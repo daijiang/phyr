@@ -184,7 +184,6 @@ full model specification:</p>
 <span>                   data <span class="op">=</span> <span class="va">oldfield</span><span class="op">$</span><span class="va">data</span>, </span>
 <span>                   cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">oldfield</span><span class="op">$</span><span class="va">phy</span><span class="op">)</span>,</span>
 <span>                   family <span class="op">=</span> <span class="st">"binomial"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; as(&lt;matrix&gt;, "dgTMatrix") is deprecated since Matrix 1.5-0; do as(as(as(., "dMatrix"), "generalMatrix"), "TsparseMatrix") instead</span></span></code></pre></div>
 <p>Here, we specified an overall phylogenetic effect using
 <code>sp__</code>, which also automatically includes a nonphylogenetic
 i.i.d. effect of species. <code>phyr</code> finds the linked

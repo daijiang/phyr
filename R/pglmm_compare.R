@@ -66,9 +66,11 @@
 #' @param phy A phylogenetic tree as an object of class "phylo".
 #' @param REML Whether REML or ML is used for model fitting the random effects. Ignored if
 #'  \code{bayes = TRUE}.
-#' @param optimizer nelder-mead-nlopt (default), bobyqa, Nelder-Mead, or subplex. 
-#'   Nelder-Mead is from the stats package and the other optimizers are from the nloptr package.
-#'   Ignored if \code{bayes = TRUE}.
+#' @param optimizer Optimizer to use: \code{"lbfgs"} (L-BFGS with analytic gradient;
+#'   default for Gaussian, also available for binomial/Poisson),
+#'   \code{"nelder-mead-nlopt"} (default for binomial/Poisson), \code{"bobyqa"},
+#'   \code{"Nelder-Mead"}, or \code{"subplex"}. \code{NULL} uses the family-appropriate
+#'   default. Ignored if \code{bayes = TRUE}.
 #' @param add.obs.re Whether to add observation-level random term for binomial and  Poisson
 #'   families. Normally it would be a good idea to add this to account for overdispersion,
 #'   so \code{add.obs.re = TRUE} by default.
@@ -266,7 +268,7 @@ pglmm_compare <- function(formula, family = "gaussian",
                           data = list(), 
                           phy, 
                           REML = TRUE, 
-                          optimizer = c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex"),
+                          optimizer = NULL,
                           add.obs.re = TRUE,
                           verbose = FALSE,
                           cpp = TRUE,
