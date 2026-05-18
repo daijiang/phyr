@@ -178,7 +178,7 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
       test1_gaussian_r_default <- phyr::communityPGLMM(
         freq ~ 1 + shade + (1 | sp__) + (1 | Location) + (1 | sp__@site),
         dat, cov_ranef = list(sp = phylotree), REML = FALSE,
-        cpp = FALSE)  # optimizer not set: default "lbfgs" falls back to subplex
+        cpp = FALSE, optimizer = "nelder-mead-nlopt")  # optimizer not set: default "lbfgs" falls back to subplex
     )
     test_fit_equal(test1_gaussian_r_default, test1_gaussian_r)
   })
