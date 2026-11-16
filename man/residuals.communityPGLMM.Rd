@@ -31,3 +31,30 @@ Getting different types of residuals for communityPGLMM objects. The
 residuals are conditional on the estimated random effects, i.e. the observed
 values minus the fitted values (see \code{\link[=fitted.communityPGLMM]{fitted.communityPGLMM()}}).
 }
+\examples{
+# community data: abundance of each species at each site
+dat <- data.frame(
+  site = rep(rownames(comm_a), times = ncol(comm_a)),
+  sp = rep(colnames(comm_a), each = nrow(comm_a)),
+  freq = unlist(comm_a, use.names = FALSE)
+)
+dat$shade <- envi$shade[match(dat$site, envi$site)]
+phy <- ape::keep.tip(phylotree, unique(dat$sp))
+fit <- pglmm(freq ~ shade + (1 | sp__) + (1 | site),
+  data = dat, cov_ranef = list(sp = phy)
+)
+
+# observed values minus fitted values (conditional on random effects)
+head(residuals(fit))
+all.equal(residuals(fit), dat$freq - fitted(fit))
+# divided by the residual standard deviation
+head(residuals(fit, scaled = TRUE))
+
+# binomial model: deviance (default) or response residuals
+dat$pa <- as.numeric(dat$freq > 0)
+fit_pa <- pglmm(pa ~ shade + (1 | sp__) + (1 | site),
+  data = dat, family = "binomial", cov_ranef = list(sp = phy)
+)
+head(residuals(fit_pa))
+head(residuals(fit_pa, type = "response"))
+}

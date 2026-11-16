@@ -52,3 +52,31 @@ default, they are on the scale of the linear predictor (i.e. in the
 transformed space for the generalized linear mixed models with
 family \%in\% c("binomial","poisson")).
 }
+\examples{
+# community data: abundance of each species at each site
+dat <- data.frame(
+  site = rep(rownames(comm_a), times = ncol(comm_a)),
+  sp = rep(colnames(comm_a), each = nrow(comm_a)),
+  freq = unlist(comm_a, use.names = FALSE)
+)
+dat$shade <- envi$shade[match(dat$site, envi$site)]
+phy <- ape::keep.tip(phylotree, unique(dat$sp))
+fit <- pglmm(freq ~ shade + (1 | sp__) + (1 | site),
+  data = dat, cov_ranef = list(sp = phy)
+)
+
+# fitted values conditional on the estimates of random effects: Xb + Zu
+head(pglmm_predicted_values(fit))
+# leave-one-out predictions
+head(pglmm_predicted_values(fit, gaussian.pred = "tip_rm"))
+# without random effects: Xb
+head(pglmm_predicted_values(fit, re.form = NA))
+
+# binomial model: scale of the linear predictor (logit) or of the response
+dat$pa <- as.numeric(dat$freq > 0)
+fit_pa <- pglmm(pa ~ shade + (1 | sp__) + (1 | site),
+  data = dat, family = "binomial", cov_ranef = list(sp = phy)
+)
+head(pglmm_predicted_values(fit_pa))
+head(pglmm_predicted_values(fit_pa, type = "response"))
+}

@@ -68,6 +68,37 @@ that appear in the data have an estimate (e.g. not the species that are in
 the phylogeny but not in the data). Note that the levels are in the order of
 their first appearance in the data, not sorted alphabetically as in \code{lme4}.
 }
+\examples{
+# community data: abundance of each species at each site
+dat <- data.frame(
+  site = rep(rownames(comm_a), times = ncol(comm_a)),
+  sp = rep(colnames(comm_a), each = nrow(comm_a)),
+  freq = unlist(comm_a, use.names = FALSE)
+)
+dat$shade <- envi$shade[match(dat$site, envi$site)]
+phy <- ape::keep.tip(phylotree, unique(dat$sp))
+fit <- pglmm(freq ~ shade + (1 | sp__) + (1 | site),
+  data = dat, cov_ranef = list(sp = phy)
+)
+
+# one data frame for each random term; (1 | sp__) is fitted as two terms
+re <- ranef(fit)
+names(re)
+re
+head(re[["1|sp__"]])
+
+# total effect of each species: non-phylogenetic plus phylogenetic
+data.frame(
+  sp = re[["1|sp"]]$sp,
+  estimate = re[["1|sp"]]$estimate + re[["1|sp__"]]$estimate
+)
+
+# with conditional standard deviations of the estimates
+head(ranef(fit, condVar = TRUE)[["1|sp__"]])
+
+# variances of the random terms
+VarCorr(fit)
+}
 \seealso{
 \code{\link[=VarCorr]{VarCorr()}} for the variances of random terms.
 }

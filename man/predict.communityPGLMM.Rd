@@ -81,3 +81,41 @@ Predictions with \code{newdata} and random effects are only available for
 models with random terms specified in the formula (i.e. not via the
 argument \code{random.effects} of \code{\link[=pglmm]{pglmm()}}).
 }
+\examples{
+# community data: abundance of each species at each site
+dat <- data.frame(
+  site = rep(rownames(comm_a), times = ncol(comm_a)),
+  sp = rep(colnames(comm_a), each = nrow(comm_a)),
+  freq = unlist(comm_a, use.names = FALSE)
+)
+dat$shade <- envi$shade[match(dat$site, envi$site)]
+phy <- ape::keep.tip(phylotree, unique(dat$sp))
+fit <- pglmm(freq ~ shade + (1 | sp__) + (1 | site),
+  data = dat, cov_ranef = list(sp = phy)
+)
+
+# predictions for the data used to fit the model
+head(predict(fit))
+
+# predictions for new data: the response is not needed
+newdat <- data.frame(
+  sp = c("Acer_rubrum", "Acer_rubrum", "Achillea_millefolium"),
+  site = c("s3293", "s3294", "s3293"),
+  shade = c(20, 50, 80)
+)
+predict(fit, newdata = newdat)
+# without random effects (the grouping variables are then not needed)
+predict(fit, newdata = newdat, re.form = NA)
+
+# a site (or species) that was not in the data used to fit the model gives
+# an error, unless allow.new.levels = TRUE: its random effect is then zero
+newdat2 <- data.frame(sp = "Acer_rubrum", site = "a_new_site", shade = 50)
+predict(fit, newdata = newdat2, allow.new.levels = TRUE)
+
+# binomial model: predicted probabilities
+dat$pa <- as.numeric(dat$freq > 0)
+fit_pa <- pglmm(pa ~ shade + (1 | sp__) + (1 | site),
+  data = dat, family = "binomial", cov_ranef = list(sp = phy)
+)
+predict(fit_pa, newdata = newdat, type = "response")
+}

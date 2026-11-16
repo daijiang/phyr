@@ -30,6 +30,24 @@ level of the random terms.
 
 Before version 1.3.0, this table was returned by \code{ranef()}.
 }
+\examples{
+# community data: abundance of each species at each site
+dat <- data.frame(
+  site = rep(rownames(comm_a), times = ncol(comm_a)),
+  sp = rep(colnames(comm_a), each = nrow(comm_a)),
+  freq = unlist(comm_a, use.names = FALSE)
+)
+dat$shade <- envi$shade[match(dat$site, envi$site)]
+phy <- ape::keep.tip(phylotree, unique(dat$sp))
+fit <- pglmm(freq ~ shade + (1 | sp__) + (1 | site),
+  data = dat, cov_ranef = list(sp = phy)
+)
+
+VarCorr(fit)
+# proportion of the variance among species that is phylogenetic
+v <- VarCorr(fit)
+v["1|sp__", "Variance"] / sum(v[c("1|sp", "1|sp__"), "Variance"])
+}
 \seealso{
 \code{\link[=ranef]{ranef()}} for the estimates of each level of the random terms.
 }

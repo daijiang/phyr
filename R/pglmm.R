@@ -319,9 +319,12 @@
 #' \item{s2.init}{the user-provided initial estimates of \code{s2}}
 #' \item{B.init}{the user-provided initial estimates of \code{B}}
 #' \item{Y}{the response (dependent) variable returned in matrix form}
+#' \item{size}{the number of trials of each observation for binomial models (it is one for binary data,
+#'   and for poisson models). This is \code{NULL} for gaussian models, and for models with
+#'   \code{bayes = TRUE} unless the response is specified with the numbers of successes and failures.}
 #' \item{X}{the predictor (independent) variables returned in matrix form (including 1s in the first column)}
 #' \item{H}{the residuals. For linear mixed models, this does not account for random terms,
-#    i.e. it is similar to \code{Y - predict(merMod, re.form = NA)} for models fitted with lme4.
+#'   i.e. it is similar to \code{Y - predict(merMod, re.form = NA)} for models fitted with lme4.
 #'   To get residuals after accounting for both fixed and random terms, use \code{residuals()}.
 #'   For the generalized linear mixed model, these are the predicted residuals in the
 #'   logit -1 space.}
@@ -500,8 +503,7 @@
 #' Vphy.sp <- Vphy.sp / (det(Vphy.sp)^(1 / nspp))
 #' V.sp <- kronecker(diag(nrow = nsite, ncol = nsite), Vphy.sp)
 #' Y.sp.attract <- array(t(rmvnorm(n = 1, sigma = sd.sp.attract^2 * V.sp)))
-#' }
-
+#'
 #' # Generate covariance matrix for phylogenetic attraction among sites
 #' sd.site.attract <- 1
 #' Vphy.site <- vcv(phy.site)

@@ -42,3 +42,26 @@ technically more accurate.}
 \description{
 Simulate from a communityPGLMM object
 }
+\examples{
+# community data: abundance of each species at each site
+dat <- data.frame(
+  site = rep(rownames(comm_a), times = ncol(comm_a)),
+  sp = rep(colnames(comm_a), each = nrow(comm_a)),
+  freq = unlist(comm_a, use.names = FALSE)
+)
+dat$shade <- envi$shade[match(dat$site, envi$site)]
+phy <- ape::keep.tip(phylotree, unique(dat$sp))
+fit <- pglmm(freq ~ shade + (1 | sp__) + (1 | site),
+  data = dat, cov_ranef = list(sp = phy)
+)
+
+# conditional on the estimates of random effects: one column per simulation
+sim <- simulate(fit, nsim = 3, seed = 1)
+dim(sim)
+head(sim)
+
+# with new values of random effects, drawn with their estimated variances
+sim <- simulate(fit, nsim = 3, seed = 1, re.form = NA)
+head(sim)
+
+}

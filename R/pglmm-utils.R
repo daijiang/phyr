@@ -1163,6 +1163,33 @@ print.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ..
 #' @export
 #' @return A data frame with column Y_hat (predicted values accounting for
 #'   both fixed and random terms, unless `re.form` is `NA` or `~0`).
+#' @examples
+#' # community data: abundance of each species at each site
+#' dat <- data.frame(
+#'   site = rep(rownames(comm_a), times = ncol(comm_a)),
+#'   sp = rep(colnames(comm_a), each = nrow(comm_a)),
+#'   freq = unlist(comm_a, use.names = FALSE)
+#' )
+#' dat$shade <- envi$shade[match(dat$site, envi$site)]
+#' phy <- ape::keep.tip(phylotree, unique(dat$sp))
+#' fit <- pglmm(freq ~ shade + (1 | sp__) + (1 | site),
+#'   data = dat, cov_ranef = list(sp = phy)
+#' )
+#'
+#' # fitted values conditional on the estimates of random effects: Xb + Zu
+#' head(pglmm_predicted_values(fit))
+#' # leave-one-out predictions
+#' head(pglmm_predicted_values(fit, gaussian.pred = "tip_rm"))
+#' # without random effects: Xb
+#' head(pglmm_predicted_values(fit, re.form = NA))
+#'
+#' # binomial model: scale of the linear predictor (logit) or of the response
+#' dat$pa <- as.numeric(dat$freq > 0)
+#' fit_pa <- pglmm(pa ~ shade + (1 | sp__) + (1 | site),
+#'   data = dat, family = "binomial", cov_ranef = list(sp = phy)
+#' )
+#' head(pglmm_predicted_values(fit_pa))
+#' head(pglmm_predicted_values(fit_pa, type = "response"))
 pglmm_predicted_values <- function(x, cpp = TRUE,
                                    gaussian.pred = c("nearest_node", "tip_rm"),
                                    re.form = NULL,
@@ -1257,6 +1284,32 @@ communityPGLMM.predicted.values <- function(x, cpp = TRUE,
 #' @param \dots Additional arguments, ignored for method compatibility.
 #' @method residuals communityPGLMM
 #' @return A vector of residuals.
+#' @examples
+#' # community data: abundance of each species at each site
+#' dat <- data.frame(
+#'   site = rep(rownames(comm_a), times = ncol(comm_a)),
+#'   sp = rep(colnames(comm_a), each = nrow(comm_a)),
+#'   freq = unlist(comm_a, use.names = FALSE)
+#' )
+#' dat$shade <- envi$shade[match(dat$site, envi$site)]
+#' phy <- ape::keep.tip(phylotree, unique(dat$sp))
+#' fit <- pglmm(freq ~ shade + (1 | sp__) + (1 | site),
+#'   data = dat, cov_ranef = list(sp = phy)
+#' )
+#'
+#' # observed values minus fitted values (conditional on random effects)
+#' head(residuals(fit))
+#' all.equal(residuals(fit), dat$freq - fitted(fit))
+#' # divided by the residual standard deviation
+#' head(residuals(fit, scaled = TRUE))
+#'
+#' # binomial model: deviance (default) or response residuals
+#' dat$pa <- as.numeric(dat$freq > 0)
+#' fit_pa <- pglmm(pa ~ shade + (1 | sp__) + (1 | site),
+#'   data = dat, family = "binomial", cov_ranef = list(sp = phy)
+#' )
+#' head(residuals(fit_pa))
+#' head(residuals(fit_pa, type = "response"))
 #' @export
 residuals.communityPGLMM <- function(
   object,
@@ -1301,6 +1354,28 @@ residuals.communityPGLMM <- function(
 #' @param \dots Additional arguments passed to [pglmm_predicted_values()] for
 #'   gaussian models fitted with `bayes = FALSE` (e.g. `gaussian.pred`).
 #' @return Fitted values. For binomial and poisson PGLMMs, this is equal to mu.
+#' @examples
+#' # community data: presence or absence of each species at each site
+#' dat <- data.frame(
+#'   site = rep(rownames(comm_a), times = ncol(comm_a)),
+#'   sp = rep(colnames(comm_a), each = nrow(comm_a)),
+#'   freq = unlist(comm_a, use.names = FALSE)
+#' )
+#' dat$pa <- as.numeric(dat$freq > 0)
+#' dat$shade <- envi$shade[match(dat$site, envi$site)]
+#' phy <- ape::keep.tip(phylotree, unique(dat$sp))
+#'
+#' # gaussian model: fixed part plus the estimates of random effects
+#' fit <- pglmm(freq ~ shade + (1 | sp__) + (1 | site),
+#'   data = dat, cov_ranef = list(sp = phy)
+#' )
+#' head(fitted(fit))
+#'
+#' # binomial model: fitted probabilities
+#' fit_pa <- pglmm(pa ~ shade + (1 | sp__) + (1 | site),
+#'   data = dat, family = "binomial", cov_ranef = list(sp = phy)
+#' )
+#' head(fitted(fit_pa))
 #' @export
 fitted.communityPGLMM <- function(object, ...) {
   if (isTRUE(object$bayes)) {
@@ -1408,6 +1483,36 @@ fixef.communityPGLMM <- function(object, ...) {
 #'   are also columns `sd`, `lower` and `upper` (posterior standard deviation
 #'   and 95% credible interval).
 #' @seealso [VarCorr()] for the variances of random terms.
+#' @examples
+#' # community data: abundance of each species at each site
+#' dat <- data.frame(
+#'   site = rep(rownames(comm_a), times = ncol(comm_a)),
+#'   sp = rep(colnames(comm_a), each = nrow(comm_a)),
+#'   freq = unlist(comm_a, use.names = FALSE)
+#' )
+#' dat$shade <- envi$shade[match(dat$site, envi$site)]
+#' phy <- ape::keep.tip(phylotree, unique(dat$sp))
+#' fit <- pglmm(freq ~ shade + (1 | sp__) + (1 | site),
+#'   data = dat, cov_ranef = list(sp = phy)
+#' )
+#'
+#' # one data frame for each random term; (1 | sp__) is fitted as two terms
+#' re <- ranef(fit)
+#' names(re)
+#' re
+#' head(re[["1|sp__"]])
+#'
+#' # total effect of each species: non-phylogenetic plus phylogenetic
+#' data.frame(
+#'   sp = re[["1|sp"]]$sp,
+#'   estimate = re[["1|sp"]]$estimate + re[["1|sp__"]]$estimate
+#' )
+#'
+#' # with conditional standard deviations of the estimates
+#' head(ranef(fit, condVar = TRUE)[["1|sp__"]])
+#'
+#' # variances of the random terms
+#' VarCorr(fit)
 #' @importFrom lme4 ranef
 #' @export ranef
 #' @method ranef communityPGLMM
@@ -1676,6 +1781,23 @@ pglmm_ranef_bayes <- function(object) {
 #' @return A data frame with one row for each random term (and the residual
 #'   for gaussian models), with columns `Variance` and `Std.Dev`.
 #' @seealso [ranef()] for the estimates of each level of the random terms.
+#' @examples
+#' # community data: abundance of each species at each site
+#' dat <- data.frame(
+#'   site = rep(rownames(comm_a), times = ncol(comm_a)),
+#'   sp = rep(colnames(comm_a), each = nrow(comm_a)),
+#'   freq = unlist(comm_a, use.names = FALSE)
+#' )
+#' dat$shade <- envi$shade[match(dat$site, envi$site)]
+#' phy <- ape::keep.tip(phylotree, unique(dat$sp))
+#' fit <- pglmm(freq ~ shade + (1 | sp__) + (1 | site),
+#'   data = dat, cov_ranef = list(sp = phy)
+#' )
+#'
+#' VarCorr(fit)
+#' # proportion of the variance among species that is phylogenetic
+#' v <- VarCorr(fit)
+#' v["1|sp__", "Variance"] / sum(v[c("1|sp", "1|sp__"), "Variance"])
 #' @importFrom lme4 VarCorr
 #' @export VarCorr
 #' @method VarCorr communityPGLMM
@@ -1803,6 +1925,43 @@ model.frame.communityPGLMM <- function(formula, ...) {
 #' @return A matrix with one column (`Y_hat`) and one row for each row of the
 #'   data (or of `newdata`). Rows of `newdata` with missing values in the
 #'   variables needed have `NA`.
+#' @examples
+#' # community data: abundance of each species at each site
+#' dat <- data.frame(
+#'   site = rep(rownames(comm_a), times = ncol(comm_a)),
+#'   sp = rep(colnames(comm_a), each = nrow(comm_a)),
+#'   freq = unlist(comm_a, use.names = FALSE)
+#' )
+#' dat$shade <- envi$shade[match(dat$site, envi$site)]
+#' phy <- ape::keep.tip(phylotree, unique(dat$sp))
+#' fit <- pglmm(freq ~ shade + (1 | sp__) + (1 | site),
+#'   data = dat, cov_ranef = list(sp = phy)
+#' )
+#'
+#' # predictions for the data used to fit the model
+#' head(predict(fit))
+#'
+#' # predictions for new data: the response is not needed
+#' newdat <- data.frame(
+#'   sp = c("Acer_rubrum", "Acer_rubrum", "Achillea_millefolium"),
+#'   site = c("s3293", "s3294", "s3293"),
+#'   shade = c(20, 50, 80)
+#' )
+#' predict(fit, newdata = newdat)
+#' # without random effects (the grouping variables are then not needed)
+#' predict(fit, newdata = newdat, re.form = NA)
+#'
+#' # a site (or species) that was not in the data used to fit the model gives
+#' # an error, unless allow.new.levels = TRUE: its random effect is then zero
+#' newdat2 <- data.frame(sp = "Acer_rubrum", site = "a_new_site", shade = 50)
+#' predict(fit, newdata = newdat2, allow.new.levels = TRUE)
+#'
+#' # binomial model: predicted probabilities
+#' dat$pa <- as.numeric(dat$freq > 0)
+#' fit_pa <- pglmm(pa ~ shade + (1 | sp__) + (1 | site),
+#'   data = dat, family = "binomial", cov_ranef = list(sp = phy)
+#' )
+#' predict(fit_pa, newdata = newdat, type = "response")
 #' @method predict communityPGLMM
 #' @export
 predict.communityPGLMM <- function(object, newdata = NULL, re.form = NULL,
@@ -1931,6 +2090,28 @@ pglmm_predict_ranef <- function(object, newdata, allow.new.levels = FALSE) {
 #' with an approximation of the full joint posterior (rather than the marginal posterior,
 #' which is the default). This method is much slower but is often more stable, and is
 #' technically more accurate.
+#'
+#' @examples
+#' # community data: abundance of each species at each site
+#' dat <- data.frame(
+#'   site = rep(rownames(comm_a), times = ncol(comm_a)),
+#'   sp = rep(colnames(comm_a), each = nrow(comm_a)),
+#'   freq = unlist(comm_a, use.names = FALSE)
+#' )
+#' dat$shade <- envi$shade[match(dat$site, envi$site)]
+#' phy <- ape::keep.tip(phylotree, unique(dat$sp))
+#' fit <- pglmm(freq ~ shade + (1 | sp__) + (1 | site),
+#'   data = dat, cov_ranef = list(sp = phy)
+#' )
+#'
+#' # conditional on the estimates of random effects: one column per simulation
+#' sim <- simulate(fit, nsim = 3, seed = 1)
+#' dim(sim)
+#' head(sim)
+#'
+#' # with new values of random effects, drawn with their estimated variances
+#' sim <- simulate(fit, nsim = 3, seed = 1, re.form = NA)
+#' head(sim)
 #'
 #' @export
 #'
