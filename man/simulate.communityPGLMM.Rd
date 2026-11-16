@@ -24,7 +24,7 @@
 
 \item{re.form}{(formula, \code{NULL}, or \code{NA}) specify which random effects to condition on when predicting.
 If \code{NULL}, include all random effects and the conditional modes of those random effects will be included in the deterministic part of the simulation (i.e Xb + Zu);
-if \code{NA} or \code{~0}, include no random effects and new values will be chosen for each group based on the estimated random-effects variances (i.e. Xb + Zu * u_random).}
+if \code{NA} or \code{~0}, condition on none of the random effects: new values of the random effects are drawn for each group with the estimated variances of random terms.}
 
 \item{ntry}{Number of times to retry simulation in the case of \code{NA} values. Only applies
 to models fit with \code{bayes = TRUE}. If there are still \code{NA}s after \code{ntry} times, the

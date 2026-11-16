@@ -15,7 +15,9 @@
 \item{object}{A fitted model with class communityPGLMM.}
 
 \item{type}{Type of residuals, currently only "response" for gaussian pglmm;
-"deviance" (default) and "response" for binomial and poisson pglmm.}
+"deviance" (default) and "response" for binomial and poisson pglmm. For
+binomial models with more than one trial, the response is the proportion
+of successes.}
 
 \item{scaled}{Scale residuals by residual standard deviation for gaussian pglmm.}
 
@@ -25,5 +27,7 @@
 A vector of residuals.
 }
 \description{
-Getting different types of residuals for communityPGLMM objects.
+Getting different types of residuals for communityPGLMM objects. The
+residuals are conditional on the estimated random effects, i.e. the observed
+values minus the fitted values (see \code{\link[=fitted.communityPGLMM]{fitted.communityPGLMM()}}).
 }

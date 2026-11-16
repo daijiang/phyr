@@ -116,7 +116,8 @@ prep_dat_pglmm <- function(formula, data, cov_ranef = NULL, repulsion = FALSE,
       cov_ranef_list <- cov_list$cleaned_list
       cov_ranef_updated <- cov_list$updated_orgi_list
     } else {
-      cov_ranef_updated <- NULL # no need cov_ranef_list
+      cov_ranef_list <- NULL # no cov matrix needed, e.g. (1|sp@site)
+      cov_ranef_updated <- NULL
     }
 
     # number of potential repulsions (both __ and @)
@@ -1138,97 +1139,102 @@ print.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ..
 
 #' Predicted values of PGLMM
 #'
-#' \code{pglmm_predicted_values} calculates the predicted
-#' values of Y; for the generalized linear mixed model (family %in%
-#' c("binomial","poisson"), these values are in the transformed space.
+#' \code{pglmm_predicted_values} calculates the predicted values of Y. By
+#' default, they are on the scale of the linear predictor (i.e. in the
+#' transformed space for the generalized linear mixed models with
+#' family %in% c("binomial","poisson")).
 #'
 #' @rdname pglmm-predicted-values
 #' @param x A fitted model with class communityPGLMM.
 #' @param cpp Whether to use c++ code. Default is TRUE.
-#' @param gaussian.pred When family is gaussian, which type of prediction to calculate?
-#'   Option nearest_node will predict values to the nearest node, which is same as lme4::predict or
-#'   fitted. Option tip_rm will remove the point then predict the value of this point with remaining ones.
+#' @param gaussian.pred When family is gaussian and `bayes = FALSE`, which type
+#'   of prediction to calculate? Option `nearest_node` (default) gives the
+#'   fitted values conditional on the estimated random effects (i.e. Xb + Zu,
+#'   with u from [ranef()]), which is the same as `fitted()` or `predict()` of
+#'   `lme4`. Option `tip_rm` gives leave-one-out predictions: each data point is
+#'   removed, then predicted with the remaining ones (i.e. Xb plus the
+#'   prediction of its residual given the residuals of all other data points).
 #' @param re.form (formula, `NULL`, or `NA`) specify which random effects to condition on when predicting.
 #' If `NULL`, include all random effects (i.e Xb + Zu);
 #' if `NA` or `~0`, include no random effects (i.e. Xb).
+#' @param type Whether the predicted values are on the scale of the linear
+#'   predictor (`"link"`, default) or of the response (`"response"`).
 #' @param ... Optional additional parameters. None are used at present.
-#' @inheritParams lme4::predict.merMod
 #' @export
 #' @return A data frame with column Y_hat (predicted values accounting for
-#'   both fixed and random terms).
+#'   both fixed and random terms, unless `re.form` is `NA` or `~0`).
 pglmm_predicted_values <- function(x, cpp = TRUE,
                                    gaussian.pred = c("nearest_node", "tip_rm"),
                                    re.form = NULL,
                                    type = c("link", "response"), ...) {
   ptype <- match.arg(gaussian.pred)
-  if (x$bayes) {
+  type <- match.arg(type)
+  linkinv <- pglmm_linkinv(x$family)
+
+  if (!is.null(re.form)) { # re.form = NA or ~0: no random effects, Xb
+    predicted.values <- as.vector(x$X %*% x$B)
+    if (type == "response") predicted.values <- linkinv(predicted.values)
+  } else if (isTRUE(x$bayes)) {
     marginal.summ <- x$marginal.summ
     if (marginal.summ == "median") marginal.summ <- "0.5quant"
-    predicted.values <- x$inla.model$summary.fitted.values[, marginal.summ, drop = TRUE]
+    if (type == "link") {
+      predicted.values <- x$inla.model$summary.linear.predictor[, marginal.summ, drop = TRUE]
+    } else {
+      predicted.values <- x$inla.model$summary.fitted.values[, marginal.summ, drop = TRUE]
+    }
   } else {
-    if (is.null(re.form)) {
-      if (x$family == "gaussian") {
-        n <- dim(x$X)[1]
-        fit <- x$X %*% x$B
-        V <- solve(x$iV)
-        if (ptype == "nearest_node") {
-          R <- matrix(x$Y, ncol = 1) - fit # similar as lme4. predict(merMod, re.form = NULL)
-          v <- V
-          for (i in 1:n) {
-            v[i, i] <- max(V[i, -i])
-          }
-          Rhat <- v %*% x$iV %*% R # random effects
-          predicted.values <- as.numeric(fit + Rhat)
+    if (x$family == "gaussian") {
+      H <- as.vector(x$H) # H is Y - X %*% B
+      iVH <- as.vector(x$iV %*% H)
+      if (ptype == "nearest_node") {
+        # Xb + Zu: the random effects are (V - s2resid * I) %*% iV %*% H
+        predicted.values <- as.vector(x$Y) - as.numeric(x$s2resid) * iVH
+      }
+      if (ptype == "tip_rm") {
+        # prediction of H[i] given H[-i], V[i, -i] %*% solve(V[-i, -i]) %*% H[-i],
+        # which is H[i] - (iV %*% H)[i] / iV[i, i]
+        if (cpp) {
+          h <- as.vector(pglmm_gaussian_predict(as.matrix(x$iV), as.matrix(x$H)))
+        } else {
+          h <- H - iVH / diag(as.matrix(x$iV))
         }
-        if (ptype == "tip_rm") {
-          if (cpp) {
-            predicted.values <- pglmm_gaussian_predict(x$iV, x$H)
-          } else {
-            V <- solve(x$iV)
-            h <- matrix(0, nrow = n, ncol = 1)
-            for (i in 1:n) {
-              h[i] <- as.numeric(V[i, -i] %*% solve(V[-i, -i]) %*% matrix(x$H[-i]))
-              # H is Y - X %*% B
-            }
-            predicted.values <- h
-          }
-        }
+        predicted.values <- as.vector(x$X %*% x$B) + h
       }
-
-      if (x$family == "binomial") {
-        # x$H is calculated by the following lines of code
-        # Z <- X %*% B + b + (Y - mu) * size/(mu * (1 - mu))
-        # H <- Z - X %*% B
-        # this gives the solutions to the over-determined set of equations for the fixed
-        # effects X %*% B and random effects b
-        # h <- x$H + x$X %*% x$B - (x$Y - x$mu) * size/(x$mu * (1 - x$mu))
-        predicted.values <- logit(x$mu)
-      }
-
-      if (x$family == "poisson") predicted.values <- log(x$mu)
-    } else { # re.form = NA or ~0, XB
-      predicted.values <- x$X %*% x$B
+    } else if (x$family == "binomial") {
+      # mu is linkinv(X %*% B + b), with b the random effects estimated by PQL
+      predicted.values <- logit(as.vector(x$mu))
+    } else if (x$family == "poisson") {
+      predicted.values <- log(as.vector(x$mu))
+    } else {
+      stop("no predicted values for family other than gaussian, binomial and poisson, yet", call. = FALSE)
     }
-    type <- match.arg(type)
-    if (type == "response") {
-      if (x$family == "binomial") {
-        predicted.values <- make.link("logit")$linkinv(predicted.values)
-      }
-      if (x$family == "poisson") {
-        predicted.values <- make.link("log")$linkinv(predicted.values)
-      }
-    }
+    if (type == "response") predicted.values <- linkinv(predicted.values)
   }
 
   data.frame(Y_hat = predicted.values)
 }
 
+# inverse link function of a fitted model; family is a string, which can be the
+# name used by INLA for zero-inflated models (e.g. zeroinflatedbinomial1)
+pglmm_linkinv <- function(family) {
+  if (grepl("binomial", family)) {
+    return(make.link("logit")$linkinv)
+  }
+  if (grepl("poisson", family)) {
+    return(make.link("log")$linkinv)
+  }
+  identity
+}
+
+# number of trials of binomial models
+pglmm_binomial_size <- function(object) {
+  size <- object$size
+  if (is.null(size) && isTRUE(object$bayes)) size <- object$inla.model$.args$Ntrials
+  if (is.null(size)) size <- 1
+  as.numeric(size)
+}
+
 #' @rdname pglmm-predicted-values
-#' @param x A fitted model with class communityPGLMM.
-#' @param cpp Whether to use c++ code. Default is TRUE.
-#' @param gaussian.pred When family is gaussian, which type of prediction to calculate?
-#'   Option nearest_node will predict values to the nearest node, which is same as lme4::predict or
-#'   fitted. Option tip_rm will remove the point then predict the value of this point with remaining ones.
 #' @export
 communityPGLMM.predicted.values <- function(x, cpp = TRUE,
                                             gaussian.pred = c("nearest_node", "tip_rm")) {
@@ -1238,11 +1244,15 @@ communityPGLMM.predicted.values <- function(x, cpp = TRUE,
 
 #' Residuals of communityPGLMM objects
 #'
-#' Getting different types of residuals for communityPGLMM objects.
+#' Getting different types of residuals for communityPGLMM objects. The
+#' residuals are conditional on the estimated random effects, i.e. the observed
+#' values minus the fitted values (see [fitted.communityPGLMM()]).
 #'
 #' @param object A fitted model with class communityPGLMM.
 #' @param type Type of residuals, currently only "response" for gaussian pglmm;
-#'   "deviance" (default) and "response" for binomial and poisson pglmm.
+#'   "deviance" (default) and "response" for binomial and poisson pglmm. For
+#'   binomial models with more than one trial, the response is the proportion
+#'   of successes.
 #' @param scaled Scale residuals by residual standard deviation for gaussian pglmm.
 #' @param \dots Additional arguments, ignored for method compatibility.
 #' @method residuals communityPGLMM
@@ -1253,32 +1263,29 @@ residuals.communityPGLMM <- function(
   type = if (object$family %in% c("binomial", "poisson")) "deviance" else "response",
   scaled = FALSE, ...
 ) {
-  if (object$family == "gaussian") {
-    y <- object$Y
-    mu <- pglmm_predicted_values(object)$Y_hat
-    res <- switch(type,
-      deviance = stop("no deviance residuals for gaussian model", call. = FALSE),
-      response = y - mu
-    )
-    if (scaled) res / sqrt(object$s2resid)
-  }
-
-  if (object$family %in% c("binomial", "poisson")) {
-    y <- as.numeric(object$Y)
-    mu <- unname(object$mu[, 1])
-    if (object$family == "binomial") dres <- sqrt(binomial()$dev.resids(y, mu, 1))
-    if (object$family == "poisson") dres <- sqrt(poisson()$dev.resids(y, mu, 1))
-    res <- switch(type,
-      deviance = {
-        dres
-        ifelse(y > mu, dres, -dres)
-      },
-      response = y - mu
-    )
-  }
-
   if (object$family %nin% c("gaussian", "binomial", "poisson")) {
     stop("no residual methods for family other than gaussian, binomial and poisson, yet", call. = FALSE)
+  }
+  type <- match.arg(type, c("deviance", "response"))
+
+  if (object$family == "gaussian") {
+    if (type == "deviance") stop("no deviance residuals for gaussian model", call. = FALSE)
+    res <- as.numeric(object$Y) - pglmm_predicted_values(object)$Y_hat
+    if (scaled) res <- res / sqrt(as.numeric(object$s2resid))
+  } else {
+    y <- as.numeric(object$Y)
+    mu <- as.numeric(object$mu[, 1])
+    if (object$family == "binomial") {
+      size <- pglmm_binomial_size(object)
+      y <- y / size # proportion of successes
+      dres <- sqrt(binomial()$dev.resids(y, mu, rep_len(size, length(y))))
+    } else {
+      dres <- sqrt(poisson()$dev.resids(y, mu, rep(1, length(y))))
+    }
+    res <- switch(type,
+      deviance = ifelse(y > mu, dres, -dres),
+      response = y - mu
+    )
   }
 
   unname(res)
@@ -1286,14 +1293,18 @@ residuals.communityPGLMM <- function(
 
 #' Fitted values for communityPGLMM
 #'
+#' Fitted values on the scale of the response, conditional on the estimated
+#' random effects.
+#'
 #' @method fitted communityPGLMM
 #' @param object A fitted model with class communityPGLMM.
-#' @param \dots Additional arguments, ignored for method compatibility.
+#' @param \dots Additional arguments passed to [pglmm_predicted_values()] for
+#'   gaussian models fitted with `bayes = FALSE` (e.g. `gaussian.pred`).
 #' @return Fitted values. For binomial and poisson PGLMMs, this is equal to mu.
 #' @export
 fitted.communityPGLMM <- function(object, ...) {
-  if (object$bayes) {
-    ft <- pglmm_predicted_values(object, ...)$Y_hat
+  if (isTRUE(object$bayes)) {
+    ft <- pglmm_predicted_values(object, type = "response")$Y_hat
   } else {
     if (object$family %in% c("binomial", "poisson")) {
       ft <- object$mu[, 1]
@@ -1348,22 +1359,329 @@ fixef.communityPGLMM <- function(object, ...) {
 }
 
 
-#' Extract the random-effects estimates
+#' Extract group-level estimates of random effects
 #'
-#' Extract the estimates of the random-effects parameters from a fitted model.
+#' Extract the estimates of each level of each random term (e.g. one value per
+#' species for `(1 | sp)`) from a fitted model, similar to `lme4::ranef()`.
+#' To get the variances of the random terms, use [VarCorr()].
+#'
+#' For models fitted by maximum likelihood (`bayes = FALSE`), the estimates are
+#' the conditional modes (BLUPs) of the random effects given the data and the
+#' estimated parameters, \eqn{\hat{u}_k = \sigma_k^2 C_k Z_k' V^{-1} (y - X\beta)}.
+#' For binomial and poisson models, they are the conditional modes of the
+#' penalized quasi-likelihood (PQL) fit, calculated with the working response;
+#' they will be close to, but not the same as, the estimates from models fitted
+#' with a Laplace approximation (e.g. `lme4::glmer()`, `glmmTMB::glmmTMB()`).
+#' For Bayesian models (`bayes = TRUE`), the estimates are summaries of the
+#' posterior marginal distributions of the latent random effects.
+#'
+#' All estimates are on the scale of the linear predictor. They do not depend on
+#' the standardization of the covariance matrices (e.g. to have determinant of
+#' one), because the estimated variance of the random term absorbs it.
+#'
+#' A phylogenetic term such as `(1 | sp__)` is fitted as two random terms (see
+#' [pglmm()]): a non-phylogenetic one (`1|sp`) and a phylogenetic one (`1|sp__`).
+#' They are reported separately; their sum is the total effect of a species.
+#'
+#' Nested terms such as `(1 | sp__@site)` have one value for every combination
+#' of the two grouping variables that was observed in the data. Only the levels
+#' that appear in the data have an estimate (e.g. not the species that are in
+#' the phylogeny but not in the data). Note that the levels are in the order of
+#' their first appearance in the data, not sorted alphabetically as in `lme4`.
 #'
 #' @name ranef
-#' @title Extract random-effects estimates
+#' @title Extract group-level estimates of random effects
 #' @aliases ranef random.effects ranef.communityPGLMM
 #' @docType methods
 #' @param object A fitted model with class communityPGLMM.
+#' @param condVar Whether to also return the conditional standard deviations of
+#'   the estimates (column `se`), calculated conditional on the estimated fixed
+#'   effects and variances of random terms, as in `lme4`. Only used when
+#'   `bayes = FALSE`. This needs more computation than the estimates themselves
+#'   for large data sets. Default is `FALSE`.
 #' @param ... Ignored.
-#' @return A dataframe of random-effects estimates.
+#' @return A named list with one data frame for each random term, in the same
+#'   order as the random terms of the model. Each data frame has one row per
+#'   level, with one or two columns to identify the level (named after the
+#'   grouping variables), and a column `estimate`. For `bayes = FALSE` and
+#'   `condVar = TRUE`, there is also a column `se`. For `bayes = TRUE`, there
+#'   are also columns `sd`, `lower` and `upper` (posterior standard deviation
+#'   and 95% credible interval).
+#' @seealso [VarCorr()] for the variances of random terms.
 #' @importFrom lme4 ranef
 #' @export ranef
 #' @method ranef communityPGLMM
 #' @export
-ranef.communityPGLMM <- function(object, ...) {
+ranef.communityPGLMM <- function(object, condVar = FALSE, ...) {
+  if (isTRUE(object$bayes)) {
+    out <- pglmm_ranef_bayes(object)
+  } else {
+    out <- pglmm_cond_modes(object, condVar = condVar)
+  }
+  class(out) <- c("ranef.pglmm", "list")
+  out
+}
+
+#' @rdname ranef
+#' @param x Output of `ranef()`.
+#' @param n Number of rows to print for each random term.
+#' @method print ranef.pglmm
+#' @export
+print.ranef.pglmm <- function(x, n = 10L, ...) {
+  for (i in seq_along(x)) {
+    cat("$`", names(x)[i], "`\n", sep = "")
+    print(x[[i]][seq_len(min(n, nrow(x[[i]]))), , drop = FALSE], ...)
+    if (nrow(x[[i]]) > n) cat("# ...", nrow(x[[i]]) - n, "more rows\n")
+    cat("\n")
+  }
+  invisible(x)
+}
+
+# names of the random terms of a fitted model, by position in random.effects
+re_term_names <- function(object) {
+  re <- object$random.effects
+  if (!is.null(names(re))) {
+    return(names(re))
+  }
+  re.len <- vapply(re, length, 1L)
+  out <- character(length(re))
+  nn <- re.len == 3
+  out[nn] <- paste("non-nested", seq_len(sum(nn)))
+  out[!nn] <- paste("nested", seq_len(sum(!nn)))
+  out
+}
+
+# names of the grouping variables of a random term, from its name,
+# e.g. "1|sp__@site" gives c("sp", "site"); NULL if the name has no such info.
+re_group_vars <- function(term_name) {
+  if (is.null(term_name) || is.na(term_name) || !grepl("|", term_name, fixed = TRUE)) {
+    return(NULL)
+  }
+  g <- sub("^[^|]*[|]", "", term_name)
+  g <- trimws(strsplit(g, "@", fixed = TRUE)[[1]])
+  gsub("__$", "", g)
+}
+
+# data frame to identify the rows of a random term with one value per observation.
+# labels are the dimnames set by prep_dat_pglmm(), i.e. "B___A" for a term "1|A@B".
+re_obs_labels <- function(labels, term_name, obs) {
+  gv <- re_group_vars(term_name)
+  if (!is.null(labels) && length(gv) == 2 && gv[1] != gv[2]) {
+    parts <- strsplit(labels, "___", fixed = TRUE)
+    if (all(lengths(parts) == 2)) {
+      out <- data.frame(
+        vapply(parts, `[`, "", 2), vapply(parts, `[`, "", 1),
+        stringsAsFactors = FALSE
+      )
+      names(out) <- gv
+      return(out)
+    }
+  }
+  if (!is.null(labels)) {
+    return(data.frame(level = labels, stringsAsFactors = FALSE))
+  }
+  data.frame(obs = obs, stringsAsFactors = FALSE)
+}
+
+# rows of object$data that were used to fit the model (rows with NA in
+# predictors are dropped by get_design_matrix()); NULL if it cannot be determined.
+pglmm_kept_rows <- function(object) {
+  n <- nrow(object$X)
+  nd <- nrow(object$data)
+  if (is.null(nd) || nd == n) {
+    return(seq_len(n))
+  }
+  keep <- match(rownames(object$X), rownames(object$data))
+  if (length(keep) != n || anyNA(keep)) {
+    return(NULL)
+  }
+  keep
+}
+
+# drop the rows that have the same labels as an earlier row, if their values
+# are the same too (repeated observations of the same combination of levels).
+re_drop_repeated <- function(d, n_label_cols) {
+  dup <- duplicated(d[, seq_len(n_label_cols), drop = FALSE])
+  if (!any(dup)) {
+    return(d)
+  }
+  key <- do.call(paste, c(d[, seq_len(n_label_cols), drop = FALSE], sep = "\r"))
+  first <- match(key, key)
+  vals <- as.matrix(d[, -seq_len(n_label_cols), drop = FALSE])
+  if (isTRUE(all.equal(vals, vals[first, , drop = FALSE], check.attributes = FALSE))) {
+    d <- d[!dup, , drop = FALSE]
+    rownames(d) <- NULL
+  }
+  d
+}
+
+# Conditional modes (BLUPs) of the random effects of a model fitted by maximum
+# likelihood. With V the marginal covariance matrix of the (working) response,
+# H the (working) residuals, and G_k = s2_k * C_k the covariance matrix of the
+# random effects u_k of term k, u_k = G_k Z_k' V^-1 H and
+# var(u_k | y) = G_k - G_k Z_k' V^-1 Z_k G_k.
+pglmm_cond_modes <- function(object, condVar = FALSE) {
+  re <- object$random.effects
+  if (is.null(object$iV) || is.null(object$H) || !length(re)) {
+    stop("The fitted model does not have the information needed to estimate random effects.")
+  }
+  re.len <- vapply(re, length, 1L)
+  i.nn <- which(re.len == 3) # non-nested terms, in the order of object$s2r and St
+  i.ne <- which(re.len %in% c(1, 4)) # nested terms, in the order of object$s2n and nested
+  s2r <- as.numeric(object$s2r)
+  s2n <- as.numeric(object$s2n)
+  if (length(i.nn) != length(s2r) || length(i.ne) != length(s2n) ||
+    length(i.ne) != length(object$nested)) {
+    stop("The random terms of the fitted model do not match its variance estimates.")
+  }
+  term.names <- re_term_names(object)
+  n <- length(object$H)
+  iVH <- as.vector(object$iV %*% as.vector(object$H))
+  if (condVar) iV <- as.matrix(object$iV)
+  obs <- rownames(object$X)
+  if (is.null(obs)) obs <- seq_len(n)
+
+  out <- vector("list", length(re))
+  names(out) <- term.names
+
+  for (k in seq_along(i.nn)) {
+    i <- i.nn[k]
+    re.i <- re[[i]]
+    rows <- which(as.vector(object$St[k, ]) != 0)
+    # rows of Zt are chol(C_k) %*% t(Z_k), thus GZt is G_k %*% t(Z_k)
+    GZt <- s2r[k] * as.matrix(crossprod(chol(re.i[[3]]), object$Zt[rows, , drop = FALSE]))
+    gv <- gsub("__$", "", names(re.i)[2])
+    if (!length(gv) || is.na(gv) || gv == "") gv <- "level"
+    d <- data.frame(levels(re.i[[2]]), stringsAsFactors = FALSE)
+    names(d) <- gv
+    d$estimate <- as.vector(GZt %*% iVH)
+    if (condVar) {
+      v <- s2r[k] * diag(as.matrix(re.i[[3]])) - rowSums((GZt %*% iV) * GZt)
+      d$se <- sqrt(pmax(v, 0))
+    }
+    out[[i]] <- d
+  }
+
+  for (j in seq_along(i.ne)) {
+    i <- i.ne[j]
+    re.i <- re[[i]]
+    N <- object$nested[[j]]
+    if (re.len[i] == 4) { # list(1, sp, covar, site)
+      keep <- pglmm_kept_rows(object)
+      gv <- names(re.i)[c(2, 4)]
+      if (is.null(gv) || anyNA(gv) || any(gv == "")) gv <- re_group_vars(term.names[i])
+      if (length(gv) != 2 || gv[1] == gv[2]) gv <- c("group1", "group2")
+      if (is.null(keep) || length(re.i[[2]]) < max(keep)) {
+        d <- data.frame(obs = obs, stringsAsFactors = FALSE)
+      } else {
+        d <- data.frame(as.character(re.i[[2]])[keep], as.character(re.i[[4]])[keep],
+          stringsAsFactors = FALSE
+        )
+        names(d) <- gsub("__$", "", gv)
+      }
+    } else {
+      d <- re_obs_labels(rownames(N), term.names[i], obs)
+    }
+    n.lab <- ncol(d)
+    d$estimate <- s2n[j] * as.vector(N %*% iVH)
+    if (condVar) {
+      Nd <- as.matrix(N)
+      v <- s2n[j] * diag(Nd) - s2n[j]^2 * rowSums((Nd %*% iV) * Nd)
+      d$se <- sqrt(pmax(v, 0))
+    }
+    if (names(d)[1] != "obs") d <- re_drop_repeated(d, n.lab)
+    out[[i]] <- d
+  }
+
+  out
+}
+
+# Posterior summaries of the latent random effects of a model fitted by INLA.
+pglmm_ranef_bayes <- function(object) {
+  re <- object$random.effects
+  sr <- object$inla.model$summary.random
+  if (is.null(sr) || length(sr) != length(re)) {
+    stop("The fitted model does not have the posterior summaries of random effects.")
+  }
+  ms <- object$marginal.summ
+  if (is.null(ms)) ms <- "mean"
+  if (ms == "median") ms <- "0.5quant"
+  term.names <- re_term_names(object)
+
+  out <- vector("list", length(re))
+  names(out) <- term.names
+
+  # the terms were given to INLA in the order of random.effects
+  for (i in seq_along(re)) {
+    re.i <- re[[i]]
+    s <- sr[[i]]
+    n.i <- nrow(s)
+    observed <- rep(TRUE, n.i)
+    if (length(re.i) == 3) { # one value per level
+      lev <- levels(re.i[[2]])
+      gv <- gsub("__$", "", names(re.i)[2])
+      if (!length(gv) || is.na(gv) || gv == "") gv <- "level"
+      d <- data.frame(if (n.i == length(lev)) lev else lev[s$ID], stringsAsFactors = FALSE)
+      names(d) <- gv
+    } else if (length(re.i) == 4) { # one value per level of [[2]], replicated over levels of [[4]]
+      lev <- levels(re.i[[2]])
+      lev.rep <- levels(re.i[[4]])
+      gv <- names(re.i)[c(2, 4)]
+      if (is.null(gv) || anyNA(gv) || any(gv == "")) gv <- re_group_vars(term.names[i])
+      if (length(gv) != 2 || gv[1] == gv[2]) gv <- c("group1", "group2")
+      if (n.i == length(lev) * length(lev.rep)) {
+        d <- data.frame(rep(lev, times = length(lev.rep)), rep(lev.rep, each = length(lev)),
+          stringsAsFactors = FALSE
+        )
+        names(d) <- gsub("__$", "", gv)
+        observed <- paste(d[[1]], d[[2]], sep = "\r") %in%
+          paste(re.i[[2]], re.i[[4]], sep = "\r")
+      } else {
+        d <- data.frame(level = s$ID, stringsAsFactors = FALSE)
+      }
+    } else { # one value per observation
+      mat <- re.i[[length(re.i)]]
+      obs <- rownames(object$data)
+      if (is.null(obs) || length(obs) != n.i) obs <- seq_len(n.i)
+      d <- re_obs_labels(rownames(mat), term.names[i], obs)
+    }
+    d$estimate <- s[[ms]]
+    d$sd <- s[["sd"]]
+    d$lower <- s[["0.025quant"]]
+    d$upper <- s[["0.975quant"]]
+    d <- d[observed, , drop = FALSE]
+    rownames(d) <- NULL
+    out[[i]] <- d
+  }
+
+  out
+}
+
+#' Extract the variances of random terms
+#'
+#' Extract the estimated variances (and standard deviations) of the random
+#' terms from a fitted model. For Bayesian models, the credible intervals of
+#' the variances are also returned. Use [ranef()] to get the estimates for each
+#' level of the random terms.
+#'
+#' Before version 1.3.0, this table was returned by `ranef()`.
+#'
+#' @name VarCorr
+#' @title Extract variances of random terms
+#' @aliases VarCorr VarCorr.communityPGLMM
+#' @docType methods
+#' @param x A fitted model with class communityPGLMM.
+#' @param sigma Ignored.
+#' @param ... Ignored.
+#' @return A data frame with one row for each random term (and the residual
+#'   for gaussian models), with columns `Variance` and `Std.Dev`.
+#' @seealso [ranef()] for the estimates of each level of the random terms.
+#' @importFrom lme4 VarCorr
+#' @export VarCorr
+#' @method VarCorr communityPGLMM
+#' @export
+VarCorr.communityPGLMM <- function(x, sigma = 1, ...) {
+  object <- x
   w <- data.frame(Variance = c(object$s2r, object$s2n, object$s2resid))
   w$Std.Dev <- sqrt(w$Variance)
 
@@ -1429,16 +1747,173 @@ model.frame.communityPGLMM <- function(formula, ...) {
 
 #' Predict Function for communityPGLMM Model Objects
 #'
-#' @inheritParams stats::predict.lm
-#' @inherit stats::predict return
+#' Predicted values of a fitted model, for the data used to fit the model or
+#' for new data.
+#'
+#' With `newdata`, the predicted values are the fixed part (Xb) calculated
+#' with the predictors in `newdata`, plus (unless `re.form` is `NA` or `~0`)
+#' the estimates of the random effects (see [ranef()]) of the levels of the
+#' grouping variables in `newdata`:
+#'
+#' * For phylogenetic terms such as `(1 | sp__)`, the estimates of both the
+#'   non-phylogenetic and the phylogenetic random terms are added.
+#' * For random slopes such as `(x | sp)`, the estimates are multiplied by
+#'   the values of `x` in `newdata`.
+#' * For nested terms such as `(1 | sp__@site)`, the estimates are those of
+#'   the combinations of levels (e.g. of `sp` and `site`) in `newdata`.
+#' * Levels (or combinations of levels for nested terms) that were not in the
+#'   data used to fit the model have no estimate. They give an error, unless
+#'   `allow.new.levels = TRUE`, in which case their random effects are set to
+#'   zero (the predictions for them are then unconditional on these random
+#'   terms). This also applies to species that are in the phylogeny but not in
+#'   the data used to fit the model.
+#' * The observation-level random term (`1|obs`), which is added by default
+#'   for poisson and binomial (with more than one trial) models, is always set
+#'   to zero, as the rows of `newdata` are treated as new observations. As a
+#'   result, for these models, predictions with `newdata` being the data used
+#'   to fit the model are different from those without `newdata`.
+#'
+#' For models fitted with `bayes = TRUE`, predictions with `newdata` are
+#' calculated in the same way, with the posterior summaries (see
+#' `marginal.summ` of [pglmm()]) of fixed and random effects. They have no
+#' credible intervals. To get the posterior distributions of predictions, add
+#' the new data to the data with missing values for the response, and refit
+#' the model.
+#'
+#' Predictions with `newdata` and random effects are only available for
+#' models with random terms specified in the formula (i.e. not via the
+#' argument `random.effects` of [pglmm()]).
+#'
+#' @param object A fitted model with class communityPGLMM.
+#' @param newdata An optional data frame with the predictors (and the grouping
+#'   variables of random terms, unless `re.form` is `NA` or `~0`) to predict
+#'   with. The response is not needed. If `NULL` (default), predictions are for
+#'   the data used to fit the model, see [pglmm_predicted_values()].
+#' @param re.form (formula, `NULL`, or `NA`) specify which random effects to condition on when predicting.
+#'   If `NULL`, include all random effects (i.e Xb + Zu);
+#'   if `NA` or `~0`, include no random effects (i.e. Xb).
+#' @param type Whether the predicted values are on the scale of the linear
+#'   predictor (`"link"`, default) or of the response (`"response"`).
+#' @param allow.new.levels Whether to allow levels of grouping variables in
+#'   `newdata` that were not in the data used to fit the model. If `TRUE`,
+#'   their random effects are set to zero; if `FALSE` (default), they give an
+#'   error. Only used with `newdata`.
+#' @param ... Additional arguments passed to [pglmm_predicted_values()] when
+#'   `newdata` is `NULL`, e.g. `gaussian.pred`.
+#' @return A matrix with one column (`Y_hat`) and one row for each row of the
+#'   data (or of `newdata`). Rows of `newdata` with missing values in the
+#'   variables needed have `NA`.
 #' @method predict communityPGLMM
 #' @export
-predict.communityPGLMM <- function(object, newdata = NULL, ...) {
-  if (!is.null(newdata)) {
-    warning("newdata argument is currently not supported by predict.communityPGLMM. It will be ignored, and predictions
-            returned on original data used to fit the model. newdata will be supported in the future.")
+predict.communityPGLMM <- function(object, newdata = NULL, re.form = NULL,
+                                   type = c("link", "response"),
+                                   allow.new.levels = FALSE, ...) {
+  type <- match.arg(type)
+  if (is.null(newdata)) {
+    return(as.matrix(pglmm_predicted_values(object, re.form = re.form, type = type, ...)))
   }
-  as.matrix(pglmm_predicted_values(object, ...))
+
+  newdata <- as.data.frame(newdata) # in case of tibbles
+  eta <- pglmm_predict_fixed(object, newdata)
+  if (is.null(re.form)) {
+    eta <- eta + pglmm_predict_ranef(object, newdata, allow.new.levels = allow.new.levels)
+  } else if (!(identical(re.form, NA) ||
+    (inherits(re.form, "formula") && identical(deparse(re.form), "~0")))) {
+    stop("Formula for random effects to condition on currently is not supported yet")
+  }
+  if (type == "response") eta <- pglmm_linkinv(object$family)(eta)
+
+  out <- matrix(eta, ncol = 1, dimnames = list(rownames(newdata), "Y_hat"))
+  out
+}
+
+# Fixed part (Xb) of the predictions for new data. The design matrix is built
+# with the factor levels, contrasts, and data-dependent terms (e.g. poly(),
+# scale()) of the data used to fit the model.
+pglmm_predict_fixed <- function(object, newdata) {
+  mf0 <- model.frame(object$formula, data = object$data, na.action = NULL)
+  tt <- delete.response(terms(mf0))
+  vars.missing <- setdiff(all.vars(tt), names(newdata))
+  if (length(vars.missing)) {
+    stop("newdata does not have the predictor(s): ", paste(vars.missing, collapse = ", "),
+      call. = FALSE
+    )
+  }
+  contr <- attr(model.matrix(terms(mf0), data = mf0), "contrasts")
+  mf <- model.frame(tt, data = newdata, na.action = na.pass, xlev = .getXlevels(tt, mf0))
+  X <- model.matrix(tt, data = mf, contrasts.arg = contr)
+  B <- as.vector(object$B)
+  if (ncol(X) != length(B) || !identical(colnames(X), colnames(object$X))) {
+    stop("The design matrix of newdata does not match the fixed effects of the model.",
+      call. = FALSE
+    )
+  }
+  as.vector(X %*% B)
+}
+
+# Random part (Zu) of the predictions for new data: sum of the estimates of the
+# random effects of the levels in newdata, over all random terms.
+pglmm_predict_ranef <- function(object, newdata, allow.new.levels = FALSE) {
+  r <- ranef(object)
+  re <- object$random.effects
+  n <- nrow(newdata)
+  out <- rep(0, n)
+  # observation-level random term added by pglmm(): rows of newdata are new observations
+  use <- !(names(r) == "1|obs" & vapply(re, length, 1L) == 1)
+
+  # variables of each random term: grouping variables, and the covariate of slopes
+  term.vars <- vector("list", length(r))
+  for (i in which(use)) {
+    term <- names(r)[i]
+    gv <- re_group_vars(term)
+    if (is.null(gv) || !all(gv %in% names(r[[i]]))) {
+      stop("Predictions with newdata are not available for the random term '", term,
+        "'; they need random terms specified in the formula. Use re.form = NA for ",
+        "predictions without random effects.",
+        call. = FALSE
+      )
+    }
+    lhs <- trimws(sub("[|].*$", "", term)) # 1 for intercepts
+    term.vars[[i]] <- list(group = gv, slope = if (lhs != "1") lhs)
+  }
+  vars.missing <- setdiff(unlist(term.vars), names(newdata))
+  if (length(vars.missing)) {
+    stop("newdata does not have the variable(s) of random terms: ",
+      paste(vars.missing, collapse = ", "),
+      ". Use re.form = NA for predictions without random effects.",
+      call. = FALSE
+    )
+  }
+
+  for (i in which(use)) {
+    term <- names(r)[i]
+    e <- r[[i]]
+    gv <- term.vars[[i]]$group
+    lhs <- term.vars[[i]]$slope
+
+    key.est <- do.call(paste, c(lapply(gv, function(g) as.character(e[[g]])), sep = "\r"))
+    key.new <- do.call(paste, c(lapply(gv, function(g) as.character(newdata[[g]])), sep = "\r"))
+    est <- e$estimate[match(key.new, key.est)]
+    na.group <- !complete.cases(newdata[gv])
+    new.level <- is.na(est) & !na.group
+    if (any(new.level)) {
+      if (!allow.new.levels) {
+        new.labels <- unique(gsub("\r", ":", key.new[new.level], fixed = TRUE))
+        stop("newdata has levels of the random term '", term,
+          "' that were not in the data used to fit the model: ",
+          paste(new.labels[seq_len(min(5, length(new.labels)))], collapse = ", "),
+          if (length(new.labels) > 5) ", ...",
+          ". Use allow.new.levels = TRUE to set their random effects to zero.",
+          call. = FALSE
+        )
+      }
+      est[new.level] <- 0
+    }
+    est[na.group] <- NA
+    if (!is.null(lhs)) est <- est * as.numeric(newdata[[lhs]])
+    out <- out + est
+  }
+  out
 }
 
 #' Simulate from a communityPGLMM object
@@ -1446,7 +1921,7 @@ predict.communityPGLMM <- function(object, newdata = NULL, ...) {
 #' @inheritParams lme4::simulate.merMod
 #' @param re.form (formula, `NULL`, or `NA`) specify which random effects to condition on when predicting.
 #' If `NULL`, include all random effects and the conditional modes of those random effects will be included in the deterministic part of the simulation (i.e Xb + Zu);
-#' if `NA` or `~0`, include no random effects and new values will be chosen for each group based on the estimated random-effects variances (i.e. Xb + Zu * u_random).
+#' if `NA` or `~0`, condition on none of the random effects: new values of the random effects are drawn for each group with the estimated variances of random terms.
 #' @param object A fitted model object with class 'communityPGLMM'.
 #' @param ntry Number of times to retry simulation in the case of `NA` values. Only applies
 #' to models fit with `bayes = TRUE`. If there are still `NA`s after `ntry` times, the
@@ -1466,29 +1941,23 @@ simulate.communityPGLMM <- function(object, nsim = 1, seed = NULL,
   # sim <- INLA::inla.posterior.sample(nsim, object$inla.model)
 
   if (!object$bayes) {
-    # when re.form = NULL, pglmm and lme4 have the same predict and simulate values
-    # for gaussion, binomial, and poisson distributions.
-    nn <- nrow(object$iV)
+    nn <- nrow(object$X)
 
     if (is.null(re.form)) {
+      # condition on all random effects: Xb + Zu, with u their estimates
       sim <- pglmm_predicted_values(object, re.form = NULL, type = "link")$Y_hat
       sim <- sim %*% matrix(1, 1, nsim)
-      if (object$family == "gaussian") {
-        sim <- sim + sqrt(object$s2resid) * matrix(rnorm(nsim * nn), nrow = nn)
-      }
+    } else if (identical(re.form, NA) ||
+      (inherits(re.form, "formula") && identical(deparse(re.form), "~0"))) {
+      # condition on none of the random effects: Xb + Zu, with new values of u
+      # drawn with the estimated variances of random terms
+      sim <- as.vector(object$X %*% object$B) %*% matrix(1, 1, nsim)
+      sim <- sim + pglmm_sim_ranef(object, nsim)
     } else {
-      re.form <- deparse(NA)
-      if (deparse(re.form) == "~0" | deparse(re.form) == "NA") {
-        # condition on none of the random effects
-        sim <- (object$X %*% object$B) %*% matrix(1, 1, nsim)
-        chol.V <- backsolve(chol(object$iV), diag(nn))
-        sim <- sim + chol.V %*% matrix(rnorm(nsim * nn), nrow = nn)
-        if (object$family == "gaussian") {
-          sim <- sim + matrix(rnorm(nsim * nn), nrow = nn)
-        }
-      } else {
-        stop("Formula for random effects to condition on currently is not supported yet")
-      }
+      stop("Formula for random effects to condition on currently is not supported yet")
+    }
+    if (object$family == "gaussian") {
+      sim <- sim + sqrt(as.numeric(object$s2resid)) * matrix(rnorm(nsim * nn), nrow = nn)
     }
     if (object$family == "poisson") {
       mu_sim <- make.link("log")$linkinv(sim) # exp(sim)
@@ -1496,7 +1965,7 @@ simulate.communityPGLMM <- function(object, nsim = 1, seed = NULL,
     }
     if (object$family == "binomial") {
       mu_sim <- make.link("logit")$linkinv(sim) # 1/(1 + exp(-sim))
-      Ntrials <- object$size
+      Ntrials <- pglmm_binomial_size(object)
       sim <- apply(mu_sim, MARGIN = 2, FUN = function(x) rbinom(length(x), Ntrials, x))
     }
   } else { # beyes version
@@ -1507,13 +1976,42 @@ simulate.communityPGLMM <- function(object, nsim = 1, seed = NULL,
   sim
 }
 
-bayes_simulate <- function(object, nsim = 250, re.form, ntry = 5, full = FALSE) {
-  if (object$bayes && object$family == "binomial" &&
-    !is.null(object$inla.model$Ntrials)) {
-    Ntrials <- object$inla.model$Ntrials
-  } else {
-    Ntrials <- 1
+# Draw new values of the random effects of all random terms with their estimated
+# variances, and sum them for each observation. Returns a matrix with one row
+# per observation and nsim columns.
+pglmm_sim_ranef <- function(object, nsim) {
+  n <- nrow(object$X)
+  out <- matrix(0, n, nsim)
+  s2r <- as.numeric(object$s2r)
+  s2n <- as.numeric(object$s2n)
+  if (!is.null(object$Zt) && length(s2r)) {
+    # rows of Zt are chol(C_k) %*% t(Z_k) for the non-nested term k, thus
+    # t(Zt_k) %*% z has covariance matrix Z_k %*% C_k %*% t(Z_k)
+    sd.rows <- sqrt(as.vector(crossprod(object$St, s2r)))
+    z <- sd.rows * matrix(rnorm(nrow(object$Zt) * nsim), ncol = nsim)
+    out <- out + as.matrix(crossprod(object$Zt, z))
   }
+  for (j in seq_along(object$nested)) {
+    out <- out + sqrt(s2n[j]) * rmvnorm_cov(as.matrix(object$nested[[j]]), nsim)
+  }
+  out
+}
+
+# nsim draws (as columns) from a multivariate normal distribution with mean zero
+# and covariance matrix S, which can be singular.
+rmvnorm_cov <- function(S, nsim) {
+  n <- nrow(S)
+  z <- matrix(rnorm(n * nsim), nrow = n)
+  R <- tryCatch(chol(S), error = function(e) NULL)
+  if (!is.null(R)) {
+    return(crossprod(R, z))
+  }
+  e <- eigen(S, symmetric = TRUE)
+  e$vectors %*% (sqrt(pmax(e$values, 0)) * z)
+}
+
+bayes_simulate <- function(object, nsim = 250, re.form, ntry = 5, full = FALSE) {
+  Ntrials <- if (object$family == "binomial") pglmm_binomial_size(object) else 1
 
   if (is.null(re.form)) {
     if (full) {

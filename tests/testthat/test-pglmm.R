@@ -242,8 +242,10 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   # })
 
   test_that("test predicted values of gaussian pglmm", {
+    # pez predicts the residuals only, without the fixed effects
     expect_equal(
-      phyr::communityPGLMM.predicted.values(test1_gaussian_cpp, gaussian.pred = "tip_rm")$Y_hat,
+      phyr::communityPGLMM.predicted.values(test1_gaussian_cpp, gaussian.pred = "tip_rm")$Y_hat -
+        as.vector(test1_gaussian_cpp$X %*% test1_gaussian_cpp$B),
       pez::communityPGLMM.predicted.values(test1_gaussian_cpp, show.plot = FALSE)[, 1],
       ignore_attr = TRUE
     )

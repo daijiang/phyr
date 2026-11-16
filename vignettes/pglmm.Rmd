@@ -38,6 +38,7 @@ All models fitted with `pglmm()` have class of `communityPGLMM`. Here is a list 
 - `pglmm_matrix_structure()`: produce the whole covariance matrix 
 - `pglmm_plot_re()`: plot images of random term matrix, see vignettes `plot-re`          
 - `pglmm_predicted_values()` or `fitted()`: extract fitted values
+- `predict()`: predicted values, also for new data (`newdata`)
 - `pglmm_profile_LRT()`: to test significance of random terms; only works with binomial models 
 - `plot_data()`: plot data used (and optionally predicted) by fitted model
 - `plot_bayes()`: plot posterior distributions of random and fixed effects
@@ -45,7 +46,8 @@ All models fitted with `pglmm()` have class of `communityPGLMM`. Here is a list 
 - `print()`: summary of model fit
 - `residuals()`: residuals values
 - `fixef()`: estimates of fixed effects
-- `ranef()`: estimates of random terms (variance and standard deviation)
+- `ranef()`: estimates of each level of random terms (e.g. one value per species)
+- `VarCorr()`: variances and standard deviations of random terms
 
 
 

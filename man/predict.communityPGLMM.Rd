@@ -4,21 +4,80 @@
 \alias{predict.communityPGLMM}
 \title{Predict Function for communityPGLMM Model Objects}
 \usage{
-\method{predict}{communityPGLMM}(object, newdata = NULL, ...)
+\method{predict}{communityPGLMM}(
+  object,
+  newdata = NULL,
+  re.form = NULL,
+  type = c("link", "response"),
+  allow.new.levels = FALSE,
+  ...
+)
 }
 \arguments{
-\item{object}{Object of class inheriting from \code{"lm"}}
+\item{object}{A fitted model with class communityPGLMM.}
 
-\item{newdata}{An optional data frame in which to look for variables with
-    which to predict.  If omitted, the fitted values are used.}
+\item{newdata}{An optional data frame with the predictors (and the grouping
+variables of random terms, unless \code{re.form} is \code{NA} or \code{~0}) to predict
+with. The response is not needed. If \code{NULL} (default), predictions are for
+the data used to fit the model, see \code{\link[=pglmm_predicted_values]{pglmm_predicted_values()}}.}
 
-\item{...}{further arguments passed to or from other methods.}
+\item{re.form}{(formula, \code{NULL}, or \code{NA}) specify which random effects to condition on when predicting.
+If \code{NULL}, include all random effects (i.e Xb + Zu);
+if \code{NA} or \code{~0}, include no random effects (i.e. Xb).}
+
+\item{type}{Whether the predicted values are on the scale of the linear
+predictor (\code{"link"}, default) or of the response (\code{"response"}).}
+
+\item{allow.new.levels}{Whether to allow levels of grouping variables in
+\code{newdata} that were not in the data used to fit the model. If \code{TRUE},
+their random effects are set to zero; if \code{FALSE} (default), they give an
+error. Only used with \code{newdata}.}
+
+\item{...}{Additional arguments passed to \code{\link[=pglmm_predicted_values]{pglmm_predicted_values()}} when
+\code{newdata} is \code{NULL}, e.g. \code{gaussian.pred}.}
 }
 \value{
-The form of the value returned by \code{predict} depends on the
-  class of its argument.  See the documentation of the
-  particular methods for details of what is produced by that method.
+A matrix with one column (\code{Y_hat}) and one row for each row of the
+data (or of \code{newdata}). Rows of \code{newdata} with missing values in the
+variables needed have \code{NA}.
 }
 \description{
-Predict Function for communityPGLMM Model Objects
+Predicted values of a fitted model, for the data used to fit the model or
+for new data.
+}
+\details{
+With \code{newdata}, the predicted values are the fixed part (Xb) calculated
+with the predictors in \code{newdata}, plus (unless \code{re.form} is \code{NA} or \code{~0})
+the estimates of the random effects (see \code{\link[=ranef]{ranef()}}) of the levels of the
+grouping variables in \code{newdata}:
+\itemize{
+\item For phylogenetic terms such as \code{(1 | sp__)}, the estimates of both the
+non-phylogenetic and the phylogenetic random terms are added.
+\item For random slopes such as \code{(x | sp)}, the estimates are multiplied by
+the values of \code{x} in \code{newdata}.
+\item For nested terms such as \code{(1 | sp__@site)}, the estimates are those of
+the combinations of levels (e.g. of \code{sp} and \code{site}) in \code{newdata}.
+\item Levels (or combinations of levels for nested terms) that were not in the
+data used to fit the model have no estimate. They give an error, unless
+\code{allow.new.levels = TRUE}, in which case their random effects are set to
+zero (the predictions for them are then unconditional on these random
+terms). This also applies to species that are in the phylogeny but not in
+the data used to fit the model.
+\item The observation-level random term (\code{1|obs}), which is added by default
+for poisson and binomial (with more than one trial) models, is always set
+to zero, as the rows of \code{newdata} are treated as new observations. As a
+result, for these models, predictions with \code{newdata} being the data used
+to fit the model are different from those without \code{newdata}.
+}
+
+For models fitted with \code{bayes = TRUE}, predictions with \code{newdata} are
+calculated in the same way, with the posterior summaries (see
+\code{marginal.summ} of \code{\link[=pglmm]{pglmm()}}) of fixed and random effects. They have no
+credible intervals. To get the posterior distributions of predictions, add
+the new data to the data with missing values for the response, and refit
+the model.
+
+Predictions with \code{newdata} and random effects are only available for
+models with random terms specified in the formula (i.e. not via the
+argument \code{random.effects} of \code{\link[=pglmm]{pglmm()}}).
 }

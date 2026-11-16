@@ -25,25 +25,30 @@ communityPGLMM.predicted.values(
 
 \item{cpp}{Whether to use c++ code. Default is TRUE.}
 
-\item{gaussian.pred}{When family is gaussian, which type of prediction to calculate?
-Option nearest_node will predict values to the nearest node, which is same as lme4::predict or
-fitted. Option tip_rm will remove the point then predict the value of this point with remaining ones.}
+\item{gaussian.pred}{When family is gaussian and \code{bayes = FALSE}, which type
+of prediction to calculate? Option \code{nearest_node} (default) gives the
+fitted values conditional on the estimated random effects (i.e. Xb + Zu,
+with u from \code{\link[=ranef]{ranef()}}), which is the same as \code{fitted()} or \code{predict()} of
+\code{lme4}. Option \code{tip_rm} gives leave-one-out predictions: each data point is
+removed, then predicted with the remaining ones (i.e. Xb plus the
+prediction of its residual given the residuals of all other data points).}
 
 \item{re.form}{(formula, \code{NULL}, or \code{NA}) specify which random effects to condition on when predicting.
 If \code{NULL}, include all random effects (i.e Xb + Zu);
 if \code{NA} or \code{~0}, include no random effects (i.e. Xb).}
 
-\item{type}{character string - either \code{"link"}, the default, or
-    \code{"response"} indicating the type of prediction object returned.}
+\item{type}{Whether the predicted values are on the scale of the linear
+predictor (\code{"link"}, default) or of the response (\code{"response"}).}
 
 \item{...}{Optional additional parameters. None are used at present.}
 }
 \value{
 A data frame with column Y_hat (predicted values accounting for
-both fixed and random terms).
+both fixed and random terms, unless \code{re.form} is \code{NA} or \code{~0}).
 }
 \description{
-\code{pglmm_predicted_values} calculates the predicted
-values of Y; for the generalized linear mixed model (family \%in\%
-c("binomial","poisson"), these values are in the transformed space.
+\code{pglmm_predicted_values} calculates the predicted values of Y. By
+default, they are on the scale of the linear predictor (i.e. in the
+transformed space for the generalized linear mixed models with
+family \%in\% c("binomial","poisson")).
 }

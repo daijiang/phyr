@@ -1537,7 +1537,7 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     zi.ci = zeroinflated_param.ci,
     logLik = out$mlik[1, 1], AIC = NULL, BIC = NULL, DIC = DIC, WAIC = WAIC,
     REML = NULL, bayes = TRUE, marginal.summ = marginal.summ,
-    s2.init = s2.init, B.init = B.init, Y = Y, X = X, H = H,
+    s2.init = s2.init, B.init = B.init, Y = Y, size = Ntrials, X = X, H = H,
     iV = NULL, mu = mu, nested = nested, Zt = NULL, St = NULL,
     convcode = NULL, niter = NULL, inla.model = out
   )

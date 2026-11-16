@@ -9,11 +9,13 @@
 \arguments{
 \item{object}{A fitted model with class communityPGLMM.}
 
-\item{\dots}{Additional arguments, ignored for method compatibility.}
+\item{\dots}{Additional arguments passed to \code{\link[=pglmm_predicted_values]{pglmm_predicted_values()}} for
+gaussian models fitted with \code{bayes = FALSE} (e.g. \code{gaussian.pred}).}
 }
 \value{
 Fitted values. For binomial and poisson PGLMMs, this is equal to mu.
 }
 \description{
-Fitted values for communityPGLMM
+Fitted values on the scale of the response, conditional on the estimated
+random effects.
 }

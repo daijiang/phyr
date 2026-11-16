@@ -338,8 +338,8 @@ pglmm_compare <- function(formula, family = "gaussian",
                     DIC = z$DIC, 
                     bayes = TRUE, marginal.summ = z$marginal.summ, 
                     s2.init = z$s2.init, B.init = z$B.init, Y = z$Y, X = z$X, H = z$H, 
-                    iV = NULL, mu = NULL, nested = z$nested, Zt = NULL, St = NULL, 
-                    convcode = NULL, niter = NULL, inla.model = z$out)
+                    iV = NULL, mu = z$mu, nested = z$nested, Zt = NULL, St = NULL, 
+                    convcode = NULL, niter = NULL, inla.model = z$inla.model)
   }
   class(results) <- "pglmm_compare"
   results

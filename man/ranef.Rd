@@ -5,21 +5,69 @@
 \alias{ranef}
 \alias{ranef.communityPGLMM}
 \alias{random.effects}
-\title{Extract random-effects estimates}
+\alias{print.ranef.pglmm}
+\title{Extract group-level estimates of random effects}
 \usage{
-\method{ranef}{communityPGLMM}(object, ...)
+\method{ranef}{communityPGLMM}(object, condVar = FALSE, ...)
+
+\method{print}{ranef.pglmm}(x, n = 10L, ...)
 }
 \arguments{
 \item{object}{A fitted model with class communityPGLMM.}
 
+\item{condVar}{Whether to also return the conditional standard deviations of
+the estimates (column \code{se}), calculated conditional on the estimated fixed
+effects and variances of random terms, as in \code{lme4}. Only used when
+\code{bayes = FALSE}. This needs more computation than the estimates themselves
+for large data sets. Default is \code{FALSE}.}
+
 \item{...}{Ignored.}
+
+\item{x}{Output of \code{ranef()}.}
+
+\item{n}{Number of rows to print for each random term.}
 }
 \value{
-A dataframe of random-effects estimates.
+A named list with one data frame for each random term, in the same
+order as the random terms of the model. Each data frame has one row per
+level, with one or two columns to identify the level (named after the
+grouping variables), and a column \code{estimate}. For \code{bayes = FALSE} and
+\code{condVar = TRUE}, there is also a column \code{se}. For \code{bayes = TRUE}, there
+are also columns \code{sd}, \code{lower} and \code{upper} (posterior standard deviation
+and 95\% credible interval).
 }
 \description{
-Extract the random-effects estimates
+Extract group-level estimates of random effects
 }
 \details{
-Extract the estimates of the random-effects parameters from a fitted model.
+Extract the estimates of each level of each random term (e.g. one value per
+species for \code{(1 | sp)}) from a fitted model, similar to \code{lme4::ranef()}.
+To get the variances of the random terms, use \code{\link[=VarCorr]{VarCorr()}}.
+
+For models fitted by maximum likelihood (\code{bayes = FALSE}), the estimates are
+the conditional modes (BLUPs) of the random effects given the data and the
+estimated parameters, \eqn{\hat{u}_k = \sigma_k^2 C_k Z_k' V^{-1} (y - X\beta)}.
+For binomial and poisson models, they are the conditional modes of the
+penalized quasi-likelihood (PQL) fit, calculated with the working response;
+they will be close to, but not the same as, the estimates from models fitted
+with a Laplace approximation (e.g. \code{lme4::glmer()}, \code{glmmTMB::glmmTMB()}).
+For Bayesian models (\code{bayes = TRUE}), the estimates are summaries of the
+posterior marginal distributions of the latent random effects.
+
+All estimates are on the scale of the linear predictor. They do not depend on
+the standardization of the covariance matrices (e.g. to have determinant of
+one), because the estimated variance of the random term absorbs it.
+
+A phylogenetic term such as \code{(1 | sp__)} is fitted as two random terms (see
+\code{\link[=pglmm]{pglmm()}}): a non-phylogenetic one (\code{1|sp}) and a phylogenetic one (\code{1|sp__}).
+They are reported separately; their sum is the total effect of a species.
+
+Nested terms such as \code{(1 | sp__@site)} have one value for every combination
+of the two grouping variables that was observed in the data. Only the levels
+that appear in the data have an estimate (e.g. not the species that are in
+the phylogeny but not in the data). Note that the levels are in the order of
+their first appearance in the data, not sorted alphabetically as in \code{lme4}.
+}
+\seealso{
+\code{\link[=VarCorr]{VarCorr()}} for the variances of random terms.
 }
