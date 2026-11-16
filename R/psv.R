@@ -43,7 +43,7 @@
 psv <- function(comm, tree, compute.var = TRUE, scale.vcv = TRUE,
                 prune.tree = FALSE, cpp = TRUE) {
   # Make comm matrix a pa matrix
-  if (any(comm > 1)) comm[comm > 0] = 1
+  comm[!is.na(comm) & comm > 0] = 1
   
   flag = 0
   # if the comm matrix only has one site

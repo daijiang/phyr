@@ -87,11 +87,11 @@ rm_site_noobs = function(df, warn = FALSE) {
 #' @export
 #'
 match_comm_tree = function(comm, tree, comm_2 = NULL){
-  if(class(comm) %nin% c("data.frame", "matrix")){
+  if(!inherits(comm, c("data.frame", "matrix"))){
     stop("Community data needs to be a data frame or a matrix")
   }
 
-  if(!is.null(comm_2) & (class(comm_2) %nin% c("data.frame", "matrix"))){
+  if(!is.null(comm_2) && !inherits(comm_2, c("data.frame", "matrix"))){
     stop("Community data needs to be a data frame or a matrix")
   }
 

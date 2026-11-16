@@ -23,7 +23,7 @@ communityPGLMM.predicted.values(
 \arguments{
 \item{x}{A fitted model with class communityPGLMM.}
 
-\item{cpp}{Whether to use c++ code. Default is TRUE.}
+\item{cpp}{Not used anymore.}
 
 \item{gaussian.pred}{When family is gaussian and \code{bayes = FALSE}, which type
 of prediction to calculate? Option \code{nearest_node} (default) gives the

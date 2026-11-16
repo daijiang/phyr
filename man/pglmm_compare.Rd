@@ -184,7 +184,6 @@ Only present if \code{bayes = TRUE}}
 To get residuals after accounting for both fixed and random terms, use \code{residuals()}.
 For the generalized linear mixed model, these are the predicted residuals in the
 logit -1 space.}
-\item{iV}{the inverse of the covariance matrix. This is NULL if \code{bayes = TRUE}.}
 \item{mu}{predicted mean values for the generalized linear mixed model (i.e. similar to \code{fitted(merMod)}).
 Set to NULL for linear mixed models, for which we can use \code{\link[=fitted]{fitted()}}.}
 \item{Zt}{the design matrix for random effects. This is set to NULL if \code{bayes = TRUE}}

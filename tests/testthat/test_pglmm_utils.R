@@ -50,7 +50,7 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   # pez predicts the residuals only, without the fixed effects
   expect_equal(
     phyr::pglmm_predicted_values(x2, gaussian.pred = 'tip_rm')$Y_hat - as.vector(x2$X %*% x2$B), 
-    pez::communityPGLMM.predicted.values(x2, show.plot = FALSE)[, 1], ignore_attr = TRUE
+    pez::communityPGLMM.predicted.values(c(x2, list(iV = pglmm_iV(x2))), show.plot = FALSE)[, 1], ignore_attr = TRUE
   )
   
   # test simulation

@@ -246,7 +246,10 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
     expect_equal(
       phyr::communityPGLMM.predicted.values(test1_gaussian_cpp, gaussian.pred = "tip_rm")$Y_hat -
         as.vector(test1_gaussian_cpp$X %*% test1_gaussian_cpp$B),
-      pez::communityPGLMM.predicted.values(test1_gaussian_cpp, show.plot = FALSE)[, 1],
+      # pez needs iV, which is not stored anymore
+      pez::communityPGLMM.predicted.values(
+        c(test1_gaussian_cpp, list(iV = pglmm_iV(test1_gaussian_cpp))), show.plot = FALSE
+      )[, 1],
       ignore_attr = TRUE
     )
   })

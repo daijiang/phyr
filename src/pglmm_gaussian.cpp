@@ -4,6 +4,9 @@
 #include "RcppArmadillo.h"
 #include "pglmm_utils.h"   // detect_n_sp, verify_block_structure, block_chol
 #include <nloptrAPI.h>     // OPT-D: NLopt C API via R_GetCCallable
+#include <unordered_map>
+#include <string>
+#include <vector>
 
 using namespace Rcpp;
 using namespace arma;
@@ -57,8 +60,7 @@ double pglmm_gaussian_LL_cpp(NumericVector par,
   int  n_sp_g   = 0, n_site_g = 0;
   bool use_blk_g = false;
   if (q_Nested > 0 && q_nonNested == 0) {
-    arma::sp_mat nj0_sp = nested[0];
-    n_sp_g   = find_block_size(nj0_sp, n);
+    n_sp_g = find_block_size_all(nested, q_Nested, n);
     n_site_g = (n_sp_g > 0) ? n / n_sp_g : 0;
     use_blk_g = (n_sp_g > 0);
   }
@@ -453,7 +455,166 @@ List pglmm_gaussian_LL_calc_cpp(NumericVector par,
     _["s2n"]     = s2n,
     _["s2r"]     = s2r,
     _["s2resid"] = s2resid,
-    _["iV"]      = iV_scaled,
+    _["H"]       = H
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Models with non-nested random terms only (q_Nested == 0).
+// Everything the profiled (RE)ML likelihood and its gradient need can be
+// written with statistics that do not depend on the parameters:
+//   G = Zt Zt' (Q x Q), ZX = Zt X (Q x p), Zy = Zt y (Q), X'X, X'y,
+// which are computed once per fit. With c the Q-vector of standard deviations
+// of the rows of Zt (Ut = diag(c) Zt, V = I + Ut' Ut), each evaluation needs
+// only K = I + diag(c) G diag(c) (Q x Q): one Cholesky and one triangular
+// inverse, with no dense work of size n (Woodbury identity and the matrix
+// determinant lemma: V^-1 = I - Ut' K^-1 Ut, log|V| = log|K|).
+struct GaussQ_pre {
+  arma::mat G;      // Q x Q
+  arma::mat ZX;     // Q x p
+  arma::vec Zy;     // Q
+  arma::mat XtX;    // p x p
+  arma::vec Xty;    // p
+  const arma::mat* X;
+  const arma::vec* Y;
+  arma::mat St_d;   // q x Q (0/1)
+  int n, p, Q, q;
+  bool REML;
+};
+
+static void gauss_q_precompute(GaussQ_pre& P, const arma::mat& X, const arma::vec& Y,
+                               const arma::sp_mat& Zt, const arma::sp_mat& St, bool REML) {
+  P.n = X.n_rows; P.p = X.n_cols; P.Q = Zt.n_rows; P.q = St.n_rows; P.REML = REML;
+  // G = Zt Zt' from the unique columns of Zt (observations of the same levels
+  // have the same column): G = Zu diag(count) Zu'
+  {
+    std::unordered_map<std::string, arma::uword> seen;
+    std::vector<arma::uword> first;
+    std::vector<double> cnt;
+    for (int j = 0; j < P.n; ++j) {
+      std::string key;
+      for (arma::sp_mat::const_col_iterator it = Zt.begin_col(j); it != Zt.end_col(j); ++it) {
+        arma::uword r = it.row();
+        double v = *it;
+        key.append((const char*)&r, sizeof(r));
+        key.append((const char*)&v, sizeof(v));
+      }
+      std::unordered_map<std::string, arma::uword>::iterator f = seen.find(key);
+      if (f == seen.end()) {
+        seen.emplace(key, (arma::uword)first.size());
+        first.push_back((arma::uword)j);
+        cnt.push_back(1.0);
+      } else {
+        cnt[f->second] += 1.0;
+      }
+    }
+    int n_u = (int)first.size();
+    arma::mat Zu(P.Q, n_u, arma::fill::zeros);
+    for (int g = 0; g < n_u; ++g) {
+      for (arma::sp_mat::const_col_iterator it = Zt.begin_col(first[g]); it != Zt.end_col(first[g]); ++it) {
+        Zu(it.row(), g) = *it;
+      }
+    }
+    arma::mat ZuC = Zu;
+    ZuC.each_row() %= arma::rowvec(cnt);
+    P.G = ZuC * Zu.t();
+  }
+  P.ZX  = arma::mat(Zt * X);
+  P.Zy  = arma::vec(Zt * Y);
+  P.XtX = X.t() * X;
+  P.Xty = X.t() * Y;
+  P.X = &X;
+  P.Y = &Y;
+  P.St_d = arma::mat(St);
+}
+
+// Returns the same value as pglmm_gaussian_LL_cpp; fills grad if non-null, and
+// optionally returns the pieces needed after the optimization.
+static double gauss_q_ll_grad(const double* x, double* grad, const GaussQ_pre& P,
+                              arma::vec* B_out = nullptr, double* HiVH_out = nullptr,
+                              arma::mat* denom_out = nullptr) {
+  int Q = P.Q, p = P.p, n = P.n, q = P.q;
+  arma::rowvec sr(q);
+  for (int r = 0; r < q; ++r) sr[r] = x[r];
+  arma::vec c = arma::vectorise(sr * P.St_d);           // Q-vector
+
+  // K = I + diag(c) G diag(c)
+  arma::mat K = P.G;
+  K.each_col() %= c;
+  K.each_row() %= c.t();
+  K.diag() += 1.0;
+  arma::mat R;
+  if (!arma::chol(R, arma::symmatu(K))) return 1e30;
+  double logdetV = 2.0 * arma::accu(arma::log(R.diag()));
+  arma::mat Rinv = arma::inv(arma::trimatu(R));          // K^-1 = Rinv * Rinv'
+
+  arma::mat cZX = P.ZX; cZX.each_col() %= c;             // Ut X   (Q x p)
+  arma::vec cZy = c % P.Zy;                              // Ut y   (Q)
+  arma::mat TX  = Rinv * (Rinv.t() * cZX);               // K^-1 Ut X
+  arma::vec Ty  = Rinv * (Rinv.t() * cZy);               // K^-1 Ut y
+  arma::mat denom = P.XtX - cZX.t() * TX;                // X' iV X
+  denom = arma::symmatu(denom);
+  arma::vec num   = P.Xty - cZX.t() * Ty;                // X' iV y
+  arma::vec B;
+  if (!arma::solve(B, denom, num, arma::solve_opts::no_approx)) return 1e30;
+
+  arma::vec H   = *P.Y - (*P.X) * B;                     // O(n p)
+  arma::vec UtH = cZy - cZX * B;                         // Ut H  (Q)
+  arma::vec b   = Ty - TX * B;                           // K^-1 Ut H
+  double HiVH   = arma::dot(H, H) - arma::dot(UtH, b);
+
+  int fac = P.REML ? (n - p) : n;
+  double LL = 0.5 * (double(fac) * std::log(HiVH / double(fac)) + logdetV + double(fac));
+  if (P.REML) {
+    double ld, sg;
+    arma::log_det(ld, sg, denom);
+    LL += 0.5 * ld;
+  }
+  if (!std::isfinite(LL)) return 1e30;
+
+  if (B_out) *B_out = B;
+  if (HiVH_out) *HiVH_out = HiVH;
+  if (denom_out) *denom_out = denom;
+
+  if (grad) {
+    arma::vec Mdiag = arma::sum(arma::square(Rinv), 1);  // diag(K^-1)
+    arma::vec tc = (1.0 - Mdiag) - (double(fac) / HiVH) * (b % b);
+    if (P.REML) {
+      arma::mat UtF = arma::solve(denom, TX.t()).t();    // TX * denom^-1  (Q x p)
+      tc -= arma::sum(TX % UtF, 1);
+    }
+    for (int k = 0; k < Q; ++k) tc[k] = (std::abs(c[k]) > 1e-15) ? tc[k] / c[k] : 0.0;
+    for (int r = 0; r < q; ++r) {
+      double g = arma::dot(P.St_d.row(r), tc.t());
+      grad[r] = std::isfinite(g) ? g : 0.0;
+    }
+  }
+  return LL;
+}
+
+// Estimates at the optimum, for models with non-nested random terms only
+static List gauss_q_calc(const arma::vec& par, const GaussQ_pre& P) {
+  int n = P.n, p = P.p, q = P.q;
+  arma::vec B;
+  double HiVH = 0.0;
+  arma::mat denom;
+  double LL = gauss_q_ll_grad(par.memptr(), nullptr, P, &B, &HiVH, &denom);
+  if (LL >= 1e30) Rcpp::stop("Estimation of B failed.");
+  double s2resid = P.REML ? HiVH / (n - p) : HiVH / n;
+  arma::mat B_cov = arma::inv_sympd(arma::symmatu(denom / s2resid));
+  arma::vec H = *P.Y - (*P.X) * B;
+  arma::rowvec sr(q);
+  for (int r = 0; r < q; ++r) sr[r] = par[r];
+  arma::rowvec s2r = s2resid * arma::square(sr);
+  return List::create(
+    _["B"]       = B,
+    _["B.se"]    = arma::vec(arma::sqrt(B_cov.diag())),
+    _["B.cov"]   = B_cov,
+    _["sr"]      = sr,
+    _["sn"]      = NumericVector(0),
+    _["s2n"]     = NumericVector(0),
+    _["s2r"]     = s2r,
+    _["s2resid"] = s2resid,
     _["H"]       = H
   );
 }
@@ -469,6 +630,7 @@ struct GaussLL_ctx {
   const Rcpp::List*   nested;
   bool REML;
   bool verbose;
+  const GaussQ_pre*   pre;   // non-NULL for models with non-nested terms only
 };
 
 // OPT-J: combined LL + analytic gradient for L-BFGS.
@@ -529,9 +691,8 @@ static double gauss_ll_and_grad(unsigned n_par, const double* x, double* grad,
   // block-diagonal detection (same logic as LL function)
   int  n_sp_g = 0, n_site_g = 0;
   bool use_blk_g = false;
-  if (q_Nested > 0 && q_nonNested == 0) {
-    arma::sp_mat nj0_sp = nested[0];
-    n_sp_g   = find_block_size(nj0_sp, n);
+  if (q_Nested > 0) {
+    n_sp_g = find_block_size_all(nested, q_Nested, n);
     n_site_g = (n_sp_g > 0) ? n / n_sp_g : 0;
     use_blk_g = (n_sp_g > 0);
   }
@@ -634,6 +795,56 @@ static double gauss_ll_and_grad(unsigned n_par, const double* x, double* grad,
     v              = blk_solve_v(H);
     HiVH           = arma::dot(H, v);
     logdetV        = logdetA;
+
+  // ===== PATH B2: nested (block-diagonal) + non-nested, block Cholesky + Woodbury =====
+  } else if (use_blk_g) {
+    std::vector<arma::mat> nj_fixed(n_site_g,
+                                    arma::mat(n_sp_g, n_sp_g, arma::fill::zeros));
+    for (int j = 0; j < q_Nested; ++j) {
+      double snj2 = sn_vec[j] * sn_vec[j];
+      arma::sp_mat njsp = nested[j];
+      for (int k = 0; k < n_site_g; ++k) {
+        int s = k * n_sp_g;
+        nj_fixed[k] += snj2 *
+          arma::mat(njsp(arma::span(s, s+n_sp_g-1), arma::span(s, s+n_sp_g-1)));
+      }
+    }
+    chols_blk_g.resize(n_site_g);
+    arma::vec pq_ones(n, arma::fill::ones);
+    double logdetA = block_chol(chols_blk_g, pq_ones, nj_fixed, n_sp_g, n_site_g);
+    auto blk_solve_m = [&](const arma::mat& RHS) -> arma::mat {
+      arma::mat out(RHS.n_rows, RHS.n_cols);
+      for (int k = 0; k < n_site_g; ++k) {
+        int s = k * n_sp_g;
+        arma::mat tmp = arma::solve(arma::trimatl(chols_blk_g[k].t()), RHS.rows(s, s+n_sp_g-1));
+        out.rows(s, s+n_sp_g-1) = arma::solve(arma::trimatu(chols_blk_g[k]), tmp);
+      }
+      return out;
+    };
+    arma::mat iA_X = blk_solve_m(X);
+    arma::mat iA_U = blk_solve_m(U_d);
+    iA_U_g = iA_U;
+    arma::mat ZtiAU = Ut_d * iA_U;
+    ZtiAU_g = ZtiAU;
+    int Qc = (int)Ut_d.n_rows;
+    arma::mat Ishort = arma::symmatu(arma::eye(Qc, Qc) + ZtiAU);
+    arma::mat M      = arma::inv_sympd(Ishort);
+    M_mat = M; have_M = true;
+    arma::mat Ut_iA_X = Ut_d * iA_X;
+    arma::mat iA_Y    = blk_solve_m(arma::mat(Y));
+    arma::vec Ut_iA_Y = Ut_d * iA_Y.col(0);
+    denom            = iA_X.t() * X - Ut_iA_X.t() * M * Ut_iA_X;
+    arma::vec B      = arma::solve(denom, iA_X.t() * Y - Ut_iA_X.t() * M * Ut_iA_Y);
+    arma::vec H      = Y - X * B;
+    arma::mat iA_H   = blk_solve_m(arma::mat(H));
+    arma::vec Ut_iA_H = Ut_d * iA_H.col(0);
+    arma::vec M_Ut_iA_H = M * Ut_iA_H;
+    v                = iA_H.col(0) - iA_U * M_Ut_iA_H;
+    HiVH             = arma::dot(H, iA_H.col(0)) - arma::as_scalar(Ut_iA_H.t() * M_Ut_iA_H);
+    iVX_d = iA_X - iA_U * (M * Ut_iA_X);
+    double signV;
+    arma::log_det(logdetV, signV, Ishort);
+    logdetV += logdetA;
 
   // ===== PATH C: full dense path =====
   } else {
@@ -816,8 +1027,12 @@ static double gauss_ll_and_grad(unsigned n_par, const double* x, double* grad,
       // tr(iV * nested[j]) — path-dependent
       double tr_iV_nj = 0.0;
 
-      if (q_Nested > 0 && q_nonNested == 0 && use_blk_g) {
-        // PATH B: block Cholesky, iV = iA (block-diagonal)
+      if (!chols_blk_g.empty()) {
+        // PATH B / B2: block Cholesky; the Woodbury correction is done by block:
+        //   tr(M iA_U' N iA_U) = sum_k accu((N_k iA_U[k,]) % (iA_U M)[k,])
+        bool wood = (q_nonNested > 0 && have_M);
+        arma::mat PM;
+        if (wood) PM = iA_U_g * M_mat;                       // n x Q
         for (int k = 0; k < n_site_g; ++k) {
           int s = k * n_sp_g;
           arma::mat nj_blk = arma::mat(
@@ -826,6 +1041,8 @@ static double gauss_ll_and_grad(unsigned n_par, const double* x, double* grad,
           arma::mat W     = arma::solve(arma::trimatl(Rlo_k), nj_blk);
           W               = arma::solve(arma::trimatu(chols_blk_g[k]), W);
           tr_iV_nj       += arma::trace(W);
+          if (wood)
+            tr_iV_nj -= arma::accu((nj_blk * iA_U_g.rows(s, s+n_sp_g-1)) % PM.rows(s, s+n_sp_g-1));
         }
       } else if (have_chol_A) {
         // PATH C: full dense Cholesky; iV = iA (nested-only) or Woodbury (mixed)
@@ -875,6 +1092,14 @@ static double gauss_ll_and_grad(unsigned n_par, const double* x, double* grad,
 static double gauss_ll_nlopt_cb(unsigned n_par, const double* x,
                                 double* grad, void* f_data) {
   const GaussLL_ctx* d = static_cast<const GaussLL_ctx*>(f_data);
+  if (d->pre != nullptr) {
+    try {
+      return gauss_q_ll_grad(x, grad, *d->pre);
+    } catch (...) {
+      if (grad != nullptr) for (unsigned k = 0; k < n_par; ++k) grad[k] = 0.0;
+      return 1e30;
+    }
+  }
   if (grad != nullptr) {
     try {
       return gauss_ll_and_grad(n_par, x, grad, *d);
@@ -906,6 +1131,12 @@ Rcpp::List pglmm_gaussian_internal_cpp(NumericVector par,
   double    LL;
   int       convcode;
   arma::vec niter;
+
+  // statistics that do not depend on the parameters, computed once
+  // (models with non-nested random terms only)
+  bool use_q = (nested.size() == 0 && St.n_rows > 0 && Zt.n_rows > 0);
+  GaussQ_pre pre_q;
+  if (use_q) gauss_q_precompute(pre_q, X, Y, Zt, St, REML);
 
   if (optimizer == "Nelder-Mead") {
     // R optim path (Nelder-Mead / L-BFGS-B): unchanged from original.
@@ -943,7 +1174,7 @@ Rcpp::List pglmm_gaussian_internal_cpp(NumericVector par,
     else if (optimizer == "lbfgs")             algor = NLOPT_LD_LBFGS;
     else                                       algor = NLOPT_LN_SBPLX;
 
-    GaussLL_ctx ctx = {&X, &Y, &Zt, &St, &nested, REML, verbose};
+    GaussLL_ctx ctx = {&X, &Y, &Zt, &St, &nested, REML, verbose, use_q ? &pre_q : nullptr};
     nlopt_opt opt_c = nlopt_create(algor, (unsigned)q);
     nlopt_set_min_objective(opt_c, gauss_ll_nlopt_cb, &ctx);
     nlopt_set_ftol_rel(opt_c, reltol);
@@ -973,7 +1204,8 @@ Rcpp::List pglmm_gaussian_internal_cpp(NumericVector par,
   NumericVector par_opt = wrap(par_opt0);
 
   // calculate coef
-  List out = pglmm_gaussian_LL_calc_cpp(par_opt, X, Y, Zt, St, nested, REML);
+  List out = use_q ? gauss_q_calc(par_opt0, pre_q)
+                   : pglmm_gaussian_LL_calc_cpp(par_opt, X, Y, Zt, St, nested, REML);
   double logLik, detx, signx;
   if (REML) {
     log_det(detx, signx, trans(X) * X);

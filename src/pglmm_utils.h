@@ -82,6 +82,44 @@ inline int find_block_size(const arma::sp_mat& nj, int n) {
   return 0;
 }
 
+// Exact block size shared by ALL nested terms: the smallest k (2 <= k <= n/2,
+// k divides n) such that every non-zero (r, c) of every nested matrix has
+// r / k == c / k, i.e. each matrix is block-diagonal with blocks of size k.
+// Every non-zero is checked (O(nnz) per candidate k), so a structure that is
+// not block-diagonal (e.g. kron(Vsite, I_sp), unbalanced data, or rows not
+// sorted by block) can never be accepted. Returns 0 if there is no such k
+// (fall back to the full dense path).
+template <class NestedList>
+inline int find_block_size_all(const NestedList& nested, int q_Nested, int n) {
+  if (q_Nested <= 0 || n < 4) return 0;
+  std::vector<arma::sp_mat> mats((size_t)q_Nested);
+  arma::uword maxband = 0;
+  for (int j = 0; j < q_Nested; ++j) {
+    arma::sp_mat nj = nested[j];
+    if ((int)nj.n_rows != n || (int)nj.n_cols != n) return 0;
+    for (arma::sp_mat::const_iterator it = nj.begin(); it != nj.end(); ++it) {
+      arma::uword r = it.row(), c = it.col();
+      arma::uword band = (r > c) ? (r - c) : (c - r);
+      if (band > maxband) maxband = band;
+    }
+    mats[(size_t)j] = nj;
+  }
+  int start = std::max((int)maxband + 1, 2);
+  for (int k = start; k <= n / 2; ++k) {
+    if (n % k != 0) continue;
+    bool ok = true;
+    arma::uword ku = (arma::uword)k;
+    for (int j = 0; j < q_Nested && ok; ++j) {
+      const arma::sp_mat& nj = mats[(size_t)j];
+      for (arma::sp_mat::const_iterator it = nj.begin(); it != nj.end(); ++it) {
+        if (it.row() / ku != it.col() / ku) { ok = false; break; }
+      }
+    }
+    if (ok) return k;
+  }
+  return 0;
+}
+
 // Compute A^{-1} from upper Cholesky factor R where A = R'R.
 // Polyfill for arma::chol2inv (not available in all Armadillo versions).
 // Uses back-substitution: iR = R^{-1}, then A^{-1} = iR * iR'.

@@ -43,7 +43,7 @@ test_that("fitted values and residuals of gaussian models agree with lme4", {
 
 test_that("leave-one-out predictions of gaussian models include fixed effects", {
   m <- pglmm(y ~ x + (1 | sp__) + (1 | site), data = d, cov_ranef = list(sp = phy))
-  V <- solve(m$iV)
+  V <- solve(pglmm_iV(m))
   XB <- as.vector(m$X %*% m$B)
   loo <- sapply(seq_along(m$Y), function(i) {
     XB[i] + V[i, -i] %*% solve(V[-i, -i], m$H[-i])
@@ -57,7 +57,7 @@ test_that("leave-one-out predictions of gaussian models include fixed effects", 
 
 test_that("simulate() without conditioning on random effects works", {
   m <- pglmm(y ~ x + (1 | sp__) + (1 | site) + (1 | sp__@site), data = d, cov_ranef = list(sp = phy))
-  V <- solve(m$iV)
+  V <- solve(pglmm_iV(m))
   XB <- as.vector(m$X %*% m$B)
   set.seed(1)
   s <- simulate(m, nsim = 4000, re.form = NA)

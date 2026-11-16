@@ -175,7 +175,6 @@
 #'   To get residuals after accounting for both fixed and random terms, use \code{residuals()}.
 #'   For the generalized linear mixed model, these are the predicted residuals in the 
 #'   logit -1 space.}
-#' \item{iV}{the inverse of the covariance matrix. This is NULL if \code{bayes = TRUE}.}
 #' \item{mu}{predicted mean values for the generalized linear mixed model (i.e. similar to \code{fitted(merMod)}). 
 #'   Set to NULL for linear mixed models, for which we can use [fitted()].}
 #' \item{Zt}{the design matrix for random effects. This is set to NULL if \code{bayes = TRUE}}
@@ -316,7 +315,7 @@ pglmm_compare <- function(formula, family = "gaussian",
                     ss = z$ss, s2n = z$s2n, s2resid = z$s2resid, logLik = z$logLik, AIC = z$AIC, 
                     BIC = z$BIC, REML = z$REML, bayes = FALSE, s2.init =z$s2.init, B.init = z$B.init, 
                     Y = z$Y, size = z$size, X = z$X, 
-                    H = as.matrix(z$H), iV = z$iV, mu = z$mu, nested = z$nested, Zt = z$Zt, St = z$St, 
+                    H = as.matrix(z$H), mu = z$mu, nested = z$nested, Zt = z$Zt, St = z$St, 
                     convcode = z$convcode, niter = z$niter)
   }else{
     results <- list(formula = formula, data = data, family = family, phy = phy, vcv.phy = re.1,
@@ -338,7 +337,7 @@ pglmm_compare <- function(formula, family = "gaussian",
                     DIC = z$DIC, 
                     bayes = TRUE, marginal.summ = z$marginal.summ, 
                     s2.init = z$s2.init, B.init = z$B.init, Y = z$Y, X = z$X, H = z$H, 
-                    iV = NULL, mu = z$mu, nested = z$nested, Zt = NULL, St = NULL, 
+                    mu = z$mu, nested = z$nested, Zt = NULL, St = NULL, 
                     convcode = NULL, niter = NULL, inla.model = z$inla.model)
   }
   class(results) <- "pglmm_compare"

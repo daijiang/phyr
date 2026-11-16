@@ -234,6 +234,31 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// pglmm_internal_q_cpp
+List pglmm_internal_q_cpp(const arma::mat& X, const arma::vec& Y, const arma::sp_mat& Zt, const arma::sp_mat& St, const List& nested, const bool REML, const int maxit, const double reltol, const double tol_pql, const double maxit_pql, const std::string optimizer, arma::mat B_init, arma::vec ss, const std::string family, arma::vec totalSize);
+RcppExport SEXP _phyr_pglmm_internal_q_cpp(SEXP XSEXP, SEXP YSEXP, SEXP ZtSEXP, SEXP StSEXP, SEXP nestedSEXP, SEXP REMLSEXP, SEXP maxitSEXP, SEXP reltolSEXP, SEXP tol_pqlSEXP, SEXP maxit_pqlSEXP, SEXP optimizerSEXP, SEXP B_initSEXP, SEXP ssSEXP, SEXP familySEXP, SEXP totalSizeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type X(XSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type Y(YSEXP);
+    Rcpp::traits::input_parameter< const arma::sp_mat& >::type Zt(ZtSEXP);
+    Rcpp::traits::input_parameter< const arma::sp_mat& >::type St(StSEXP);
+    Rcpp::traits::input_parameter< const List& >::type nested(nestedSEXP);
+    Rcpp::traits::input_parameter< const bool >::type REML(REMLSEXP);
+    Rcpp::traits::input_parameter< const int >::type maxit(maxitSEXP);
+    Rcpp::traits::input_parameter< const double >::type reltol(reltolSEXP);
+    Rcpp::traits::input_parameter< const double >::type tol_pql(tol_pqlSEXP);
+    Rcpp::traits::input_parameter< const double >::type maxit_pql(maxit_pqlSEXP);
+    Rcpp::traits::input_parameter< const std::string >::type optimizer(optimizerSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type B_init(B_initSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type ss(ssSEXP);
+    Rcpp::traits::input_parameter< const std::string >::type family(familySEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type totalSize(totalSizeSEXP);
+    rcpp_result_gen = Rcpp::wrap(pglmm_internal_q_cpp(X, Y, Zt, St, nested, REML, maxit, reltol, tol_pql, maxit_pql, optimizer, B_init, ss, family, totalSize));
+    return rcpp_result_gen;
+END_RCPP
+}
 // pglmm_gaussian_predict
 arma::vec pglmm_gaussian_predict(const arma::mat& iV, const arma::mat& H);
 RcppExport SEXP _phyr_pglmm_gaussian_predict(SEXP iVSEXP, SEXP HSEXP) {
@@ -383,6 +408,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_phyr_pglmm_LL_cpp", (DL_FUNC) &_phyr_pglmm_LL_cpp, 11},
     {"_phyr_pglmm_internal_cpp", (DL_FUNC) &_phyr_pglmm_internal_cpp, 19},
     {"_phyr_sexp_type", (DL_FUNC) &_phyr_sexp_type, 1},
+    {"_phyr_pglmm_internal_q_cpp", (DL_FUNC) &_phyr_pglmm_internal_q_cpp, 15},
     {"_phyr_pglmm_gaussian_predict", (DL_FUNC) &_phyr_pglmm_gaussian_predict, 2},
     {"_phyr_pglmm_gaussian_LL_cpp", (DL_FUNC) &_phyr_pglmm_gaussian_LL_cpp, 8},
     {"_phyr_pglmm_gaussian_LL_calc_cpp", (DL_FUNC) &_phyr_pglmm_gaussian_LL_calc_cpp, 7},

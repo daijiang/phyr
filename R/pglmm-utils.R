@@ -42,11 +42,13 @@ parse_conv_ranef <- function(x, df) {
         stop(paste0("Some levels of variable ", names(x)[i], " not in the martix,
                     please either drop these levels or update the matrix"))
       }
-      if (length(setdiff(row.names(xx), spl))) {
-        # warning(paste0("Drop levels from the matrix that are not in the variable ", names(x)[i]),
-        #         call. = FALSE, immediate. = TRUE)
-        xx <- xx[spl, spl]
-      } # same order
+      # keep the levels in the data only, in the same order as the levels
+      # (also when the matrix has the same names but in a different order)
+      if (is.null(colnames(xx)) || !identical(rownames(xx), colnames(xx))) {
+        stop(paste0("The row and column names of the matrix of variable ", names(x)[i],
+                    " must be the same and in the same order"))
+      }
+      xx <- xx[spl, spl, drop = FALSE]
       if (abs(det(xx) - 1) > 0.0001) {
         warning("The cov matrix is not standarized, we will do this now...", call. = FALSE, immediate. = TRUE)
         xx <- xx / max(xx)
@@ -495,13 +497,22 @@ get_design_matrix <- function(formula, data, random.effects, na.action = NULL) {
     re.i <- re[[i]]
     # non-nested terms
     if (length(re.i) == 3) {
-      counter <- 0
-      Z.i <- matrix(0, nrow = nrow(data), ncol = nlevels(re.i[[2]]))
-      for (i.levels in levels(re.i[[2]])) {
-        counter <- counter + 1
-        Z.i[, counter] <- re.i[[1]] * as.numeric(i.levels == re.i[[2]])
+      # sparse indicator matrix (observations by levels), times the covariate
+      # for slopes; then Zt.i = chol(covar) %*% t(Z.i), kept sparse
+      f.i <- re.i[[2]]
+      ok.i <- !is.na(f.i)
+      Z.i <- Matrix::sparseMatrix(
+        i = which(ok.i), j = as.integer(f.i)[ok.i],
+        x = rep_len(as.numeric(re.i[[1]]), nrow(data))[ok.i],
+        dims = c(nrow(data), nlevels(f.i))
+      )
+      covar.i <- as.matrix(re.i[[3]])
+      if (all(covar.i[row(covar.i) != col(covar.i)] == 0)) {
+        R.i <- Matrix::Diagonal(x = sqrt(diag(covar.i)))
+      } else {
+        R.i <- as(as(chol(covar.i), "generalMatrix"), "CsparseMatrix")
       }
-      Zt.i <- chol(re.i[[3]]) %*% t(Z.i)
+      Zt.i <- as(as(R.i %*% Matrix::t(Z.i), "generalMatrix"), "CsparseMatrix")
       ii <- ii + 1
       Ztt[[ii]] <- Zt.i
       St.lengths[ii] <- nlevels(re.i[[2]])
@@ -549,16 +560,12 @@ get_design_matrix <- function(formula, data, random.effects, na.action = NULL) {
   stopifnot(q.Nested == jj)
 
   if (q.nonNested > 0) {
-    St <- matrix(0, nrow = q.nonNested, ncol = sum(St.lengths))
-    Zt <- matrix(0, nrow = sum(St.lengths), ncol = nrow(data))
-    count <- 1
-    for (i in 1:q.nonNested) {
-      St[i, count:(count + St.lengths[i] - 1)] <- matrix(1, nrow = 1, ncol = St.lengths[i])
-      Zt[count:(count + St.lengths[i] - 1), ] <- Ztt[[i]]
-      count <- count + St.lengths[i]
-    }
-    St <- as(St, "sparseMatrix")
-    Zt <- as(Zt, "sparseMatrix")
+    lens <- St.lengths[seq_len(q.nonNested)]
+    St <- as(Matrix::sparseMatrix(
+      i = rep(seq_len(q.nonNested), lens), j = seq_len(sum(lens)), x = 1,
+      dims = c(q.nonNested, sum(lens))
+    ), "generalMatrix")
+    Zt <- as(as(do.call(rbind, Ztt), "generalMatrix"), "CsparseMatrix")
   } else {
     St <- NULL # for cpp
     Zt <- NULL
@@ -1137,6 +1144,228 @@ print.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ..
 }
 
 
+# ---- hint about the BLAS library used by R ----
+
+# environment to remember that the hint was shown in this session
+.phyr_state <- new.env(parent = emptyenv())
+
+# TRUE if R on a Mac uses the reference BLAS while the Accelerate version that
+# comes with R is available
+blas_hint_needed <- function(sysname = Sys.info()[["sysname"]],
+                             blas = extSoftVersion()[["BLAS"]],
+                             has_veclib = file.exists(file.path(R.home("lib"), "libRblas.vecLib.dylib"))) {
+  identical(sysname, "Darwin") && isTRUE(has_veclib) &&
+    grepl("libRblas\\.0\\.dylib$", blas)
+}
+
+# One message per session, for models with many observations fitted on a Mac
+# where R uses the (slow) reference BLAS. Nothing is changed on the computer.
+pglmm_blas_hint <- function(n, min.n = 1000) {
+  if (!isTRUE(getOption("phyr.blas.hint", TRUE)) || isTRUE(.phyr_state$blas.hint.shown)) {
+    return(invisible(FALSE))
+  }
+  if (is.null(n) || n < min.n) {
+    return(invisible(FALSE))
+  }
+  needed <- tryCatch(blas_hint_needed(), error = function(e) FALSE)
+  if (!needed) {
+    return(invisible(FALSE))
+  }
+  .phyr_state$blas.hint.shown <- TRUE
+  lib <- R.home("lib")
+  message(
+    "R is using the reference BLAS library, which is slow for large models. ",
+    "On a Mac, R can use Apple's Accelerate instead, which can make pglmm() several times faster. ",
+    "To switch, run in a terminal and restart R:\n",
+    "  cd ", lib, "\n",
+    "  ln -sf libRblas.vecLib.dylib libRblas.dylib\n",
+    "(to switch back: ln -sf libRblas.0.dylib libRblas.dylib). ",
+    "This message is shown once per session; set options(phyr.blas.hint = FALSE) to turn it off."
+  )
+  invisible(TRUE)
+}
+
+# ---- Inverse of the marginal covariance matrix V, without storing it ----
+#
+# The n by n matrix iV = V^-1 is not stored in fitted models. With
+# V = D + sum_j s2n_j N_j + sum_k s2r_k Z_k C_k Z_k', where D is diagonal
+# (the residual variance for gaussian models, 1/W for binomial and poisson
+# models), products with V^-1 are calculated with the Woodbury identity:
+# with A = D + sum_j s2n_j N_j (sparse) and Ut the rows of Zt scaled by the
+# standard deviations of their random terms (so that V = A + Ut' Ut),
+# V^-1 = A^-1 - A^-1 Ut' (I + Ut A^-1 Ut')^-1 Ut A^-1.
+
+# diagonal part D of V, for a fitted model
+pglmm_V_diag_part <- function(object) {
+  n <- nrow(object$X)
+  if (object$family == "gaussian") {
+    return(rep(as.numeric(object$s2resid), n))
+  }
+  mu <- as.numeric(as.matrix(object$mu)[, 1])
+  if (object$family == "binomial") {
+    return(1 / (rep_len(pglmm_binomial_size(object), n) * mu * (1 - mu)))
+  }
+  1 / mu # poisson
+}
+
+# Zt %*% diag(w) %*% t(Zt) for a sparse Zt (Q by n) and weights w. Observations
+# of the same levels have the same column of Zt, so the product is calculated
+# with the unique columns only (weights summed within groups of columns).
+pglmm_ZwZt <- function(Zt, w) {
+  n <- ncol(Zt)
+  grp <- seq_len(n)
+  if (n > nrow(Zt)) {
+    # group identical columns: two random projections, then an exact check
+    h <- round(as.vector(Matrix::crossprod(Zt, cos(seq_len(nrow(Zt))))), 10)
+    h2 <- round(as.vector(Matrix::crossprod(Zt, sin(seq_len(nrow(Zt)) * 1.7))), 10)
+    g <- match(paste(h, h2), unique(paste(h, h2)))
+    first <- match(seq_len(max(g)), g)
+    if (max(g) < n && max(abs((Zt - Zt[, first[g], drop = FALSE])@x), 0) == 0) grp <- g
+  }
+  first <- match(seq_len(max(grp)), grp)
+  Zu <- as.matrix(Zt[, first, drop = FALSE])
+  wg <- as.vector(rowsum(w, grp, reorder = TRUE))
+  tcrossprod(Zu * rep(sqrt(wg), each = nrow(Zu)))
+}
+
+# pieces to multiply by V^-1: d (diagonal part), s2r, s2n, Zt, St, nested
+pglmm_iV_factors <- function(d, s2r, s2n, Zt, St, nested) {
+  n <- length(d)
+  s2r <- as.numeric(s2r)
+  s2n <- as.numeric(s2n)
+  has.nested <- length(nested) > 0 && length(s2n) > 0
+  if (has.nested) {
+    A <- Matrix::Diagonal(x = d)
+    for (j in seq_along(nested)) A <- A + s2n[j] * nested[[j]]
+    cholA <- Matrix::Cholesky(Matrix::forceSymmetric(as(A, "CsparseMatrix")), perm = TRUE, LDL = FALSE)
+    solveA <- function(B) as.matrix(Matrix::solve(cholA, B, system = "A"))
+  } else {
+    solveA <- function(B) as.matrix(B) / d
+  }
+  Ut <- AiU <- K.chol <- sd.rows <- ZwZt <- NULL
+  if (!is.null(Zt) && length(s2r) > 0 && nrow(Zt) > 0) {
+    sd.rows <- sqrt(as.vector(Matrix::crossprod(St, s2r)))
+    Ut <- Matrix::Diagonal(x = sd.rows) %*% Zt
+    if (has.nested) {
+      AiU <- solveA(Matrix::t(Ut)) # n by Q
+      K <- diag(nrow(Ut)) + as.matrix(Ut %*% AiU)
+    } else {
+      ZwZt <- pglmm_ZwZt(Zt, 1 / d) # Zt D^-1 Zt'
+      K <- diag(nrow(Ut)) + ZwZt * tcrossprod(sd.rows)
+    }
+    K.chol <- chol((K + t(K)) / 2)
+  }
+  list(
+    d = d, solveA = solveA, Ut = Ut, AiU = AiU, K.chol = K.chol,
+    has.nested = has.nested, sd.rows = sd.rows, ZwZt = ZwZt
+  )
+}
+
+# V^-1 %*% M from the factors
+pglmm_iV_mult_factors <- function(fac, M) {
+  M <- as.matrix(M)
+  out <- fac$solveA(M)
+  if (!is.null(fac$Ut)) {
+    if (fac$has.nested) {
+      out <- out - fac$AiU %*% chol2inv(fac$K.chol) %*% crossprod(fac$AiU, M)
+    } else {
+      KiUM <- chol2inv(fac$K.chol) %*% as.matrix(fac$Ut %*% out)
+      out <- out - as.matrix(Matrix::crossprod(fac$Ut, KiUM)) / fac$d
+    }
+  }
+  out
+}
+
+# factors of V^-1 of a fitted model
+pglmm_iV_object_factors <- function(object) {
+  pglmm_iV_factors(pglmm_V_diag_part(object), object$s2r, object$s2n,
+    object$Zt, object$St, object$nested
+  )
+}
+
+# V^-1 %*% M for a fitted model. Models fitted with older versions of the
+# package have iV, which is then used directly.
+pglmm_iV_mult <- function(object, M, fac = NULL) {
+  if (!is.null(object$iV)) {
+    return(as.matrix(object$iV %*% as.matrix(M)))
+  }
+  if (is.null(fac)) fac <- pglmm_iV_object_factors(object)
+  pglmm_iV_mult_factors(fac, M)
+}
+
+# Zt %*% V^-1 %*% t(Zt) (Q by Q) for a fitted model
+pglmm_ZiVZt <- function(object, fac = NULL) {
+  Zt <- object$Zt
+  if (!is.null(object$iV)) {
+    return(as.matrix(Zt %*% object$iV %*% Matrix::t(Zt)))
+  }
+  if (is.null(fac)) fac <- pglmm_iV_object_factors(object)
+  if (fac$has.nested) {
+    return(as.matrix(Zt %*% pglmm_iV_mult_factors(fac, Matrix::t(Zt))))
+  }
+  # Zt D^-1 Zt' - Zt D^-1 Ut' K^-1 Ut D^-1 Zt', with Ut = diag(sd.rows) Zt
+  GC <- fac$ZwZt * rep(fac$sd.rows, each = nrow(fac$ZwZt))
+  fac$ZwZt - GC %*% chol2inv(fac$K.chol) %*% t(GC)
+}
+
+# diagonal of V^-1 for a fitted model
+pglmm_iV_diag <- function(object) {
+  if (!is.null(object$iV)) {
+    return(diag(as.matrix(object$iV)))
+  }
+  fac <- pglmm_iV_object_factors(object)
+  n <- length(fac$d)
+  if (fac$has.nested) {
+    return(diag(pglmm_iV_mult_factors(fac, diag(n))))
+  }
+  out <- 1 / fac$d
+  if (!is.null(fac$Ut)) {
+    # diag(Ut' K^-1 Ut): column by column, in chunks to limit memory
+    Ki <- chol2inv(fac$K.chol)
+    q <- numeric(n)
+    for (idx in split(seq_len(n), ceiling(seq_len(n) / 2000))) {
+      Uc <- as.matrix(fac$Ut[, idx, drop = FALSE])
+      q[idx] <- colSums(Uc * (Ki %*% Uc))
+    }
+    out <- out - q / fac$d^2
+  }
+  out
+}
+
+#' Inverse of the covariance matrix of a fitted PGLMM
+#'
+#' Calculate the inverse of the marginal covariance matrix (`iV`) of the data
+#' for a model fitted with `bayes = FALSE`. Since version 1.3.0, this n by n
+#' matrix is no longer returned by [pglmm()], because it needs a lot of memory
+#' and time for large data sets, and no function of the package needs it.
+#'
+#' @param x A fitted model with class communityPGLMM (with `bayes = FALSE`).
+#' @return A matrix with as many rows and columns as the number of
+#'   observations used to fit the model. For gaussian models, it includes the
+#'   residual variance. For binomial and poisson models, it is the inverse of
+#'   the covariance matrix of the working response of the penalized
+#'   quasi-likelihood fit.
+#' @export
+#' @examples
+#' dat <- data.frame(
+#'   site = rep(rownames(comm_a), times = ncol(comm_a)),
+#'   sp = rep(colnames(comm_a), each = nrow(comm_a)),
+#'   freq = unlist(comm_a, use.names = FALSE)
+#' )
+#' phy <- ape::keep.tip(phylotree, unique(dat$sp))
+#' fit <- pglmm(freq ~ 1 + (1 | sp__) + (1 | site), data = dat, cov_ranef = list(sp = phy))
+#' iV <- pglmm_iV(fit)
+#' dim(iV)
+pglmm_iV <- function(x) {
+  if (isTRUE(x$bayes)) stop("iV is not available for models with bayes = TRUE.", call. = FALSE)
+  if (!is.null(x$iV)) {
+    return(as.matrix(x$iV))
+  }
+  out <- pglmm_iV_mult(x, diag(nrow(x$X)))
+  dimnames(out) <- NULL
+  (out + t(out)) / 2
+}
+
 #' Predicted values of PGLMM
 #'
 #' \code{pglmm_predicted_values} calculates the predicted values of Y. By
@@ -1146,7 +1375,7 @@ print.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ..
 #'
 #' @rdname pglmm-predicted-values
 #' @param x A fitted model with class communityPGLMM.
-#' @param cpp Whether to use c++ code. Default is TRUE.
+#' @param cpp Not used anymore.
 #' @param gaussian.pred When family is gaussian and `bayes = FALSE`, which type
 #'   of prediction to calculate? Option `nearest_node` (default) gives the
 #'   fitted values conditional on the estimated random effects (i.e. Xb + Zu,
@@ -1212,7 +1441,7 @@ pglmm_predicted_values <- function(x, cpp = TRUE,
   } else {
     if (x$family == "gaussian") {
       H <- as.vector(x$H) # H is Y - X %*% B
-      iVH <- as.vector(x$iV %*% H)
+      iVH <- as.vector(pglmm_iV_mult(x, H))
       if (ptype == "nearest_node") {
         # Xb + Zu: the random effects are (V - s2resid * I) %*% iV %*% H
         predicted.values <- as.vector(x$Y) - as.numeric(x$s2resid) * iVH
@@ -1220,11 +1449,7 @@ pglmm_predicted_values <- function(x, cpp = TRUE,
       if (ptype == "tip_rm") {
         # prediction of H[i] given H[-i], V[i, -i] %*% solve(V[-i, -i]) %*% H[-i],
         # which is H[i] - (iV %*% H)[i] / iV[i, i]
-        if (cpp) {
-          h <- as.vector(pglmm_gaussian_predict(as.matrix(x$iV), as.matrix(x$H)))
-        } else {
-          h <- H - iVH / diag(as.matrix(x$iV))
-        }
+        h <- H - iVH / pglmm_iV_diag(x)
         predicted.values <- as.vector(x$X %*% x$B) + h
       }
     } else if (x$family == "binomial") {
@@ -1627,7 +1852,7 @@ re_drop_repeated <- function(d, n_label_cols) {
 # var(u_k | y) = G_k - G_k Z_k' V^-1 Z_k G_k.
 pglmm_cond_modes <- function(object, condVar = FALSE) {
   re <- object$random.effects
-  if (is.null(object$iV) || is.null(object$H) || !length(re)) {
+  if (is.null(object$H) || !length(re)) {
     stop("The fitted model does not have the information needed to estimate random effects.")
   }
   re.len <- vapply(re, length, 1L)
@@ -1641,8 +1866,9 @@ pglmm_cond_modes <- function(object, condVar = FALSE) {
   }
   term.names <- re_term_names(object)
   n <- length(object$H)
-  iVH <- as.vector(object$iV %*% as.vector(object$H))
-  if (condVar) iV <- as.matrix(object$iV)
+  fac <- if (is.null(object$iV)) pglmm_iV_object_factors(object) else NULL
+  iVH <- as.vector(pglmm_iV_mult(object, as.vector(object$H), fac))
+  ZiVZt <- NULL
   obs <- rownames(object$X)
   if (is.null(obs)) obs <- seq_len(n)
 
@@ -1654,14 +1880,18 @@ pglmm_cond_modes <- function(object, condVar = FALSE) {
     re.i <- re[[i]]
     rows <- which(as.vector(object$St[k, ]) != 0)
     # rows of Zt are chol(C_k) %*% t(Z_k), thus GZt is G_k %*% t(Z_k)
-    GZt <- s2r[k] * as.matrix(crossprod(chol(re.i[[3]]), object$Zt[rows, , drop = FALSE]))
     gv <- gsub("__$", "", names(re.i)[2])
     if (!length(gv) || is.na(gv) || gv == "") gv <- "level"
     d <- data.frame(levels(re.i[[2]]), stringsAsFactors = FALSE)
     names(d) <- gv
-    d$estimate <- as.vector(GZt %*% iVH)
+    d$estimate <- s2r[k] * as.vector(crossprod(
+      chol(as.matrix(re.i[[3]])), as.vector(object$Zt[rows, , drop = FALSE] %*% iVH)
+    ))
     if (condVar) {
-      v <- s2r[k] * diag(as.matrix(re.i[[3]])) - rowSums((GZt %*% iV) * GZt)
+      # diag(G Z' iV Z G), with G Z' = s2 R' Zt_k and R = chol(C_k)
+      if (is.null(ZiVZt)) ZiVZt <- pglmm_ZiVZt(object, fac)
+      tR <- t(chol(as.matrix(re.i[[3]])))
+      v <- s2r[k] * diag(as.matrix(re.i[[3]])) - s2r[k]^2 * rowSums((tR %*% ZiVZt[rows, rows, drop = FALSE]) * tR)
       d$se <- sqrt(pmax(v, 0))
     }
     out[[i]] <- d
@@ -1691,7 +1921,7 @@ pglmm_cond_modes <- function(object, condVar = FALSE) {
     d$estimate <- s2n[j] * as.vector(N %*% iVH)
     if (condVar) {
       Nd <- as.matrix(N)
-      v <- s2n[j] * diag(Nd) - s2n[j]^2 * rowSums((Nd %*% iV) * Nd)
+      v <- s2n[j] * diag(Nd) - s2n[j]^2 * rowSums(t(pglmm_iV_mult(object, Nd, fac)) * Nd)
       d$se <- sqrt(pmax(v, 0))
     }
     if (names(d)[1] != "obs") d <- re_drop_repeated(d, n.lab)
@@ -1898,9 +2128,7 @@ model.frame.communityPGLMM <- function(formula, ...) {
 #' For models fitted with `bayes = TRUE`, predictions with `newdata` are
 #' calculated in the same way, with the posterior summaries (see
 #' `marginal.summ` of [pglmm()]) of fixed and random effects. They have no
-#' credible intervals. To get the posterior distributions of predictions, add
-#' the new data to the data with missing values for the response, and refit
-#' the model.
+#' credible intervals.
 #'
 #' Predictions with `newdata` and random effects are only available for
 #' models with random terms specified in the formula (i.e. not via the

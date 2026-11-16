@@ -319,6 +319,7 @@ struct PqlCtx {
     const arma::vec*    W;      // working weights: totalSize*mu*(1-mu) or mu
     bool REML;
     bool verbose;
+    bool ll_only;               // skip the gradient (derivative-free optimizers)
 };
 
 static double pql_ll_and_grad(unsigned n_par, const double* x, double* grad,
@@ -362,8 +363,7 @@ static double pql_ll_and_grad(unsigned n_par, const double* x, double* grad,
     int n_sp = 0, n_site = 0;
     bool use_blk = false;
     if (q_Nested > 0) {
-        arma::sp_mat nj0_sp = nested[0];
-        n_sp   = find_block_size(nj0_sp, n);
+        n_sp = find_block_size_all(nested, q_Nested, n);
         n_site = (n_sp > 0) ? n / n_sp : 0;
         use_blk = (n_sp > 0);
     }
@@ -589,6 +589,7 @@ static double pql_ll_and_grad(unsigned n_par, const double* x, double* grad,
         LL += 0.5 * ld;
     }
     if (!std::isfinite(LL)) return 1e30;
+    if (d.ll_only) return LL;
 
     // ===== REML F matrices (for gradient) =====
     arma::mat F_mat;
@@ -735,8 +736,7 @@ List pglmm_internal_cpp(const arma::mat& X, const arma::vec& Y,
   int n_sp = 0, n_site = 0;
   bool use_blk = false;
   if(q_Nested > 0){
-    sp_mat nj0_sp = nested[0];   // implicit conversion
-    n_sp   = find_block_size(nj0_sp, n);
+    n_sp = find_block_size_all(nested, q_Nested, n);
     n_site = (n_sp > 0) ? n / n_sp : 0;
     use_blk = (n_sp > 0);
   }
@@ -1026,7 +1026,7 @@ List pglmm_internal_cpp(const arma::mat& X, const arma::vec& Y,
       arma::vec W_vec;
       if(family=="binomial") W_vec = totalSize % mu % (1.0 - mu);
       if(family=="poisson")  W_vec = mu;
-      PqlCtx ctx = {&H, &X, &Zt, &St, &nested, &W_vec, REML, verbose};
+      PqlCtx ctx = {&H, &X, &Zt, &St, &nested, &W_vec, REML, verbose, false};
       nlopt_opt opt_c = nlopt_create(NLOPT_LD_LBFGS, (unsigned)q);
       nlopt_set_min_objective(opt_c, pql_ll_nlopt_cb, &ctx);
       // Variance parameters are non-negative; bounding [0, ∞) prevents lbfgs
@@ -1049,6 +1049,33 @@ List pglmm_internal_cpp(const arma::mat& X, const arma::vec& Y,
       opt = List::create(_["par"]=Rcpp::wrap(par0_lbfgs), _["value"]=opt_val,
                          _["counts"]=Rcpp::NumericVector::create(1.0),
                          _["convergence"]=cc, _["message"]="lbfgs");
+    } else if (use_blk && (optimizer == "nelder-mead-nlopt" || optimizer == "bobyqa" ||
+                           optimizer == "subplex")) {
+      // Nested terms that are block-diagonal: derivative-free optimizer with the
+      // NLopt C API; the objective is pql_ll_and_grad without its gradient
+      // section, which uses the block Cholesky (instead of a dense n x n one).
+      arma::vec W_vec;
+      if(family=="binomial") W_vec = totalSize % mu % (1.0 - mu);
+      if(family=="poisson")  W_vec = mu;
+      PqlCtx ctx = {&H, &X, &Zt, &St, &nested, &W_vec, REML, false, true};
+      nlopt_algorithm algc = NLOPT_LN_NELDERMEAD;
+      if (optimizer == "bobyqa")  algc = NLOPT_LN_BOBYQA;
+      if (optimizer == "subplex") algc = NLOPT_LN_SBPLX;
+      nlopt_opt opt_c = nlopt_create(algc, (unsigned)q);
+      nlopt_set_min_objective(opt_c, pql_ll_nlopt_cb, &ctx);
+      nlopt_set_ftol_rel(opt_c, reltol);
+      nlopt_set_ftol_abs(opt_c, reltol);
+      nlopt_set_xtol_rel(opt_c, 0.0001);
+      nlopt_set_maxeval(opt_c, maxit);
+      std::vector<double> x_vec(q);
+      for (int k = 0; k < q; ++k) x_vec[k] = (double)ss0[k];
+      double opt_val = 1e30;
+      nlopt_result res = nlopt_optimize(opt_c, x_vec.data(), &opt_val);
+      nlopt_destroy(opt_c);
+      arma::vec par0_nm = arma::abs(arma::vec(x_vec.data(), (arma::uword)q));
+      opt = List::create(_["par"]=Rcpp::wrap(par0_nm), _["value"]=opt_val,
+                         _["counts"]=Rcpp::NumericVector::create(1.0),
+                         _["convergence"]=(int)res, _["message"]="nlopt");
     } else {
       std::string alg;
       if(optimizer=="bobyqa")            alg="NLOPT_LN_BOBYQA";

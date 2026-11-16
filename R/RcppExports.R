@@ -73,6 +73,10 @@ sexp_type <- function(x) {
     .Call(`_phyr_sexp_type`, x)
 }
 
+pglmm_internal_q_cpp <- function(X, Y, Zt, St, nested, REML, maxit, reltol, tol_pql, maxit_pql, optimizer, B_init, ss, family, totalSize) {
+    .Call(`_phyr_pglmm_internal_q_cpp`, X, Y, Zt, St, nested, REML, maxit, reltol, tol_pql, maxit_pql, optimizer, B_init, ss, family, totalSize)
+}
+
 pglmm_gaussian_predict <- function(iV, H) {
     .Call(`_phyr_pglmm_gaussian_predict`, iV, H)
 }

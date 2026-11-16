@@ -101,7 +101,7 @@ test_that("estimates of all random terms sum to the fitted random effects", {
 
       XB <- as.vector(m$X %*% m$B)
       target <- switch(fam,
-        gaussian = as.vector(m$Y - XB - m$s2resid * (m$iV %*% m$H)),
+        gaussian = as.vector(m$Y - XB - m$s2resid * (pglmm_iV(m) %*% m$H)),
         binomial = qlogis(as.vector(m$mu)) - XB,
         poisson = log(as.vector(m$mu)) - XB
       )

@@ -174,6 +174,9 @@
 #'   no phylogenetic signal. A better approach might be to run \code{link[lme4:lmer]{lmer}}
 #'   and use the output random effects for \code{s2.init}. If \code{s2.init} is not
 #'   provided for \code{family = "binomial"}, these are set to 0.25.
+#'   For \code{family = "gaussian"} and \code{bayes = FALSE}, the model is parameterized with the
+#'   variances of random terms relative to the residual variance (see \code{ss} in the Value
+#'   section), and \code{s2.init} gives the starting values of these ratios.
 #' @param B.init Initial estimates of \eqn{B}{B}, a matrix containing
 #'   regression coefficients in the model for the fixed effects. This
 #'   matrix must have \code{dim(B.init) = c(p + 1, 1)}, where \code{p} is the
@@ -276,14 +279,27 @@
 #' \item{B.cov}{approximate covariance matrix for the fixed effects regression coefficients}
 #' \item{B.zscore}{approximate Z scores for the fixed effects regression coefficients. This is set to NULL if \code{bayes = TRUE}}
 #' \item{B.pvalue}{approximate tests for the fixed effects regression coefficients being different from zero. This is set to NULL if \code{bayes = TRUE}}
-#' \item{ss}{standard deviations \eqn{\sigma_i}{sigma_i} of the random effects, where the covariance
-#'   contribution of the \emph{i}th term is \eqn{\sigma_i^2 V_{i,\rm std}}{sigma_i^2 * V_i_std} and
-#'   \eqn{V_{i,\rm std}}{V_i_std} is the det=1 standardized covariance matrix (see Details).
-#'   Because the model is fit against the standardized matrix, \code{ss} values are
-#'   \emph{not} absolute standard deviations on the original covariance scale.
-#'   For variance inference use \code{s2r}, \code{s2n}, or \code{s2resid}; do \emph{not} use
-#'   \code{ss^2} as a variance estimate. For the Gaussian model, the residual standard deviation
-#'   is listed last.}
+#' \item{ss}{the parameters that are optimized when fitting the model, one for each random term
+#'   (non-nested terms first, then nested terms). Their meaning depends on the model:
+#'   \itemize{
+#'   \item For gaussian models with \code{bayes = FALSE}, they are the standard deviations of the
+#'   random terms \emph{relative to the residual standard deviation}, i.e.
+#'   \eqn{\sigma_i / \sigma_{resid}}{sigma_i / sigma_resid}; the residual standard deviation
+#'   itself is listed last. The residual variance is profiled out of the likelihood, so only
+#'   these ratios are optimized (this is the same parameterization as \code{theta} of
+#'   \code{lme4} for a term such as \code{(1 | g)}). The variances are
+#'   \code{s2r = s2resid * ss^2} and \code{s2n = s2resid * ss^2} for the corresponding elements.
+#'   \item For binomial and poisson models with \code{bayes = FALSE}, and for all models with
+#'   \code{bayes = TRUE}, they are the standard deviations \eqn{\sigma_i}{sigma_i} of the random
+#'   terms themselves (\code{ss^2} equals \code{s2r} and \code{s2n}); for gaussian models with
+#'   \code{bayes = TRUE} the residual standard deviation is listed last.
+#'   }
+#'   In all cases, the covariance contribution of the \emph{i}th term is
+#'   \eqn{\sigma_i^2 V_{i,\rm std}}{sigma_i^2 * V_i_std}, where \eqn{V_{i,\rm std}}{V_i_std} is
+#'   the det=1 standardized covariance matrix (see Details), so these are \emph{not} standard
+#'   deviations on the original covariance scale. For variance inference use \code{s2r},
+#'   \code{s2n}, or \code{s2resid} (or \code{VarCorr()}); do \emph{not} use \code{ss^2} as a
+#'   variance estimate for gaussian models.}
 #' \item{s2r}{variance parameters \eqn{\sigma_i^2}{sigma_i^2} for non-nested random effects,
 #'   relative to the det=1 standardized covariance matrices (see Details). These are the
 #'   recommended output for variance inference. To obtain the effective per-observation variance
@@ -328,8 +344,6 @@
 #'   To get residuals after accounting for both fixed and random terms, use \code{residuals()}.
 #'   For the generalized linear mixed model, these are the predicted residuals in the
 #'   logit -1 space.}
-#' \item{iV}{the inverse of the covariance matrix for the entire system (of dimension (`nsp` * `nsite`)
-#'   by (`nsp` * `nsite`)). This is NULL if \code{bayes = TRUE}.}
 #' \item{mu}{predicted mean values for the generalized linear mixed model (i.e., similar to \code{fitted(merMod)}).
 #'   Set to NULL for linear mixed models, for which we can use [fitted()].}
 #' \item{nested}{matrices used to construct the nested design matrix. This is set to NULL if \code{bayes = TRUE}}
@@ -355,6 +369,19 @@
 #' New Phytologist, 214(2), 607-618.
 #' @rdname pglmm
 #' @export
+#' @section Speed:
+#' Models with `bayes = FALSE` spend most of their time in linear algebra
+#' (BLAS and LAPACK), so the BLAS library that R uses matters a lot for large
+#' data sets. The reference BLAS that R uses by default on some systems is much
+#' slower than optimized ones. On a Mac, R comes with a version that uses
+#' Apple's Accelerate; R can be switched to it by running, in a terminal,
+#' `ln -sf libRblas.vecLib.dylib libRblas.dylib` in the folder given by
+#' `R.home("lib")`, and restarting R (see the section about BLAS in the manual
+#' 'R Installation and Administration'). `pglmm()` shows a message once per
+#' session when a model with at least 1000 observations is fitted on a Mac
+#' with the reference BLAS; use `options(phyr.blas.hint = FALSE)` to turn it
+#' off. `extSoftVersion()["BLAS"]` shows the BLAS library that R uses.
+#'
 #' @examples
 #' ## Structure of examples:
 #' # First, a (brief) description of model types, and how they are specified
@@ -611,6 +638,12 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
 
   data <- as.data.frame(data) # in case of tibbles
   fm_original <- formula
+  if (!bayes) pglmm_blas_hint(nrow(data))
+  # offsets are not used by the maximum likelihood code; stop instead of
+  # silently fitting the model without them
+  if (!bayes && !is.null(attr(terms(reformulas::nobars(formula)), "offset"))) {
+    stop("offset() in the formula is not supported yet when bayes = FALSE.", call. = FALSE)
+  }
   prep_re <- if (is.null(random.effects)) TRUE else FALSE
 
   # Drop rows with NA in the response before building random effects structures.
@@ -931,7 +964,7 @@ communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian",
     s2resid = out$s2resid, scale_factors = scale_factors,
     logLik = logLik, AIC = AIC, BIC = BIC,
     REML = REML, bayes = FALSE, s2.init = s2.init, B.init = B.init, Y = Y, X = X, H = out$H,
-    iV = as.matrix(out$iV), mu = NULL, nested = nested, Zt = Zt, St = St,
+    mu = NULL, nested = nested, Zt = Zt, St = St,
     convcode = convcode, niter = niter
   )
   class(results) <- c("communityPGLMM", "pglmm")
@@ -967,21 +1000,36 @@ communityPGLMM.glmm <- function(formula, data = list(), family = "binomial",
   ss <- as.vector(array(s2.init^0.5, dim = c(1, q)))
 
   if (cpp) {
+    # models with non-nested terms, and nested terms that are all diagonal (or
+    # absent): everything is calculated with the unique columns of Zt
+    use_q <- !is.null(Zt) && nrow(Zt) > 0 &&
+      optimizer %in% c("nelder-mead-nlopt", "bobyqa", "subplex") &&
+      all(vapply(nested, Matrix::isDiagonal, TRUE))
     if (is.null(St)) St <- as(matrix(0, 0, 0), "sparseMatrix")
     if (is.null(Zt)) Zt <- as(matrix(0, 0, 0), "sparseMatrix")
-    internal_res <- pglmm_internal_cpp(
-      X = X, Y = Y, Zt = Zt, St = St,
-      nested = nested, REML = REML, verbose = verbose,
-      n = n, p = p, q = q, maxit = maxit,
-      reltol = reltol, tol_pql = tol.pql,
-      maxit_pql = maxit.pql, optimizer = optimizer,
-      B_init = B.init, ss = ss,
-      family = family, totalSize = size
-    )
+    if (use_q) {
+      internal_res <- pglmm_internal_q_cpp(
+        X = X, Y = Y, Zt = Zt, St = St,
+        nested = nested, REML = REML, maxit = maxit,
+        reltol = reltol, tol_pql = tol.pql,
+        maxit_pql = maxit.pql, optimizer = optimizer,
+        B_init = B.init, ss = ss,
+        family = family, totalSize = size
+      )
+    } else {
+      internal_res <- pglmm_internal_cpp(
+        X = X, Y = Y, Zt = Zt, St = St,
+        nested = nested, REML = REML, verbose = verbose,
+        n = n, p = p, q = q, maxit = maxit,
+        reltol = reltol, tol_pql = tol.pql,
+        maxit_pql = maxit.pql, optimizer = optimizer,
+        B_init = B.init, ss = ss,
+        family = family, totalSize = size
+      )
+    }
     B <- internal_res$B
     row.names(B) <- colnames(X)
     ss <- internal_res$ss[, 1]
-    iV <- as(internal_res$iV, "dgCMatrix")
     mu <- internal_res$mu
     row.names(mu) <- 1:nrow(mu)
     H <- internal_res$H
@@ -1154,7 +1202,12 @@ communityPGLMM.glmm <- function(formula, data = list(), family = "binomial",
   AIC <- -2 * logLik + 2 * k
   BIC <- -2 * logLik + k * (log(n) - log(pi))
 
-  B.cov <- solve(t(X) %*% iV %*% X)
+  # X' iV X without forming the n by n matrix iV
+  d.V <- if (family == "binomial") 1 / as.vector(size * mu * (1 - mu)) else 1 / as.vector(mu)
+  fac.V <- pglmm_iV_factors(
+    d.V, s2r, s2n, if (q.nonNested > 0) Zt else NULL, if (q.nonNested > 0) St else NULL, nested
+  )
+  B.cov <- solve(crossprod(X, pglmm_iV_mult_factors(fac.V, X)))
   B.se <- as.matrix(diag(B.cov))^0.5
   B.zscore <- B / B.se
   B.pvalue <- 2 * pnorm(abs(B / B.se), lower.tail = FALSE)
@@ -1184,7 +1237,7 @@ communityPGLMM.glmm <- function(formula, data = list(), family = "binomial",
     ss = ss, s2n = s2n, s2r = s2r, s2resid = NULL, scale_factors = scale_factors,
     logLik = logLik, AIC = AIC,
     BIC = BIC, REML = REML, bayes = FALSE, s2.init = s2.init, B.init = B.init, Y = Y, size = size, X = X,
-    H = as.matrix(H), iV = iV, mu = mu, nested = nested, Zt = Zt, St = St,
+    H = as.matrix(H), mu = mu, nested = nested, Zt = Zt, St = St,
     convcode = convcode, niter = niter
   )
   class(results) <- c("communityPGLMM", "pglmm")
@@ -1540,7 +1593,7 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     logLik = out$mlik[1, 1], AIC = NULL, BIC = NULL, DIC = DIC, WAIC = WAIC,
     REML = NULL, bayes = TRUE, marginal.summ = marginal.summ,
     s2.init = s2.init, B.init = B.init, Y = Y, size = Ntrials, X = X, H = H,
-    iV = NULL, mu = mu, nested = nested, Zt = NULL, St = NULL,
+    mu = mu, nested = nested, Zt = NULL, St = NULL,
     convcode = NULL, niter = NULL, inla.model = out
   )
   class(results) <- c("communityPGLMM", "pglmm")

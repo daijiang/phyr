@@ -432,8 +432,7 @@ extract_meas_errors <- function(meas_errors, phy_order, variate_names, data) {
   cnames <- names(me_mat)
   me_mat <- do.call(cbind, me_mat)
   colnames(me_mat) <- cnames
-  # Ordering the same as the phylogeny
-  me_mat <- me_mat[phy_order, , drop = FALSE]
+  # (already ordered the same as the phylogeny by `process_cov_me_list`)
   
   return(me_mat)
 }

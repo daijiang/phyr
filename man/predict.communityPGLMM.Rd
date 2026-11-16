@@ -73,9 +73,7 @@ to fit the model are different from those without \code{newdata}.
 For models fitted with \code{bayes = TRUE}, predictions with \code{newdata} are
 calculated in the same way, with the posterior summaries (see
 \code{marginal.summ} of \code{\link[=pglmm]{pglmm()}}) of fixed and random effects. They have no
-credible intervals. To get the posterior distributions of predictions, add
-the new data to the data with missing values for the response, and refit
-the model.
+credible intervals.
 
 Predictions with \code{newdata} and random effects are only available for
 models with random terms specified in the formula (i.e. not via the
