@@ -889,9 +889,15 @@ pglmm_profile_LRT <- function(x, re.number = 0, cpp = TRUE) {
   df <- length(re.number)
 
   if (!is.null(x$sparse)) {
-    nt <- length(x$sparse$theta)
-    LR <- pglmm_sparse_LL(par[seq_len(nt)], x$sparse$pre, x$REML) -
-      pglmm_sparse_LL(x$ss[seq_len(nt)], x$sparse$pre, x$REML)
+    if (x$family == "gaussian") {
+      nt <- length(x$sparse$theta)
+      LR <- pglmm_sparse_LL(par[seq_len(nt)], x$sparse$pre, x$REML) -
+        pglmm_sparse_LL(x$ss[seq_len(nt)], x$sparse$pre, x$REML)
+    } else {
+      XH <- cbind(x$X, as.vector(x$H))
+      LR <- pglmm_sparse_glmm_LL(par, x$sparse$pre, x$sparse$w, XH, x$REML, x$sparse$has.obs) -
+        pglmm_sparse_glmm_LL(x$ss, x$sparse$pre, x$sparse$w, XH, x$REML, x$sparse$has.obs)
+    }
     Pr <- pchisq(2 * LR, df = df, lower.tail = FALSE) / 2
     return(list(LR = LR, df = df, Pr = if (Pr > 0.499) 1 else Pr))
   }
@@ -1200,7 +1206,7 @@ pglmm_blas_hint <- function(n, min.n = 1000) {
   invisible(TRUE)
 }
 
-# Suggest sparse = TRUE for large gaussian models whose covariance matrices all come from
+# Suggest sparse = TRUE for large models whose covariance matrices all come from
 # phylogenies (shown once per session; options(phyr.sparse.hint = FALSE) turns it off).
 pglmm_sparse_hint <- function(n, covs, min.n = 2000, min.sp = 300) {
   if (!isTRUE(getOption("phyr.sparse.hint", TRUE)) || isTRUE(.phyr_state$sparse.hint.shown)) {
@@ -1216,7 +1222,7 @@ pglmm_sparse_hint <- function(n, covs, min.n = 2000, min.sp = 300) {
   }
   .phyr_state$sparse.hint.shown <- TRUE
   message(
-    "This model is large; sparse = TRUE fits the same gaussian model with the sparse precision ",
+    "This model is large; sparse = TRUE fits the same model with the sparse precision ",
     "matrix of the phylogeny, which is usually much faster and uses less memory (see ?pglmm). ",
     "This message is shown once per session; set options(phyr.sparse.hint = FALSE) to turn it off."
   )

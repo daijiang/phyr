@@ -344,7 +344,12 @@ pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
 # (M0 and B are positive definite for all theta), so its LDL' factorization
 # exists for any ordering; the top block of K^-1 is M^-1, and
 # log|M| = log|det K| - log|B|.
-pglmm_sparse_setup <- function(X, Y, terms) {
+#
+# With weights = TRUE (binomial and poisson models), the values of
+# A = Z' diag(w) Z on the pattern of M are wmap %*% w: each row of Z has at
+# most one non-zero value for each term, so the map is built from the pairs of
+# terms, without forming Z' diag(w) Z for each value of the weights w.
+pglmm_sparse_setup <- function(X, Y, terms, weights = FALSE) {
   n <- nrow(X)
   p <- ncol(X)
   Z <- do.call(cbind, lapply(terms, function(z) z$Z))
@@ -353,6 +358,31 @@ pglmm_sparse_setup <- function(X, Y, terms) {
   term.of.col <- rep(seq_along(terms), nc)
   Q <- Matrix::bdiag(lapply(terms, function(z) z$Q))
   A <- Matrix::crossprod(Z)
+  if (weights) {
+    # column (in Z) and value of each observation for each term
+    off <- cumsum(c(0L, nc))
+    cv <- lapply(seq_along(terms), function(k) {
+      Zt <- as(as(as(terms[[k]]$Z, "generalMatrix"), "CsparseMatrix"), "TsparseMatrix")
+      if (anyDuplicated(Zt@i)) stop("internal error: more than one value per row in a random term")
+      col <- rep(NA_integer_, n)
+      x <- numeric(n)
+      col[Zt@i + 1L] <- off[k] + Zt@j # 0-based
+      x[Zt@i + 1L] <- Zt@x
+      list(col = col, x = x)
+    })
+    pr <- list()
+    for (k in seq_along(terms)) {
+      for (l in k:length(terms)) {
+        ok <- which(!is.na(cv[[k]]$col) & !is.na(cv[[l]]$col))
+        a <- cv[[k]]$col[ok]
+        b <- cv[[l]]$col[ok]
+        pr[[length(pr) + 1]] <- list(i = pmin(a, b), j = pmax(a, b), row = ok,
+                                     x = cv[[k]]$x[ok] * cv[[l]]$x[ok])
+      }
+    }
+    pr <- list(i = unlist(lapply(pr, `[[`, "i")), j = unlist(lapply(pr, `[[`, "j")),
+               row = unlist(lapply(pr, `[[`, "row")), x = unlist(lapply(pr, `[[`, "x")))
+  }
   logdetB <- 0
   toc <- term.of.col # term of all columns, including auxiliary ones
   aux <- unlist(lapply(seq_along(terms), function(k) {
@@ -382,10 +412,16 @@ pglmm_sparse_setup <- function(X, Y, terms) {
   tq <- upper(Q)
   ta <- upper(A)
   key <- function(t) t$i + as.numeric(t$j) * qa # as numeric: no integer overflow
-  keys <- sort(unique(c(key(tq), key(ta)))) # ordered by column, then row
+  keys <- sort(unique(c(key(tq), key(ta), if (weights) key(pr)))) # ordered by column, then row
   qx <- ax <- numeric(length(keys))
   qx[match(key(tq), keys)] <- tq$x
   ax[match(key(ta), keys)] <- ta$x
+  wmap <- NULL
+  if (weights) {
+    # repeated (key, row) are summed
+    wmap <- Matrix::sparseMatrix(i = match(key(pr), keys), j = pr$row, x = pr$x,
+                                 dims = c(length(keys), n))
+  }
   mi <- as.integer(keys %% qa)
   mj <- as.integer(keys %/% qa)
   M <- Matrix::sparseMatrix(i = mi, j = mj, x = qx + ax, dims = c(qa, qa),
@@ -395,7 +431,7 @@ pglmm_sparse_setup <- function(X, Y, terms) {
   ldl <- qa > q
   list(
     n = n, p = p, q = q, qa = qa, Z = Z, term.of.col = term.of.col,
-    M = M, qx = qx, ax = ax, ti = toc[mi + 1L], tj = toc[mj + 1L], ldl = ldl,
+    M = M, qx = qx, ax = ax, wmap = wmap, ti = toc[mi + 1L], tj = toc[mj + 1L], ldl = ldl,
     L = if (ldl) {
       Matrix::Cholesky(M, perm = TRUE, LDL = TRUE, super = FALSE)
     } else {
@@ -458,6 +494,315 @@ pglmm_sparse_LL <- function(theta, pre, REML, verbose = FALSE) {
   }
   if (verbose) show(c(LL, theta))
   LL
+}
+
+# Binomial and poisson models (PQL) ----
+#
+# Each step of the penalized quasi-likelihood fit is a gaussian model for the
+# working response z with V = W^-1 + s2_obs I + Z G Z' (W: the working
+# weights, s2_obs: the variance of the observation-level term 1|obs, if any;
+# no residual variance to profile out). The diagonal part is folded into the
+# weights wt = 1 / (1 / w + s2_obs), and with u ~ N(0, Theta Q^-1 Theta)
+# (Theta: standard deviations of the terms, not relative ones),
+#   M = Q + Theta Z' Wt Z Theta,
+#   V^-1 = Wt - Wt Z Theta M^-1 Theta Z' Wt,
+#   log|V| = log|M| - log|Q| - sum(log(wt)).
+# The pattern of M is that of the gaussian model: only its values change with
+# the weights (see pglmm_sparse_setup(weights = TRUE)).
+
+# weighted pieces for the standard deviations ss (terms, then 1|obs if
+# has.obs) and the working weights w: the factorization L of M, and
+# G = [X R]' V^-1 [X R] for the columns XR (n by k). With full = TRUE,
+# also MiR = M^-1 Theta Z' Wt XR and wt.
+pglmm_sparse_weval <- function(ss, pre, w, XR, has.obs, full = FALSE) {
+  nt <- length(ss) - has.obs
+  th <- abs(ss[seq_len(nt)])
+  wt <- if (has.obs) w / (1 + ss[nt + 1]^2 * w) else w
+  M <- pre$M
+  M@x <- pre$qx + th[pre$ti] * th[pre$tj] * as.vector(pre$wmap %*% wt)
+  L <- Matrix::update(pre$L, M)
+  WXR <- wt * XR
+  R <- th[pre$term.of.col] * as.matrix(Matrix::crossprod(pre$Z, WXR))
+  MiR <- pglmm_sparse_solve(L, pre, R)
+  G <- crossprod(XR, WXR) - crossprod(R, MiR)
+  logdetM <- if (isTRUE(pre$ldl)) {
+    sum(log(abs(Matrix::diag(L))))
+  } else {
+    as.numeric(Matrix::determinant(L, sqrt = FALSE)$modulus)
+  }
+  out <- list(L = L, G = G, logdetV = logdetM - pre$logdetQ - sum(log(wt)))
+  if (full) {
+    out$MiR <- MiR
+    out$wt <- wt
+    out$th <- th
+  }
+  out
+}
+
+# The same function to minimize as pglmm_LL_cpp() (the variance step of PQL):
+# 0.5 * (log|V| + H' V^-1 H + log|X' V^-1 X| (REML))
+pglmm_sparse_glmm_LL <- function(ss, pre, w, XH, REML, has.obs, verbose = FALSE) {
+  ev <- tryCatch(pglmm_sparse_weval(ss, pre, w, XH, has.obs), error = function(e) NULL)
+  if (is.null(ev)) return(1e10)
+  p <- ncol(XH) - 1L
+  ip <- seq_len(p)
+  LL <- 0.5 * (ev$logdetV + ev$G[p + 1L, p + 1L])
+  if (REML) LL <- LL + 0.5 * as.numeric(determinant(ev$G[ip, ip, drop = FALSE])$modulus)
+  if (!is.finite(LL)) LL <- 1e10
+  if (verbose) show(c(LL, ss))
+  LL
+}
+
+# Fit a binomial or poisson pglmm (PQL) with the sparse precision matrix of the
+# phylogeny. The PQL loop is the same as in communityPGLMM.glmm() (and
+# pglmm_internal_cpp()): the same updates, convergence rules and tolerances.
+communityPGLMM.glmm.sparse <- function(formula, data, family = "binomial", cov_ranef = NULL,
+                                       REML = TRUE, s2.init = 0.25, B.init = NULL,
+                                       reltol = 10^-8, maxit = 500, tol.pql = 10^-6,
+                                       maxit.pql = 200, verbose = FALSE, optimizer = "subplex",
+                                       standardize_cov = TRUE, repulsion = FALSE,
+                                       add.obs.re = TRUE) {
+  formula.nobars <- reformulas::nobars(formula)
+  bars <- unique(reformulas::findbars(formula))
+  # observation-level term, as in prep_dat_pglmm(): for poisson models and
+  # binomial models with more than one trial, unless a nested term without
+  # phylogeny already has one level per observation
+  resp <- model.response(model.frame(formula.nobars, data = data, na.action = NULL))
+  no_obs_re <- TRUE
+  if (family == "poisson" || is.array(resp)) {
+    for (x in bars) {
+      grp <- as.character(x)[3]
+      if (grepl("@", grp, fixed = TRUE) && !grepl("__", grp, fixed = TRUE)) {
+        g <- strsplit(grp, "@", fixed = TRUE)[[1]]
+        if (add.obs.re && length(unique(data[[g[1]]])) * length(unique(data[[g[2]]])) == nrow(data)) {
+          message("It seems that you specified an observation-level random term already e.g. (1|sp@site);
+                       we will set 'add.obs.re' to FALSE.")
+          add.obs.re <- FALSE
+          no_obs_re <- FALSE
+        }
+      }
+    }
+    if (add.obs.re) {
+      message("We add an observation-level random term '1|obs' for poisson and binomial data.")
+    } else if (no_obs_re) {
+      message("For poisson and binomial data, it would be a good idea to add an observation-level random term (add.obs.re = TRUE).")
+    }
+  } else {
+    add.obs.re <- FALSE
+  }
+  has.obs <- add.obs.re
+
+  # rows with missing values in the response, predictors, or random terms are dropped
+  re.vars <- unique(unlist(lapply(bars, function(x) gsub("__$", "", all.vars(x)))))
+  ok <- stats::complete.cases(
+    model.frame(formula.nobars, data, na.action = NULL),
+    data[, intersect(re.vars, names(data)), drop = FALSE]
+  )
+  data <- data[ok, , drop = FALSE]
+  mf <- model.frame(formula.nobars, data = data, na.action = NULL)
+  X <- model.matrix(attr(mf, "terms"), data = mf)
+  Y <- model.response(mf)
+  if (is.matrix(Y) && ncol(Y) == 2) { # success, failure
+    size <- rowSums(Y)
+    Y <- Y[, 1]
+  } else {
+    size <- rep(1, length(Y))
+  }
+  Y <- as.numeric(Y)
+  n <- nrow(X)
+  p <- ncol(X)
+
+  tm <- pglmm_sparse_terms(formula, data, cov_ranef, standardize_cov, repulsion)
+  terms <- tm$terms
+  nt <- length(terms)
+  nested <- vapply(terms, function(z) z$nested, TRUE)
+  pre <- pglmm_sparse_setup(X, NULL, terms, weights = TRUE)
+  q <- nt + has.obs
+
+  if (!is.null(B.init) && length(B.init) != p) {
+    warning("B.init not correct length, so computed B.init using glm()")
+    B.init <- NULL
+  }
+  if (is.null(B.init)) {
+    B.init <- glm(formula = formula.nobars, data = data, family = family, na.action = na.omit)$coefficients
+  }
+  B <- matrix(as.numeric(B.init), ncol = 1)
+  B.init <- B
+  ss <- rep_len(sqrt(s2.init), q)
+
+  linkinv <- if (family == "binomial") stats::plogis else exp
+  workW <- function(mu) if (family == "binomial") size * mu * (1 - mu) else mu
+  workZ <- function(B, b, mu) {
+    if (family == "binomial") {
+      as.vector(X %*% B) + b + (Y / size - mu) / (mu * (1 - mu))
+    } else {
+      as.vector(X %*% B) + b + (Y - mu) / mu
+    }
+  }
+
+  nlopt_algor <- switch(optimizer,
+    "bobyqa" = "NLOPT_LN_BOBYQA", "nelder-mead-nlopt" = , "Nelder-Mead" = "NLOPT_LN_NELDERMEAD",
+    "NLOPT_LN_SBPLX"
+  )
+  lb <- if (nlopt_algor == "NLOPT_LN_BOBYQA") rep(0, q)
+  opts <- list(algorithm = nlopt_algor, ftol_rel = reltol, ftol_abs = reltol,
+               xtol_rel = 1e-6, maxeval = maxit)
+
+  b <- rep(0, n)
+  mu <- linkinv(as.vector(X %*% B))
+  tol2 <- tol.pql^2
+  est.ss <- ss
+  est.B <- B
+  old.ss <- rep(1e6, q)
+  old.B <- rep(1e6, p)
+  iteration <- 0
+  n.eval <- 0
+  LL <- NA
+  convcode <- 0
+  while ((sum((est.ss - old.ss)^2) > tol2 || sum((est.B - old.B)^2) > tol2) &&
+         iteration <= maxit.pql) {
+    old.ss <- est.ss
+    old.B <- est.B
+    iteration.m <- 0
+    est.B.m <- B
+    old.B.m <- rep(1e6, p)
+    # mean component: B and b for the current ss
+    while (sum((est.B.m - old.B.m)^2) > tol2 && iteration.m <= maxit.pql) {
+      old.B.m <- est.B.m
+      w <- workW(mu)
+      z <- workZ(B, b, mu)
+      ev <- pglmm_sparse_weval(ss, pre, w, cbind(X, z), has.obs, full = TRUE)
+      ip <- seq_len(p)
+      B <- solve(ev$G[ip, ip, drop = FALSE], ev$G[ip, p + 1L])
+      # V^-1 r = Wt (r - Z Theta M^-1 Theta Z' Wt r), r = z - X B;
+      # b = (V - W^-1) V^-1 r = r - V^-1 r / w
+      r <- z - as.vector(X %*% B)
+      v <- ev$th[pre$term.of.col] * as.vector(ev$MiR[, p + 1L] - ev$MiR[, ip, drop = FALSE] %*% B)
+      iVr <- ev$wt * (r - as.vector(pre$Z %*% v))
+      b <- r - iVr / w
+      mu <- linkinv(as.vector(X %*% B) + b)
+      B <- matrix(B, ncol = 1)
+      est.B.m <- B
+      iteration.m <- iteration.m + 1
+      if (verbose) show(c(iteration, B))
+      if (any(is.nan(B))) {
+        stop("Estimation of B failed. Check for lack of variation in Y. You could try with a smaller s2.init, but this might not help.")
+      }
+    }
+    # variance component
+    w <- workW(mu)
+    H <- workZ(B, b, mu) - as.vector(X %*% B)
+    XH <- cbind(X, H)
+    S0 <- nloptr::nloptr(
+      x0 = ss, eval_f = pglmm_sparse_glmm_LL, lb = lb, opts = opts, pre = pre, w = w, XH = XH,
+      REML = REML, has.obs = has.obs, verbose = verbose
+    )
+    n.eval <- n.eval + S0$iterations
+    ss <- abs(S0$solution)
+    LL <- S0$objective
+    convcode <- S0$status
+    if (verbose) cat("var part:", iteration, LL, ss, "\n")
+    est.ss <- ss
+    est.B <- B
+    iteration <- iteration + 1
+  }
+  rownames(B) <- colnames(X)
+
+  # final pieces, at the final ss and mu
+  w <- workW(mu)
+  ev <- pglmm_sparse_weval(ss, pre, w, cbind(X, H), has.obs, full = TRUE)
+  ip <- seq_len(p)
+  B.cov <- solve(ev$G[ip, ip, drop = FALSE])
+  dimnames(B.cov) <- list(colnames(X), colnames(X))
+  B.se <- as.matrix(diag(B.cov))^0.5
+  B.zscore <- B / B.se
+  # conditional modes: u = Theta M^-1 Theta Z' Wt H for the terms, and
+  # s2_obs V^-1 H for 1|obs
+  th.col <- ev$th[pre$term.of.col]
+  u <- th.col * ev$MiR[, p + 1L]
+  iVH <- ev$wt * (H - as.vector(pre$Z %*% u))
+  u.obs <- if (has.obs) ss[q]^2 * iVH
+
+  names(ss) <- c(names(terms), if (has.obs) "1|obs")
+  s2 <- ss^2
+  i.nested <- c(which(nested), if (has.obs) q)
+  s2n <- if (length(i.nested)) s2[i.nested] else NULL
+  s2r <- if (any(!nested)) s2[which(!nested)] else NULL
+
+  # log-likelihood, as communityPGLMM.glmm()
+  mu_hat <- linkinv(as.vector(X %*% B))
+  if (family == "binomial") {
+    if (any(size > 1)) {
+      logLik.glm <- sum(Y * log(mu_hat) + (size - Y) * log(1 - mu_hat) + lchoose(size, Y))
+    } else {
+      logLik.glm <- sum(Y * log(mu_hat) + (1 - Y) * log(1 - mu_hat))
+    }
+  } else {
+    logLik.glm <- sum(-mu_hat + Y * log(mu_hat) - lfactorial(Y))
+  }
+  logdetV_null <- -sum(log(w))
+  HiVH_null <- sum(H^2 * w)
+  if (REML) {
+    LL_null <- 0.5 * (logdetV_null + HiVH_null + as.numeric(determinant(crossprod(X * sqrt(w)))$modulus))
+  } else {
+    LL_null <- 0.5 * (logdetV_null + HiVH_null)
+  }
+  logLik <- logLik.glm + as.numeric(-LL + LL_null)
+  k <- p + q + 1
+  if (convcode >= 5 || convcode < 0) {
+    warning("Optimizer (", optimizer, ") did not converge (nloptr status = ", convcode,
+            "). Estimates may be unreliable. Consider increasing maxit.")
+  }
+  if (iteration > maxit.pql) {
+    warning("The PQL iterations did not converge (maxit.pql = ", maxit.pql, ").")
+  }
+
+  random.effects <- pglmm_sparse_random_effects(terms, data)[tm$formula.order]
+  if (has.obs) random.effects[["1|obs"]] <- list(Matrix::Diagonal(n))
+
+  results <- list(
+    formula = formula.nobars, data = data, family = family, random.effects = random.effects,
+    B = B, B.se = B.se, B.cov = B.cov, B.zscore = B.zscore,
+    B.pvalue = 2 * pnorm(abs(B.zscore), lower.tail = FALSE),
+    ss = ss, s2n = s2n, s2r = s2r, s2resid = NULL,
+    scale_factors = c(vapply(terms, function(z) z$mean.diag, 1)[tm$formula.order],
+                      if (has.obs) c("1|obs" = 1)),
+    logLik = logLik, AIC = -2 * logLik + 2 * k, BIC = -2 * logLik + k * (log(n) - log(pi)),
+    REML = REML, bayes = FALSE, s2.init = s2.init, B.init = B.init, Y = Y, size = size, X = X,
+    H = matrix(H, ncol = 1), mu = matrix(mu, ncol = 1, dimnames = list(seq_len(n), NULL)),
+    nested = list(), Zt = NULL, St = NULL,
+    convcode = convcode, niter = n.eval, iterations.pql = iteration,
+    sparse = list(
+      pre = pre, u = u, u.obs = u.obs, theta = ev$th, has.obs = has.obs, w = w,
+      formula.order = tm$formula.order,
+      terms = lapply(terms, function(z) {
+        z[intersect(c("name", "group", "phy", "nested", "labels", "n.levels", "level.order", "pick"),
+                    names(z))]
+      })
+    ),
+    cov_ranef_updated = tm$cov_ranef_updated
+  )
+  class(results) <- c("communityPGLMM", "pglmm")
+  results
+}
+
+# random.effects of a model fitted with sparse = TRUE: the same structure as
+# the random.effects of the default code (in the order of the parameters),
+# without the (dense) covariance matrices; nested terms are given as
+# list(1, sp, covar, site)
+pglmm_sparse_random_effects <- function(terms, data) {
+  lapply(terms, function(z) {
+    f <- lapply(z$group, function(g) factor(data[[g]], levels = unique(as.character(data[[g]]))))
+    gn <- ifelse(z$phy, paste0(z$group, "__"), z$group)
+    if (z$nested) {
+      out <- list(1, f[[1]], covar = NULL, f[[2]])
+      names(out)[c(2, 4)] <- gn
+    } else {
+      out <- list(if (z$lhs == "1") 1 else data[[z$lhs]], f[[1]], covar = NULL)
+      names(out)[2] <- gn
+    }
+    out
+  })
 }
 
 # Fit a gaussian pglmm with the sparse precision matrix of the phylogeny
@@ -550,18 +895,7 @@ communityPGLMM.gaussian.sparse <- function(formula, data, cov_ranef = NULL, REML
   # same structure as the random.effects of the default code (in the order of
   # the formula), without the (dense) covariance matrices; nested terms are
   # given as list(1, sp, covar, site)
-  random.effects <- lapply(terms, function(z) {
-    f <- lapply(z$group, function(g) factor(data[[g]], levels = unique(as.character(data[[g]]))))
-    gn <- ifelse(z$phy, paste0(z$group, "__"), z$group)
-    if (z$nested) {
-      out <- list(1, f[[1]], covar = NULL, f[[2]])
-      names(out)[c(2, 4)] <- gn
-    } else {
-      out <- list(if (z$lhs == "1") 1 else data[[z$lhs]], f[[1]], covar = NULL)
-      names(out)[2] <- gn
-    }
-    out
-  })[tm$formula.order]
+  random.effects <- pglmm_sparse_random_effects(terms, data)[tm$formula.order]
 
   results <- list(
     formula = formula.nobars, data = data, family = "gaussian",
@@ -602,10 +936,22 @@ pglmm_sparse_stop <- function(object, what) {
 # nodes = TRUE, the estimates of the internal nodes of the phylogeny are
 # included for non-nested phylogenetic terms. For nested terms, the estimates
 # are those of the combinations of levels in the data.
-# var(u | y) = s2resid * Theta M^-1 Theta
+# var(u | y) = s2resid * Theta M^-1 Theta (gaussian models; for binomial and
+# poisson models, Theta M^-1 Theta, with M for the final working weights).
+# The observation-level term 1|obs of binomial and poisson models has the
+# estimates s2_obs V^-1 H, with var = s2_obs - s2_obs^2 diag(V^-1).
 pglmm_cond_modes_sparse <- function(object, condVar = FALSE, nodes = FALSE) {
   sp <- object$sparse
   pre <- sp$pre
+  glmm <- object$family != "gaussian"
+  ev <- NULL
+  if (condVar) {
+    ev <- if (glmm) {
+      pglmm_sparse_weval(object$ss, pre, sp$w, object$X, sp$has.obs, full = TRUE)
+    } else {
+      pglmm_sparse_eval(sp$theta, pre)
+    }
+  }
   # columns of each term in u, and the ones to report
   offset <- match(seq_along(sp$terms), pre$term.of.col) - 1L
   pick <- lapply(seq_along(sp$terms), function(k) {
@@ -620,20 +966,24 @@ pglmm_cond_modes_sparse <- function(object, condVar = FALSE, nodes = FALSE) {
     }
   })
   se <- NULL
+  qa <- if (is.null(pre$qa)) pre$q else pre$qa
+  # x' M^-1 x for the columns x of E (qa rows): with M = P'LDL'P (D = I for an
+  # LL' factorization; M is the top block of K with auxiliary variables),
+  # x' M^-1 x = v' D^-1 v with v = L^-1 P x
+  quad_Mi <- function(E) {
+    W <- Matrix::solve(ev$L, Matrix::solve(ev$L, E, system = "P"), system = "L")
+    Matrix::colSums(W * Matrix::solve(ev$L, W, system = "D"))
+  }
   if (condVar) {
-    ev <- pglmm_sparse_eval(sp$theta, pre)
-    # diagonal of M^-1 for these columns: with M = P'LDL'P (D = I for an LL'
-    # factorization; M is the top block of K with auxiliary variables),
-    # (M^-1)_ii = w' D^-1 w with w = L^-1 P e_i; in chunks of columns to limit memory
+    # diagonal of M^-1 for these columns, in chunks of columns to limit memory
     need <- sort(unique(unlist(Map(`+`, offset, pick))))
-    qa <- if (is.null(pre$qa)) pre$q else pre$qa
     dMi <- numeric(pre$q)
     for (idx in split(need, ceiling(seq_along(need) / 500))) {
-      E <- Matrix::sparseMatrix(i = idx, j = seq_along(idx), x = 1, dims = c(qa, length(idx)))
-      W <- Matrix::solve(ev$L, Matrix::solve(ev$L, E, system = "P"), system = "L")
-      dMi[idx] <- Matrix::colSums(W * Matrix::solve(ev$L, W, system = "D"))
+      dMi[idx] <- quad_Mi(Matrix::sparseMatrix(i = idx, j = seq_along(idx), x = 1,
+                                               dims = c(qa, length(idx))))
     }
-    se <- sp$theta[pre$term.of.col] * sqrt(as.numeric(object$s2resid) * pmax(dMi, 0))
+    s2 <- if (glmm) 1 else as.numeric(object$s2resid)
+    se <- sp$theta[pre$term.of.col] * sqrt(s2 * pmax(dMi, 0))
   }
   out <- lapply(seq_along(sp$terms), function(k) {
     z <- sp$terms[[k]]
@@ -651,5 +1001,25 @@ pglmm_cond_modes_sparse <- function(object, condVar = FALSE, nodes = FALSE) {
   names(out) <- names(sp$terms)
   # in the order of the terms in the formula
   if (!is.null(sp$formula.order)) out <- out[sp$formula.order]
+  if (isTRUE(sp$has.obs)) {
+    obs <- rownames(object$X)
+    if (is.null(obs)) obs <- seq_len(nrow(object$X))
+    d <- data.frame(obs = obs, stringsAsFactors = FALSE)
+    d$estimate <- sp$u.obs
+    if (condVar) {
+      # diag(V^-1) = wt - wt^2 diag(Z Theta M^-1 Theta Z'), in chunks of rows
+      s2o <- object$ss[[length(object$ss)]]^2
+      Et <- Matrix::t(pre$Z) * sp$theta[pre$term.of.col]
+      if (qa > pre$q) Et <- rbind(Et, Matrix::Matrix(0, qa - pre$q, ncol(Et), sparse = TRUE))
+      n <- ncol(Et)
+      dZ <- numeric(n)
+      for (idx in split(seq_len(n), ceiling(seq_len(n) / 500))) {
+        dZ[idx] <- quad_Mi(Et[, idx, drop = FALSE])
+      }
+      dV <- ev$wt - ev$wt^2 * dZ
+      d$se <- sqrt(pmax(s2o - s2o^2 * dV, 0))
+    }
+    out[["1|obs"]] <- d
+  }
   out
 }

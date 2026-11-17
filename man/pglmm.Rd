@@ -155,7 +155,9 @@ default for Gaussian, also available for binomial/Poisson), \code{"nelder-mead-n
 With \code{sparse = TRUE}, the default (and \code{"lbfgs"}, as there is no gradient) is
 \code{"subplex"}, \code{"nelder-mead-nlopt"} and \code{"Nelder-Mead"} both use the
 Nelder-Mead algorithm of nloptr, and the optimizer is restarted from its solution until the
-likelihood does not improve. Ignored if \code{bayes = TRUE}.}
+likelihood does not improve (for gaussian models; for binomial and poisson models, each
+PQL iteration already starts the optimizer from the previous solution). Ignored if
+\code{bayes = TRUE}.}
 
 \item{repulsion}{When there are nested random terms specified, \code{repulsion = FALSE} tests
 for phylogenetic underdispersion while \code{repulsion = TRUE} tests for overdispersion.
@@ -203,7 +205,8 @@ which case the default \code{INLA} initial values will be used.}
 
 \item{reltol}{A control parameter dictating the relative tolerance
 for convergence in the optimization; see \code{\link{optim}}. With \code{sparse = TRUE},
-the default is \code{1e-8} (for each run of the optimizer).}
+the default is \code{1e-8} (for each run of the optimizer, including each PQL iteration
+of binomial and poisson models).}
 
 \item{maxit}{A control parameter dictating the maximum number of
 iterations in the optimization; see \code{\link{optim}}.}
@@ -308,9 +311,13 @@ time grows about linearly with the number of species and somewhat faster than li
 with the number of sites. With \code{repulsion = TRUE}, the precision matrix of the
 phylogeny becomes its (dense) covariance matrix, which is written with the internal nodes as
 auxiliary variables, and a sparse \eqn{LDL'} decomposition of a larger (indefinite) matrix
-is used instead. Only available for \code{family = "gaussian"} with \code{bayes = FALSE},
+is used instead. Binomial and poisson models are fitted with the same penalized
+quasi-likelihood (PQL) iterations as with \code{sparse = FALSE} (same updates and
+convergence rules, \code{tol.pql} and \code{maxit.pql}); at each iteration, the working
+weights change only the values of the sparse matrix, and the observation-level term
+\code{1|obs} is folded into the weights. Only available with \code{bayes = FALSE},
 and phylogenies (class \code{phylo}) in \code{cov_ranef}. The default optimizer is then
-\code{"subplex"} (see \code{optimizer}).
+\code{"subplex"} (see \code{optimizer}), with \code{reltol = 1e-8}.
 
 The sparse precision matrix exists because the trait evolves along the branches as a
 Markov process (the value at a node depends only on its parent). This is not limited to

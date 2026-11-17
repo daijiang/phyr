@@ -176,7 +176,9 @@
 #'   With \code{sparse = TRUE}, the default (and \code{"lbfgs"}, as there is no gradient) is
 #'   \code{"subplex"}, \code{"nelder-mead-nlopt"} and \code{"Nelder-Mead"} both use the
 #'   Nelder-Mead algorithm of nloptr, and the optimizer is restarted from its solution until the
-#'   likelihood does not improve. Ignored if \code{bayes = TRUE}.
+#'   likelihood does not improve (for gaussian models; for binomial and poisson models, each
+#'   PQL iteration already starts the optimizer from the previous solution). Ignored if
+#'   \code{bayes = TRUE}.
 #' @param repulsion When there are nested random terms specified, \code{repulsion = FALSE} tests
 #'   for phylogenetic underdispersion while \code{repulsion = TRUE} tests for overdispersion.
 #'   This argument is a logical vector of length either 1 or >1.
@@ -224,7 +226,8 @@
 #'   which case the default \code{INLA} initial values will be used.
 #' @param reltol A control parameter dictating the relative tolerance
 #'   for convergence in the optimization; see \code{\link{optim}}. With \code{sparse = TRUE},
-#'   the default is \code{1e-8} (for each run of the optimizer).
+#'   the default is \code{1e-8} (for each run of the optimizer, including each PQL iteration
+#'   of binomial and poisson models).
 #' @param maxit A control parameter dictating the maximum number of
 #'   iterations in the optimization; see \code{\link{optim}}.
 #' @param tol.pql A control parameter dictating the tolerance for
@@ -310,9 +313,13 @@
 #'   with the number of sites. With \code{repulsion = TRUE}, the precision matrix of the
 #'   phylogeny becomes its (dense) covariance matrix, which is written with the internal nodes as
 #'   auxiliary variables, and a sparse \eqn{LDL'} decomposition of a larger (indefinite) matrix
-#'   is used instead. Only available for \code{family = "gaussian"} with \code{bayes = FALSE},
+#'   is used instead. Binomial and poisson models are fitted with the same penalized
+#'   quasi-likelihood (PQL) iterations as with \code{sparse = FALSE} (same updates and
+#'   convergence rules, \code{tol.pql} and \code{maxit.pql}); at each iteration, the working
+#'   weights change only the values of the sparse matrix, and the observation-level term
+#'   \code{1|obs} is folded into the weights. Only available with \code{bayes = FALSE},
 #'   and phylogenies (class \code{phylo}) in \code{cov_ranef}. The default optimizer is then
-#'   \code{"subplex"} (see \code{optimizer}).
+#'   \code{"subplex"} (see \code{optimizer}), with \code{reltol = 1e-8}.
 #'
 #'   The sparse precision matrix exists because the trait evolves along the branches as a
 #'   Markov process (the value at a node depends only on its parent). This is not limited to
@@ -738,25 +745,36 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
     data <- data[!is.na(resp_vec), , drop = FALSE]
   }
 
-  if (!isTRUE(sparse) && !bayes && family == "gaussian" && prep_re &&
+  if (!isTRUE(sparse) && !bayes && prep_re &&
       grepl("__", paste(deparse(formula), collapse = ""))) {
     pglmm_sparse_hint(nrow(data), if (is.null(cov_ranef)) list(tree, tree_site) else cov_ranef)
   }
 
   if (isTRUE(sparse)) {
-    if (bayes || family != "gaussian") {
-      stop("sparse = TRUE is only available for family = 'gaussian' with bayes = FALSE.", call. = FALSE)
+    if (bayes) {
+      stop("sparse = TRUE is only available with bayes = FALSE.", call. = FALSE)
     }
     if (!prep_re) stop("sparse = TRUE needs random terms specified in the formula.", call. = FALSE)
     if (is.null(cov_ranef) && (!is.null(tree) || !is.null(tree_site))) {
       cov_ranef <- c(if (!is.null(tree)) list(sp = tree), if (!is.null(tree_site)) list(site = tree_site))
     }
-    z <- communityPGLMM.gaussian.sparse(
-      formula = formula, data = data, cov_ranef = cov_ranef, REML = REML,
-      s2.init = s2.init, reltol = if (missing(reltol)) 1e-8 else reltol, maxit = maxit,
-      verbose = verbose, optimizer = if (optimizer.given) optimizer else "subplex",
-      standardize_cov = standardize_cov, repulsion = repulsion
-    )
+    if (family == "gaussian") {
+      z <- communityPGLMM.gaussian.sparse(
+        formula = formula, data = data, cov_ranef = cov_ranef, REML = REML,
+        s2.init = s2.init, reltol = if (missing(reltol)) 1e-8 else reltol, maxit = maxit,
+        verbose = verbose, optimizer = if (optimizer.given) optimizer else "subplex",
+        standardize_cov = standardize_cov, repulsion = repulsion
+      )
+    } else {
+      z <- communityPGLMM.glmm.sparse(
+        formula = formula, data = data, family = family, cov_ranef = cov_ranef, REML = REML,
+        s2.init = if (is.null(s2.init)) 0.25 else s2.init, B.init = B.init,
+        reltol = if (missing(reltol)) 1e-8 else reltol, maxit = maxit,
+        tol.pql = tol.pql, maxit.pql = maxit.pql, verbose = verbose,
+        optimizer = if (optimizer.given) optimizer else "subplex",
+        standardize_cov = standardize_cov, repulsion = repulsion, add.obs.re = add.obs.re
+      )
+    }
     z$standardize_cov <- standardize_cov
     z$formula_original <- fm_original
     z$cov_ranef <- if (length(z$cov_ranef_updated)) z$cov_ranef_updated else NA

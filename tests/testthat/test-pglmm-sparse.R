@@ -112,11 +112,8 @@ test_that("sparse = TRUE stops for what it does not support", {
     pglmm(y ~ x + (1 | sp__) + (x | sp__@site), s$d, cov_ranef = list(sp = s$phy), sparse = TRUE),
     "slope"
   )
-  expect_error(
-    pglmm(I(y > 0) ~ x + (1 | sp__), s$d, family = "binomial", cov_ranef = list(sp = s$phy),
-          sparse = TRUE),
-    "gaussian"
-  )
+  re <- list(list(1, sp = factor(s$d$sp), covar = diag(length(unique(s$d$sp)))))
+  expect_error(pglmm(y ~ x, s$d, random.effects = re, sparse = TRUE), "random terms specified")
   # extra tips are dropped with a warning; rows with NA are dropped
   d <- s$d[s$d$sp != "sp1", ]
   d$y[3] <- NA
@@ -354,5 +351,115 @@ test_that("the default optimizer of sparse = TRUE avoids a known poor optimum", 
   # the other optimizers can be chosen
   for (o in c("nelder-mead-nlopt", "bobyqa")) {
     expect_true(is.finite(pglmm(f, d, cov_ranef = cr, sparse = TRUE, optimizer = o)$logLik))
+  }
+})
+
+# binomial and poisson models
+sim_glmm_data <- function(nsp = 18, nsite = 6) {
+  set.seed(11)
+  phy <- ape::rtree(nsp)
+  phy$tip.label <- paste0("sp", seq_len(nsp))
+  phy_site <- ape::rcoal(nsite)
+  phy_site$tip.label <- paste0("s", seq_len(nsite))
+  d <- expand.grid(sp = phy$tip.label, site = phy_site$tip.label, stringsAsFactors = FALSE)
+  d$x <- rnorm(nrow(d))
+  V <- ape::vcv(phy)
+  V <- V / max(V)
+  i.sp <- match(d$sp, phy$tip.label)
+  eta <- -0.2 + 0.6 * d$x + as.vector(t(chol(V)) %*% rnorm(nsp))[i.sp] +
+    rnorm(nsite)[match(d$site, phy_site$tip.label)] + rnorm(nrow(d), 0, 0.4)
+  d$pa <- rbinom(nrow(d), 1, plogis(eta))
+  d$succ <- rbinom(nrow(d), 4, plogis(eta))
+  d$fail <- 4 - d$succ
+  d$cnt <- rpois(nrow(d), exp(eta))
+  d <- d[sample(nrow(d), round(0.85 * nrow(d))), ]
+  rownames(d) <- NULL
+  list(d = d, phy = phy, phy_site = phy_site)
+}
+
+test_that("sparse and dense PQL likelihoods are the same for binomial and poisson models", {
+  s <- sim_glmm_data()
+  cr <- list(sp = s$phy, site = s$phy_site)
+  cases <- list(
+    list("x + (1 | sp__) + (1 | site) + (x | sp__)", FALSE),
+    list("x + (1 | sp__) + (1 | site__) + (1 | sp__@site)", FALSE),
+    list("x + (1 | sp__) + (1 | site__) + (1 | sp__@site__)", c(TRUE, FALSE))
+  )
+  resp <- list(c("pa", "binomial"), c("cbind(succ, fail)", "binomial"), c("cnt", "poisson"))
+  set.seed(3)
+  for (rp in resp) {
+    for (cs in cases) {
+      f <- as.formula(paste(rp[1], "~", cs[[1]]))
+      pd <- suppressMessages(prep_dat_pglmm(f, s$d, cr, repulsion = cs[[2]], family = rp[2]))
+      dm <- get_design_matrix(pd$formula, s$d, pd$random.effects)
+      has.obs <- "1|obs" %in% names(pd$random.effects)
+      expect_equal(has.obs, rp[1] != "pa")
+      tm <- phyr:::pglmm_sparse_terms(f, s$d, cr, repulsion = cs[[2]])
+      pre <- phyr:::pglmm_sparse_setup(dm$X, NULL, tm$terms, weights = TRUE)
+      q <- length(tm$terms) + has.obs
+      n <- nrow(dm$X)
+      for (REML in c(TRUE, FALSE)) {
+        for (th in list(runif(q, 0.2, 2), c(0, runif(q - 1)), c(runif(q - 1), 0))) {
+          mu <- if (rp[2] == "binomial") plogis(rnorm(n)) else exp(rnorm(n))
+          H <- rnorm(n)
+          w <- if (rp[2] == "binomial") dm$size * mu * (1 - mu) else mu
+          expect_equal(
+            phyr:::pglmm_sparse_glmm_LL(th, pre, w, cbind(dm$X, H), REML, has.obs),
+            phyr:::pglmm_LL_cpp(th, matrix(H), dm$X, dm$Zt, dm$St, matrix(mu), dm$nested, REML,
+                                FALSE, rp[2], dm$size),
+            tolerance = 1e-8
+          )
+        }
+      }
+    }
+  }
+})
+
+test_that("pglmm(sparse = TRUE) gives the same fit and methods as the default code for binomial and poisson models", {
+  s <- sim_glmm_data()
+  cr <- list(sp = s$phy, site = s$phy_site)
+  cases <- list(
+    list(pa ~ x + (1 | sp__) + (1 | site), "binomial", TRUE, NA),
+    list(cbind(succ, fail) ~ x + (1 | sp__) + (1 | site__), "binomial", FALSE, "1\\|obs"),
+    list(cnt ~ x + (1 | sp__) + (1 | site) + (1 | sp__@site), "poisson", TRUE, "1\\|obs")
+  )
+  for (cs in cases) {
+    # tight tolerances, so that both reach the fixed point of the PQL iterations
+    m1 <- suppressMessages(pglmm(cs[[1]], s$d, family = cs[[2]], cov_ranef = cr, REML = cs[[3]],
+                                 optimizer = "subplex", reltol = 1e-12, maxit = 5000, tol.pql = 1e-8))
+    expect_message(
+      m2 <- pglmm(cs[[1]], s$d, family = cs[[2]], cov_ranef = cr, REML = cs[[3]], sparse = TRUE,
+                  reltol = 1e-12, tol.pql = 1e-8),
+      cs[[4]]
+    )
+    expect_equal(m2$B, m1$B, tolerance = 1e-5)
+    expect_equal(m2$B.se, m1$B.se, tolerance = 1e-5)
+    expect_equal(m2$ss^2, m1$ss^2, tolerance = 1e-4)
+    expect_equal(m2$logLik, m1$logLik, tolerance = 1e-5)
+    expect_equal(m2$AIC, m1$AIC, tolerance = 1e-5)
+    expect_equal(m2$scale_factors, m1$scale_factors, tolerance = 1e-8)
+    expect_identical(names(m2$ss), names(m1$ss))
+    expect_identical(names(m2$s2r), names(m1$s2r))
+    expect_identical(names(m2$s2n), names(m1$s2n))
+    expect_identical(names(m2$random.effects), names(m1$random.effects))
+    expect_equal(fitted(m2), fitted(m1), tolerance = 1e-5)
+    expect_equal(residuals(m2), residuals(m1), tolerance = 1e-5)
+    expect_equal(predict(m2), predict(m1), tolerance = 1e-5)
+    nd <- s$d[1:10, ]
+    nd$x <- 0
+    expect_equal(predict(m2, nd, type = "response"), predict(m1, nd, type = "response"), tolerance = 1e-5)
+    r1 <- ranef(m1, condVar = TRUE)
+    r2 <- ranef(m2, condVar = TRUE)
+    expect_identical(names(r2), names(r1))
+    for (k in names(r1)) {
+      lab <- setdiff(names(r1[[k]]), c("estimate", "se"))
+      expect_identical(r2[[k]][lab], r1[[k]][lab])
+      expect_equal(r2[[k]]$estimate, r1[[k]]$estimate, tolerance = 1e-4)
+      expect_equal(r2[[k]]$se, r1[[k]]$se, tolerance = 1e-4)
+    }
+    expect_equal(pglmm_profile_LRT(m2, 2)$LR, pglmm_profile_LRT(m1, 2)$LR, tolerance = 1e-4)
+    expect_output(print(m2), "1\\|sp__")
+    expect_equal(dim(simulate(m2, nsim = 2)), c(nrow(s$d), 2L))
+    expect_error(pglmm_iV(m2), "not available yet")
   }
 })
