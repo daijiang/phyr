@@ -208,3 +208,20 @@ test_that("standardize_cov = FALSE gives the variances on the scale of the matri
   expect_equal(unname(s$scale_factors), c(1, 1))
   expect_equal(s$s2r, b$s2r, tolerance = 1e-2)
 })
+
+test_that("the hint about sparse = TRUE is only for large models with phylogenies", {
+  st <- phyr:::.phyr_state
+  old.shown <- st$sparse.hint.shown
+  on.exit(st$sparse.hint.shown <- old.shown)
+  big <- ape::rtree(600)
+  small <- ape::rtree(20)
+  st$sparse.hint.shown <- FALSE
+  expect_silent(phyr:::pglmm_sparse_hint(100, list(small)))          # small model
+  expect_silent(phyr:::pglmm_sparse_hint(5000, list(ape::vcv(big)))) # matrix, not a tree
+  expect_silent(phyr:::pglmm_sparse_hint(5000, list(NULL)))          # no phylogeny
+  old <- options(phyr.sparse.hint = FALSE)
+  expect_silent(phyr:::pglmm_sparse_hint(5000, list(big)))
+  options(old)
+  expect_message(phyr:::pglmm_sparse_hint(100, list(big)), "sparse = TRUE")
+  expect_silent(phyr:::pglmm_sparse_hint(5000, list(big)))           # once per session
+})

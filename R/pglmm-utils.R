@@ -1204,6 +1204,29 @@ pglmm_blas_hint <- function(n, min.n = 1000) {
   invisible(TRUE)
 }
 
+# Suggest sparse = TRUE for large gaussian models whose covariance matrices all come from
+# phylogenies (shown once per session; options(phyr.sparse.hint = FALSE) turns it off).
+pglmm_sparse_hint <- function(n, covs, min.n = 2000, min.sp = 300) {
+  if (!isTRUE(getOption("phyr.sparse.hint", TRUE)) || isTRUE(.phyr_state$sparse.hint.shown)) {
+    return(invisible(FALSE))
+  }
+  covs <- Filter(Negate(is.null), covs)
+  if (!length(covs) || !all(vapply(covs, inherits, logical(1), "phylo"))) {
+    return(invisible(FALSE))
+  }
+  n.sp <- max(vapply(covs, ape::Ntip, numeric(1)))
+  if (n < min.n && n.sp < min.sp) {
+    return(invisible(FALSE))
+  }
+  .phyr_state$sparse.hint.shown <- TRUE
+  message(
+    "This model is large; sparse = TRUE fits the same gaussian model with the sparse precision ",
+    "matrix of the phylogeny, which is usually much faster and uses less memory (see ?pglmm). ",
+    "This message is shown once per session; set options(phyr.sparse.hint = FALSE) to turn it off."
+  )
+  invisible(TRUE)
+}
+
 # ---- Inverse of the marginal covariance matrix V, without storing it ----
 #
 # The n by n matrix iV = V^-1 is not stored in fitted models. With

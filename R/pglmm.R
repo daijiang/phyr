@@ -734,6 +734,11 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
     data <- data[!is.na(resp_vec), , drop = FALSE]
   }
 
+  if (!isTRUE(sparse) && !bayes && family == "gaussian" && prep_re &&
+      grepl("__", paste(deparse(formula), collapse = ""))) {
+    pglmm_sparse_hint(nrow(data), if (is.null(cov_ranef)) list(tree, tree_site) else cov_ranef)
+  }
+
   if (isTRUE(sparse)) {
     if (bayes || family != "gaussian") {
       stop("sparse = TRUE is only available for family = 'gaussian' with bayes = FALSE.", call. = FALSE)
