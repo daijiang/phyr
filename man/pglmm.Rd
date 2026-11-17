@@ -403,9 +403,10 @@ Choosing between them:
 \item \code{"PQL"} (default): fastest (about 3--4 times faster than \code{"Laplace"}),
 supports every model of \code{pglmm()} (including \code{random.effects} and
 \code{\link[=pglmm_iV]{pglmm_iV()}}), and gives the same estimates as earlier versions of phyr. But its
-estimates are biased for binary data and counts with small means: in simulations of
-binary data, the fixed effects were shrunk towards zero by about 5--10\\% and the
-phylogenetic variance was underestimated by 20--45\\%. Its log-likelihood is not that
+estimates are biased for binary data: compared with \code{"Laplace"} (and
+\code{glmer()}/\code{glmmTMB}), the fixed effects were about 5--10\% closer to zero
+and the variances of random terms about 10--30\% smaller in our comparisons. For counts,
+the differences were small (variances a few percent smaller). Its log-likelihood is not that
 of the model, so AIC and likelihood ratio tests (including tests for phylogenetic
 signal with \code{\link[=pglmm_profile_LRT]{pglmm_profile_LRT()}}) are only rough approximations.
 \item \code{"Laplace"}: gives the same estimates and log-likelihood as
@@ -416,7 +417,9 @@ for AIC and likelihood ratio tests. Still much faster than \code{glmmTMB} for la
 phylogenies (e.g. 1 s versus about 60 s for 2000 species). Use it when the variances
 of random terms, tests of phylogenetic signal, or model comparisons matter, especially
 for binary data. It is an approximation too: for binary data with few observations
-per species, the variances remain somewhat underestimated.
+per species, the variances (especially the phylogenetic one) remain underestimated
+with \code{REML = FALSE}, as with any maximum likelihood fit; \code{REML = TRUE}
+reduces this bias.
 }}
 }
 \value{
