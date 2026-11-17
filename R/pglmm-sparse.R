@@ -163,7 +163,7 @@ phylo_repulsion <- function(pp) {
 # terms first, then nested terms. `formula.order` gives the order of the terms
 # in the formula (as random.effects of the default code): terms[formula.order].
 pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
-                               repulsion = FALSE) {
+                               repulsion = FALSE, phylo_only = FALSE) {
   fm <- unique(reformulas::findbars(formula))
   if (is.null(fm)) stop("No random terms specified, use lm or glm instead")
   if (!is.null(cov_ranef)) names(cov_ranef) <- gsub("__$", "", names(cov_ranef))
@@ -308,6 +308,25 @@ pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
     g <- gsub("__$", "", grp)
     f <- as_group(g)
     covariate <- if (lhs == "1") rep(1, n) else as.numeric(data[[lhs]])
+    if (phy && phylo_only) {
+      # phylogenetic term without its non-phylogenetic partner (pglmm_compare()),
+      # reported as the default code does: a term with one value per
+      # observation (s2n), with the estimates of the species in the data
+      if (lhs != "1") stop("Only intercepts of phylogenetic terms, e.g. (1 | sp__), are allowed here.")
+      tp <- get_tree(g, f)
+      col <- match(as.character(f), tp$tip.label)
+      first <- !duplicated(col)
+      labels <- data.frame(as.character(f)[first], stringsAsFactors = FALSE)
+      names(labels) <- g
+      terms[[length(terms) + 1]] <- list(
+        name = paste0(lhs, "|", grp), group = g, lhs = lhs, phy = TRUE, nested = TRUE,
+        repulsion = FALSE,
+        Z = Matrix::sparseMatrix(i = seq_len(n), j = col, x = 1, dims = c(n, nrow(tp$Q))),
+        Q = tp$Q, logdetQ = tp$logdetQ, aux = list(),
+        labels = labels, pick = col[first], mean.diag = mean(tp$tip.var[col])
+      )
+      next
+    }
     z.plain <- list(
       name = paste0(lhs, "|", g), group = g, lhs = lhs, phy = FALSE, nested = FALSE,
       Z = Matrix::sparseMatrix(i = seq_len(n), j = as.integer(f), x = covariate,
@@ -561,7 +580,7 @@ communityPGLMM.glmm.sparse <- function(formula, data, family = "binomial", cov_r
                                        reltol = 10^-8, maxit = 500, tol.pql = 10^-6,
                                        maxit.pql = 200, verbose = FALSE, optimizer = "subplex",
                                        standardize_cov = TRUE, repulsion = FALSE,
-                                       add.obs.re = TRUE) {
+                                       add.obs.re = TRUE, phylo_only = FALSE) {
   formula.nobars <- reformulas::nobars(formula)
   bars <- unique(reformulas::findbars(formula))
   # observation-level term, as in prep_dat_pglmm(): for poisson models and
@@ -612,7 +631,7 @@ communityPGLMM.glmm.sparse <- function(formula, data, family = "binomial", cov_r
   n <- nrow(X)
   p <- ncol(X)
 
-  tm <- pglmm_sparse_terms(formula, data, cov_ranef, standardize_cov, repulsion)
+  tm <- pglmm_sparse_terms(formula, data, cov_ranef, standardize_cov, repulsion, phylo_only)
   terms <- tm$terms
   nt <- length(terms)
   nested <- vapply(terms, function(z) z$nested, TRUE)
@@ -794,7 +813,10 @@ pglmm_sparse_random_effects <- function(terms, data) {
   lapply(terms, function(z) {
     f <- lapply(z$group, function(g) factor(data[[g]], levels = unique(as.character(data[[g]]))))
     gn <- ifelse(z$phy, paste0(z$group, "__"), z$group)
-    if (z$nested) {
+    if (z$nested && length(z$group) == 1) { # phylo_only (pglmm_compare())
+      out <- list(1, f[[1]], covar = NULL)
+      names(out)[2] <- gn
+    } else if (z$nested) {
       out <- list(1, f[[1]], covar = NULL, f[[2]])
       names(out)[c(2, 4)] <- gn
     } else {
@@ -809,7 +831,8 @@ pglmm_sparse_random_effects <- function(terms, data) {
 communityPGLMM.gaussian.sparse <- function(formula, data, cov_ranef = NULL, REML = TRUE,
                                            s2.init = NULL, reltol = 10^-8, maxit = 500,
                                            verbose = FALSE, optimizer = "subplex",
-                                           standardize_cov = TRUE, repulsion = FALSE) {
+                                           standardize_cov = TRUE, repulsion = FALSE,
+                                           phylo_only = FALSE) {
   formula.nobars <- reformulas::nobars(formula)
   # rows with missing values in the response, predictors, or random terms are dropped
   bars <- unique(reformulas::findbars(formula))
@@ -825,7 +848,7 @@ communityPGLMM.gaussian.sparse <- function(formula, data, cov_ranef = NULL, REML
   n <- nrow(X)
   p <- ncol(X)
 
-  tm <- pglmm_sparse_terms(formula, data, cov_ranef, standardize_cov, repulsion)
+  tm <- pglmm_sparse_terms(formula, data, cov_ranef, standardize_cov, repulsion, phylo_only)
   terms <- tm$terms
   nt <- length(terms)
   nested <- vapply(terms, function(z) z$nested, TRUE)

@@ -565,6 +565,17 @@ with the reference BLAS; use \code{options(phyr.blas.hint = FALSE)} to turn it
 off. \code{extSoftVersion()["BLAS"]} shows the BLAS library that R uses.
 }
 
+\section{Comparative data}{
+
+A phylogenetic term such as \code{(1 | sp__)} also adds the non-phylogenetic
+term \code{(1 | sp)}. With comparative data (one row per species), that term is
+confounded with the residual variance (or with the observation-level term
+\code{1|obs}); use \code{\link[=pglmm_compare]{pglmm_compare()}}, which fits the model with the
+phylogenetic term only. \code{pglmm()} shows a message once per session when
+each level of the grouping variable of a (non-nested) phylogenetic term has
+only one row; use \code{options(phyr.compare.hint = FALSE)} to turn it off.
+}
+
 \examples{
 ## Structure of examples:
 # First, a (brief) description of model types, and how they are specified

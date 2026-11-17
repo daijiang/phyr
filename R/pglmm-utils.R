@@ -902,22 +902,28 @@ pglmm_profile_LRT <- function(x, re.number = 0, cpp = TRUE) {
     return(list(LR = LR, df = df, Pr = if (Pr > 0.499) 1 else Pr))
   }
 
+  # models with nested terms only can have an St with no rows (as for cpp)
+  St <- x$St
+  Zt <- x$Zt
+  if (!is.null(St) && nrow(St) == 0) St <- Zt <- NULL
+  St.cpp <- if (is.null(St)) as(matrix(0, 0, 0), "sparseMatrix") else St
+  Zt.cpp <- if (is.null(Zt)) as(matrix(0, 0, 0), "sparseMatrix") else Zt
   if (x$family == "gaussian") {
     LL <- pglmm_gaussian_LL_calc(
-      par = x$ss, X = x$X, Y = x$Y, Zt = x$Zt,
-      St = x$St, nested = x$nested, REML = x$REML, verbose = F, optim_ll = TRUE
+      par = x$ss, X = x$X, Y = x$Y, Zt = Zt,
+      St = St, nested = x$nested, REML = x$REML, verbose = F, optim_ll = TRUE
     )
   } else {
     if (cpp) {
       LL <- pglmm_LL_cpp(
-        par = x$ss, H = x$H, X = x$X, Zt = x$Zt,
-        St = x$St, mu = x$mu, nested = x$nested, REML = x$REML, verbose = FALSE,
+        par = x$ss, H = x$H, X = x$X, Zt = Zt.cpp,
+        St = St.cpp, mu = x$mu, nested = x$nested, REML = x$REML, verbose = FALSE,
         family = x$family, totalSize = x$size
       )
     } else {
       LL <- pglmm.LL(
-        par = x$ss, H = x$H, X = x$X, Zt = x$Zt,
-        St = x$St, mu = x$mu, nested = x$nested, REML = x$REML, verbose = FALSE,
+        par = x$ss, H = x$H, X = x$X, Zt = Zt,
+        St = St, mu = x$mu, nested = x$nested, REML = x$REML, verbose = FALSE,
         family = x$family, size = x$size
       )
     }
@@ -931,19 +937,19 @@ pglmm_profile_LRT <- function(x, re.number = 0, cpp = TRUE) {
 
   if (x$family == "gaussian") {
     LL0 <- pglmm_gaussian_LL_calc(
-      par = par, X = x$X, Y = x$Y, Zt = x$Zt,
-      St = x$St, nested = x$nested, REML = x$REML, verbose = F, optim_ll = TRUE
+      par = par, X = x$X, Y = x$Y, Zt = Zt,
+      St = St, nested = x$nested, REML = x$REML, verbose = F, optim_ll = TRUE
     )
   } else {
     if (cpp) {
       LL0 <- pglmm_LL_cpp(
-        par = par, H = x$H, X = x$X, Zt = x$Zt, St = x$St,
+        par = par, H = x$H, X = x$X, Zt = Zt.cpp, St = St.cpp,
         mu = x$mu, nested = x$nested, REML = x$REML, verbose = FALSE,
         family = x$family, totalSize = x$size
       )
     } else {
       LL0 <- pglmm.LL(
-        par = par, H = x$H, X = x$X, Zt = x$Zt, St = x$St,
+        par = par, H = x$H, X = x$X, Zt = Zt, St = St,
         mu = x$mu, nested = x$nested, REML = x$REML, verbose = FALSE,
         family = x$family, size = x$size
       )
@@ -1227,6 +1233,68 @@ pglmm_sparse_hint <- function(n, covs, min.n = 2000, min.sp = 300) {
     "This message is shown once per session; set options(phyr.sparse.hint = FALSE) to turn it off."
   )
   invisible(TRUE)
+}
+
+# Suggest pglmm_compare() when a phylogenetic term such as (1 | sp__) (not
+# nested) has one row per level of its grouping variable: the
+# non-phylogenetic term (1 | sp) that pglmm() adds automatically is then
+# confounded with the residual (or observation-level) variance. Shown once per
+# session; options(phyr.compare.hint = FALSE) turns it off.
+pglmm_compare_hint <- function(formula, data) {
+  if (!isTRUE(getOption("phyr.compare.hint", TRUE)) || isTRUE(.phyr_state$compare.hint.shown)) {
+    return(invisible(FALSE))
+  }
+  fm <- reformulas::findbars(formula)
+  if (!length(fm)) {
+    return(invisible(FALSE))
+  }
+  lhs <- vapply(fm, function(x) paste(deparse(x[[2]]), collapse = ""), "")
+  grp <- vapply(fm, function(x) paste(deparse(x[[3]]), collapse = ""), "")
+  grp <- grp[lhs == "1" & grepl("__$", grp) & !grepl("@", grp, fixed = TRUE)]
+  vars <- intersect(unique(sub("__$", "", grp)), names(data))
+  one.row <- vapply(vars, function(v) {
+    x <- as.character(data[[v]])
+    x <- x[!is.na(x)]
+    length(x) > 1 && !anyDuplicated(x)
+  }, logical(1))
+  if (!any(one.row)) {
+    return(invisible(FALSE))
+  }
+  v <- vars[one.row][1]
+  .phyr_state$compare.hint.shown <- TRUE
+  message(
+    "Each level of '", v, "' has only one row: the non-phylogenetic term (1 | ", v, ") that ",
+    "pglmm() adds with (1 | ", v, "__) is then confounded with the residual variance. ",
+    "For comparative data (one row per species), pglmm_compare() fits the model with the ",
+    "phylogenetic term only. This message is shown once per session; set ",
+    "options(phyr.compare.hint = FALSE) to turn it off."
+  )
+  invisible(TRUE)
+}
+
+# Random terms for phylo_only = TRUE (pglmm_compare()): drop the
+# non-phylogenetic partner (1 | sp) of each non-nested phylogenetic term
+# (1 | sp__), and give the phylogenetic term as a term with one value per
+# observation (a matrix, as nested terms), with the covariance matrix of the
+# species of the observations. With one row per species, this is the
+# covariance matrix of the phylogeny in the order of the rows.
+pglmm_phylo_only_re <- function(random.effects) {
+  nm <- names(random.effects)
+  drop <- integer(0)
+  for (i in which(grepl("__$", nm) & !grepl("@", nm, fixed = TRUE))) {
+    re.i <- random.effects[[i]]
+    if (length(re.i) != 3 || !identical(as.numeric(re.i[[1]]), 1)) {
+      stop("Only intercepts of phylogenetic terms, e.g. (1 | sp__), are allowed here.", call. = FALSE)
+    }
+    partner <- match(sub("__$", "", nm[i]), nm)
+    if (!is.na(partner)) drop <- c(drop, partner)
+    f <- re.i[[2]]
+    V <- as.matrix(re.i[[3]])[as.integer(f), as.integer(f), drop = FALSE]
+    dimnames(V) <- list(as.character(f), as.character(f))
+    random.effects[[i]] <- list(V)
+  }
+  if (length(drop)) random.effects <- random.effects[-drop]
+  random.effects
 }
 
 # A single repulsion value applies to the phylogenies of species only, i.e. the
@@ -1872,7 +1940,11 @@ re_obs_labels <- function(labels, term_name, obs) {
     }
   }
   if (!is.null(labels)) {
-    return(data.frame(level = labels, stringsAsFactors = FALSE))
+    out <- data.frame(level = labels, stringsAsFactors = FALSE)
+    # a phylogenetic term without its non-phylogenetic partner (pglmm_compare()),
+    # e.g. "1|sp__": the labels are the levels of sp
+    if (length(gv) == 1 && grepl("__$", term_name) && gv != "obs") names(out) <- gv
+    return(out)
   }
   data.frame(obs = obs, stringsAsFactors = FALSE)
 }
@@ -2167,6 +2239,35 @@ family.communityPGLMM <- function(object, ...) {
 #' @export
 nobs.communityPGLMM <- function(object, use.fallback = FALSE, ...) {
   nrow(object$data)
+}
+
+#' Log-likelihood of a communityPGLMM Model
+#'
+#' The log-likelihood of a model fitted with `bayes = FALSE` (the restricted
+#' log-likelihood if `REML = TRUE`), with the number of parameters as attribute
+#' `df`, so that [stats::AIC()] gives `x$AIC`. For binomial and poisson models,
+#' it is the approximate log-likelihood calculated by [pglmm()]. Note that
+#' [stats::BIC()] uses `log(nobs)` and thus differs from `x$BIC`.
+#'
+#' @param object A fitted model with class communityPGLMM.
+#' @param ... Additional arguments, currently ignored.
+#' @return An object of class `logLik`.
+#' @method logLik communityPGLMM
+#' @export
+logLik.communityPGLMM <- function(object, ...) {
+  if (isTRUE(object$bayes)) {
+    stop("logLik() is not available for models fitted with bayes = TRUE; ",
+         "the marginal log-likelihood of INLA is in $logLik, and DIC and WAIC in $DIC and $WAIC.",
+         call. = FALSE)
+  }
+  if (is.null(object$logLik) || is.null(object$AIC)) {
+    stop("The fitted model does not have a log-likelihood.", call. = FALSE)
+  }
+  ll <- as.numeric(object$logLik)
+  structure(ll,
+    df = round((as.numeric(object$AIC) + 2 * ll) / 2),
+    nobs = nrow(object$X), class = "logLik"
+  )
 }
 
 #' Extracting the Model Frame from a communityPGLMM Model

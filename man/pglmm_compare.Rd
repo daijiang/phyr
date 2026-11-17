@@ -2,6 +2,7 @@
 % Please edit documentation in R/pglmm_compare.R
 \name{pglmm_compare}
 \alias{pglmm_compare}
+\alias{predict.pglmm_compare}
 \title{Phylogenetic Generalized Linear Mixed Model for Comparative Data}
 \usage{
 pglmm_compare(
@@ -20,29 +21,36 @@ pglmm_compare(
   tol.pql = 10^-6,
   maxit.pql = 200,
   marginal.summ = "mean",
-  calc.DIC = FALSE,
+  calc.DIC = TRUE,
   prior = "inla.default",
   prior_alpha = 0.1,
   prior_mu = 1,
   ML.init = FALSE,
   s2.init = 1,
-  B.init = NULL
+  B.init = NULL,
+  calc.WAIC = TRUE,
+  bayes_options = NULL,
+  posterior.sample = TRUE,
+  return.fitted.marginals = TRUE,
+  sparse = FALSE,
+  standardize_cov = TRUE
 )
+
+\method{predict}{pglmm_compare}(object, newdata = NULL, ...)
 }
 \arguments{
 \item{formula}{A two-sided linear formula object describing the
 fixed-effects of the model; for example, Y ~ X. Binomial data can be either
 presence/absence, or a two-column array of 'successes' and 'failures'.
-For both binomial and Poisson data, we add an observation-level
-random term by default via \code{add.obs.re = TRUE}.}
+The phylogenetic random term is added automatically; the formula must not
+have random terms.}
 
 \item{family}{Either "gaussian" for a Linear Mixed Model, or
 "binomial" or "poisson" for Generalized Linear Mixed Models.
 \code{family} should be specified as a character string (i.e., quoted). For binomial and
 Poisson data, we use the canonical logit and log link functions, respectively.
 Binomial data can be either presence/absence, or a two-column array of 'successes' and 'failures'.
-For both Poisson and binomial data, we add an observation-level
-random term by default via \code{add.obs.re = TRUE}. If \code{bayes = TRUE} there are
+If \code{bayes = TRUE} there are
 two additional families available: "zeroinflated.binomial", and "zeroinflated.poisson",
 which add a zero inflation parameter; this parameter gives the probability that the response is
 a zero. The rest of the parameters of the model then reflect the "non-zero" part
@@ -58,15 +66,25 @@ the data frame will be arranged so that row names match the order of tip labels.
 \item{REML}{Whether REML or ML is used for model fitting the random effects. Ignored if
 \code{bayes = TRUE}.}
 
-\item{optimizer}{Optimizer to use: \code{"lbfgs"} (L-BFGS with analytic gradient;
-default for Gaussian, also available for binomial/Poisson),
-\code{"nelder-mead-nlopt"} (default for binomial/Poisson), \code{"bobyqa"},
-\code{"Nelder-Mead"}, or \code{"subplex"}. \code{NULL} uses the family-appropriate
-default. Ignored if \code{bayes = TRUE}.}
+\item{optimizer}{Optimizer to use. Options: \code{"lbfgs"} (L-BFGS with analytic gradient;
+default for Gaussian, also available for binomial/Poisson), \code{"nelder-mead-nlopt"}
+(default for binomial/Poisson), \code{"bobyqa"}, \code{"Nelder-Mead"}, or \code{"subplex"}.
+\code{"Nelder-Mead"} is from the stats package; all others are from the nloptr package.
+With \code{sparse = TRUE}, the default (and \code{"lbfgs"}, as there is no gradient) is
+\code{"subplex"}, \code{"nelder-mead-nlopt"} and \code{"Nelder-Mead"} both use the
+Nelder-Mead algorithm of nloptr, and the optimizer is restarted from its solution until the
+likelihood does not improve (for gaussian models; for binomial and poisson models, each
+PQL iteration already starts the optimizer from the previous solution). Ignored if
+\code{bayes = TRUE}.}
 
-\item{add.obs.re}{Whether to add observation-level random term for binomial and  Poisson
-families. Normally it would be a good idea to add this to account for overdispersion,
-so \code{add.obs.re = TRUE} by default.}
+\item{add.obs.re}{Whether to add an observation-level random term \code{1|obs}
+for Poisson data and binomial data with more than one trial (a
+non-phylogenetic variance, which accounts for overdispersion). The default
+is \code{TRUE}, as in \code{pglmm()}: without it, overdispersion is absorbed
+by the phylogenetic variance, which inflates the phylogenetic signal and its
+test. It is not used for gaussian data (the residual variance plays this
+role) or binary data. Earlier versions ignored this argument, so set
+\code{add.obs.re = FALSE} to get their estimates.}
 
 \item{verbose}{If \code{TRUE}, the model deviance and running
 estimates of \code{s2} and \code{B} are plotted each iteration
@@ -79,7 +97,9 @@ against Bayesian fitting for non-Gaussian data unless sample sizes are large (>1
 the phylogenetic variance tends to get trapped near zero.}
 
 \item{reltol}{A control parameter dictating the relative tolerance
-for convergence in the optimization; see \code{\link{optim}}.}
+for convergence in the optimization; see \code{\link{optim}}. With \code{sparse = TRUE},
+the default is \code{1e-8} (for each run of the optimizer, including each PQL iteration
+of binomial and poisson models).}
 
 \item{maxit}{A control parameter dictating the maximum number of
 iterations in the optimization; see \code{\link{optim}}.}
@@ -97,7 +117,7 @@ doing a Bayesian PGLMM (when \code{bayes = TRUE}). Options are: "mean",
 "median", or "mode", referring to different characterizations of the central
 tendency of the Bayesian posterior marginal distributions. Ignored if \code{bayes = FALSE}.}
 
-\item{calc.DIC}{Should the Deviance Information Criterion be calculated and returned,
+\item{calc.DIC}{Should the Deviance Information Criterion be calculated and returned
 when doing a Bayesian PGLMM? Ignored if \code{bayes = FALSE}.}
 
 \item{prior}{Which type of default prior should be used by \code{pglmm}?
@@ -116,24 +136,22 @@ currently.}
 
 \item{prior_alpha}{Only used if \code{bayes = TRUE} and \code{prior = "pc.prior"}, in
 which case it sets the alpha parameter of \code{INLA}'s complexity penalizing prior for the
-random effects.The prior is an exponential distribution where prob(sd > mu) = alpha,
+random effects. The prior is an exponential distribution where prob(sd > mu) = alpha,
 where sd is the standard deviation of the random effect.}
 
 \item{prior_mu}{Only used if \code{bayes = TRUE} and \code{prior = "pc.prior"}, in
 which case it sets the mu parameter of \code{INLA}'s complexity penalizing prior for the
-random effects.The prior is an exponential distribution where prob(sd > mu) = alpha,
+random effects. The prior is an exponential distribution where prob(sd > mu) = alpha,
 where sd is the standard deviation of the random effect.}
 
 \item{ML.init}{Only relevant if \code{bayes = TRUE}. Should maximum
 likelihood estimates be calculated and used as initial values for
-the bayesian model fit? Sometimes this can be helpful, but most of the
-time it may not help; thus, we set the default to \code{FALSE}. Also, it
+the Bayesian model fit? Sometimes this can be helpful, but it may not help; thus,
+we set the default to \code{FALSE}. Also, it
 does not work with the zero-inflated families.}
 
-\item{s2.init}{An array of initial estimates of s2. If s2.init is not provided for
-\code{family="gaussian"}, these are estimated using \code{\link{lm}} assuming
-no phylogenetic signal. If \code{s2.init} is not
-provided for \code{family = "binomial"}, these are set to 0.25.}
+\item{s2.init}{Initial estimate of s2 (default 1; \code{NULL} uses the
+defaults of \code{\link[=pglmm]{pglmm()}}).}
 
 \item{B.init}{Initial estimates of \eqn{B}{B}, a matrix containing
 regression coefficients in the model for the fixed effects. This
@@ -142,64 +160,97 @@ number of predictor (independent) variables; the first element of
 \code{B} corresponds to the intercept, and the remaining elements
 correspond in order to the predictor (independent) variables in the
 formula. If \code{B.init} is not provided, these are estimated
-using \code{\link{lm}} or \code{\link{glm}} assuming no phylogenetic signal.}
+using \code{\link{lm}} or \code{\link{glm}} assuming no phylogenetic signal.
+A better approach might be to run \code{\link[lme4:lmer]{lmer}} and use the
+output fixed effects for \code{B.init}. When \code{bayes = TRUE}, initial values are estimated
+using the maximum likelihood fit unless \code{ML.init = FALSE}, in
+which case the default \code{INLA} initial values will be used.}
+
+\item{calc.WAIC}{Should the WAIC be calculated and returned
+when doing a Bayesian PGLMM? Ignored if \code{bayes = FALSE}.}
+
+\item{bayes_options}{Additional options to pass to INLA when \code{bayes = TRUE}. A named list where the
+names correspond to parameters in the \code{inla} function. One special option is \code{diagonal}: if an
+element in the list is named \code{diagonal}, INLA adds its value to the diagonal of every random-effects
+precision matrix, which can help with numerical stability when the model is ill-conditioned (try
+\code{list(diagonal = 1e-4)} if you see many warnings). To use multiple CPU cores, pass
+\code{list(num.threads = 4)} (or however many cores are available); this is often the single most
+effective way to speed up INLA. Any \code{control.compute} entries supplied here override the defaults
+set by \code{posterior.sample} and \code{return.fitted.marginals}.}
+
+\item{posterior.sample}{Logical (default \code{TRUE}). Only used when \code{bayes = TRUE}. When
+\code{TRUE}, INLA stores the full joint posterior configuration
+(\code{control.compute = list(config = TRUE)}), which is required for \code{\link{simulate}} to work.
+Set to \code{FALSE} to skip this storage and speed up fitting when posterior simulation is not needed.}
+
+\item{return.fitted.marginals}{Logical (default \code{TRUE}). Only used when \code{bayes = TRUE}. When
+\code{TRUE}, INLA computes and returns the marginal posterior distributions of all fitted values
+(\code{control.compute = list(return.marginals.predictor = TRUE)}), which is required for
+\code{\link{simulate}} with \code{full = FALSE}. Set to \code{FALSE} to skip this computation and speed
+up fitting when simulation is not needed. If both \code{posterior.sample} and
+\code{return.fitted.marginals} are \code{FALSE}, INLA runs at maximum speed but \code{simulate()} will
+not work on the fitted model.}
+
+\item{sparse}{Logical (default \code{FALSE}). If \code{TRUE}, fit the model
+with the sparse precision matrix of the phylogeny, which is much faster for
+large phylogenies (see Details and \code{\link[=pglmm]{pglmm()}}). Only with \code{bayes = FALSE}.}
+
+\item{standardize_cov}{Logical (default \code{TRUE}). Whether to standardize the covariance
+matrices of \code{cov_ranef} to have a determinant of one (a phylogeny is first converted to
+its covariance matrix, which is divided by its largest element). If \code{FALSE}, the matrices
+are used as given: a covariance matrix is used as it is, and a phylogeny gives
+\code{ape::vcv(tree)}, on the scale of its branch lengths. The variances of the random terms
+(\code{s2r}, \code{s2n}) are then on the scale of these matrices, so that, e.g., the
+variance of \code{1|sp__} with a phylogenetic correlation matrix
+(\code{ape::vcv(tree, corr = TRUE)}) or an ultrametric tree with a height of one is directly
+comparable with the variance of \code{1|sp} and with software that does not standardize the
+matrices. The likelihood, the fixed effects and the predictions do not depend on this
+choice; only the scale of the variances (and of \code{s2.init}) does. Not used when
+\code{random.effects} is given.}
+
+\item{object}{A fitted model with class pglmm_compare.}
+
+\item{newdata}{An optional data frame of species to predict for, as for
+\code{\link[=predict.communityPGLMM]{predict.communityPGLMM()}}. The species are the row names of \code{newdata} (or
+its column \code{sp}), which must be tip labels of \code{phy}; with \code{re.form = NA},
+they are not needed.}
+
+\item{...}{Additional arguments passed to \code{\link[=predict.communityPGLMM]{predict.communityPGLMM()}}.}
 }
 \value{
-An object (list) of class \code{pglmm_compare} with the following elements:
-\item{formula}{the formula for fixed effects}
-\item{formula_original}{the formula for both fixed effects and random effects}
-\item{data}{the dataset}
-\item{family}{either \code{gaussian} or \code{binomial} or \code{poisson} depending on the model fit}
-\item{B}{estimates of the regression coefficients}
-\item{B.se}{approximate standard errors of the fixed effects regression coefficients.
-This is set to NULL if \code{bayes = TRUE}.}
-\item{B.ci}{approximate bayesian credible interval of the fixed effects regression coefficients.
-This is set to NULL if \code{bayes = FALSE}}
-\item{B.cov}{approximate covariance matrix for the fixed effects regression coefficients}
-\item{B.zscore}{approximate Z scores for the fixed effects regression coefficients. This is set to NULL if \code{bayes = TRUE}}
-\item{B.pvalue}{approximate tests for the fixed effects regression coefficients being different from zero. This is set to NULL if \code{bayes = TRUE}}
-\item{ss}{random effects' standard deviations for the covariance matrix \eqn{\sigma^2V}{sigma^2 V} for each random effect in order. For the linear mixed model, the residual variance is listed last}
-\item{s2r}{random effects variances for non-nested random effects}
-\item{s2n}{random effects variances for nested random effects}
-\item{s2resid}{for linear mixed models, the residual variance}
-\item{s2r.ci}{Bayesian credible interval for random effects variances for non-nested random effects.
-This is set to NULL if \code{bayes = FALSE}}
-\item{s2n.ci}{Bayesian credible interval for random effects variances for nested random effects.
-This is set to NULL if \code{bayes = FALSE}}
-\item{s2resid.ci}{Bayesian credible interval for linear mixed models, the residual variance.
-This is set to NULL if \code{bayes = FALSE}}
-\item{logLik}{for linear mixed models, the log-likelihood for either the restricted likelihood (\code{REML=TRUE}) or the overall likelihood (\code{REML=FALSE}). This is set to NULL for generalised linear mixed models. If \code{bayes = TRUE}, this is the marginal log-likelihood}
-\item{AIC}{for linear mixed models, the AIC for either the restricted likelihood (\code{REML=TRUE}) or the overall likelihood (\code{REML=FALSE}). This is set to NULL for generalised linear mixed models}
-\item{BIC}{for linear mixed models, the BIC for either the restricted likelihood (\code{REML=TRUE}) or the overall likelihood (\code{REML=FALSE}). This is set to NULL for generalised linear mixed models}
-\item{DIC}{for bayesian PGLMM, this is the Deviance Information Criterion metric of model fit. This is set to NULL if \code{bayes = FALSE}.}
-\item{REML}{whether or not REML is used (\code{TRUE} or \code{FALSE}).}
-\item{bayes}{whether or not a Bayesian model was fit.}
-\item{marginal.summ}{The specified summary statistic used to summarise the Bayesian marginal distributions.
-Only present if \code{bayes = TRUE}}
-\item{s2.init}{the user-provided initial estimates of \code{s2}}
-\item{B.init}{the user-provided initial estimates of \code{B}}
-\item{Y}{the response (dependent) variable returned in matrix form}
-\item{X}{the predictor (independent) variables returned in matrix form (including 1s in the first column)}
-\item{H}{the residuals. For linear mixed models, this does not account for random terms,
-To get residuals after accounting for both fixed and random terms, use \code{residuals()}.
-For the generalized linear mixed model, these are the predicted residuals in the
-logit -1 space.}
-\item{mu}{predicted mean values for the generalized linear mixed model (i.e. similar to \code{fitted(merMod)}).
-Set to NULL for linear mixed models, for which we can use \code{\link[=fitted]{fitted()}}.}
-\item{Zt}{the design matrix for random effects. This is set to NULL if \code{bayes = TRUE}}
-\item{St}{diagonal matrix that maps the random effects variances onto the design matrix}
-\item{convcode}{the convergence code provided by \code{\link{optim}}. This is set to NULL if \code{bayes = TRUE}}
-\item{niter}{number of iterations performed by \code{\link{optim}}. This is set to NULL if \code{bayes = TRUE}}
-\item{inla.model}{Model object fit by underlying \code{inla} function. Only returned
-if \code{bayes = TRUE}}
+An object of class \code{c("pglmm_compare", "communityPGLMM")}: all
+the elements returned by \code{\link[=pglmm]{pglmm()}} (see its Value section), and:
+\item{formula}{the formula for fixed effects, as given}
+\item{phy}{the phylogeny, with the tips not in the data dropped}
+\item{vcv.phy}{a list with the (standardized) covariance matrix of the species
+in the order of the rows of the data, \code{covar}; \code{NULL} with \code{sparse = TRUE}}
+\item{LRT}{for \code{bayes = FALSE}, the test of phylogenetic signal: a list with the
+likelihood ratio \code{LR}, \code{df}, and the p-value \code{Pr} (see Details)}
+\item{sp_var}{the name of the column of species added to the data}
+The elements most often used are:
+\item{B, B.se, B.cov, B.zscore, B.pvalue}{estimates of the regression
+coefficients, their approximate standard errors, covariance matrix, Z scores and p-values
+(\code{B.se}, \code{B.zscore} and \code{B.pvalue} are \code{NULL} if \code{bayes = TRUE})}
+\item{B.ci}{credible intervals of the regression coefficients if \code{bayes = TRUE}}
+\item{s2n}{the phylogenetic variance \code{s2} (and the variance of \code{1|obs} if
+\code{add.obs.re = TRUE})}
+\item{s2resid}{for gaussian data, the residual variance}
+\item{s2n.ci, s2resid.ci}{credible intervals of the variances if \code{bayes = TRUE}}
+\item{logLik, AIC, BIC}{the (restricted, if \code{REML = TRUE}) log-likelihood and the
+information criteria; with \code{bayes = TRUE}, \code{logLik} is the marginal
+log-likelihood, and \code{DIC} and \code{WAIC} are returned}
+\item{H, mu, Y, X}{residuals, predicted mean values (binomial and poisson data),
+response and design matrix, as in \code{\link[=pglmm]{pglmm()}}}
+\item{convcode, niter}{convergence code and number of iterations of the optimizer}
+\item{inla.model}{the model fitted by \code{inla}, if \code{bayes = TRUE}}
 }
 \description{
 \code{pglmm_compare} performs linear regression for Gaussian, binomial and Poisson
 phylogenetic data, estimating regression coefficients with approximate standard
 errors. It simultaneously estimates the strength of phylogenetic signal in the
 residuals and gives an approximate conditional likelihood ratio test for the
-hypothesis that there is no signal. Therefore, when applied without
-predictor (independent) variables, it gives a test for phylogenetic signal.
+hypothesis that there is no signal (returned as \code{LRT}, see Details). Therefore, when
+applied without predictor (independent) variables, it gives a test for phylogenetic signal.
 \code{pglmm_compare} is a wrapper for \code{pglmm} tailored for comparative data in
 which each value of the response (dependent) variable corresponds to a single tip
 on a phylogenetic tree. If there are multiple measures for each species, \code{pglmm}
@@ -223,7 +274,8 @@ model. This is especially true for binary data, because in regression for
 binary dependent variables, only the off-diagonal elements (i.e., covariances)
 of matrix \eqn{V} are biologically meaningful (see Ives & Garland 2014).
 The function converts a phylo tree object into a covariance matrix,
-and further standardizes this matrix to have determinant = 1. This in effect
+and further standardizes this matrix to have determinant = 1 (unless
+\code{standardize_cov = FALSE}). This in effect
 standardizes the interpretation of the scalar \code{s2}. Although mathematically
 not required, it is a very good idea to standardize the predictor
 (independent) variables to have mean 0 and variance 1. This will make the
@@ -237,6 +289,45 @@ For Gaussian data, the function estimates parameters for the model
 
 where \eqn{s2resid * I} gives the non-phylogenetic residual variance. Note that this
 is equivalent to a model with Pagel's lambda transformation.
+
+\code{pglmm_compare(Y ~ X, data = data, phy = phy)} fits the same model as
+\code{pglmm(Y ~ X + (1 | sp__), data = data, cov_ranef = list(sp = phy))} with a
+column \code{sp} of species (the row names of \code{data}), but without the
+non-phylogenetic random term \code{(1 | sp)} that \code{pglmm()} adds with
+\code{(1 | sp__)}: with one row per species, that term would be confounded with
+the residual variance (gaussian data) or with the observation-level random
+term (binomial and poisson data). The phylogenetic random term is named
+\code{1|sp__} in the output of methods such as \code{\link[=VarCorr]{VarCorr()}} and \code{\link[=ranef]{ranef()}}. (If
+\code{data} already has a column \code{sp} that is not the species, the column
+\code{species} or \code{.sp} is used instead; its name is in \code{sp_var}.)
+
+The returned object has class \code{c("pglmm_compare", "communityPGLMM")}, so
+the methods for models fitted by \code{\link[=pglmm]{pglmm()}} can be used: \code{\link[=fixef]{fixef()}},
+\code{\link[=ranef]{ranef()}} (the estimates of the phylogenetic random effect of each species,
+with \code{condVar = TRUE} for their standard deviations), \code{\link[=VarCorr]{VarCorr()}},
+\code{\link[=fitted]{fitted()}}, \code{\link[=residuals]{residuals()}}, \code{\link[=predict]{predict()}} (with \code{newdata}, the species are
+the row names of \code{newdata}), \code{\link[=simulate]{simulate()}}, \code{\link[=logLik]{logLik()}} and \code{\link[=AIC]{AIC()}}
+(\code{bayes = FALSE}), and \code{\link[=pglmm_profile_LRT]{pglmm_profile_LRT()}}. With \code{sparse = TRUE},
+\code{\link[=pglmm_iV]{pglmm_iV()}} and \code{simulate(re.form = NA)} are not available.
+
+\strong{Test of phylogenetic signal.} For models fitted with \code{bayes = FALSE},
+the element \code{LRT} is \code{pglmm_profile_LRT(fit, re.number = 1)}: a likelihood
+ratio test of the hypothesis that the phylogenetic variance \code{s2} is zero,
+conditional on the other estimates (the log-likelihood is compared with the
+one obtained by setting \code{s2} to zero, without re-estimating the other
+parameters). As \code{s2 = 0} is on the boundary of the parameter space, the
+p-value \code{Pr} is half of the p-value of a chi-square distribution with one
+degree of freedom. For binomial and poisson data, the log-likelihood is
+the approximate log-likelihood of the penalized quasi-likelihood fit. It is
+printed by \code{\link[=summary]{summary()}}.
+
+\strong{Large phylogenies.} With \code{sparse = TRUE}, the model is fitted with the
+sparse precision matrix of the phylogeny (including its internal nodes)
+instead of the dense covariance matrix of the species; the likelihood is
+the same, but time and memory grow about linearly with the number of
+species, so data with tens of thousands of species can be fitted. See the
+argument \code{sparse} of \code{\link[=pglmm]{pglmm()}} for details. The covariance matrix
+\code{vcv.phy} is then not formed (it is \code{NULL}).
 }
 \examples{
 
@@ -260,7 +351,22 @@ sim.dat$Y <- ape::binaryPGLMM.sim(Y ~ X1, phy = phy, data=sim.dat, s2 = 1,
                              nrep = 1)$Y
 
 # Fit model
-pglmm_compare(Y ~ X1, family = "binomial", phy = phy, data = sim.dat)
+fit <- pglmm_compare(Y ~ X1, family = "binomial", phy = phy, data = sim.dat)
+fit
+
+# test of phylogenetic signal (also printed above)
+fit$LRT
+# methods of pglmm() models
+fixef(fit)
+VarCorr(fit)
+head(ranef(fit, condVar = TRUE)[["1|sp__"]])
+predict(fit, newdata = sim.dat[1:3, ], type = "response")
+
+# the same model fitted with the sparse precision matrix of the phylogeny,
+# much faster for large phylogenies
+fit_sparse <- pglmm_compare(Y ~ X1, family = "binomial", phy = phy, data = sim.dat,
+                            sparse = TRUE)
+cbind(dense = fit$B, sparse = fit_sparse$B)
 
 # Compare with `binaryPGLMM`
 ape::binaryPGLMM(Y ~ X1, phy = phy, data = sim.dat)

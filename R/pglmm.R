@@ -468,6 +468,15 @@
 #' with the reference BLAS; use `options(phyr.blas.hint = FALSE)` to turn it
 #' off. `extSoftVersion()["BLAS"]` shows the BLAS library that R uses.
 #'
+#' @section Comparative data:
+#' A phylogenetic term such as `(1 | sp__)` also adds the non-phylogenetic
+#' term `(1 | sp)`. With comparative data (one row per species), that term is
+#' confounded with the residual variance (or with the observation-level term
+#' `1|obs`); use [pglmm_compare()], which fits the model with the
+#' phylogenetic term only. `pglmm()` shows a message once per session when
+#' each level of the grouping variable of a (non-nested) phylogenetic term has
+#' only one row; use `options(phyr.compare.hint = FALSE)` to turn it off.
+#'
 #' @examples
 #' ## Structure of examples:
 #' # First, a (brief) description of model types, and how they are specified
@@ -693,6 +702,46 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
                   posterior.sample = TRUE,
                   return.fitted.marginals = TRUE,
                   sparse = FALSE, standardize_cov = TRUE) {
+  pglmm_fit(
+    formula = formula, data = data, family = family, cov_ranef = cov_ranef,
+    random.effects = random.effects, REML = REML, optimizer = optimizer,
+    repulsion = repulsion, add.obs.re = add.obs.re, verbose = verbose,
+    cpp = cpp, bayes = bayes, s2.init = s2.init, B.init = B.init, reltol = reltol,
+    maxit = maxit, tol.pql = tol.pql, maxit.pql = maxit.pql,
+    marginal.summ = marginal.summ, calc.DIC = calc.DIC, calc.WAIC = calc.WAIC, prior = prior,
+    prior_alpha = prior_alpha, prior_mu = prior_mu, ML.init = ML.init,
+    tree = tree, tree_site = tree_site, sp = sp, site = site, bayes_options = bayes_options,
+    bayes_nested_matrix_as_list = bayes_nested_matrix_as_list,
+    posterior.sample = posterior.sample,
+    return.fitted.marginals = return.fitted.marginals,
+    sparse = sparse, standardize_cov = standardize_cov,
+    reltol.given = !missing(reltol)
+  )
+}
+
+# The function that fits pglmm() models. `phylo_only = TRUE` (used by
+# pglmm_compare()) fits each non-nested phylogenetic term such as (1 | sp__)
+# without its non-phylogenetic partner (1 | sp), which pglmm() adds
+# automatically. The phylogenetic term is then fitted as a term with one value
+# per observation (as a nested term), with the covariance matrix of the species
+# of the observations: variance in s2n, as pglmm_compare() always did.
+# `reltol.given`: whether reltol was given by the user (with sparse = TRUE, the
+# default is then 1e-8 instead of 1e-6).
+pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
+                      random.effects = NULL, REML = TRUE,
+                      optimizer = NULL,
+                      repulsion = FALSE, add.obs.re = TRUE, verbose = FALSE,
+                      cpp = TRUE, bayes = FALSE,
+                      s2.init = NULL, B.init = NULL, reltol = 10^-6,
+                      maxit = 500, tol.pql = 10^-6, maxit.pql = 200,
+                      marginal.summ = "mean", calc.DIC = TRUE, calc.WAIC = TRUE, prior = "inla.default",
+                      prior_alpha = 0.1, prior_mu = 1, ML.init = FALSE,
+                      tree = NULL, tree_site = NULL, sp = NULL, site = NULL, bayes_options = NULL,
+                      bayes_nested_matrix_as_list = FALSE,
+                      posterior.sample = TRUE,
+                      return.fitted.marginals = TRUE,
+                      sparse = FALSE, standardize_cov = TRUE, phylo_only = FALSE,
+                      reltol.given = !missing(reltol)) {
   valid_optimizers <- c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex", "lbfgs")
   optimizer.given <- !is.null(optimizer)
   if (is.null(optimizer)) {
@@ -749,6 +798,10 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
       grepl("__", paste(deparse(formula), collapse = ""))) {
     pglmm_sparse_hint(nrow(data), if (is.null(cov_ranef)) list(tree, tree_site) else cov_ranef)
   }
+  if (!phylo_only && prep_re) pglmm_compare_hint(formula, data)
+  if (phylo_only && (!prep_re || !is.null(tree) || !is.null(tree_site))) {
+    stop("phylo_only = TRUE needs random terms in the formula and cov_ranef.", call. = FALSE)
+  }
 
   if (isTRUE(sparse)) {
     if (bayes) {
@@ -761,18 +814,19 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
     if (family == "gaussian") {
       z <- communityPGLMM.gaussian.sparse(
         formula = formula, data = data, cov_ranef = cov_ranef, REML = REML,
-        s2.init = s2.init, reltol = if (missing(reltol)) 1e-8 else reltol, maxit = maxit,
+        s2.init = s2.init, reltol = if (reltol.given) reltol else 1e-8, maxit = maxit,
         verbose = verbose, optimizer = if (optimizer.given) optimizer else "subplex",
-        standardize_cov = standardize_cov, repulsion = repulsion
+        standardize_cov = standardize_cov, repulsion = repulsion, phylo_only = phylo_only
       )
     } else {
       z <- communityPGLMM.glmm.sparse(
         formula = formula, data = data, family = family, cov_ranef = cov_ranef, REML = REML,
         s2.init = if (is.null(s2.init)) 0.25 else s2.init, B.init = B.init,
-        reltol = if (missing(reltol)) 1e-8 else reltol, maxit = maxit,
+        reltol = if (reltol.given) reltol else 1e-8, maxit = maxit,
         tol.pql = tol.pql, maxit.pql = maxit.pql, verbose = verbose,
         optimizer = if (optimizer.given) optimizer else "subplex",
-        standardize_cov = standardize_cov, repulsion = repulsion, add.obs.re = add.obs.re
+        standardize_cov = standardize_cov, repulsion = repulsion, add.obs.re = add.obs.re,
+        phylo_only = phylo_only
       )
     }
     z$standardize_cov <- standardize_cov
@@ -798,6 +852,7 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
                                    standardize_cov = standardize_cov)
     formula <- dat_prepared$formula
     random.effects <- dat_prepared$random.effects
+    if (phylo_only) random.effects <- pglmm_phylo_only_re(random.effects)
     cov_ranef_updated <- dat_prepared$cov_ranef_updated
   } else {
     formula <- reformulas::nobars(formula)

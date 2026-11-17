@@ -223,6 +223,10 @@ pglmm_plot_ranef <- function(
     }
   }
   
+  if (inherits(x, "pglmm_compare")) {
+    stop("pglmm_plot_ranef() is for community data (species and sites); the covariance ",
+         "matrix of a pglmm_compare() model is in its element vcv.phy.", call. = FALSE)
+  }
   if(!is.null(x)){ # model input
     random.effects <- x$random.effects
     formula <- x$formula
