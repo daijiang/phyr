@@ -168,7 +168,10 @@
 #'   in the data. Also, this should be _a list of lists_, e.g.
 #'   `random.effects = list(re1 = list(matrix_a), re2 = list(1, sp = sp, covar = Vsp))`.
 #' @param REML Whether REML or ML is used for model fitting the random effects. Ignored if
-#'  \code{bayes = TRUE}.
+#'  \code{bayes = TRUE}. For binomial and poisson models with \code{method = "Laplace"},
+#'  \code{REML = TRUE} integrates the fixed effects out of the likelihood with the Laplace
+#'  approximation too (as \code{glmmTMB(REML = TRUE)}); use \code{REML = FALSE} for maximum
+#'  likelihood estimates, comparable with \code{lme4::glmer()} and \code{glmmTMB()}.
 #' @param optimizer Optimizer to use. Options: \code{"lbfgs"} (L-BFGS with analytic gradient;
 #'   default for Gaussian, also available for binomial/Poisson), \code{"nelder-mead-nlopt"}
 #'   (default for binomial/Poisson), \code{"bobyqa"}, \code{"Nelder-Mead"}, or \code{"subplex"}.
@@ -178,7 +181,7 @@
 #'   Nelder-Mead algorithm of nloptr, and the optimizer is restarted from its solution until the
 #'   likelihood does not improve (for gaussian models; for binomial and poisson models, each
 #'   PQL iteration already starts the optimizer from the previous solution). Ignored if
-#'   \code{bayes = TRUE}.
+#'   \code{bayes = TRUE} or \code{method = "Laplace"}.
 #' @param repulsion When there are nested random terms specified, \code{repulsion = FALSE} tests
 #'   for phylogenetic underdispersion while \code{repulsion = TRUE} tests for overdispersion.
 #'   This argument is a logical vector of length either 1 or >1.
@@ -186,8 +189,8 @@
 #'   \code{@}, e.g. \code{sp} in \code{sp__@site} and \code{sp__@site__}): their covariance
 #'   matrices are either inverted (overdispersion) or not, while the phylogenies of sites
 #'   (after \code{@}) are never inverted. This follows Ives and Helmus (2011, Appendix A),
-#'   where repulsion arises from competition among closely related species. If its length is
-#'   >1, then you can select
+#'   where repulsion arises from competition among closely related species. If it has more
+#'   than one element, then you can select
 #'   which covariance matrix in the nested terms to be inverted. Make sure to get
 #'   the length right: for all the terms with \code{@}, count the number of "__"
 #'   to determine the length of repulsion. For example, \code{sp__@site} and \code{sp@site__}
@@ -227,12 +230,15 @@
 #' @param reltol A control parameter dictating the relative tolerance
 #'   for convergence in the optimization; see \code{\link{optim}}. With \code{sparse = TRUE},
 #'   the default is \code{1e-8} (for each run of the optimizer, including each PQL iteration
-#'   of binomial and poisson models).
+#'   of binomial and poisson models). With \code{method = "Laplace"}, the relative tolerance
+#'   of \code{nlminb()} (default \code{1e-10}); \code{maxit} is then its maximum number of
+#'   iterations and evaluations.
 #' @param maxit A control parameter dictating the maximum number of
 #'   iterations in the optimization; see \code{\link{optim}}.
 #' @param tol.pql A control parameter dictating the tolerance for
 #'   convergence in the PQL estimates of the mean components of the
-#'   GLMM. Ignored if \code{family = "gaussian"} or \code{bayes = TRUE}.
+#'   GLMM. Ignored if \code{family = "gaussian"}, \code{bayes = TRUE}, or
+#'   \code{method = "Laplace"}.
 #' @param maxit.pql A control parameter dictating the maximum number
 #'   of iterations in the PQL estimates of the mean components of the
 #'   GLMM. Ignored if \code{family = "gaussian"} or \code{bayes = TRUE}.
@@ -348,6 +354,60 @@
 #'   matrices. The likelihood, the fixed effects and the predictions do not depend on this
 #'   choice; only the scale of the variances (and of \code{s2.init}) does. Not used when
 #'   \code{random.effects} is given.
+#' @param method For binomial and poisson models with \code{bayes = FALSE}, the
+#'   approximation of the likelihood: \code{"PQL"} (default) for penalized
+#'   quasi-likelihood, as in earlier versions, or \code{"Laplace"} for the Laplace
+#'   approximation of the marginal likelihood, as in \code{lme4::glmer()} (with
+#'   \code{nAGQ = 1}) and \code{glmmTMB}. PQL is known to underestimate the variances of
+#'   random terms, and to shrink the fixed effects towards zero, for binary data and counts
+#'   with small means; the Laplace approximation is much less biased, and its
+#'   log-likelihood approximates the marginal likelihood of the model, so that it can be
+#'   used for likelihood ratio tests ([pglmm_profile_LRT()]) and AIC (the log-likelihood
+#'   of PQL is that of a gaussian model of the working response). Ignored for gaussian
+#'   models (their likelihood is exact) and with \code{bayes = TRUE}.
+#'
+#'   With \code{"Laplace"}, the model is always fitted with the precision matrices used by
+#'   \code{sparse = TRUE}, whatever the value of \code{sparse}: a phylogeny gives the sparse
+#'   precision matrix of all its nodes, and a covariance matrix in \code{cov_ranef} its (dense)
+#'   inverse. The time to fit a model thus grows about linearly with the number of species,
+#'   and nested terms and \code{repulsion} are supported. The random terms must be given in
+#'   the formula (\code{random.effects} is not supported). The mode of the random effects
+#'   (including the observation-level term \code{1|obs}) is found by Newton iterations. The
+#'   variances of the random terms are estimated first with the fixed effects at the mode
+#'   (as \code{glmer(nAGQ = 0)}); this is the final fit with \code{REML = TRUE}, where the
+#'   fixed effects are integrated out (as \code{glmmTMB(REML = TRUE)}) and their covariance
+#'   matrix is conditional on the variances. With \code{REML = FALSE}, the fixed effects and
+#'   the variances are then estimated jointly (as \code{glmer(nAGQ = 1)} and
+#'   \code{glmmTMB}), and the covariance matrix of the fixed effects is from the inverse of
+#'   the (numerical) Hessian of the log-likelihood over the fixed effects and the standard
+#'   deviations of the random terms, as in these packages. The optimizer is
+#'   \code{nlminb()}, on the scale of the variances (with a lower bound of zero), with
+#'   gradients by finite differences; \code{optimizer}, \code{tol.pql} and
+#'   \code{maxit.pql} are not used. [ranef()] gives the conditional modes of the random
+#'   effects, and \code{condVar = TRUE} their conditional standard deviations from the
+#'   Hessian of the Laplace approximation (conditional on the estimates of the parameters).
+#'   [pglmm_iV()] is not available for these models.
+#'
+#'   Choosing between them:
+#'   \itemize{
+#'     \item \code{"PQL"} (default): fastest (about 3--4 times faster than \code{"Laplace"}),
+#'       supports every model of \code{pglmm()} (including \code{random.effects} and
+#'       [pglmm_iV()]), and gives the same estimates as earlier versions of phyr. But its
+#'       estimates are biased for binary data and counts with small means: in simulations of
+#'       binary data, the fixed effects were shrunk towards zero by about 5--10\% and the
+#'       phylogenetic variance was underestimated by 20--45\%. Its log-likelihood is not that
+#'       of the model, so AIC and likelihood ratio tests (including tests for phylogenetic
+#'       signal with [pglmm_profile_LRT()]) are only rough approximations.
+#'     \item \code{"Laplace"}: gives the same estimates and log-likelihood as
+#'       \code{lme4::glmer()} and \code{glmmTMB} (to optimizer tolerance), much less biased
+#'       estimates (about unbiased fixed effects with \code{REML = FALSE}, and the least biased
+#'       phylogenetic variance with \code{REML = TRUE}), and a log-likelihood that can be used
+#'       for AIC and likelihood ratio tests. Still much faster than \code{glmmTMB} for large
+#'       phylogenies (e.g. 1 s versus about 60 s for 2000 species). Use it when the variances
+#'       of random terms, tests of phylogenetic signal, or model comparisons matter, especially
+#'       for binary data. It is an approximation too: for binary data with few observations
+#'       per species, the variances remain somewhat underestimated.
+#'   }
 #' @return An object (list) of class \code{communityPGLMM} with the following elements:
 #' \item{formula}{the formula for fixed effects}
 #' \item{formula_original}{the formula for both fixed effects and random effects}
@@ -409,9 +469,16 @@
 #' This is set to NULL if \code{bayes = FALSE}}
 #' \item{s2resid.ci}{Bayesian credible interval for linear mixed models, the residual variance.
 #' This is set to NULL if \code{bayes = FALSE}}
-#' \item{logLik}{for linear mixed models, the log-likelihood for either the restricted likelihood (\code{REML=TRUE}) or the overall likelihood (\code{REML=FALSE}). This is set to NULL for generalized linear mixed models. If \code{bayes = TRUE}, this is the marginal log-likelihood}
-#' \item{AIC}{for linear mixed models, the AIC for either the restricted likelihood (\code{REML = TRUE}) or the overall likelihood (\code{REML = FALSE}). This is set to NULL for generalised linear mixed models}
-#' \item{BIC}{for linear mixed models, the BIC for either the restricted likelihood (\code{REML = TRUE}) or the overall likelihood (\code{REML = FALSE}). This is set to NULL for generalised linear mixed models}
+#' \item{logLik}{the log-likelihood, restricted (\code{REML = TRUE}) or not (\code{REML = FALSE}).
+#'   For binomial and poisson models fitted with \code{method = "PQL"}, it is an approximation
+#'   from the gaussian model of the working response; with \code{method = "Laplace"}, it is the
+#'   Laplace approximation of the (restricted) marginal log-likelihood, the same as that of
+#'   \code{glmer()} and \code{glmmTMB()}. If \code{bayes = TRUE}, this is the marginal
+#'   log-likelihood of INLA}
+#' \item{AIC}{the AIC calculated with \code{logLik} (\code{bayes = FALSE})}
+#' \item{BIC}{the BIC calculated with \code{logLik} (\code{bayes = FALSE})}
+#' \item{method}{for binomial and poisson models with \code{bayes = FALSE}, the approximation
+#'   of the likelihood, \code{"PQL"} or \code{"Laplace"} (see the argument \code{method})}
 #' \item{DIC}{for Bayesian PGLMM, this is the Deviance Information Criterion metric of model fit. This is set to NULL if \code{bayes = FALSE}.}
 #' \item{REML}{whether or not REML is used (\code{TRUE} or \code{FALSE}).}
 #' \item{bayes}{whether or not a Bayesian model was fit.}
@@ -701,7 +768,7 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
                   bayes_nested_matrix_as_list = FALSE,
                   posterior.sample = TRUE,
                   return.fitted.marginals = TRUE,
-                  sparse = FALSE, standardize_cov = TRUE) {
+                  sparse = FALSE, standardize_cov = TRUE, method = c("PQL", "Laplace")) {
   pglmm_fit(
     formula = formula, data = data, family = family, cov_ranef = cov_ranef,
     random.effects = random.effects, REML = REML, optimizer = optimizer,
@@ -714,7 +781,7 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
     bayes_nested_matrix_as_list = bayes_nested_matrix_as_list,
     posterior.sample = posterior.sample,
     return.fitted.marginals = return.fitted.marginals,
-    sparse = sparse, standardize_cov = standardize_cov,
+    sparse = sparse, standardize_cov = standardize_cov, method = method,
     reltol.given = !missing(reltol)
   )
 }
@@ -741,7 +808,9 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
                       posterior.sample = TRUE,
                       return.fitted.marginals = TRUE,
                       sparse = FALSE, standardize_cov = TRUE, phylo_only = FALSE,
-                      reltol.given = !missing(reltol)) {
+                      method = c("PQL", "Laplace"), reltol.given = !missing(reltol)) {
+  method <- match.arg(method)
+  laplace <- method == "Laplace" && !bayes && family %in% c("binomial", "poisson")
   valid_optimizers <- c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex", "lbfgs")
   optimizer.given <- !is.null(optimizer)
   if (is.null(optimizer)) {
@@ -775,7 +844,7 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
 
   data <- as.data.frame(data) # in case of tibbles
   fm_original <- formula
-  if (!bayes && !isTRUE(sparse)) pglmm_blas_hint(nrow(data))
+  if (!bayes && !isTRUE(sparse) && !laplace) pglmm_blas_hint(nrow(data))
   # offsets are not used by the maximum likelihood code; stop instead of
   # silently fitting the model without them
   if (!bayes && !is.null(attr(terms(reformulas::nobars(formula)), "offset"))) {
@@ -794,13 +863,38 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
     data <- data[!is.na(resp_vec), , drop = FALSE]
   }
 
-  if (!isTRUE(sparse) && !bayes && prep_re &&
+  if (!isTRUE(sparse) && !bayes && !laplace && prep_re &&
       grepl("__", paste(deparse(formula), collapse = ""))) {
     pglmm_sparse_hint(nrow(data), if (is.null(cov_ranef)) list(tree, tree_site) else cov_ranef)
   }
   if (!phylo_only && prep_re) pglmm_compare_hint(formula, data)
   if (phylo_only && (!prep_re || !is.null(tree) || !is.null(tree_site))) {
     stop("phylo_only = TRUE needs random terms in the formula and cov_ranef.", call. = FALSE)
+  }
+
+  if (laplace) {
+    # the Laplace approximation uses the precision matrices of the sparse code
+    # (also with sparse = FALSE): a phylogeny gives its sparse precision
+    # matrix, and a covariance matrix its (dense) inverse
+    if (!prep_re) {
+      stop("method = \"Laplace\" needs the random terms in the formula; ",
+           "random.effects is not supported.", call. = FALSE)
+    }
+    if (is.null(cov_ranef) && (!is.null(tree) || !is.null(tree_site))) {
+      cov_ranef <- c(if (!is.null(tree)) list(sp = tree), if (!is.null(tree_site)) list(site = tree_site))
+    }
+    z <- communityPGLMM.glmm.laplace(
+      formula = formula, data = data, family = family, cov_ranef = cov_ranef, REML = REML,
+      s2.init = if (is.null(s2.init)) 0.25 else s2.init, B.init = B.init,
+      reltol = if (reltol.given) reltol else 1e-10, maxit = maxit, verbose = verbose,
+      standardize_cov = standardize_cov, repulsion = repulsion, add.obs.re = add.obs.re,
+      phylo_only = phylo_only
+    )
+    z$standardize_cov <- standardize_cov
+    z$formula_original <- fm_original
+    z$cov_ranef <- if (length(z$cov_ranef_updated)) z$cov_ranef_updated else NA
+    z$cov_ranef_updated <- NULL
+    return(z)
   }
 
   if (isTRUE(sparse)) {
@@ -829,6 +923,7 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
         phylo_only = phylo_only
       )
     }
+    if (family != "gaussian") z$method <- "PQL"
     z$standardize_cov <- standardize_cov
     z$formula_original <- fm_original
     z$cov_ranef <- if (length(z$cov_ranef_updated)) z$cov_ranef_updated else NA
@@ -966,6 +1061,7 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
     }
   }
 
+  if (!bayes && family != "gaussian") z$method <- "PQL"
   z$formula_original <- fm_original
   z$cov_ranef <- if (is.null(cov_ranef)) NA else cov_ranef_updated
   z$standardize_cov <- standardize_cov

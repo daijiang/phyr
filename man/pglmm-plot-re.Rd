@@ -158,7 +158,15 @@ If its length is 1, it applies to the phylogenies of species only (the variable 
 \code{@}, e.g. \code{sp} in \code{sp__@site} and \code{sp__@site__}): their covariance
 matrices are either inverted (overdispersion) or not, while the phylogenies of sites
 (after \code{@}) are never inverted. This follows Ives and Helmus (2011, Appendix A),
-where repulsion arises from competition among closely related species. If its length is1, then you can selectwhich covariance matrix in the nested terms to be inverted. Make sure to getthe length right: for all the terms with \code{@}, count the number of "__"to determine the length of repulsion. For example, \code{sp__@site} and \code{sp@site__}will each require one element of \code{repulsion}, while \code{sp__@site__} will take twoelements (repulsion for sp and repulsion for site). Therefore, if your nested terms are\code{(1|sp__@site) + (1|sp@site__) + (1|sp__@site__)}, then you should set therepulsion to be something like \code{c(TRUE, FALSE, TRUE, TRUE)} (length of 4).}
+where repulsion arises from competition among closely related species. If it has more
+than one element, then you can select
+which covariance matrix in the nested terms to be inverted. Make sure to get
+the length right: for all the terms with \code{@}, count the number of "__"
+to determine the length of repulsion. For example, \code{sp__@site} and \code{sp@site__}
+will each require one element of \code{repulsion}, while \code{sp__@site__} will take two
+elements (repulsion for sp and repulsion for site). Therefore, if your nested terms are
+\code{(1|sp__@site) + (1|sp@site__) + (1|sp__@site__)}, then you should set the
+repulsion to be something like \code{c(TRUE, FALSE, TRUE, TRUE)} (length of 4).}
 
 \item{x}{A fitted model with class communityPGLMM.}
 

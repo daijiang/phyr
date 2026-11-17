@@ -154,7 +154,7 @@ test_that("methods of pglmm() work with pglmm_compare models", {
       expect_equal(lrt, z$LRT)
       expect_true(lrt$LR > 0 && lrt$Pr < 0.05)
       if (sparse) {
-        expect_error(simulate(z, re.form = NA), "not available yet")
+        expect_equal(dim(simulate(z, nsim = 2, re.form = NA)), c(nrow(cmp$d), 2L))
         expect_error(pglmm_iV(z), "not available yet")
       } else {
         expect_equal(dim(simulate(z, nsim = 2, re.form = NA)), c(nrow(cmp$d), 2L))

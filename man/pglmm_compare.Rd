@@ -33,7 +33,8 @@ pglmm_compare(
   posterior.sample = TRUE,
   return.fitted.marginals = TRUE,
   sparse = FALSE,
-  standardize_cov = TRUE
+  standardize_cov = TRUE,
+  method = c("PQL", "Laplace")
 )
 
 \method{predict}{pglmm_compare}(object, newdata = NULL, ...)
@@ -64,7 +65,10 @@ the data frame will be arranged so that row names match the order of tip labels.
 \item{phy}{A phylogenetic tree as an object of class "phylo".}
 
 \item{REML}{Whether REML or ML is used for model fitting the random effects. Ignored if
-\code{bayes = TRUE}.}
+\code{bayes = TRUE}. For binomial and poisson models with \code{method = "Laplace"},
+\code{REML = TRUE} integrates the fixed effects out of the likelihood with the Laplace
+approximation too (as \code{glmmTMB(REML = TRUE)}); use \code{REML = FALSE} for maximum
+likelihood estimates, comparable with \code{lme4::glmer()} and \code{glmmTMB()}.}
 
 \item{optimizer}{Optimizer to use. Options: \code{"lbfgs"} (L-BFGS with analytic gradient;
 default for Gaussian, also available for binomial/Poisson), \code{"nelder-mead-nlopt"}
@@ -75,7 +79,7 @@ With \code{sparse = TRUE}, the default (and \code{"lbfgs"}, as there is no gradi
 Nelder-Mead algorithm of nloptr, and the optimizer is restarted from its solution until the
 likelihood does not improve (for gaussian models; for binomial and poisson models, each
 PQL iteration already starts the optimizer from the previous solution). Ignored if
-\code{bayes = TRUE}.}
+\code{bayes = TRUE} or \code{method = "Laplace"}.}
 
 \item{add.obs.re}{Whether to add an observation-level random term \code{1|obs}
 for Poisson data and binomial data with more than one trial (a
@@ -99,14 +103,17 @@ the phylogenetic variance tends to get trapped near zero.}
 \item{reltol}{A control parameter dictating the relative tolerance
 for convergence in the optimization; see \code{\link{optim}}. With \code{sparse = TRUE},
 the default is \code{1e-8} (for each run of the optimizer, including each PQL iteration
-of binomial and poisson models).}
+of binomial and poisson models). With \code{method = "Laplace"}, the relative tolerance
+of \code{nlminb()} (default \code{1e-10}); \code{maxit} is then its maximum number of
+iterations and evaluations.}
 
 \item{maxit}{A control parameter dictating the maximum number of
 iterations in the optimization; see \code{\link{optim}}.}
 
 \item{tol.pql}{A control parameter dictating the tolerance for
 convergence in the PQL estimates of the mean components of the
-GLMM. Ignored if \code{family = "gaussian"} or \code{bayes = TRUE}.}
+GLMM. Ignored if \code{family = "gaussian"}, \code{bayes = TRUE}, or
+\code{method = "Laplace"}.}
 
 \item{maxit.pql}{A control parameter dictating the maximum number
 of iterations in the PQL estimates of the mean components of the
@@ -208,6 +215,9 @@ matrices. The likelihood, the fixed effects and the predictions do not depend on
 choice; only the scale of the variances (and of \code{s2.init}) does. Not used when
 \code{random.effects} is given.}
 
+\item{method}{For binomial and poisson data, \code{"PQL"} (default) or
+\code{"Laplace"}: see Details and \code{\link[=pglmm]{pglmm()}}.}
+
 \item{object}{A fitted model with class pglmm_compare.}
 
 \item{newdata}{An optional data frame of species to predict for, as for
@@ -308,7 +318,7 @@ with \code{condVar = TRUE} for their standard deviations), \code{\link[=VarCorr]
 \code{\link[=fitted]{fitted()}}, \code{\link[=residuals]{residuals()}}, \code{\link[=predict]{predict()}} (with \code{newdata}, the species are
 the row names of \code{newdata}), \code{\link[=simulate]{simulate()}}, \code{\link[=logLik]{logLik()}} and \code{\link[=AIC]{AIC()}}
 (\code{bayes = FALSE}), and \code{\link[=pglmm_profile_LRT]{pglmm_profile_LRT()}}. With \code{sparse = TRUE},
-\code{\link[=pglmm_iV]{pglmm_iV()}} and \code{simulate(re.form = NA)} are not available.
+\code{\link[=pglmm_iV]{pglmm_iV()}} is not available (nor with \code{method = "Laplace"}).
 
 \strong{Test of phylogenetic signal.} For models fitted with \code{bayes = FALSE},
 the element \code{LRT} is \code{pglmm_profile_LRT(fit, re.number = 1)}: a likelihood
@@ -318,8 +328,17 @@ one obtained by setting \code{s2} to zero, without re-estimating the other
 parameters). As \code{s2 = 0} is on the boundary of the parameter space, the
 p-value \code{Pr} is half of the p-value of a chi-square distribution with one
 degree of freedom. For binomial and poisson data, the log-likelihood is
-the approximate log-likelihood of the penalized quasi-likelihood fit. It is
-printed by \code{\link[=summary]{summary()}}.
+the approximate log-likelihood of the penalized quasi-likelihood fit (with
+\code{method = "PQL"}, the default) or the Laplace approximation of the
+log-likelihood (with \code{method = "Laplace"}). It is printed by \code{\link[=summary]{summary()}}.
+
+\strong{Binary and count data.} With \code{method = "Laplace"}, binomial and
+poisson models are fitted with the Laplace approximation of the likelihood
+instead of penalized quasi-likelihood (PQL), which underestimates the
+phylogenetic variance (and with it the phylogenetic signal) for binary data;
+see the argument \code{method} of \code{\link[=pglmm]{pglmm()}}. The estimates are then the same as
+those of \code{glmmTMB()} with a phylogenetic covariance matrix (\code{propto()}),
+with \code{REML = FALSE}.
 
 \strong{Large phylogenies.} With \code{sparse = TRUE}, the model is fitted with the
 sparse precision matrix of the phylogeny (including its internal nodes)
@@ -327,7 +346,7 @@ instead of the dense covariance matrix of the species; the likelihood is
 the same, but time and memory grow about linearly with the number of
 species, so data with tens of thousands of species can be fitted. See the
 argument \code{sparse} of \code{\link[=pglmm]{pglmm()}} for details. The covariance matrix
-\code{vcv.phy} is then not formed (it is \code{NULL}).
+\code{vcv.phy} is then not formed (it is \code{NULL}); the same with \code{method = "Laplace"}.
 }
 \examples{
 
@@ -367,6 +386,12 @@ predict(fit, newdata = sim.dat[1:3, ], type = "response")
 fit_sparse <- pglmm_compare(Y ~ X1, family = "binomial", phy = phy, data = sim.dat,
                             sparse = TRUE)
 cbind(dense = fit$B, sparse = fit_sparse$B)
+
+# the Laplace approximation of the likelihood (less biased than PQL for
+# binary data), with maximum likelihood estimates
+fit_laplace <- pglmm_compare(Y ~ X1, family = "binomial", phy = phy, data = sim.dat,
+                             method = "Laplace", REML = FALSE)
+fit_laplace
 
 # Compare with `binaryPGLMM`
 ape::binaryPGLMM(Y ~ X1, phy = phy, data = sim.dat)

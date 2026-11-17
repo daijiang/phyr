@@ -157,13 +157,39 @@ phylo_repulsion <- function(pp) {
        logdetR = logdet(R), logdetV = logdetV, tip.var = dS)
 }
 
+# H with H H' = A, from the Cholesky factor of A (for a tree: no fill)
+chol_H <- function(A) {
+  L <- Matrix::Cholesky(A, perm = TRUE, LDL = FALSE, super = FALSE)
+  Matrix::t(Matrix::expand1(L, "P1")) %*% Matrix::expand1(L, "L")
+}
+
+# Precision matrix of a (dense) covariance matrix V, in the same format as
+# phylo_precision() (the rows are the levels of the variable, no internal
+# nodes). Used by method = "Laplace" for covariance matrices in cov_ranef.
+cov_precision <- function(V) {
+  V <- as.matrix(V)
+  R <- tryCatch(chol(V), error = function(e) {
+    stop("A covariance matrix in cov_ranef is not positive definite.", call. = FALSE)
+  })
+  Qd <- chol2inv(R)
+  Q <- Matrix::forceSymmetric(Matrix::Matrix((Qd + t(Qd)) / 2, sparse = TRUE))
+  dimnames(Q) <- NULL
+  list(Q = Q, logdetQ = -2 * sum(log(diag(R))), tip.label = rownames(V),
+       node.label = rownames(V), tip.var = diag(V), mean.diag = mean(diag(V)),
+       is.matrix = TRUE, V = V)
+}
+
 # Random terms of the formula for the sparse path: a list with one element per
 # term (`1|sp__` gives two terms, 1|sp and 1|sp__, as in prep_dat_pglmm()).
 # The terms are in the order of the parameters of the default code: non-nested
 # terms first, then nested terms. `formula.order` gives the order of the terms
 # in the formula (as random.effects of the default code): terms[formula.order].
+# With allow.matrix = TRUE (method = "Laplace"), cov_ranef can also have
+# covariance matrices, whose (dense) inverse is used as precision matrix, and
+# phylogenies with terminal branches of length zero (used as their covariance
+# matrix).
 pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
-                               repulsion = FALSE, phylo_only = FALSE) {
+                               repulsion = FALSE, phylo_only = FALSE, allow.matrix = FALSE) {
   fm <- unique(reformulas::findbars(formula))
   if (is.null(fm)) stop("No random terms specified, use lm or glm instead")
   if (!is.null(cov_ranef)) names(cov_ranef) <- gsub("__$", "", names(cov_ranef))
@@ -180,9 +206,19 @@ pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
     if (is.null(trees[[g]])) {
       tree <- cov_ranef[[g]]
       if (is.null(tree)) stop("Cov matrix of variable ", g, " not specified in cov_ranef.")
-      if (!inherits(tree, "phylo")) {
-        stop("With sparse = TRUE, cov_ranef$", g, " must be a phylogeny (class phylo); ",
-             "a covariance matrix does not have a sparse inverse in general.", call. = FALSE)
+      as_matrix <- !inherits(tree, "phylo") ||
+        (allow.matrix && !is.null(tree$edge.length) &&
+           any(tree$edge.length[tree$edge[, 2] <= ape::Ntip(tree)] == 0, na.rm = TRUE))
+      if (as_matrix) {
+        if (!allow.matrix) {
+          stop("With sparse = TRUE, cov_ranef$", g, " must be a phylogeny (class phylo); ",
+               "a covariance matrix does not have a sparse inverse in general.", call. = FALSE)
+        }
+        df <- data.frame(f)
+        names(df) <- g
+        pc <- parse_conv_ranef(stats::setNames(list(tree), g), df, standardize = standardize_cov)
+        trees[[g]] <<- c(cov_precision(pc$cleaned_list[[1]]), list(tree = pc$updated_orgi_list[[1]]))
+        return(trees[[g]])
       }
       if (length(setdiff(levels(f), tree$tip.label))) {
         stop(paste0("Some species of variable ", g, " not in the phylogeny,
@@ -208,6 +244,12 @@ pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
     }
     tp <- get_tree(g, f)
     i <- match(as.character(f), tp$tip.label)
+    if (repul && isTRUE(tp$is.matrix)) {
+      # the covariance matrix of the term is V^-1: its precision matrix is V
+      A <- Matrix::forceSymmetric(Matrix::Matrix(tp$V, sparse = TRUE))
+      return(list(A = A, H = function() chol_H(A), logdetF = -tp$logdetQ, col = i,
+                  var = Matrix::diag(tp$Q)[i]))
+    }
     if (repul) {
       if (is.null(tp$repul)) trees[[g]]$repul <<- tp$repul <- phylo_repulsion(tp)
       r <- tp$repul
@@ -217,11 +259,8 @@ pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
     }
     # H from the Cholesky factor of Q (a tree: no fill), only needed with
     # repulsion on the other variable
-    H <- function() {
-      L <- Matrix::Cholesky(tp$Q, perm = TRUE, LDL = FALSE, super = FALSE)
-      Matrix::t(Matrix::expand1(L, "P1")) %*% Matrix::expand1(L, "L")
-    }
-    list(A = tp$Q, H = H, logdetF = tp$logdetQ, col = i, var = tp$tip.var[i])
+    list(A = tp$Q, H = function() chol_H(tp$Q), logdetF = tp$logdetQ, col = i,
+         var = tp$tip.var[i])
   }
   get_H <- function(v) if (is.function(v$H)) v$H() else v$H
   # repulsion: one value for each phylogenetic variable of nested terms, in
@@ -572,15 +611,12 @@ pglmm_sparse_glmm_LL <- function(ss, pre, w, XH, REML, has.obs, verbose = FALSE)
   LL
 }
 
-# Fit a binomial or poisson pglmm (PQL) with the sparse precision matrix of the
-# phylogeny. The PQL loop is the same as in communityPGLMM.glmm() (and
-# pglmm_internal_cpp()): the same updates, convergence rules and tolerances.
-communityPGLMM.glmm.sparse <- function(formula, data, family = "binomial", cov_ranef = NULL,
-                                       REML = TRUE, s2.init = 0.25, B.init = NULL,
-                                       reltol = 10^-8, maxit = 500, tol.pql = 10^-6,
-                                       maxit.pql = 200, verbose = FALSE, optimizer = "subplex",
-                                       standardize_cov = TRUE, repulsion = FALSE,
-                                       add.obs.re = TRUE, phylo_only = FALSE) {
+# Data of a binomial or poisson model for the sparse and Laplace code: the
+# observation-level term (as in prep_dat_pglmm()): for poisson models and
+# binomial models with more than one trial, unless a nested term without
+# phylogeny already has one level per observation; rows with missing values
+# in the response, predictors, or random terms are dropped.
+pglmm_glmm_data <- function(formula, data, family, add.obs.re = TRUE) {
   formula.nobars <- reformulas::nobars(formula)
   bars <- unique(reformulas::findbars(formula))
   # observation-level term, as in prep_dat_pglmm(): for poisson models and
@@ -628,6 +664,26 @@ communityPGLMM.glmm.sparse <- function(formula, data, family = "binomial", cov_r
     size <- rep(1, length(Y))
   }
   Y <- as.numeric(Y)
+  list(formula.nobars = formula.nobars, data = data, X = X, Y = Y, size = size,
+       has.obs = has.obs)
+}
+
+# Fit a binomial or poisson pglmm (PQL) with the sparse precision matrix of the
+# phylogeny. The PQL loop is the same as in communityPGLMM.glmm() (and
+# pglmm_internal_cpp()): the same updates, convergence rules and tolerances.
+communityPGLMM.glmm.sparse <- function(formula, data, family = "binomial", cov_ranef = NULL,
+                                       REML = TRUE, s2.init = 0.25, B.init = NULL,
+                                       reltol = 10^-8, maxit = 500, tol.pql = 10^-6,
+                                       maxit.pql = 200, verbose = FALSE, optimizer = "subplex",
+                                       standardize_cov = TRUE, repulsion = FALSE,
+                                       add.obs.re = TRUE, phylo_only = FALSE) {
+  dd <- pglmm_glmm_data(formula, data, family, add.obs.re)
+  formula.nobars <- dd$formula.nobars
+  data <- dd$data
+  X <- dd$X
+  Y <- dd$Y
+  size <- dd$size
+  has.obs <- dd$has.obs
   n <- nrow(X)
   p <- ncol(X)
 
@@ -949,7 +1005,8 @@ communityPGLMM.gaussian.sparse <- function(formula, data, cov_ranef = NULL, REML
 # Stop for the methods that are not available yet for the sparse path
 pglmm_sparse_stop <- function(object, what) {
   if (!is.null(object$sparse)) {
-    stop(what, " is not available yet for models fitted with sparse = TRUE.", call. = FALSE)
+    stop(what, " is not available yet for models fitted with sparse = TRUE or method = \"Laplace\".",
+         call. = FALSE)
   }
   invisible(NULL)
 }

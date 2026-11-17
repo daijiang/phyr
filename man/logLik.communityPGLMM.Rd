@@ -18,6 +18,11 @@ An object of class \code{logLik}.
 The log-likelihood of a model fitted with \code{bayes = FALSE} (the restricted
 log-likelihood if \code{REML = TRUE}), with the number of parameters as attribute
 \code{df}, so that \code{\link[stats:AIC]{stats::AIC()}} gives \code{x$AIC}. For binomial and poisson models,
-it is the approximate log-likelihood calculated by \code{\link[=pglmm]{pglmm()}}. Note that
+it is the approximate log-likelihood calculated by \code{\link[=pglmm]{pglmm()}}: with
+\code{method = "Laplace"}, the Laplace approximation of the marginal
+log-likelihood (the same as \code{lme4::glmer()} and \code{glmmTMB()} with
+\code{REML = FALSE}), and \code{df} is the number of fixed effects and variances; with
+\code{method = "PQL"}, the log-likelihood of the gaussian model of the working
+response, which is not comparable with that of other software. Note that
 \code{\link[stats:BIC]{stats::BIC()}} uses \code{log(nobs)} and thus differs from \code{x$BIC}.
 }

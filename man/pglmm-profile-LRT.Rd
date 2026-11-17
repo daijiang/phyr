@@ -26,3 +26,9 @@ The resulting p-values are conditional on the fixed
 estimates of the other parameters, in contrast to a standard
 likelihood ratio test.
 }
+\details{
+For binomial and poisson models fitted with \code{method = "Laplace"}, the
+log-likelihoods are the Laplace approximations of the (restricted) marginal
+log-likelihood (for \code{REML = FALSE}, with the fixed effects at their
+estimates; for \code{REML = TRUE}, integrated out).
+}

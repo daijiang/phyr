@@ -93,8 +93,14 @@ test_that("methods work for models fitted with sparse = TRUE", {
   # estimates of the internal nodes
   rn <- phyr:::pglmm_cond_modes_sparse(m2, nodes = TRUE)[["1|sp__"]]
   expect_equal(nrow(rn), ape::Ntip(s$phy) + s$phy$Nnode - 1)
+  # new values of the random effects: same covariance matrix as the dense model
+  set.seed(1)
+  sim <- simulate(m2, nsim = 4000, re.form = NA)
+  V <- solve(pglmm_iV(m1))
+  expect_equal(dim(sim), c(nrow(s$d), 4000L))
+  expect_equal(mean(apply(sim, 1, var)) / mean(diag(V)), 1, tolerance = 0.05)
+  expect_gt(cor(as.vector(cov(t(sim))), as.vector(V)), 0.98)
   # not available yet
-  expect_error(simulate(m2, nsim = 2, re.form = NA), "not available yet")
   expect_error(pglmm_iV(m2), "not available yet")
 })
 

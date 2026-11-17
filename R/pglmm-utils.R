@@ -873,6 +873,11 @@ pglmm.V <- function(par, Zt, St, mu, nested, family, size) {
 #' estimates of the other parameters, in contrast to a standard
 #' likelihood ratio test.
 #'
+#' For binomial and poisson models fitted with `method = "Laplace"`, the
+#' log-likelihoods are the Laplace approximations of the (restricted) marginal
+#' log-likelihood (for `REML = FALSE`, with the fixed effects at their
+#' estimates; for `REML = TRUE`, integrated out).
+#'
 #' @rdname pglmm-profile-LRT
 #' @param x A fitted model with class communityPGLMM with `bayes = FALSE`.
 #' @param re.number Which random term to test? Can be a vector with length >1.
@@ -888,6 +893,14 @@ pglmm_profile_LRT <- function(x, re.number = 0, cpp = TRUE) {
   par[re.number] <- 0
   df <- length(re.number)
 
+  if (identical(x$method, "Laplace")) {
+    # Laplace approximation of the log-likelihood with the variances of the
+    # terms re.number set to zero, the other parameters unchanged (for REML,
+    # the fixed effects are integrated out)
+    LR <- pglmm_laplace_logLik_at(x, x$ss) - pglmm_laplace_logLik_at(x, par)
+    Pr <- pchisq(2 * LR, df = df, lower.tail = FALSE) / 2
+    return(list(LR = LR, df = df, Pr = if (Pr > 0.499) 1 else Pr))
+  }
   if (!is.null(x$sparse)) {
     if (x$family == "gaussian") {
       nt <- length(x$sparse$theta)
@@ -1064,27 +1077,7 @@ summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") -
       cat("Generalized linear mixed model for poisson data with zero inflation fit by Bayesian INLA")
     }
   } else {
-    if (x$family == "gaussian") {
-      if (x$REML == TRUE) {
-        cat("Linear mixed model fit by restricted maximum likelihood")
-      } else {
-        cat("Linear mixed model fit by maximum likelihood")
-      }
-    }
-    if (x$family == "binomial") {
-      if (x$REML == TRUE) {
-        cat("Generalized linear mixed model for binomial data fit by restricted maximum likelihood")
-      } else {
-        cat("Generalized linear mixed model for binomial data fit by maximum likelihood")
-      }
-    }
-    if (x$family == "poisson") {
-      if (x$REML == TRUE) {
-        cat("Generalized linear mixed model for poisson data fit by restricted maximum likelihood")
-      } else {
-        cat("Generalized linear mixed model for poisson data fit by maximum likelihood")
-      }
-    }
+    cat(pglmm_fit_title(x))
   }
 
   cat("\n\nCall:")
@@ -1170,6 +1163,20 @@ print.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ..
   summary.communityPGLMM(x, digits = digits)
 }
 
+
+# title of the summary of a model fitted with bayes = FALSE
+pglmm_fit_title <- function(x) {
+  lik <- if (isTRUE(x$REML)) "restricted maximum likelihood" else "maximum likelihood"
+  if (x$family == "gaussian") return(paste("Linear mixed model fit by", lik))
+  out <- paste("Generalized linear mixed model for", x$family, "data fit by")
+  if (identical(x$method, "Laplace")) {
+    paste0(out, " Laplace approximation (", lik, ")")
+  } else if (identical(x$method, "PQL")) {
+    paste0(out, " penalized quasi-likelihood (PQL, ", lik, ")")
+  } else {
+    paste(out, lik)
+  }
+}
 
 # ---- hint about the BLAS library used by R ----
 
@@ -1800,10 +1807,14 @@ fixef.communityPGLMM <- function(object, ...) {
 #' For models fitted by maximum likelihood (`bayes = FALSE`), the estimates are
 #' the conditional modes (BLUPs) of the random effects given the data and the
 #' estimated parameters, \eqn{\hat{u}_k = \sigma_k^2 C_k Z_k' V^{-1} (y - X\beta)}.
-#' For binomial and poisson models, they are the conditional modes of the
-#' penalized quasi-likelihood (PQL) fit, calculated with the working response;
-#' they will be close to, but not the same as, the estimates from models fitted
-#' with a Laplace approximation (e.g. `lme4::glmer()`, `glmmTMB::glmmTMB()`).
+#' For binomial and poisson models fitted with `method = "PQL"` (the default),
+#' they are the conditional modes of the penalized quasi-likelihood (PQL) fit,
+#' calculated with the working response; they will be close to, but not the
+#' same as, the estimates from models fitted with a Laplace approximation (e.g.
+#' `lme4::glmer()`, `glmmTMB::glmmTMB()`). With `method = "Laplace"`, they are
+#' the conditional modes of the Laplace approximation (the same as those of
+#' `glmer()` and `glmmTMB()`), and their conditional standard deviations are from
+#' its Hessian.
 #' For Bayesian models (`bayes = TRUE`), the estimates are summaries of the
 #' posterior marginal distributions of the latent random effects.
 #'
@@ -2246,7 +2257,12 @@ nobs.communityPGLMM <- function(object, use.fallback = FALSE, ...) {
 #' The log-likelihood of a model fitted with `bayes = FALSE` (the restricted
 #' log-likelihood if `REML = TRUE`), with the number of parameters as attribute
 #' `df`, so that [stats::AIC()] gives `x$AIC`. For binomial and poisson models,
-#' it is the approximate log-likelihood calculated by [pglmm()]. Note that
+#' it is the approximate log-likelihood calculated by [pglmm()]: with
+#' `method = "Laplace"`, the Laplace approximation of the marginal
+#' log-likelihood (the same as `lme4::glmer()` and `glmmTMB()` with
+#' `REML = FALSE`), and `df` is the number of fixed effects and variances; with
+#' `method = "PQL"`, the log-likelihood of the gaussian model of the working
+#' response, which is not comparable with that of other software. Note that
 #' [stats::BIC()] uses `log(nobs)` and thus differs from `x$BIC`.
 #'
 #' @param object A fitted model with class communityPGLMM.
@@ -2573,7 +2589,7 @@ simulate.communityPGLMM <- function(object, nsim = 1, seed = NULL,
 # variances, and sum them for each observation. Returns a matrix with one row
 # per observation and nsim columns.
 pglmm_sim_ranef <- function(object, nsim) {
-  pglmm_sparse_stop(object, "simulate() with re.form = NA")
+  if (!is.null(object$sparse)) return(pglmm_sim_ranef_sparse(object, nsim))
   n <- nrow(object$X)
   out <- matrix(0, n, nsim)
   s2r <- as.numeric(object$s2r)
@@ -2587,6 +2603,33 @@ pglmm_sim_ranef <- function(object, nsim) {
   }
   for (j in seq_along(object$nested)) {
     out <- out + sqrt(s2n[j]) * rmvnorm_cov(as.matrix(object$nested[[j]]), nsim)
+  }
+  out
+}
+
+# The same for models fitted with sparse = TRUE or method = "Laplace": the
+# values v of all levels (and nodes) are drawn from N(0, Q^-1) with the
+# Cholesky factorization of the precision matrix Q = P' L L' P (Matrix
+# convention), v = P' L'^-1 z; the random effects are u = Theta v.
+pglmm_sim_ranef_sparse <- function(object, nsim) {
+  sp <- object$sparse
+  pre <- sp$pre
+  if (pre$qa > pre$q) {
+    stop("simulate() with re.form = NA is not available yet for models with repulsion ",
+         "fitted with sparse = TRUE or method = \"Laplace\".", call. = FALSE)
+  }
+  Q <- pre$M
+  Q@x <- pre$qx
+  Q@factors <- list() # not the factorization of M cached by pglmm_sparse_setup()
+  L <- Matrix::Cholesky(Q, perm = TRUE, LDL = FALSE, super = FALSE)
+  z <- matrix(rnorm(pre$q * nsim), ncol = nsim)
+  v <- as.matrix(Matrix::solve(L, Matrix::solve(L, z, system = "Lt"), system = "Pt"))
+  # standard deviations of the terms: relative to the residual one for
+  # gaussian models
+  th <- sp$theta * (if (object$family == "gaussian") sqrt(as.numeric(object$s2resid)) else 1)
+  out <- as.matrix(pre$Z %*% (th[pre$term.of.col] * v))
+  if (isTRUE(sp$has.obs)) {
+    out <- out + matrix(rnorm(length(out), 0, object$ss[[length(object$ss)]]), ncol = nsim)
   }
   out
 }

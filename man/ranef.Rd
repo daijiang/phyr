@@ -47,10 +47,14 @@ To get the variances of the random terms, use \code{\link[=VarCorr]{VarCorr()}}.
 For models fitted by maximum likelihood (\code{bayes = FALSE}), the estimates are
 the conditional modes (BLUPs) of the random effects given the data and the
 estimated parameters, \eqn{\hat{u}_k = \sigma_k^2 C_k Z_k' V^{-1} (y - X\beta)}.
-For binomial and poisson models, they are the conditional modes of the
-penalized quasi-likelihood (PQL) fit, calculated with the working response;
-they will be close to, but not the same as, the estimates from models fitted
-with a Laplace approximation (e.g. \code{lme4::glmer()}, \code{glmmTMB::glmmTMB()}).
+For binomial and poisson models fitted with \code{method = "PQL"} (the default),
+they are the conditional modes of the penalized quasi-likelihood (PQL) fit,
+calculated with the working response; they will be close to, but not the
+same as, the estimates from models fitted with a Laplace approximation (e.g.
+\code{lme4::glmer()}, \code{glmmTMB::glmmTMB()}). With \code{method = "Laplace"}, they are
+the conditional modes of the Laplace approximation (the same as those of
+\code{glmer()} and \code{glmmTMB()}), and their conditional standard deviations are from
+its Hessian.
 For Bayesian models (\code{bayes = TRUE}), the estimates are summaries of the
 posterior marginal distributions of the latent random effects.
 
