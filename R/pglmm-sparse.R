@@ -230,7 +230,7 @@ pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
     gp <- strsplit(as.character(x)[3], "@", fixed = TRUE)[[1]]
     if (length(gp) > 1) sum(grepl("__$", gp)) else 0L
   }, 1L))
-  if (length(repulsion) == 1) repulsion <- rep(repulsion, n.rep)
+  if (length(repulsion) == 1) repulsion <- pglmm_expand_repulsion(fm, repulsion) # species only
   if (length(repulsion) != n.rep) {
     stop("The number of repulsion terms specified is not correct: please double check")
   }

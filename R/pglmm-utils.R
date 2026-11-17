@@ -136,6 +136,7 @@ prep_dat_pglmm <- function(formula, data, cov_ranef = NULL, repulsion = FALSE,
         sum(grepl("__", xx))
       }))
     }
+    if (length(repulsion) == 1 && any(grepl("@", fm))) repulsion <- pglmm_expand_repulsion(fm, repulsion)
     if (length(repulsion) == 1) repulsion <- rep(repulsion, n_repulsion)
     if (length(repulsion) != n_repulsion) {
       stop("The number of repulsion terms specified is not correct: please double check")
@@ -293,19 +294,14 @@ prep_dat_pglmm <- function(formula, data, cov_ranef = NULL, repulsion = FALSE,
               # 1 | sp__@site
               if (grepl("__", sp_or_site[1]) & !grepl("__", sp_or_site[2])) {
                 vm <- cov_ranef_list[[colns[1]]]
-                # if(repulsion[nested_repul_i]){
-                #   vm = solve(cov_ranef_list[[colns[1]]])
-                #   nested_repul_i <<- nested_repul_i + 1
-                # }
+                # the repulsion index was already moved past this term above
+                if (repulsion[nested_repul_i - 1]) vm <- solve(vm)
                 xout <- list(list(1, data[, colns[1]], covar = vm, data[, colns[2]]))
               }
               # 1 | sp@site__
               if (!grepl("__", sp_or_site[1]) & grepl("__", sp_or_site[2])) {
                 vm <- cov_ranef_list[[colns[2]]]
-                # if(repulsion[nested_repul_i]){
-                #   vm = solve(cov_ranef_list[[colns[2]]])
-                #   nested_repul_i <<- nested_repul_i + 1
-                # }
+                if (repulsion[nested_repul_i - 1]) vm <- solve(vm)
                 xout <- list(list(1, data[, colns[2]], covar = vm, data[, colns[1]]))
               }
               # 1 | sp__@site__ ?? how do in the old way?
@@ -1225,6 +1221,20 @@ pglmm_sparse_hint <- function(n, covs, min.n = 2000, min.sp = 300) {
     "This message is shown once per session; set options(phyr.sparse.hint = FALSE) to turn it off."
   )
   invisible(TRUE)
+}
+
+# A single repulsion value applies to the phylogenies of species only, i.e. the
+# first variable of nested terms (e.g. sp in 1|sp__@site__); phylogenies of the
+# second variable (sites) are not inverted. As in Ives & Helmus (2011, Appendix
+# A), repulsion comes from competition among related species. Returns one value
+# per phylogenetic variable of nested terms, in the order of the formula.
+pglmm_expand_repulsion <- function(fm, repulsion) {
+  unlist(lapply(fm, function(x) {
+    gp <- strsplit(as.character(x)[3], "@", fixed = TRUE)[[1]]
+    if (length(gp) < 2) return(logical(0))
+    phy <- grepl("__$", gp)
+    (repulsion & c(TRUE, FALSE))[phy]
+  }))
 }
 
 # ---- Inverse of the marginal covariance matrix V, without storing it ----

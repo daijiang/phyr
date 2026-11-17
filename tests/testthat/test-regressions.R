@@ -225,3 +225,39 @@ test_that("the hint about sparse = TRUE is only for large models with phylogenie
   expect_message(phyr:::pglmm_sparse_hint(100, list(big)), "sparse = TRUE")
   expect_silent(phyr:::pglmm_sparse_hint(5000, list(big)))           # once per session
 })
+
+test_that("repulsion is used when bayes nested matrices are prepared as a list", {
+  set.seed(1)
+  tr <- ape::rtree(8)
+  d <- expand.grid(sp = tr$tip.label, site = paste0("s", 1:5))
+  d$y <- rbinom(nrow(d), 1, 0.5)
+  re <- function(rep) {
+    suppressMessages(prep_dat_pglmm(y ~ 1 + (1 | sp__@site), d, list(sp = tr),
+      repulsion = rep, family = "binomial", bayes = TRUE,
+      bayes_nested_matrix_as_list = TRUE
+    )$random.effects)
+  }
+  a <- re(FALSE)
+  b <- re(TRUE)
+  k <- length(a)
+  expect_equal(b[[k]][[3]], solve(a[[k]][[3]]))
+})
+
+test_that("a single repulsion = TRUE inverts the phylogenies of species only", {
+  set.seed(2)
+  tr <- ape::rtree(6)
+  ts <- ape::rtree(4, tip.label = paste0("s", 1:4))
+  d <- expand.grid(sp = tr$tip.label, site = ts$tip.label)
+  d$y <- rnorm(nrow(d))
+  fm <- reformulas::findbars(y ~ (1 | sp__@site__) + (1 | sp@site__) + (1 | sp__@site) + (1 | sp@site))
+  expect_equal(phyr:::pglmm_expand_repulsion(fm, TRUE), c(TRUE, FALSE, FALSE, TRUE))
+  expect_equal(phyr:::pglmm_expand_repulsion(fm, FALSE), rep(FALSE, 4))
+  re <- function(rep) {
+    r <- prep_dat_pglmm(y ~ 1 + (1 | sp__@site__), d, list(sp = tr, site = ts), repulsion = rep)$random.effects
+    as.matrix(r[[length(r)]][[1]])
+  }
+  expect_equal(re(TRUE), re(c(TRUE, FALSE)))
+  expect_false(isTRUE(all.equal(re(TRUE), re(c(TRUE, TRUE)))))
+  fit <- function(...) quiet(pglmm(y ~ 1 + (1 | sp__@site__), d, cov_ranef = list(sp = tr, site = ts), ...))
+  expect_equal(fit(repulsion = TRUE, sparse = TRUE)$logLik, fit(repulsion = TRUE)$logLik, tolerance = 1e-4)
+})
