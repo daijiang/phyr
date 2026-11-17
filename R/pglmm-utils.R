@@ -6,11 +6,13 @@
 #' group variables that are used as random terms and must be presented. The actual object
 #' can be a phylogeny with class "phylo" or a prepared var-cov matrix. If it is a phylogeny,
 #' we will prune it and then convert it to a var-cov matrix assuming brownian motion evolution.
-#' We will also standardize all var-cov matrices to have determinant of one.
+#' We will also standardize all var-cov matrices to have determinant of one
+#' (unless \code{standardize = FALSE}).
 #' @param df A data frame that includes the group variables, i.e., names of \code{x}.
+#' @param standardize Whether to standardize the var-cov matrices.
 #' @return A named list, which includes the processed var-cov matrices of random terms.
 #' @noRd
-parse_conv_ranef <- function(x, df) {
+parse_conv_ranef <- function(x, df, standardize = TRUE) {
   if (is.null(names(x))) stop("conv_ranef list must have names")
   x2 <- x
   out_list <- lapply(1:length(x), function(i) {
@@ -29,8 +31,10 @@ parse_conv_ranef <- function(x, df) {
         xx <- ape::drop.tip(xx, setdiff(xx$tip.label, spl))
       }
       Vphy <- ape::vcv(xx)
-      Vphy <- Vphy / max(Vphy)
-      Vphy <- Vphy / exp(determinant(Vphy)$modulus[1] / ape::Ntip(xx))
+      if (standardize) {
+        Vphy <- Vphy / max(Vphy)
+        Vphy <- Vphy / exp(determinant(Vphy)$modulus[1] / ape::Ntip(xx))
+      }
       Vphy <- Vphy[spl, spl] # same order as species levels
     }
 
@@ -49,7 +53,7 @@ parse_conv_ranef <- function(x, df) {
                     " must be the same and in the same order"))
       }
       xx <- xx[spl, spl, drop = FALSE]
-      if (abs(det(xx) - 1) > 0.0001) {
+      if (standardize && abs(det(xx) - 1) > 0.0001) {
         warning("The cov matrix is not standarized, we will do this now...", call. = FALSE, immediate. = TRUE)
         xx <- xx / max(xx)
         xx <- xx / exp(determinant(xx)$modulus[1] / nrow(xx))
@@ -75,7 +79,8 @@ parse_conv_ranef <- function(x, df) {
 #' @export
 prep_dat_pglmm <- function(formula, data, cov_ranef = NULL, repulsion = FALSE,
                            prep.re.effects = TRUE, family = "gaussian",
-                           add.obs.re = TRUE, bayes = FALSE, bayes_nested_matrix_as_list = FALSE) {
+                           add.obs.re = TRUE, bayes = FALSE, bayes_nested_matrix_as_list = FALSE,
+                           standardize_cov = TRUE) {
   fm <- unique(reformulas::findbars(formula))
   formula.nobars <- reformulas::nobars(formula) # fixed terms
 
@@ -114,7 +119,7 @@ prep_dat_pglmm <- function(formula, data, cov_ranef = NULL, repulsion = FALSE,
           ") assigned to have specific cov matrix are not in cov_ranef"
         ))
       }
-      cov_list <- parse_conv_ranef(cov_ranef, data)
+      cov_list <- parse_conv_ranef(cov_ranef, data, standardize = standardize_cov)
       cov_ranef_list <- cov_list$cleaned_list
       cov_ranef_updated <- cov_list$updated_orgi_list
     } else {
@@ -887,6 +892,14 @@ pglmm_profile_LRT <- function(x, re.number = 0, cpp = TRUE) {
   par[re.number] <- 0
   df <- length(re.number)
 
+  if (!is.null(x$sparse)) {
+    nt <- length(x$sparse$theta)
+    LR <- pglmm_sparse_LL(par[seq_len(nt)], x$sparse$pre, x$REML) -
+      pglmm_sparse_LL(x$ss[seq_len(nt)], x$sparse$pre, x$REML)
+    Pr <- pchisq(2 * LR, df = df, lower.tail = FALSE) / 2
+    return(list(LR = LR, df = df, Pr = if (Pr > 0.499) 1 else Pr))
+  }
+
   if (x$family == "gaussian") {
     LL <- pglmm_gaussian_LL_calc(
       par = x$ss, X = x$X, Y = x$Y, Zt = x$Zt,
@@ -1010,6 +1023,12 @@ communityPGLMM.matrix.structure <- function(formula, data = list(), family = "bi
 }
 
 #' Summary information of fitted model
+#'
+#' The variances of random terms that are printed are those of [VarCorr()]. For
+#' a term with a covariance matrix (e.g. `1|sp__`) they are on the scale of the
+#' matrix standardized to have a determinant of one, so they are not directly
+#' comparable with the variances of other terms; multiply them by
+#' `scale_factors` of the fitted model first (see the Details of [pglmm()]).
 #'
 #' @method summary communityPGLMM
 #' @param object A fitted model with class communityPGLMM.
@@ -1278,6 +1297,7 @@ pglmm_iV_mult_factors <- function(fac, M) {
 
 # factors of V^-1 of a fitted model
 pglmm_iV_object_factors <- function(object) {
+  pglmm_sparse_stop(object, "This method (it needs the inverse of the covariance matrix)")
   pglmm_iV_factors(pglmm_V_diag_part(object), object$s2r, object$s2n,
     object$Zt, object$St, object$nested
   )
@@ -1441,6 +1461,11 @@ pglmm_predicted_values <- function(x, cpp = TRUE,
   } else {
     if (x$family == "gaussian") {
       H <- as.vector(x$H) # H is Y - X %*% B
+      if (!is.null(x$sparse)) {
+        if (ptype == "tip_rm") pglmm_sparse_stop(x, "gaussian.pred = 'tip_rm'")
+        # Xb + Zu
+        return(data.frame(Y_hat = as.vector(x$X %*% x$B) + as.vector(x$sparse$pre$Z %*% x$sparse$u)))
+      }
       iVH <- as.vector(pglmm_iV_mult(x, H))
       if (ptype == "nearest_node") {
         # Xb + Zu: the random effects are (V - s2resid * I) %*% iV %*% H
@@ -1851,6 +1876,9 @@ re_drop_repeated <- function(d, n_label_cols) {
 # random effects u_k of term k, u_k = G_k Z_k' V^-1 H and
 # var(u_k | y) = G_k - G_k Z_k' V^-1 Z_k G_k.
 pglmm_cond_modes <- function(object, condVar = FALSE) {
+  if (!is.null(object$sparse)) {
+    return(pglmm_cond_modes_sparse(object, condVar = condVar))
+  }
   re <- object$random.effects
   if (is.null(object$H) || !length(re)) {
     stop("The fitted model does not have the information needed to estimate random effects.")
@@ -2001,6 +2029,17 @@ pglmm_ranef_bayes <- function(object) {
 #'
 #' Before version 1.3.0, this table was returned by `ranef()`.
 #'
+#' The variances are the elements `s2r`, `s2n` and `s2resid` of the fitted
+#' model. The variance of a term with a covariance matrix (e.g. a phylogenetic
+#' term such as `1|sp__`) is on the scale of that matrix after it was
+#' standardized to have a determinant of one, which is usually much smaller than
+#' the scale of the phylogenetic correlation matrix, whereas terms without a
+#' covariance matrix (e.g. `1|sp`) and the residual are not affected. The
+#' variances of different terms are therefore not directly comparable. Multiply
+#' them by `scale_factors` of the fitted model before comparing terms or
+#' comparing with other software (see "Extracting the variances of random terms"
+#' in the Details of [pglmm()], and the examples below).
+#'
 #' @name VarCorr
 #' @title Extract variances of random terms
 #' @aliases VarCorr VarCorr.communityPGLMM
@@ -2025,9 +2064,14 @@ pglmm_ranef_bayes <- function(object) {
 #' )
 #'
 #' VarCorr(fit)
-#' # proportion of the variance among species that is phylogenetic
+#' # variances on a comparable scale: rescale the terms whose covariance
+#' # matrices were standardized (the phylogenetic term here)
 #' v <- VarCorr(fit)
-#' v["1|sp__", "Variance"] / sum(v[c("1|sp", "1|sp__"), "Variance"])
+#' sf <- ifelse(rownames(v) == "residual", 1, fit$scale_factors[rownames(v)])
+#' setNames(v$Variance * sf, rownames(v))
+#' # proportion of the variance among species that is phylogenetic
+#' v_sp <- v[c("1|sp", "1|sp__"), "Variance"] * fit$scale_factors[c("1|sp", "1|sp__")]
+#' v_sp[2] / sum(v_sp)
 #' @importFrom lme4 VarCorr
 #' @export VarCorr
 #' @method VarCorr communityPGLMM
@@ -2389,6 +2433,7 @@ simulate.communityPGLMM <- function(object, nsim = 1, seed = NULL,
 # variances, and sum them for each observation. Returns a matrix with one row
 # per observation and nsim columns.
 pglmm_sim_ranef <- function(object, nsim) {
+  pglmm_sparse_stop(object, "simulate() with re.form = NA")
   n <- nrow(object$X)
   out <- matrix(0, n, nsim)
   s2r <- as.numeric(object$s2r)

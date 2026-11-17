@@ -29,6 +29,17 @@ the variances are also returned. Use \code{\link[=ranef]{ranef()}} to get the es
 level of the random terms.
 
 Before version 1.3.0, this table was returned by \code{ranef()}.
+
+The variances are the elements \code{s2r}, \code{s2n} and \code{s2resid} of the fitted
+model. The variance of a term with a covariance matrix (e.g. a phylogenetic
+term such as \code{1|sp__}) is on the scale of that matrix after it was
+standardized to have a determinant of one, which is usually much smaller than
+the scale of the phylogenetic correlation matrix, whereas terms without a
+covariance matrix (e.g. \code{1|sp}) and the residual are not affected. The
+variances of different terms are therefore not directly comparable. Multiply
+them by \code{scale_factors} of the fitted model before comparing terms or
+comparing with other software (see "Extracting the variances of random terms"
+in the Details of \code{\link[=pglmm]{pglmm()}}, and the examples below).
 }
 \examples{
 # community data: abundance of each species at each site
@@ -44,9 +55,14 @@ fit <- pglmm(freq ~ shade + (1 | sp__) + (1 | site),
 )
 
 VarCorr(fit)
-# proportion of the variance among species that is phylogenetic
+# variances on a comparable scale: rescale the terms whose covariance
+# matrices were standardized (the phylogenetic term here)
 v <- VarCorr(fit)
-v["1|sp__", "Variance"] / sum(v[c("1|sp", "1|sp__"), "Variance"])
+sf <- ifelse(rownames(v) == "residual", 1, fit$scale_factors[rownames(v)])
+setNames(v$Variance * sf, rownames(v))
+# proportion of the variance among species that is phylogenetic
+v_sp <- v[c("1|sp", "1|sp__"), "Variance"] * fit$scale_factors[c("1|sp", "1|sp__")]
+v_sp[2] / sum(v_sp)
 }
 \seealso{
 \code{\link[=ranef]{ranef()}} for the estimates of each level of the random terms.

@@ -13,7 +13,8 @@ prep_dat_pglmm(
   family = "gaussian",
   add.obs.re = TRUE,
   bayes = FALSE,
-  bayes_nested_matrix_as_list = FALSE
+  bayes_nested_matrix_as_list = FALSE,
+  standardize_cov = TRUE
 )
 }
 \arguments{
@@ -49,12 +50,16 @@ group variables that are used as random terms with specified covariance matrices
 (without the two underscores, e.g. \code{list(sp = tree1, site = tree2)}). The actual object
 can be either a phylogeny with class "phylo" or a prepared covariance matrix. If it is a phylogeny,
 \code{pglmm} will prune it and then convert it to a covariance matrix assuming Brownian motion evolution.
-\code{pglmm} will also standardize all covariance matrices to have determinant of one. Group variables
+\code{pglmm} will also standardize all covariance matrices to have determinant of one (unless
+\code{standardize_cov = FALSE}), so the
+estimated variances of these terms are on the scale of the standardized matrices; use
+\code{scale_factors} of the fitted model to rescale them (see "Extracting the variances of random
+terms" in Details). Group variables
 will be converted to factors and all covariance matrices will be rearranged so that rows and
 columns are in the same order as the levels of their corresponding group variables.}
 
 \item{repulsion}{When there are nested random terms specified, \code{repulsion = FALSE} tests
-for phylogenetic underdispersion while \code{repulsion = FALSE} tests for overdispersion.
+for phylogenetic underdispersion while \code{repulsion = TRUE} tests for overdispersion.
 This argument is a logical vector of length either 1 or >1.
 If its length is 1, then all covariance matrices in nested terms will be either
 inverted (overdispersion) or not. If its length is >1, then you can select
@@ -89,6 +94,19 @@ so \code{add.obs.re = TRUE} by default.}
 
 \item{bayes_nested_matrix_as_list}{For \code{bayes = TRUE}, prepare the nested terms as a list of length 4
 as the old way?}
+
+\item{standardize_cov}{Logical (default \code{TRUE}). Whether to standardize the covariance
+matrices of \code{cov_ranef} to have a determinant of one (a phylogeny is first converted to
+its covariance matrix, which is divided by its largest element). If \code{FALSE}, the matrices
+are used as given: a covariance matrix is used as it is, and a phylogeny gives
+\code{ape::vcv(tree)}, on the scale of its branch lengths. The variances of the random terms
+(\code{s2r}, \code{s2n}) are then on the scale of these matrices, so that, e.g., the
+variance of \code{1|sp__} with a phylogenetic correlation matrix
+(\code{ape::vcv(tree, corr = TRUE)}) or an ultrametric tree with a height of one is directly
+comparable with the variance of \code{1|sp} and with software that does not standardize the
+matrices. The likelihood, the fixed effects and the predictions do not depend on this
+choice; only the scale of the variances (and of \code{s2.init}) does. Not used when
+\code{random.effects} is given.}
 }
 \value{
 A list with updated formula, random.effects, and updated cov_ranef.

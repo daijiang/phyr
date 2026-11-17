@@ -152,7 +152,7 @@ in the matrix; if the matrix is not standardized (i.e., det(tree_site) != 1),
 pglmm` will try to standardize it for you. No longer used: keep here for compatibility.}
 
 \item{repulsion}{When there are nested random terms specified, \code{repulsion = FALSE} tests
-for phylogenetic underdispersion while \code{repulsion = FALSE} tests for overdispersion.
+for phylogenetic underdispersion while \code{repulsion = TRUE} tests for overdispersion.
 This argument is a logical vector of length either 1 or >1.
 If its length is 1, then all covariance matrices in nested terms will be either
 inverted (overdispersion) or not. If its length is >1, then you can select
@@ -192,7 +192,11 @@ group variables that are used as random terms with specified covariance matrices
 (without the two underscores, e.g. \code{list(sp = tree1, site = tree2)}). The actual object
 can be either a phylogeny with class "phylo" or a prepared covariance matrix. If it is a phylogeny,
 \code{pglmm} will prune it and then convert it to a covariance matrix assuming Brownian motion evolution.
-\code{pglmm} will also standardize all covariance matrices to have determinant of one. Group variables
+\code{pglmm} will also standardize all covariance matrices to have determinant of one (unless
+\code{standardize_cov = FALSE}), so the
+estimated variances of these terms are on the scale of the standardized matrices; use
+\code{scale_factors} of the fitted model to rescale them (see "Extracting the variances of random
+terms" in Details). Group variables
 will be converted to factors and all covariance matrices will be rearranged so that rows and
 columns are in the same order as the levels of their corresponding group variables.}
 

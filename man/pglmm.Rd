@@ -38,7 +38,9 @@ pglmm(
   bayes_options = NULL,
   bayes_nested_matrix_as_list = FALSE,
   posterior.sample = TRUE,
-  return.fitted.marginals = TRUE
+  return.fitted.marginals = TRUE,
+  sparse = FALSE,
+  standardize_cov = TRUE
 )
 
 communityPGLMM(
@@ -74,7 +76,9 @@ communityPGLMM(
   bayes_options = NULL,
   bayes_nested_matrix_as_list = FALSE,
   posterior.sample = TRUE,
-  return.fitted.marginals = TRUE
+  return.fitted.marginals = TRUE,
+  sparse = FALSE,
+  standardize_cov = TRUE
 )
 }
 \arguments{
@@ -123,7 +127,11 @@ group variables that are used as random terms with specified covariance matrices
 (without the two underscores, e.g. \code{list(sp = tree1, site = tree2)}). The actual object
 can be either a phylogeny with class "phylo" or a prepared covariance matrix. If it is a phylogeny,
 \code{pglmm} will prune it and then convert it to a covariance matrix assuming Brownian motion evolution.
-\code{pglmm} will also standardize all covariance matrices to have determinant of one. Group variables
+\code{pglmm} will also standardize all covariance matrices to have determinant of one (unless
+\code{standardize_cov = FALSE}), so the
+estimated variances of these terms are on the scale of the standardized matrices; use
+\code{scale_factors} of the fitted model to rescale them (see "Extracting the variances of random
+terms" in Details). Group variables
 will be converted to factors and all covariance matrices will be rearranged so that rows and
 columns are in the same order as the levels of their corresponding group variables.}
 
@@ -144,10 +152,13 @@ in the data. Also, this should be \emph{a list of lists}, e.g.
 default for Gaussian, also available for binomial/Poisson), \code{"nelder-mead-nlopt"}
 (default for binomial/Poisson), \code{"bobyqa"}, \code{"Nelder-Mead"}, or \code{"subplex"}.
 \code{"Nelder-Mead"} is from the stats package; all others are from the nloptr package.
-Ignored if \code{bayes = TRUE}.}
+With \code{sparse = TRUE}, the default (and \code{"lbfgs"}, as there is no gradient) is
+\code{"subplex"}, \code{"nelder-mead-nlopt"} and \code{"Nelder-Mead"} both use the
+Nelder-Mead algorithm of nloptr, and the optimizer is restarted from its solution until the
+likelihood does not improve. Ignored if \code{bayes = TRUE}.}
 
 \item{repulsion}{When there are nested random terms specified, \code{repulsion = FALSE} tests
-for phylogenetic underdispersion while \code{repulsion = FALSE} tests for overdispersion.
+for phylogenetic underdispersion while \code{repulsion = TRUE} tests for overdispersion.
 This argument is a logical vector of length either 1 or >1.
 If its length is 1, then all covariance matrices in nested terms will be either
 inverted (overdispersion) or not. If its length is >1, then you can select
@@ -195,7 +206,8 @@ using the maximum likelihood fit unless \code{ML.init = FALSE}, in
 which case the default \code{INLA} initial values will be used.}
 
 \item{reltol}{A control parameter dictating the relative tolerance
-for convergence in the optimization; see \code{\link{optim}}.}
+for convergence in the optimization; see \code{\link{optim}}. With \code{sparse = TRUE},
+the default is \code{1e-8} (for each run of the optimizer).}
 
 \item{maxit}{A control parameter dictating the maximum number of
 iterations in the optimization; see \code{\link{optim}}.}
@@ -288,6 +300,50 @@ Set to \code{FALSE} to skip this storage and speed up fitting when posterior sim
 up fitting when simulation is not needed. If both \code{posterior.sample} and
 \code{return.fitted.marginals} are \code{FALSE}, INLA runs at maximum speed but \code{simulate()} will
 not work on the fitted model.}
+
+\item{sparse}{Logical (default \code{FALSE}). If \code{TRUE}, fit the model with the sparse
+precision matrix of the phylogeny (which includes its internal nodes) and a sparse Cholesky
+decomposition, instead of the dense phylogenetic covariance matrix. This gives the same
+likelihood, but the time and memory needed grow about linearly with the number of species,
+so that models with thousands of species can be fitted. Nested terms (e.g.
+\code{(1 | sp__@site)}, \code{(1 | sp@site__)}, \code{(1 | sp__@site__)}, \code{(1 | sp@site)})
+use the precision matrix of the Kronecker product of the two covariance matrices; their
+time grows about linearly with the number of species and somewhat faster than linearly
+with the number of sites. With \code{repulsion = TRUE}, the precision matrix of the
+phylogeny becomes its (dense) covariance matrix, which is written with the internal nodes as
+auxiliary variables, and a sparse \eqn{LDL'} decomposition of a larger (indefinite) matrix
+is used instead. Only available for \code{family = "gaussian"} with \code{bayes = FALSE},
+and phylogenies (class \code{phylo}) in \code{cov_ranef}. The default optimizer is then
+\code{"subplex"} (see \code{optimizer}).
+
+The sparse precision matrix exists because the trait evolves along the branches as a
+Markov process (the value at a node depends only on its parent). This is not limited to
+Brownian motion: any model that is Brownian motion on a tree with transformed branch
+lengths can be used by passing the transformed phylogeny in \code{cov_ranef}, e.g. an
+Ornstein-Uhlenbeck (OU) model with a fixed \eqn{\alpha}
+(\code{phylolm::transf.branch.lengths(tree, model = "OUfixedRoot", parameters = list(alpha = a))$tree}
+or \code{geiger::rescale(tree, "OU", alpha = a)}), Pagel's \eqn{\lambda}, \eqn{\kappa}, or
+\eqn{\delta}, or early burst. As with \code{sparse = FALSE}, the parameters of these models
+(e.g. \eqn{\alpha}) are not estimated by \code{pglmm()}; they can be chosen by fitting the
+model over a grid of values and comparing the log-likelihoods, which is fast with
+\code{sparse = TRUE}. With \code{standardize_cov = TRUE}, the overall scale of the
+transformed tree (e.g. \eqn{\sigma^2} of the OU model) has no effect. The OU transformation
+is exact for ultrametric trees; for non-ultrametric trees, check that it matches the
+assumption about the root. Covariance matrices that cannot be written as a tree with
+non-negative branch lengths (e.g. an arbitrary similarity matrix) need \code{sparse = FALSE}.}
+
+\item{standardize_cov}{Logical (default \code{TRUE}). Whether to standardize the covariance
+matrices of \code{cov_ranef} to have a determinant of one (a phylogeny is first converted to
+its covariance matrix, which is divided by its largest element). If \code{FALSE}, the matrices
+are used as given: a covariance matrix is used as it is, and a phylogeny gives
+\code{ape::vcv(tree)}, on the scale of its branch lengths. The variances of the random terms
+(\code{s2r}, \code{s2n}) are then on the scale of these matrices, so that, e.g., the
+variance of \code{1|sp__} with a phylogenetic correlation matrix
+(\code{ape::vcv(tree, corr = TRUE)}) or an ultrametric tree with a height of one is directly
+comparable with the variance of \code{1|sp} and with software that does not standardize the
+matrices. The likelihood, the fixed effects and the predictions do not depend on this
+choice; only the scale of the variances (and of \code{s2.init}) does. Not used when
+\code{random.effects} is given.}
 }
 \value{
 An object (list) of class \code{communityPGLMM} with the following elements:
@@ -337,12 +393,14 @@ identity covariance matrix (\code{scale_factor = 1}), so \code{s2resid} is direc
 interpretable without any rescaling.}
 \item{scale_factors}{named numeric vector with one entry per random effect term. Each value is
 \code{mean(diag(V_std))}, the mean diagonal of the det=1 standardized covariance matrix for
-that term. For identity-based (non-phylogenetic) terms this equals 1, meaning \code{s2r} is
-already on an interpretable per-observation scale. For phylogenetic terms standardized from
-a correlation matrix, this equals \eqn{1 / \det(V_{\rm orig})^{1/n}}{1/det(V_orig)^(1/n)}
-and is typically \eqn{> 1}{> 1}. Multiplying \code{s2r[i] * scale_factors[i]} gives the
-average per-observation variance contribution of the \emph{i}th random effect, comparable
-across all terms in the model.}
+that term (averaged over its levels, not over observations); with
+\code{standardize_cov = FALSE}, the mean diagonal of the matrix as given. For identity-based
+(non-phylogenetic) terms this equals 1, meaning \code{s2r} is already on an interpretable
+scale. For a phylogenetic term from an ultrametric tree or a correlation matrix, this equals
+\eqn{1 / \det(V_{\rm orig})^{1/n}}{1/det(V_orig)^(1/n)} and is typically much larger than 1.
+Multiplying \code{s2r[i] * scale_factors[i]} gives the variance of the \emph{i}th random
+effect for an average level, comparable across all terms in the model and with software that
+does not standardize the covariance matrices (see Details).}
 \item{s2r.ci}{Bayesian credible interval for random effects variances for non-nested random effects.
 This is set to NULL if \code{bayes = FALSE}}
 \item{s2n.ci}{Bayesian credible interval for random effects variances for nested random effects.
@@ -355,6 +413,7 @@ This is set to NULL if \code{bayes = FALSE}}
 \item{DIC}{for Bayesian PGLMM, this is the Deviance Information Criterion metric of model fit. This is set to NULL if \code{bayes = FALSE}.}
 \item{REML}{whether or not REML is used (\code{TRUE} or \code{FALSE}).}
 \item{bayes}{whether or not a Bayesian model was fit.}
+\item{standardize_cov}{the value of the argument \code{standardize_cov}.}
 \item{marginal.summ}{The specified summary statistic used to summarize the Bayesian marginal distributions.
 Only present if \code{bayes = TRUE}}
 \item{s2.init}{the user-provided initial estimates of \code{s2}}
@@ -420,23 +479,45 @@ Or you can prepare the random terms manually (not recommended for simple models 
 
 \code{z <- pglmm(Y ~ X, data = data, family = "gaussian", random.effects = list(re.1, re.2))}
 
-The covariance matrix \eqn{V}{V} is standardized to have determinant equal to 1 before fitting.
+By default (\code{standardize_cov = TRUE}), the covariance matrix \eqn{V}{V} is standardized
+to have determinant equal to 1 before fitting.
 Specifically, for an \eqn{n \times n}{n x n} covariance matrix \eqn{V}{V}, \code{pglmm} uses
 \eqn{V_{\rm std} = V / \det(V)^{1/n}}{V_std = V / det(V)^(1/n)}, which has \eqn{\det(V_{\rm std}) = 1}{det(V_std) = 1}.
 This ensures that the variance parameter \eqn{\sigma^2}{sigma^2} has a consistent scale regardless
 of the absolute magnitude of \eqn{V}{V}.
 
-\strong{Important for variance extraction:} the model is fit as \eqn{\sigma^2 V_{\rm std}}{sigma^2 * V_std},
-so the estimated \eqn{\sigma^2}{sigma^2} (stored in \code{s2r}, \code{s2n}, \code{s2resid}) is relative
-to the standardized matrix. To obtain the effective per-observation variance in units comparable across
-all random effects in the model, multiply by the scale factor:
+\strong{Extracting the variances of random terms.} Two things are easy to get wrong when the
+estimated variances are reported, or compared with those of other software (e.g.
+\code{glmmTMB}, \code{MCMCglmm}, \code{brms}) or with the values used to simulate data:
+\enumerate{
+\item \strong{Use \code{s2r}, \code{s2n} and \code{s2resid} (or \code{VarCorr()}), not \code{ss^2}.}
+For gaussian models fitted with \code{bayes = FALSE}, \code{ss} holds the standard deviations
+of the random terms \emph{relative to the residual standard deviation}
+(\code{s2r = s2resid * ss^2}), so \code{ss^2} is not a variance; it is too large by a factor
+of \code{1 / s2resid} (see \code{ss} in Value).
+\item \strong{The variance of a term with a covariance matrix is on the scale of the
+standardized matrix.} The model is fitted as \eqn{\sigma^2 V_{\rm std}}{sigma^2 * V_std}, so
+\code{s2r} and \code{s2n} are relative to \eqn{V_{\rm std}}{V_std}, not to the matrix (or
+phylogeny) given in \code{cov_ranef}. Standardizing a phylogenetic correlation matrix
+(diagonal of 1) to a determinant of one inflates its diagonal (often several-fold, more with
+more species), whereas the identity matrix of a non-phylogenetic term such as \code{1|sp} is
+unchanged. As a result, the \code{s2r} of \code{1|sp} and \code{1|sp__} are \emph{not} on
+the same scale, and the \code{s2r} of \code{1|sp__} is much smaller than the phylogenetic
+variance on the scale of the correlation matrix. To put a term on the scale of an
+average level (for a correlation matrix or an ultrametric tree, the scale of the original
+matrix), multiply it by the mean diagonal of the standardized matrix:
 \deqn{\sigma^2_{\rm obs} = \sigma^2_{\rm std} \times \overline{\rm diag}(V_{\rm std})}{sigma2_obs = s2r * mean(diag(V_std))}
-where \eqn{\overline{\rm diag}(V_{\rm std})}{mean(diag(V_std))} is the mean diagonal of the
-standardized matrix. For identity-based (non-phylogenetic) terms this equals 1 and no adjustment
-is needed. The fitted model returns these scale factors directly as \code{scale_factors}:
-\code{s2r * scale_factors[names(s2r)]}. \code{ss} stores \eqn{\sqrt{\sigma^2_{\rm std}}}{sqrt(sigma2_std)}
-and is similarly relative to the standardized matrix; use \code{s2r}/\code{s2n}/\code{s2resid} for
-variance inference, not \code{ss^2}.
+The fitted model returns these factors as \code{scale_factors} (1 for terms without a
+covariance matrix and for the residual):
+\code{fit$s2r * fit$scale_factors[names(fit$s2r)]} and
+\code{fit$s2n * fit$scale_factors[names(fit$s2n)]}. Do this before comparing the variances of
+different terms (e.g. to calculate the proportion of the variance among species that is
+phylogenetic) or comparing them with other software. Alternatively, fit the model with
+\code{standardize_cov = FALSE}, so that the variances are on the scale of the matrices as
+given (with a phylogeny, on the scale of its branch lengths).
+}
+The estimates of fixed effects, the likelihood, and the group-level estimates of
+\code{\link{ranef}()} do not depend on the standardization.
 
 Although mathematically this is not required, it is a very good idea to standardize the predictor
 (independent) variables to have mean 0 and variance 1. This will

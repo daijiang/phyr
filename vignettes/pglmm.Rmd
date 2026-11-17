@@ -47,7 +47,7 @@ All models fitted with `pglmm()` have class of `communityPGLMM`. Here is a list 
 - `residuals()`: residuals values
 - `fixef()`: estimates of fixed effects
 - `ranef()`: estimates of each level of random terms (e.g. one value per species)
-- `VarCorr()`: variances and standard deviations of random terms
+- `VarCorr()`: variances and standard deviations of random terms. The variances of terms with a covariance matrix (e.g. `1|sp__`) are on the scale of the matrix standardized to have a determinant of one; multiply them by `fit$scale_factors` before comparing them with other terms or other software, or fit the model with `standardize_cov = FALSE` (see `?pglmm`).
 
 
 

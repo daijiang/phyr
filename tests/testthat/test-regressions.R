@@ -178,3 +178,33 @@ test_that("the hint about the BLAS library is only for Macs with the reference B
   expect_silent(phyr:::pglmm_blas_hint(1e5))
   options(old)
 })
+
+test_that("standardize_cov = FALSE gives the variances on the scale of the matrices as given", {
+  set.seed(42)
+  k <- 30
+  tree <- ape::compute.brlen(ape::rtree(k, tip.label = paste0("s", 1:k)), power = 1) # height of one
+  C <- ape::vcv(tree, corr = TRUE)
+  d <- data.frame(sp = rep(tree$tip.label, each = 6))
+  d$x <- rnorm(nrow(d))
+  u <- setNames(as.vector(t(chol(0.3 * C)) %*% rnorm(k)), rownames(C))
+  d$y <- 1 + d$x + u[d$sp] + rnorm(k, sd = 0.4)[match(d$sp, tree$tip.label)] + rnorm(nrow(d), sd = 0.5)
+  fit <- function(...) quiet(pglmm(y ~ x + (1 | sp__), data = d, ...))
+  a <- fit(cov_ranef = list(sp = tree))
+  b <- fit(cov_ranef = list(sp = tree), standardize_cov = FALSE)
+  m <- fit(cov_ranef = list(sp = C), standardize_cov = FALSE)
+  expect_true(a$standardize_cov)
+  expect_false(b$standardize_cov)
+  expect_equal(b$logLik, a$logLik, tolerance = 1e-6)
+  expect_equal(b$B, a$B, tolerance = 1e-5)
+  expect_equal(b$s2r, a$s2r * a$scale_factors[names(a$s2r)], tolerance = 1e-4)
+  expect_equal(m$s2r, b$s2r, tolerance = 1e-4)
+  expect_equal(unname(b$scale_factors), c(1, 1))
+  # a matrix that is not standardized gives no warning
+  expect_silent(suppressMessages(pglmm(y ~ x + (1 | sp__), data = d,
+    cov_ranef = list(sp = C), standardize_cov = FALSE)))
+  # sparse precision path
+  s <- fit(cov_ranef = list(sp = tree), standardize_cov = FALSE, sparse = TRUE)
+  expect_equal(s$logLik, a$logLik, tolerance = 1e-4)
+  expect_equal(unname(s$scale_factors), c(1, 1))
+  expect_equal(s$s2r, b$s2r, tolerance = 1e-2)
+})

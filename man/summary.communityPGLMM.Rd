@@ -14,5 +14,9 @@
 \item{...}{Additional arguments, currently ignored.}
 }
 \description{
-Summary information of fitted model
+The variances of random terms that are printed are those of \code{\link[=VarCorr]{VarCorr()}}. For
+a term with a covariance matrix (e.g. \code{1|sp__}) they are on the scale of the
+matrix standardized to have a determinant of one, so they are not directly
+comparable with the variances of other terms; multiply them by
+\code{scale_factors} of the fitted model first (see the Details of \code{\link[=pglmm]{pglmm()}}).
 }
