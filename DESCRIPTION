@@ -53,7 +53,8 @@ Suggests:
     ggridges,
     DHARMa,
     rr2,
-    future.apply
+    future.apply,
+    glmmTMB
 VignetteBuilder: knitr
 URL: https://daijiang.github.io/phyr/, https://github.com/daijiang/phyr/
 BugReports: https://github.com/daijiang/phyr/issues
