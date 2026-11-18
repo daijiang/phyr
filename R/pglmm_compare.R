@@ -212,7 +212,7 @@
 #' # much faster for large phylogenies
 #' fit_sparse <- pglmm_compare(Y ~ X1, family = "binomial", phy = phy, data = sim.dat,
 #'                             sparse = TRUE)
-#' cbind(dense = fit$B, sparse = fit_sparse$B)
+#' cbind(dense = fit$B[, 1], sparse = fit_sparse$B[, 1])
 #'
 #' # the Laplace approximation of the likelihood (less biased than PQL for
 #' # binary data), with maximum likelihood estimates
@@ -224,14 +224,18 @@
 #' ape::binaryPGLMM(Y ~ X1, phy = phy, data = sim.dat)
 #' 
 #' # Compare with `phyloglm`
-#' summary(phylolm::phyloglm(Y ~ X1, phy = phy, data = sim.dat))
-#' 
+#' if (requireNamespace("phylolm", quietly = TRUE)) {
+#'   summary(phylolm::phyloglm(Y ~ X1, phy = phy, data = sim.dat))
+#' }
+#'
 #' # Compare with `glm` that does not account for phylogeny
 #' summary(glm(Y ~ X1, data = sim.dat, family = "binomial"))
-#' 
+#'
 #' # Compare with logistf() that does not account
 #' # for phylogeny but is less biased than glm()
-#' logistf::logistf(Y ~ X1, data = sim.dat)
+#' if (requireNamespace("logistf", quietly = TRUE)) {
+#'   logistf::logistf(Y ~ X1, data = sim.dat)
+#' }
 #' 
 #' ## Fit model with bayes = TRUE
 #' # pglmm_compare(Y ~ X1, family = "binomial", phy = phy, data = sim.dat, 
