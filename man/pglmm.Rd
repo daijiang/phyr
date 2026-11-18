@@ -41,7 +41,8 @@ pglmm(
   return.fitted.marginals = TRUE,
   sparse = NULL,
   standardize_cov = TRUE,
-  method = c("Laplace", "PQL")
+  method = c("Laplace", "PQL"),
+  sparse_method = c("precision", "flow")
 )
 
 communityPGLMM(
@@ -80,7 +81,8 @@ communityPGLMM(
   return.fitted.marginals = TRUE,
   sparse = NULL,
   standardize_cov = TRUE,
-  method = c("Laplace", "PQL")
+  method = c("Laplace", "PQL"),
+  sparse_method = c("precision", "flow")
 )
 }
 \arguments{
@@ -377,10 +379,12 @@ is used instead. Binomial and poisson models are fitted with the same penalized
 quasi-likelihood (PQL) iterations as with \code{sparse = FALSE} (same updates and
 convergence rules, \code{tol.pql} and \code{maxit.pql}); at each iteration, the working
 weights change only the values of the sparse matrix, and the observation-level term
-\code{1|obs} is folded into the weights. Only available with \code{bayes = FALSE},
-and phylogenies (class \code{phylo}) in \code{cov_ranef}.
+\code{1|obs} is folded into the weights. Only available with phylogenies (class
+\code{phylo}) in \code{cov_ranef}. With \code{bayes = TRUE}, the model is given to INLA
+with one of the sparse representations of \code{sparse_method} (the default of
+\code{sparse} is then \code{FALSE}: the dense INLA model).
 
-The variances (for gaussian models, relative to the residual variance; for binomial and
+With \code{bayes = FALSE}, the variances (for gaussian models, relative to the residual variance; for binomial and
 poisson models, at each PQL iteration) are estimated with \code{nlminb()} and the analytic
 gradient of the likelihood, with a relative tolerance \code{reltol = 1e-10} by default.
 The gradient needs the entries of the inverse of the sparse matrix on its pattern (its
@@ -493,6 +497,35 @@ per species, the variances (especially the phylogenetic one) remain underestimat
 with \code{REML = FALSE}, as with any maximum likelihood fit; \code{REML = TRUE}
 reduces this bias.
 }}
+
+\item{sparse_method}{With \code{sparse = TRUE} and \code{bayes = TRUE}, how the
+phylogenetic terms are given to INLA. \code{"precision"} (default): as a latent field
+over all nodes of the phylogeny (tips and internal nodes, without the root), with the
+sparse precision matrix of \code{sparse = TRUE}; the posterior of the internal nodes
+(ancestral states) comes with the fit. \code{"flow"}: in the phylogenetic flow
+representation of the phyf and fibre packages, as independent rates of evolution
+\eqn{r_b} on the branches, \eqn{u_i = \sum_b \ell_b r_b} for the branches \eqn{b} from
+the root to tip \eqn{i}, with \eqn{r_b \sim N(0, \sigma^2 / \ell_b)} and \eqn{\ell_b}
+the (standardized) branch lengths. The trait then changes by \eqn{\ell_b r_b} along
+each branch, with variance \eqn{\sigma^2 \ell_b}, so that the covariance matrix of the
+tips is the same as with \code{"precision"} (Brownian motion), and the two give the
+same model; \code{"flow"} gives the posterior of the rates, on the scale of the trait
+per unit of branch length of the phylogenies in \code{cov_ranef}. For nested terms with
+phylogenies (e.g. \code{(1 | sp__@site)}, \code{(1 | sp__@site__)}), the rates are those
+of the pairs of branches (or of a branch and a level), from the row-wise Kronecker
+product of the two flow matrices, with \eqn{r \sim N(0, \sigma^2 / (\ell_1 \ell_2))},
+which gives the covariance matrix of the Kronecker product of the two covariance
+matrices. Terms without phylogeny are the same with both methods. The estimates of the
+rates (\code{"flow"}) or of the nodes of non-nested phylogenetic terms
+(\code{"precision"}) are in \code{bayes_sparse$latent} of the fitted model. Both methods
+report the marginal log-likelihood of the model (\code{logLik}; with \code{"flow"}, INLA's
+value with the matrix \code{A} can differ from that of \code{"precision"} by about one
+unit); \code{"flow"} is only available with \code{bayes = TRUE} for now. \code{repulsion}, \code{ML.init},
+\code{ranef()}, \code{predict()} with \code{newdata} and \code{simulate()} with
+\code{re.form = NA} (any \code{simulate()} for \code{"flow"}) are not available yet for
+these models. With \code{"flow"}, the rates are linked to the observations by the matrix
+\code{A} of \code{control.predictor} of INLA (as in fibre), so \code{inla.model} has more
+fitted values than observations (the first ones are those of the observations).}
 }
 \value{
 An object (list) of class \code{communityPGLMM} with the following elements:

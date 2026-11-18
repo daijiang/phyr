@@ -54,7 +54,12 @@
 #'   the tips, in the order of `tree$tip.label`), `logdetQ` (its log
 #'   determinant), `tip.label`, `node.label` (labels of all rows of `Q`),
 #'   `tip.var` (variances of the tips, i.e. the diagonal of the covariance
-#'   matrix of the tips), and `mean.diag` (mean of `tip.var`).
+#'   matrix of the tips), `mean.diag` (mean of `tip.var`), and, for the
+#'   phylogenetic flow of `phylo_flow()`, `edge.len` (the length of the branch
+#'   leading to each row of `Q`, after the standardization: `Q` is the
+#'   precision matrix of Brownian motion on these lengths), `parent` (the row of
+#'   `Q` of the parent of each row, 0 for the children of the root), and
+#'   `len.scale` (`edge.len` divided by the branch lengths of `tree`).
 #' @noRd
 phylo_precision <- function(tree, standardize = TRUE) {
   if (is.null(tree$edge.length)) stop("The phylogeny has no branch lengths.", call. = FALSE)
@@ -62,9 +67,10 @@ phylo_precision <- function(tree, standardize = TRUE) {
     stop("The phylogeny has negative or missing branch lengths.", call. = FALSE)
   }
   ntip <- ape::Ntip(tree)
-  # internal branches with length zero: collapse to polytomies
+  # internal branches with length zero: collapse to polytomies (di2multi()
+  # collapses the branches shorter than tol, so tol = 0 would keep them)
   if (any(tree$edge.length[tree$edge[, 2] > ntip] == 0)) {
-    tree <- ape::di2multi(tree, tol = 0)
+    tree <- ape::di2multi(tree, tol = .Machine$double.eps)
   }
   if (any(tree$edge.length == 0)) {
     stop("The phylogeny has terminal branches with length zero, ",
@@ -76,7 +82,8 @@ phylo_precision <- function(tree, standardize = TRUE) {
   ch <- tree$edge[, 2]
   # same as Vphy / max(Vphy): the maximum is the largest root to tip distance
   len <- tree$edge.length
-  if (standardize) len <- len / max(ape::node.depth.edgelength(tree)[seq_len(ntip)])
+  len.max <- if (standardize) max(ape::node.depth.edgelength(tree)[seq_len(ntip)]) else 1
+  len <- len / len.max
   idx <- function(node) node - (node > root) # index without the root
 
   build <- function(len) {
@@ -109,11 +116,65 @@ phylo_precision <- function(tree, standardize = TRUE) {
       tree$node.label[-1]
     }
   })
+  # Q / s is the precision matrix of Brownian motion on the branch lengths
+  # len * s; each row of Q is the node at the end of one branch
+  edge.len <- parent <- numeric(nn)
+  edge.len[idx(ch)] <- len * s
+  parent[idx(ch)] <- ifelse(pa == root, 0, idx(pa))
   list(
     Q = Matrix::forceSymmetric(Q / s), logdetQ = logdetQ - nn * log(s),
     tip.label = tree$tip.label, node.label = node.label,
-    tip.var = tip.var, mean.diag = mean(tip.var)
+    tip.var = tip.var, mean.diag = mean(tip.var),
+    edge.len = edge.len, parent = parent, len.scale = s / len.max
   )
+}
+
+#' Phylogenetic flow matrix of a phylogeny
+#'
+#' The tips by branches matrix with, for each tip, the lengths of the branches
+#' on its path from the root, and zero elsewhere (the root-to-tip matrix of the
+#' phylogenetic flow representation, as in the phyf package). Each column is
+#' the branch leading to one row of the precision matrix of
+#' `phylo_precision()`, in the same order, so that the branches are labelled
+#' by `pp$node.label`. With independent rates `r` on the branches, with
+#' variances proportional to the inverse of their lengths
+#' (`r ~ N(0, s2 diag(1 / edge.len))`), the values of the tips `F r` have the
+#' covariance matrix `s2 F diag(1 / edge.len) F'`, which is `s2` times the
+#' covariance matrix of the tips used by [pglmm()] (Brownian motion on the
+#' branch lengths `edge.len`): the trait changes by `edge.len * r` along each
+#' branch, with variance `s2 * edge.len`. The rates are thus on the scale of
+#' the trait per unit of branch length.
+#'
+#' @param pp Output of `phylo_precision()`.
+#' @return A sparse matrix with one row per tip (in the order of
+#'   `pp$tip.label`) and one column per row of `pp$Q`.
+#' @noRd
+phylo_flow <- function(pp) {
+  nt <- length(pp$tip.label)
+  nn <- length(pp$parent)
+  i <- j <- vector("list", nn)
+  tip <- seq_len(nt)
+  node <- seq_len(nt)
+  k <- 0
+  # walk from the tips to the root, one level at a time
+  while (length(node)) {
+    k <- k + 1
+    i[[k]] <- tip
+    j[[k]] <- node
+    node <- pp$parent[node]
+    keep <- node > 0
+    tip <- tip[keep]
+    node <- node[keep]
+  }
+  i <- unlist(i[seq_len(k)])
+  j <- unlist(j[seq_len(k)])
+  Matrix::sparseMatrix(i = i, j = j, x = pp$edge.len[j], dims = c(nt, nn))
+}
+
+# Row-wise Kronecker product: row i is kronecker(A2[i, ], A1[i, ]), in the
+# order of kronecker(F2, F1) of nested terms (see pglmm_sparse_terms())
+row_kronecker <- function(A1, A2) {
+  Matrix::t(Matrix::KhatriRao(Matrix::t(A2), Matrix::t(A1)))
 }
 
 # Pieces of a phylogeny for repulsion, where the covariance matrix of the tips
@@ -187,9 +248,16 @@ cov_precision <- function(V) {
 # With allow.matrix = TRUE (method = "Laplace"), cov_ranef can also have
 # covariance matrices, whose (dense) inverse is used as precision matrix, and
 # phylogenies with terminal branches of length zero (used as their covariance
-# matrix).
+# matrix). With flow = TRUE (bayes = TRUE, sparse_method = "flow"), each
+# phylogenetic term also has `flow`: the design matrix D of the rates of its
+# branches (or pairs of branches for nested terms, from the row-wise Kronecker
+# product of the flow matrices, see phylo_flow()), the vector C of the
+# precisions of these rates relative to the variance of the term (the branch
+# lengths), their labels, and `len.scale` to put the rates on the scale of
+# the branch lengths of the phylogenies in cov_ranef.
 pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
-                               repulsion = FALSE, phylo_only = FALSE, allow.matrix = FALSE) {
+                               repulsion = FALSE, phylo_only = FALSE, allow.matrix = FALSE,
+                               flow = FALSE) {
   fm <- unique(reformulas::findbars(formula))
   if (is.null(fm)) stop("No random terms specified, use lm or glm instead")
   if (!is.null(cov_ranef)) names(cov_ranef) <- gsub("__$", "", names(cov_ranef))
@@ -230,8 +298,25 @@ pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
         tree <- ape::keep.tip(tree, levels(f))
       }
       trees[[g]] <<- c(phylo_precision(tree, standardize = standardize_cov), list(tree = tree))
+      if (flow) trees[[g]]$F <<- phylo_flow(trees[[g]])
     }
     trees[[g]]
+  }
+  # rows of the flow matrix (phylogeny) or of the identity matrix (no
+  # phylogeny) for the observations, the precisions of the columns, their
+  # labels, and the scale of the rates
+  flow_var <- function(g, phy) {
+    f <- as_group(g)
+    if (!phy) {
+      return(list(D = Matrix::Diagonal(nlevels(f))[as.integer(f), , drop = FALSE],
+                  C = rep(1, nlevels(f)), labels = levels(f), len.scale = 1))
+    }
+    tp <- get_tree(g, f)
+    if (isTRUE(tp$is.matrix)) {
+      stop("sparse_method = \"flow\" needs phylogenies (class phylo) in cov_ranef.", call. = FALSE)
+    }
+    list(D = tp$F[match(as.character(f), tp$tip.label), , drop = FALSE], C = tp$edge.len,
+         labels = tp$node.label, len.scale = tp$len.scale)
   }
   # one variable of a nested term: its precision matrix F = A + U B^-1 U' (U
   # and B only with repulsion), H with H H' = A, the column of each observation,
@@ -341,6 +426,19 @@ pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
         # the estimates are reported for the combinations in the data
         labels = labels, pick = col[first], mean.diag = mean(v1$var * v2$var)
       )
+      if (flow && any(phy)) {
+        if (any(repul)) {
+          stop("repulsion = TRUE is not available yet with sparse_method = \"flow\".", call. = FALSE)
+        }
+        f1 <- flow_var(g[1], phy[1])
+        f2 <- flow_var(g[2], phy[2])
+        # pairs of branches (or of a branch and a level), as in kronecker(F2, F1)
+        terms[[length(terms)]]$flow <- list(
+          D = row_kronecker(f1$D, f2$D), C = as.vector(outer(f1$C, f2$C)),
+          labels = stats::setNames(expand.grid(f1$labels, f2$labels, stringsAsFactors = FALSE), g),
+          len.scale = f1$len.scale * f2$len.scale
+        )
+      }
       next
     }
     phy <- grepl("__$", grp)
@@ -364,6 +462,11 @@ pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
         Q = tp$Q, logdetQ = tp$logdetQ, aux = list(),
         labels = labels, pick = col[first], mean.diag = mean(tp$tip.var[col])
       )
+      if (flow) {
+        fv <- flow_var(g, TRUE)
+        terms[[length(terms)]]$flow <- list(D = fv$D, C = fv$C, labels = fv$labels,
+                                            len.scale = fv$len.scale)
+      }
       next
     }
     z.plain <- list(
@@ -386,6 +489,11 @@ pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
         labels = tp$node.label, n.levels = nlevels(f),
         level.order = match(levels(f), tp$tip.label), mean.diag = tp$mean.diag
       )
+      if (flow) {
+        fv <- flow_var(g, TRUE)
+        terms[[length(terms)]]$flow <- list(D = Matrix::Diagonal(x = covariate) %*% fv$D, C = fv$C,
+                                            labels = fv$labels, len.scale = fv$len.scale)
+      }
     }
   }
   names(terms) <- vapply(terms, function(z) z$name, "")
@@ -1496,4 +1604,99 @@ pglmm_cond_modes_sparse <- function(object, condVar = FALSE, nodes = FALSE) {
     out[["1|obs"]] <- d
   }
   out
+}
+
+# Sparse representations for bayes = TRUE ----
+#
+# With bayes = TRUE and sparse = TRUE, the random terms of pglmm_sparse_terms()
+# are given to INLA in one of two ways (sparse_method):
+#
+# "precision": each term is a 'generic0' model on all levels of the term, with
+#   the precision matrix Q of pglmm_sparse_terms() (for a phylogeny: all nodes
+#   but the root), and each observation linked to one level (its tip). This is
+#   the representation of sparse = TRUE with bayes = FALSE, and gives the
+#   values of the internal nodes (ancestral states) directly.
+# "flow": each phylogenetic term is u = D r, with r the rates of evolution on
+#   the branches (pairs of branches for nested terms with two phylogenies), D
+#   the phylogenetic flow matrix of the observations (see phylo_flow()), and
+#   r ~ N(0, s2 diag(1 / C)), C the branch lengths: a 'generic0' model on the
+#   rates with Cmatrix diag(C), linked to the observations by the matrix A of
+#   control.predictor (A = [I, D_1, D_2, ...]: the identity for the other
+#   terms and the fixed effects), as in the fibre package. This gives the same
+#   covariance matrix of u as "precision", and the rates on the scale of the
+#   trait per unit of branch length. Terms without phylogeny are as for
+#   "precision". (INLA's 'z' model, u = D r + a small noise, gives the same
+#   model, but often failed to find the mode for more than a few hundred
+#   species.)
+#
+# INLA leaves out the log determinant of Cmatrix from the marginal likelihood
+# of 'generic0' models, so it is added back (logdetC).
+
+# One element per random term (in the order of the formula, as random.effects
+# of the default code), with the observation-level term 1|obs last if has.obs
+pglmm_bayes_sparse_terms <- function(tm, n, sparse_method = c("precision", "flow"),
+                                     has.obs = FALSE) {
+  sparse_method <- match.arg(sparse_method)
+  generic0 <- function(z) {
+    Zt <- as(z$Z, "TsparseMatrix")
+    if (anyDuplicated(Zt@i)) stop("Each observation must have one level in each random term.", call. = FALSE)
+    idx <- rep(1L, n)
+    w <- rep(0, n)
+    idx[Zt@i + 1L] <- Zt@j + 1L
+    w[Zt@i + 1L] <- Zt@x
+    list(name = z$name, nested = z$nested, type = "generic0", idx = idx,
+         w = if (all(w == 1)) NULL else w, C = z$Q, values = seq_len(nrow(z$Q)),
+         logdetC = z$logdetQ, phy = any(z$phy), labels = z$labels, mean.diag = z$mean.diag)
+  }
+  out <- lapply(tm$terms[tm$formula.order], function(z) {
+    if (sparse_method == "flow" && !is.null(z$flow)) {
+      m <- length(z$flow$C)
+      list(name = z$name, nested = z$nested, type = "flow", idx = seq_len(m),
+           D = as(z$flow$D, "CsparseMatrix"), C = Matrix::Diagonal(x = z$flow$C),
+           values = seq_len(m), logdetC = sum(log(z$flow$C)), phy = TRUE,
+           labels = z$flow$labels, len.scale = z$flow$len.scale, mean.diag = z$mean.diag)
+    } else {
+      generic0(z)
+    }
+  })
+  if (has.obs) {
+    out[[length(out) + 1]] <- list(name = "1|obs", nested = TRUE, type = "generic0", idx = seq_len(n),
+                                   w = NULL, C = Matrix::Diagonal(n), values = seq_len(n),
+                                   logdetC = 0, phy = FALSE, labels = seq_len(n), mean.diag = 1)
+  }
+  names(out) <- vapply(out, function(z) z$name, "")
+  out
+}
+
+# Estimates of the latent variables of the phylogenetic terms of a model fitted
+# with bayes = TRUE and sparse = TRUE: for "flow", the rates of the branches,
+# on the scale of the trait per unit of branch length of the phylogenies in
+# cov_ranef; for "precision", the values of all nodes of non-nested terms
+pglmm_bayes_sparse_latent <- function(out, sparse_terms, n) {
+  cols <- c("mean", "sd", "0.025quant", "0.5quant", "0.975quant", "mode")
+  res <- list()
+  for (i in seq_along(sparse_terms)) {
+    st <- sparse_terms[[i]]
+    if (!st$phy) next
+    sr <- out$summary.random[[i]]
+    if (st$type == "flow") {
+      s <- sr[, intersect(cols, names(sr)), drop = FALSE] * st$len.scale
+      lab <- if (is.data.frame(st$labels)) st$labels else data.frame(branch = st$labels)
+      res[[st$name]] <- cbind(lab, s, row.names = NULL)
+    } else if (!st$nested) {
+      s <- sr[, intersect(cols, names(sr)), drop = FALSE]
+      res[[st$name]] <- cbind(data.frame(node = st$labels), s, row.names = NULL)
+    }
+  }
+  res
+}
+
+# Stop for the methods that are not available yet for models fitted with
+# bayes = TRUE and sparse = TRUE
+pglmm_bayes_sparse_stop <- function(object, what) {
+  if (!is.null(object$bayes_sparse)) {
+    stop(what, " is not available yet for models fitted with bayes = TRUE and sparse = TRUE.",
+         call. = FALSE)
+  }
+  invisible(NULL)
 }
