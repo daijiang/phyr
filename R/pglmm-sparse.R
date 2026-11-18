@@ -485,20 +485,39 @@ pglmm_sparse_setup <- function(X, Y, terms, weights = FALSE) {
   M <- Matrix::sparseMatrix(i = mi, j = mj, x = qx + ax, dims = c(qa, qa),
                             symmetric = TRUE, index1 = FALSE)
   stopifnot(length(M@x) == length(keys), identical(M@i, mi))
+  # for the gradients: the entries of the pattern with values of A (ia), A
+  # as a symmetric matrix (its values are replaced by those of Z' W Z for
+  # weights), the multiplicity of the entries of the upper triangle in a sum
+  # over all entries (amult), and the columns of each term
+  ia <- sort(unique(match(c(key(ta), if (weights) key(pr)), keys)))
+  Asym <- Matrix::sparseMatrix(i = mi[ia], j = mj[ia], x = ax[ia], dims = c(q, q),
+                               symmetric = TRUE, index1 = FALSE)
+  stopifnot(identical(Asym@i, mi[ia]))
   XY <- cbind(X, Y)
   ldl <- qa > q
   list(
     n = n, p = p, q = q, qa = qa, Z = Z, term.of.col = term.of.col,
     M = M, qx = qx, ax = ax, wmap = wmap, ti = toc[mi + 1L], tj = toc[mj + 1L], ldl = ldl,
-    L = if (ldl) {
-      Matrix::Cholesky(M, perm = TRUE, LDL = TRUE, super = FALSE)
-    } else {
-      Matrix::Cholesky(M, perm = TRUE, LDL = FALSE, super = NA)
-    },
+    mi = mi, mj = mj, ia = ia, Asym = Asym, amult = ifelse(mi[ia] == mj[ia], 1, 2),
+    wmap.ia = if (weights) wmap[ia, , drop = FALSE],
+    cols = split(seq_len(q), factor(term.of.col, levels = seq_along(terms))),
+    # simplicial factorizations, for pglmm_sparse_inv_at()
+    L = Matrix::Cholesky(M, perm = TRUE, LDL = ldl, super = FALSE),
     logdetQ = sum(vapply(terms, function(z) z$logdetQ, 1)) + logdetB,
     ZtXY = as.matrix(Matrix::crossprod(Z, XY)), XYtXY = crossprod(XY),
     logdetXtX = as.numeric(determinant(crossprod(X))$modulus)
   )
+}
+
+# Entries of M^-1 (or of K^-1 with auxiliary variables) at the positions
+# (i, j) (0-based) of M, from the simplicial factorization L of M: the selected
+# inverse on the pattern of the factor (see src/sparse_inverse.cpp), which
+# includes the pattern of M. It costs about as much as the factorization.
+pglmm_sparse_inv_at <- function(L, i, j) {
+  if (!methods::is(L, "dCHMsimpl")) stop("internal error: the factorization is not simplicial")
+  ip <- integer(length(L@perm))
+  ip[L@perm + 1L] <- seq_along(L@perm) - 1L # position of each row of M in the factor
+  sparse_inv_subset(L@p, L@i, L@x, L@nz, L@type[2] == 1L, ip[i + 1L], ip[j + 1L])
 }
 
 # M^-1 R, with the factorization L of M (or of K, with auxiliary variables)
@@ -532,26 +551,154 @@ pglmm_sparse_eval <- function(theta, pre) {
   list(
     L = L, B = B, XiVX = XiVX,
     rss = G[p + 1L, p + 1L] - sum(XiVY * B), # H' V^-1 H
-    logdetV = logdetM - pre$logdetQ
+    logdetV = logdetM - pre$logdetQ,
+    U = MiR # M^-1 R, for the gradient
   )
 }
 
-# The same function to minimize as pglmm_gaussian_LL_calc()
-pglmm_sparse_LL <- function(theta, pre, REML, verbose = FALSE) {
-  ev <- tryCatch(pglmm_sparse_eval(theta, pre), error = function(e) NULL)
-  if (is.null(ev) || !is.finite(ev$rss) || ev$rss <= 0) {
-    return(1e10)
-  }
+# The same function to minimize as pglmm_gaussian_LL_calc(), from the pieces
+# ev of pglmm_sparse_eval() (NULL if the evaluation failed)
+pglmm_sparse_LL_value <- function(ev, pre, REML) {
+  if (is.null(ev) || !is.finite(ev$rss) || ev$rss <= 0) return(1e10)
   n <- pre$n
   p <- pre$p
   if (REML) {
-    LL <- 0.5 * ((n - p) * log(ev$rss / (n - p)) + ev$logdetV + (n - p) +
+    0.5 * ((n - p) * log(ev$rss / (n - p)) + ev$logdetV + (n - p) +
       as.numeric(determinant(ev$XiVX)$modulus))
   } else {
-    LL <- 0.5 * (n * log(ev$rss / n) + ev$logdetV + n)
+    0.5 * (n * log(ev$rss / n) + ev$logdetV + n)
   }
+}
+
+pglmm_sparse_LL <- function(theta, pre, REML, verbose = FALSE) {
+  ev <- tryCatch(pglmm_sparse_eval(theta, pre), error = function(e) NULL)
+  LL <- pglmm_sparse_LL_value(ev, pre, REML)
   if (verbose) show(c(LL, theta))
   LL
+}
+
+# sums of x by group g (integers 1 to k)
+pglmm_sum_by <- function(x, g, k) {
+  out <- numeric(k)
+  s <- rowsum(x, g)
+  out[as.integer(rownames(s))] <- s[, 1]
+  out
+}
+
+# Gradient of pglmm_sparse_LL() over theta (the standard deviations of the
+# terms relative to the residual one), from ev = pglmm_sparse_eval(theta).
+# With M = Q + Theta A Theta (A = Z'Z), d M / d theta_k = D_k A Theta +
+# Theta A D_k (D_k: the indicator of the columns of term k), so that
+#   d log|V| / d theta_k = tr(M^-1 dM_k),
+# from the entries of M^-1 on the pattern of A (pglmm_sparse_inv_at()), and
+# with G = [X Y]' V^-1 [X Y] = [X Y]'[X Y] - R' M^-1 R, R = Theta Z'[X Y],
+# U = M^-1 R,
+#   dG_k = - dR_k' U - U' dR_k + U' dM_k U,  dR_k = D_k Z'[X Y],
+# from which the derivatives of the residual sum of squares and of
+# log|X' V^-1 X| (REML).
+pglmm_sparse_LL_grad <- function(theta, pre, ev, REML) {
+  n <- pre$n
+  p <- pre$p
+  nt <- length(theta)
+  ip <- seq_len(p)
+  iy <- p + 1L
+  ia <- pre$ia
+  ti <- pre$ti[ia]
+  tj <- pre$tj[ia]
+  ce <- pre$amult * pglmm_sparse_inv_at(ev$L, pre$mi[ia], pre$mj[ia]) * pre$ax[ia]
+  dlogdetM <- pglmm_sum_by(ce * theta[tj], ti, nt) + pglmm_sum_by(ce * theta[ti], tj, nt)
+  U <- ev$U
+  ATU <- as.matrix(pre$Asym %*% (theta[pre$term.of.col] * U))
+  B <- ev$B
+  iXX <- if (REML) solve(ev$XiVX)
+  vapply(seq_len(nt), function(k) {
+    rk <- pre$cols[[k]]
+    S <- crossprod(U[rk, , drop = FALSE], ATU[rk, , drop = FALSE])
+    E <- crossprod(pre$ZtXY[rk, , drop = FALSE], U[rk, , drop = FALSE])
+    dG <- S + t(S) - E - t(E)
+    dGx <- dG[ip, ip, drop = FALSE]
+    drss <- dG[iy, iy] - 2 * sum(dG[iy, ip] * B) + sum(B * (dGx %*% B))
+    if (REML) {
+      0.5 * ((n - p) * drss / ev$rss + dlogdetM[k] + sum(iXX * dGx))
+    } else {
+      0.5 * (n * drss / ev$rss + dlogdetM[k])
+    }
+  }, 1)
+}
+
+# Lower bound of the scaled variances optimized with analytic gradients:
+# d/dv = d/dtheta / (2 theta) cannot be computed at theta = 0, but it is
+# accurate for tiny theta (the limit at zero, to 1e-7 relative or better in
+# our checks). Variances at this bound are reported as zero
+# (pglmm_var_snap()).
+pglmm_var_lb <- 1e-12
+
+pglmm_var_snap <- function(v) {
+  v[v <= pglmm_var_lb * (1 + 1e-8)] <- 0
+  v
+}
+
+# Minimize the function fn of the scaled variances x with nlminb() and the
+# analytic gradient gr(x) (pglmm_laplace_optim(); gr gives NA for the
+# coordinates whose derivative is computed by finite differences). fn and gr
+# share the evaluation at x through an environment, so that the gradient does
+# not refactorize.
+pglmm_grad_optim <- function(fn, gr, x0, lower, control) {
+  pglmm_laplace_optim(fn, x0, lower, control, grad = gr)
+}
+
+# Pairs of positions (in terms) of a phylogenetic term and its
+# non-phylogenetic partner, e.g. 1|sp and 1|sp__ (non-nested terms)
+pglmm_sparse_pairs <- function(terms) {
+  nm <- names(terms)
+  out <- list()
+  for (k in seq_along(terms)) {
+    z <- terms[[k]]
+    if (isTRUE(z$phy) && !isTRUE(z$nested)) {
+      l <- match(paste0(z$lhs, "|", z$group), nm)
+      if (!is.na(l)) out[[length(out) + 1]] <- c(l, k)
+    }
+  }
+  out
+}
+
+# Local optimization run(x0) (a function returning the result of nlminb()),
+# restarted from the "corners" of each pair of positions in pairs (the
+# variances of a phylogenetic term and its non-phylogenetic partner, on the
+# same scale, see pglmm_sparse_pairs()). These two terms are nearly
+# confounded (one value per species, with or without phylogenetic
+# covariance), and the likelihood can have a local optimum with both
+# variances, and a better one with one of them at zero (or the reverse),
+# separated by a barrier. The corners give the sum of the two variances to
+# one of them; the corner the solution is already at is skipped. Each corner
+# is first screened with a few iterations (run(x, iter.max)): the optimization
+# goes on only if it is then already better than the best solution (in our
+# checks, two iterations from the right corner were enough to get below a
+# local optimum, while the runs from the other corners went back to it in 15
+# to 20 iterations). The best solution is returned, with the total number of
+# evaluations of the function.
+pglmm_optim_corners <- function(run, x0, pairs, lb = pglmm_var_lb, screen = 4) {
+  best <- run(x0)
+  n.eval <- best$evaluations[["function"]]
+  for (pr in pairs) {
+    for (side in 1:2) {
+      x <- best$par
+      s <- x[pr[1]] + x[pr[2]]
+      zero <- pr[3 - side]
+      if (s <= 1e-8 || x[zero] <= lb * (1 + 1e-8)) next
+      x[pr[side]] <- s
+      x[zero] <- lb
+      o <- run(x, screen)
+      n.eval <- n.eval + o$evaluations[["function"]]
+      if (o$objective < best$objective) {
+        o <- run(o$par)
+        n.eval <- n.eval + o$evaluations[["function"]]
+        if (o$objective < best$objective) best <- o
+      }
+    }
+  }
+  best$evaluations[["function"]] <- n.eval
+  best
 }
 
 # Binomial and poisson models (PQL) ----
@@ -577,10 +724,12 @@ pglmm_sparse_weval <- function(ss, pre, w, XR, has.obs, full = FALSE) {
   th <- abs(ss[seq_len(nt)])
   wt <- if (has.obs) w / (1 + ss[nt + 1]^2 * w) else w
   M <- pre$M
-  M@x <- pre$qx + th[pre$ti] * th[pre$tj] * as.vector(pre$wmap %*% wt)
+  aw <- as.vector(pre$wmap %*% wt) # values of Z' Wt Z on the pattern of M
+  M@x <- pre$qx + th[pre$ti] * th[pre$tj] * aw
   L <- Matrix::update(pre$L, M)
   WXR <- wt * XR
-  R <- th[pre$term.of.col] * as.matrix(Matrix::crossprod(pre$Z, WXR))
+  ZW <- as.matrix(Matrix::crossprod(pre$Z, WXR))
+  R <- th[pre$term.of.col] * ZW
   MiR <- pglmm_sparse_solve(L, pre, R)
   G <- crossprod(XR, WXR) - crossprod(R, MiR)
   logdetM <- if (isTRUE(pre$ldl)) {
@@ -593,22 +742,77 @@ pglmm_sparse_weval <- function(ss, pre, w, XR, has.obs, full = FALSE) {
     out$MiR <- MiR
     out$wt <- wt
     out$th <- th
+    out$aw <- aw
+    out$ZW <- ZW
   }
   out
 }
 
 # The same function to minimize as pglmm_LL_cpp() (the variance step of PQL):
-# 0.5 * (log|V| + H' V^-1 H + log|X' V^-1 X| (REML))
-pglmm_sparse_glmm_LL <- function(ss, pre, w, XH, REML, has.obs, verbose = FALSE) {
-  ev <- tryCatch(pglmm_sparse_weval(ss, pre, w, XH, has.obs), error = function(e) NULL)
+# 0.5 * (log|V| + H' V^-1 H + log|X' V^-1 X| (REML)), from the pieces ev of
+# pglmm_sparse_weval() (NULL if the evaluation failed)
+pglmm_sparse_glmm_LL_value <- function(ev, REML) {
   if (is.null(ev)) return(1e10)
-  p <- ncol(XH) - 1L
+  p <- ncol(ev$G) - 1L
   ip <- seq_len(p)
   LL <- 0.5 * (ev$logdetV + ev$G[p + 1L, p + 1L])
   if (REML) LL <- LL + 0.5 * as.numeric(determinant(ev$G[ip, ip, drop = FALSE])$modulus)
   if (!is.finite(LL)) LL <- 1e10
+  LL
+}
+
+pglmm_sparse_glmm_LL <- function(ss, pre, w, XH, REML, has.obs, verbose = FALSE) {
+  ev <- tryCatch(pglmm_sparse_weval(ss, pre, w, XH, has.obs), error = function(e) NULL)
+  LL <- pglmm_sparse_glmm_LL_value(ev, REML)
   if (verbose) show(c(LL, ss))
   LL
+}
+
+# Gradient of pglmm_sparse_glmm_LL() over the standard deviations of the terms
+# and the variance s2 of 1|obs (if any), from ev = pglmm_sparse_weval(full =
+# TRUE), as pglmm_sparse_LL_grad() with A = Z' Wt Z and R = Theta Z' Wt [X H]
+# (H is not profiled out here). For s2, with d wt / d s2 = -wt^2:
+#   d log|V| / d s2 = tr(M^-1 Theta Z' diag(-wt^2) Z Theta) + sum(wt),
+#   dG = -[X H]' diag(wt^2) [X H] - dR' U - U' dR + U' dM U,
+#   dR = Theta Z' diag(-wt^2) [X H].
+pglmm_sparse_glmm_LL_grad <- function(ev, pre, XH, REML, has.obs) {
+  th <- ev$th
+  nt <- length(th)
+  p <- ncol(XH) - 1L
+  ip <- seq_len(p)
+  iy <- p + 1L
+  ia <- pre$ia
+  ti <- pre$ti[ia]
+  tj <- pre$tj[ia]
+  z <- pre$amult * pglmm_sparse_inv_at(ev$L, pre$mi[ia], pre$mj[ia])
+  ce <- z * ev$aw[ia]
+  dlogdetM <- pglmm_sum_by(ce * th[tj], ti, nt) + pglmm_sum_by(ce * th[ti], tj, nt)
+  U <- ev$MiR
+  TU <- th[pre$term.of.col] * U
+  Aw <- pre$Asym
+  Aw@x <- ev$aw[ia]
+  ATU <- as.matrix(Aw %*% TU)
+  iXX <- if (REML) solve(ev$G[ip, ip, drop = FALSE])
+  dfun <- function(dG, dlogdet) {
+    0.5 * (dlogdet + dG[iy, iy] + (if (REML) sum(iXX * dG[ip, ip, drop = FALSE]) else 0))
+  }
+  g <- vapply(seq_len(nt), function(k) {
+    rk <- pre$cols[[k]]
+    S <- crossprod(U[rk, , drop = FALSE], ATU[rk, , drop = FALSE])
+    E <- crossprod(ev$ZW[rk, , drop = FALSE], U[rk, , drop = FALSE])
+    dfun(S + t(S) - E - t(E), dlogdetM[k])
+  }, 1)
+  if (has.obs) {
+    wt2 <- ev$wt^2
+    ad <- -as.vector(pre$wmap.ia %*% wt2) # values of Z' diag(-wt^2) Z
+    Ad <- pre$Asym
+    Ad@x <- ad
+    dR <- th[pre$term.of.col] * as.matrix(Matrix::crossprod(pre$Z, -wt2 * XH))
+    E <- crossprod(dR, U)
+    dG <- -crossprod(XH, wt2 * XH) - E - t(E) + crossprod(TU, as.matrix(Ad %*% TU))
+    g <- c(g, dfun(dG, sum(z * th[ti] * th[tj] * ad) + sum(ev$wt)))
+  }
+  g
 }
 
 # Data of a binomial or poisson model for the sparse and Laplace code: the
@@ -672,9 +876,9 @@ pglmm_glmm_data <- function(formula, data, family, add.obs.re = TRUE) {
 # phylogeny. The PQL loop is the same as in communityPGLMM.glmm() (and
 # pglmm_internal_cpp()): the same updates, convergence rules and tolerances.
 communityPGLMM.glmm.sparse <- function(formula, data, family = "binomial", cov_ranef = NULL,
-                                       REML = TRUE, s2.init = 0.25, B.init = NULL,
-                                       reltol = 10^-8, maxit = 500, tol.pql = 10^-6,
-                                       maxit.pql = 200, verbose = FALSE, optimizer = "subplex",
+                                       REML = TRUE, s2.init = NULL, B.init = NULL,
+                                       reltol = 10^-10, maxit = 500, tol.pql = 10^-6,
+                                       maxit.pql = 200, verbose = FALSE, optimizer = "nlminb",
                                        standardize_cov = TRUE, repulsion = FALSE,
                                        add.obs.re = TRUE, phylo_only = FALSE) {
   dd <- pglmm_glmm_data(formula, data, family, add.obs.re)
@@ -703,7 +907,18 @@ communityPGLMM.glmm.sparse <- function(formula, data, family = "binomial", cov_r
   }
   B <- matrix(as.numeric(B.init), ncol = 1)
   B.init <- B
-  ss <- rep_len(sqrt(s2.init), q)
+  # scale factors of the variances (terms, then 1|obs), for nlminb()
+  sf <- c(vapply(terms, function(z) z$mean.diag, 1), if (has.obs) 1)
+  sf[!is.finite(sf) | sf <= 0] <- 1
+  use.grad <- optimizer %in% c("nlminb", "lbfgs")
+  # starting values: 0.25 (by default) for the variances, or with nlminb()
+  # for the variances multiplied by the scale factors
+  ss <- if (is.null(s2.init)) {
+    if (use.grad) sqrt(0.25 / sf) else rep(sqrt(0.25), q)
+  } else {
+    rep_len(sqrt(s2.init), q)
+  }
+  s2.init <- ss^2
 
   linkinv <- if (family == "binomial") stats::plogis else exp
   workW <- function(mu) if (family == "binomial") size * mu * (1 - mu) else mu
@@ -768,14 +983,55 @@ communityPGLMM.glmm.sparse <- function(formula, data, family = "binomial", cov_r
     w <- workW(mu)
     H <- workZ(B, b, mu) - as.vector(X %*% B)
     XH <- cbind(X, H)
-    S0 <- nloptr::nloptr(
-      x0 = ss, eval_f = pglmm_sparse_glmm_LL, lb = lb, opts = opts, pre = pre, w = w, XH = XH,
-      REML = REML, has.obs = has.obs, verbose = verbose
-    )
-    n.eval <- n.eval + S0$iterations
-    ss <- abs(S0$solution)
-    LL <- S0$objective
-    convcode <- S0$status
+    if (use.grad) {
+      # nlminb() with the analytic gradient (pglmm_sparse_glmm_LL_grad()), on
+      # the scale of the variances multiplied by their scale factors, as for
+      # gaussian models (communityPGLMM.gaussian.sparse())
+      cache <- new.env(parent = emptyenv())
+      fn <- function(v) {
+        s <- sqrt(pmax(v, 0) / sf)
+        ev <- tryCatch(pglmm_sparse_weval(s, pre, w, XH, has.obs, full = TRUE), error = function(e) NULL)
+        cache$v <- v
+        cache$ev <- ev
+        LL <- pglmm_sparse_glmm_LL_value(ev, REML)
+        if (verbose) show(c(LL, s))
+        LL
+      }
+      gr <- function(v) {
+        if (!identical(cache$v, v)) fn(v)
+        if (is.null(cache$ev)) return(rep(NA_real_, q))
+        g <- pglmm_sparse_glmm_LL_grad(cache$ev, pre, XH, REML, has.obs)
+        it <- seq_len(nt)
+        # d / dv = d / d theta / (2 theta sf) for the terms; d / d s2 for 1|obs
+        g[it] <- g[it] / (2 * cache$ev$th * sf[it])
+        g[!is.finite(g)] <- NA
+        g
+      }
+      # lower bound: pglmm_var_lb for the terms, zero for 1|obs (its
+      # derivative is defined at zero)
+      lower <- c(rep(pglmm_var_lb, nt), if (has.obs) 0)
+      run <- function(x, iter.max = maxit) {
+        pglmm_grad_optim(fn, gr, pmax(x, lower), lower,
+                         list(rel.tol = reltol, eval.max = maxit, iter.max = iter.max))
+      }
+      # the corners of phylogenetic terms and their partners (see
+      # pglmm_optim_corners()) at the first iteration only: the next ones start
+      # from the solution of the previous one
+      S0 <- pglmm_optim_corners(run, ss^2 * sf, if (iteration == 0) pglmm_sparse_pairs(terms) else list())
+      n.eval <- n.eval + S0$evaluations[["function"]]
+      ss <- sqrt(c(pglmm_var_snap(S0$par[seq_len(nt)]), S0$par[-seq_len(nt)]) / sf)
+      LL <- S0$objective
+      convcode <- S0$convergence
+    } else {
+      S0 <- nloptr::nloptr(
+        x0 = ss, eval_f = pglmm_sparse_glmm_LL, lb = lb, opts = opts, pre = pre, w = w, XH = XH,
+        REML = REML, has.obs = has.obs, verbose = verbose
+      )
+      n.eval <- n.eval + S0$iterations
+      ss <- abs(S0$solution)
+      LL <- S0$objective
+      convcode <- S0$status
+    }
     if (verbose) cat("var part:", iteration, LL, ss, "\n")
     est.ss <- ss
     est.B <- B
@@ -824,8 +1080,9 @@ communityPGLMM.glmm.sparse <- function(formula, data, family = "binomial", cov_r
   }
   logLik <- logLik.glm + as.numeric(-LL + LL_null)
   k <- p + q + 1
-  if (convcode >= 5 || convcode < 0) {
-    warning("Optimizer (", optimizer, ") did not converge (nloptr status = ", convcode,
+  if (if (use.grad) convcode != 0 else (convcode >= 5 || convcode < 0)) {
+    warning("Optimizer (", optimizer, ") did not converge (",
+            if (use.grad) paste("nlminb:", S0$message) else paste("nloptr status =", convcode),
             "). Estimates may be unreliable. Consider increasing maxit.")
   }
   if (iteration > maxit.pql) {
@@ -886,7 +1143,7 @@ pglmm_sparse_random_effects <- function(terms, data) {
 # Fit a gaussian pglmm with the sparse precision matrix of the phylogeny
 communityPGLMM.gaussian.sparse <- function(formula, data, cov_ranef = NULL, REML = TRUE,
                                            s2.init = NULL, reltol = 10^-8, maxit = 500,
-                                           verbose = FALSE, optimizer = "subplex",
+                                           verbose = FALSE, optimizer = "nlminb",
                                            standardize_cov = TRUE, repulsion = FALSE,
                                            phylo_only = FALSE) {
   formula.nobars <- reformulas::nobars(formula)
@@ -910,39 +1167,83 @@ communityPGLMM.gaussian.sparse <- function(formula, data, cov_ranef = NULL, REML
   nested <- vapply(terms, function(z) z$nested, TRUE)
   pre <- pglmm_sparse_setup(X, Y, terms)
 
-  theta0 <- if (is.null(s2.init)) rep(1, nt) else rep_len(sqrt(s2.init), nt)
-  # Optimizers from nloptr: Subplex (default; also used for "lbfgs", as there
-  # is no gradient here), Nelder-Mead and BOBYQA. The likelihood depends on
-  # theta^2 only, so there are no bounds and abs(theta) is used (with a lower
-  # bound of zero, Nelder-Mead often stops at theta = 0); BOBYQA keeps the
-  # bound of zero, as in lme4. Derivative-free optimizers can stop too early
-  # on a flat likelihood surface, so the optimizer is restarted from the
-  # solution until there is no improvement. In a comparison with 72 simulated
-  # data sets (nested and non-nested terms, small to large), Subplex with a
-  # tolerance of 1e-8 and restarts reached the best likelihood found by any
-  # method (to 1e-4) in all of them; Nelder-Mead and BOBYQA did not in about
-  # half of them (shortfalls up to 0.2 log-likelihood units).
-  nlopt_algor <- switch(optimizer,
-    "bobyqa" = "NLOPT_LN_BOBYQA", "nelder-mead-nlopt" = , "Nelder-Mead" = "NLOPT_LN_NELDERMEAD",
-    "NLOPT_LN_SBPLX"
-  )
-  lb <- if (nlopt_algor == "NLOPT_LN_BOBYQA") rep(0, nt)
-  opts <- list(algorithm = nlopt_algor, ftol_rel = reltol, ftol_abs = reltol,
-               xtol_rel = 1e-6, maxeval = maxit)
-  n.eval <- 0
-  S0 <- NULL
-  for (i.start in 1:10) {
-    S1 <- nloptr::nloptr(
-      x0 = if (is.null(S0)) theta0 else S0$solution, eval_f = pglmm_sparse_LL, lb = lb,
-      opts = opts, pre = pre, REML = REML, verbose = verbose
+  if (optimizer %in% c("nlminb", "lbfgs")) {
+    # Default: nlminb() with the analytic gradient (pglmm_sparse_LL_grad()),
+    # on the scale of the variances (relative to the residual variance)
+    # multiplied by the scale factors of their terms (as method = "Laplace"),
+    # with a lower bound of zero: the likelihood is a smooth function of the
+    # variances, with a derivative at zero that tells whether a variance should
+    # be larger. The derivative of a variance at (nearly) zero is computed by
+    # finite differences (d/dv = d/dtheta / (2 theta) is not defined there).
+    sf <- vapply(terms, function(z) z$mean.diag, 1)
+    sf[!is.finite(sf) | sf <= 0] <- 1
+    v0 <- if (is.null(s2.init)) rep(1, nt) else rep_len(s2.init, nt) * sf
+    cache <- new.env(parent = emptyenv())
+    fn <- function(v) {
+      theta <- sqrt(pmax(v, 0) / sf)
+      ev <- tryCatch(pglmm_sparse_eval(theta, pre), error = function(e) NULL)
+      cache$v <- v
+      cache$theta <- theta
+      cache$ev <- ev
+      LL <- pglmm_sparse_LL_value(ev, pre, REML)
+      if (verbose) show(c(LL, theta))
+      LL
+    }
+    gr <- function(v) {
+      if (!identical(cache$v, v)) fn(v)
+      if (is.null(cache$ev)) return(rep(NA_real_, nt))
+      g <- pglmm_sparse_LL_grad(cache$theta, pre, cache$ev, REML) / (2 * cache$theta * sf)
+      g[!is.finite(g)] <- NA
+      g
+    }
+    ctrl <- list(rel.tol = reltol, eval.max = maxit, iter.max = maxit)
+    lower <- rep(pglmm_var_lb, nt)
+    run <- function(x, iter.max = maxit) {
+      pglmm_grad_optim(fn, gr, pmax(x, lower), lower, modifyList(ctrl, list(iter.max = iter.max)))
+    }
+    S0 <- pglmm_optim_corners(run, v0, pglmm_sparse_pairs(terms))
+    n.eval <- S0$evaluations[["function"]]
+    theta <- sqrt(pglmm_var_snap(S0$par) / sf)
+    LL <- pglmm_sparse_LL(theta, pre, REML)
+    convcode <- S0$convergence
+    conv.msg <- if (convcode != 0) paste0("nlminb: ", S0$message)
+  } else {
+    theta0 <- if (is.null(s2.init)) rep(1, nt) else rep_len(sqrt(s2.init), nt)
+    # Derivative-free optimizers from nloptr: Subplex, Nelder-Mead and BOBYQA.
+    # The likelihood depends on theta^2 only, so there are no bounds and
+    # abs(theta) is used (with a lower bound of zero, Nelder-Mead often stops at
+    # theta = 0); BOBYQA keeps the bound of zero, as in lme4. Derivative-free
+    # optimizers can stop too early on a flat likelihood surface, so the
+    # optimizer is restarted from the solution until there is no improvement.
+    # In a comparison with 72 simulated data sets (nested and non-nested
+    # terms, small to large), Subplex with a tolerance of 1e-8 and restarts
+    # reached the best likelihood found by any method (to 1e-4) in all of them;
+    # Nelder-Mead and BOBYQA did not in about half of them (shortfalls up to
+    # 0.2 log-likelihood units).
+    nlopt_algor <- switch(optimizer,
+      "bobyqa" = "NLOPT_LN_BOBYQA", "nelder-mead-nlopt" = , "Nelder-Mead" = "NLOPT_LN_NELDERMEAD",
+      "NLOPT_LN_SBPLX"
     )
-    n.eval <- n.eval + S1$iterations
-    done <- !is.null(S0) && S0$objective - S1$objective < 1e-7 * (abs(S0$objective) + 1)
-    if (is.null(S0) || S1$objective < S0$objective) S0 <- S1
-    if (done) break
+    lb <- if (nlopt_algor == "NLOPT_LN_BOBYQA") rep(0, nt)
+    opts <- list(algorithm = nlopt_algor, ftol_rel = reltol, ftol_abs = reltol,
+                 xtol_rel = 1e-6, maxeval = maxit)
+    n.eval <- 0
+    S0 <- NULL
+    for (i.start in 1:10) {
+      S1 <- nloptr::nloptr(
+        x0 = if (is.null(S0)) theta0 else S0$solution, eval_f = pglmm_sparse_LL, lb = lb,
+        opts = opts, pre = pre, REML = REML, verbose = verbose
+      )
+      n.eval <- n.eval + S1$iterations
+      done <- !is.null(S0) && S0$objective - S1$objective < 1e-7 * (abs(S0$objective) + 1)
+      if (is.null(S0) || S1$objective < S0$objective) S0 <- S1
+      if (done) break
+    }
+    theta <- abs(S0$solution)
+    LL <- S0$objective
+    convcode <- S0$status
+    conv.msg <- if (convcode >= 5 || convcode < 0) paste0(optimizer, ", nloptr status = ", convcode)
   }
-  theta <- abs(S0$solution)
-  LL <- S0$objective
   ev <- pglmm_sparse_eval(theta, pre)
 
   s2resid <- ev$rss / (if (REML) n - p else n)
@@ -966,8 +1267,8 @@ communityPGLMM.gaussian.sparse <- function(formula, data, cov_ranef = NULL, REML
   ss <- c(theta, sqrt(s2resid))
   B.zscore <- B / B.se
   k <- p + nt + 1
-  if (S0$status >= 5 || S0$status < 0) {
-    warning("Optimizer (", optimizer, ") did not converge (nloptr status = ", S0$status,
+  if (!is.null(conv.msg)) {
+    warning("The optimizer did not converge (", conv.msg,
             "). Estimates may be unreliable. Consider increasing maxit.")
   }
 
@@ -988,7 +1289,7 @@ communityPGLMM.gaussian.sparse <- function(formula, data, cov_ranef = NULL, REML
     BIC = -2 * logLik + k * (log(n) - log(pi)),
     REML = REML, bayes = FALSE, s2.init = s2.init, B.init = NULL, Y = Y, X = X,
     H = matrix(H, ncol = 1), mu = NULL, nested = list(), Zt = NULL, St = NULL,
-    convcode = S0$status, niter = n.eval,
+    convcode = convcode, niter = n.eval,
     sparse = list(
       pre = pre, u = u, theta = theta, formula.order = tm$formula.order,
       terms = lapply(terms, function(z) {
@@ -1054,13 +1355,21 @@ pglmm_cond_modes_sparse <- function(object, condVar = FALSE, nodes = FALSE) {
     W <- Matrix::solve(ev$L, Matrix::solve(ev$L, E, system = "P"), system = "L")
     Matrix::colSums(W * Matrix::solve(ev$L, W, system = "D"))
   }
+  # selected inverse of M (simplicial factorizations, since phyr 1.3.0); the
+  # solves of quad_Mi() otherwise (models fitted with earlier versions)
+  selinv <- condVar && methods::is(ev$L, "dCHMsimpl") && !is.null(pre$ia)
   if (condVar) {
-    # diagonal of M^-1 for these columns, in chunks of columns to limit memory
+    # diagonal of M^-1 for these columns (in chunks of columns to limit memory
+    # without the selected inverse)
     need <- sort(unique(unlist(Map(`+`, offset, pick))))
     dMi <- numeric(pre$q)
-    for (idx in split(need, ceiling(seq_along(need) / 500))) {
-      dMi[idx] <- quad_Mi(Matrix::sparseMatrix(i = idx, j = seq_along(idx), x = 1,
-                                               dims = c(qa, length(idx))))
+    if (selinv) {
+      dMi[need] <- pglmm_sparse_inv_at(ev$L, need - 1L, need - 1L)
+    } else {
+      for (idx in split(need, ceiling(seq_along(need) / 500))) {
+        dMi[idx] <- quad_Mi(Matrix::sparseMatrix(i = idx, j = seq_along(idx), x = 1,
+                                                 dims = c(qa, length(idx))))
+      }
     }
     s2 <- if (glmm) 1 else as.numeric(object$s2resid)
     se <- sp$theta[pre$term.of.col] * sqrt(s2 * pmax(dMi, 0))
@@ -1087,14 +1396,24 @@ pglmm_cond_modes_sparse <- function(object, condVar = FALSE, nodes = FALSE) {
     d <- data.frame(obs = obs, stringsAsFactors = FALSE)
     d$estimate <- sp$u.obs
     if (condVar) {
-      # diag(V^-1) = wt - wt^2 diag(Z Theta M^-1 Theta Z'), in chunks of rows
+      # diag(V^-1) = wt - wt^2 diag(Z Theta M^-1 Theta Z'): for each row, the
+      # sum over the pairs of its columns, from the entries of M^-1 on the
+      # pattern of Z'Z (wmap gives the products of the values of Z of these
+      # pairs), or solves in chunks of rows
       s2o <- object$ss[[length(object$ss)]]^2
-      Et <- Matrix::t(pre$Z) * sp$theta[pre$term.of.col]
-      if (qa > pre$q) Et <- rbind(Et, Matrix::Matrix(0, qa - pre$q, ncol(Et), sparse = TRUE))
-      n <- ncol(Et)
-      dZ <- numeric(n)
-      for (idx in split(seq_len(n), ceiling(seq_len(n) / 500))) {
-        dZ[idx] <- quad_Mi(Et[, idx, drop = FALSE])
+      if (selinv) {
+        ia <- pre$ia
+        th <- sp$theta
+        z <- pglmm_sparse_inv_at(ev$L, pre$mi[ia], pre$mj[ia])
+        dZ <- as.vector(Matrix::crossprod(pre$wmap.ia, pre$amult * z * th[pre$ti[ia]] * th[pre$tj[ia]]))
+      } else {
+        Et <- Matrix::t(pre$Z) * sp$theta[pre$term.of.col]
+        if (qa > pre$q) Et <- rbind(Et, Matrix::Matrix(0, qa - pre$q, ncol(Et), sparse = TRUE))
+        n <- ncol(Et)
+        dZ <- numeric(n)
+        for (idx in split(seq_len(n), ceiling(seq_len(n) / 500))) {
+          dZ[idx] <- quad_Mi(Et[, idx, drop = FALSE])
+        }
       }
       dV <- ev$wt - ev$wt^2 * dZ
       d$se <- sqrt(pmax(s2o - s2o^2 * dV, 0))

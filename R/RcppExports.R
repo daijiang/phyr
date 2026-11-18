@@ -113,3 +113,7 @@ psv_cpp <- function(comm, Cmatrix, compute_var) {
     .Call(`_phyr_psv_cpp`, comm, Cmatrix, compute_var)
 }
 
+sparse_inv_subset <- function(p, i, x, nz, is_ll, qi, qj) {
+    .Call(`_phyr_sparse_inv_subset`, p, i, x, nz, is_ll, qi, qj)
+}
+

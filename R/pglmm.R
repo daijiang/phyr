@@ -189,12 +189,13 @@
 #'   default for Gaussian, also available for binomial/Poisson), \code{"nelder-mead-nlopt"}
 #'   (default for binomial/Poisson), \code{"bobyqa"}, \code{"Nelder-Mead"}, or \code{"subplex"}.
 #'   \code{"Nelder-Mead"} is from the stats package; all others are from the nloptr package.
-#'   With \code{sparse = TRUE}, the default (and \code{"lbfgs"}, as there is no gradient) is
-#'   \code{"subplex"}, \code{"nelder-mead-nlopt"} and \code{"Nelder-Mead"} both use the
-#'   Nelder-Mead algorithm of nloptr, and the optimizer is restarted from its solution until the
-#'   likelihood does not improve (for gaussian models; for binomial and poisson models, each
-#'   PQL iteration already starts the optimizer from the previous solution). Ignored if
-#'   \code{bayes = TRUE} or \code{method = "Laplace"}.
+#'   With \code{sparse = TRUE}, the default (and \code{"lbfgs"}) is \code{nlminb()} with the
+#'   analytic gradient of the likelihood (see \code{sparse}); \code{"subplex"},
+#'   \code{"nelder-mead-nlopt"}, \code{"Nelder-Mead"} (both the Nelder-Mead algorithm of nloptr)
+#'   and \code{"bobyqa"} are derivative-free, and the optimizer is restarted from its solution
+#'   until the likelihood does not improve (for gaussian models; for binomial and poisson
+#'   models, each PQL iteration already starts the optimizer from the previous solution). Ignored
+#'   if \code{bayes = TRUE} or \code{method = "Laplace"}.
 #' @param repulsion When there are nested random terms specified, \code{repulsion = FALSE} tests
 #'   for phylogenetic underdispersion while \code{repulsion = TRUE} tests for overdispersion.
 #'   This argument is a logical vector of length either 1 or >1.
@@ -341,8 +342,25 @@
 #'   convergence rules, \code{tol.pql} and \code{maxit.pql}); at each iteration, the working
 #'   weights change only the values of the sparse matrix, and the observation-level term
 #'   \code{1|obs} is folded into the weights. Only available with \code{bayes = FALSE},
-#'   and phylogenies (class \code{phylo}) in \code{cov_ranef}. The default optimizer is then
-#'   \code{"subplex"} (see \code{optimizer}), with \code{reltol = 1e-8}.
+#'   and phylogenies (class \code{phylo}) in \code{cov_ranef}.
+#'
+#'   The variances (for gaussian models, relative to the residual variance; for binomial and
+#'   poisson models, at each PQL iteration) are estimated with \code{nlminb()} and the analytic
+#'   gradient of the likelihood, with a relative tolerance \code{reltol = 1e-10} by default.
+#'   The gradient needs the entries of the inverse of the sparse matrix on its pattern (its
+#'   selected inverse, from the Cholesky factor, in C++), which cost about as much as a
+#'   factorization. As for \code{method = "Laplace"}, the variances are optimized multiplied by
+#'   their \code{scale_factors}, with a lower bound of zero (in practice \eqn{10^{-12}},
+#'   reported as zero). As a phylogenetic term such as \code{1|sp__} and its non-phylogenetic
+#'   partner \code{1|sp} are nearly confounded, the likelihood can have a local optimum where both
+#'   variances are positive, and a better one where one of them is zero; the optimization is thus
+#'   also started from the two "corners" where one of these variances has their sum and the other
+#'   is zero, and the best solution is kept (each corner is first tried with a few iterations, and
+#'   the optimization goes on only if it is then already better). The derivative-free
+#'   optimizers of earlier versions can still be used with \code{optimizer = "subplex"},
+#'   \code{"nelder-mead-nlopt"} or \code{"bobyqa"} (with \code{reltol = 1e-8} by default);
+#'   \code{"lbfgs"} also uses \code{nlminb()} and the gradient. \code{ranef(condVar = TRUE)}
+#'   uses the selected inverse too.
 #'
 #'   The sparse precision matrix exists because the trait evolves along the branches as a
 #'   Markov process (the value at a node depends only on its parent). This is not limited to
@@ -402,7 +420,10 @@
 #'   \code{nlminb()}, on the scale of the variances multiplied by their \code{scale_factors}
 #'   (the variances of an average level, with a lower bound of zero; the default starting
 #'   values are 0.25 on this scale), and of the dispersion \eqn{1/\theta}{1/theta} of negative
-#'   binomial models, with gradients by finite differences; \code{optimizer}, \code{tol.pql} and
+#'   binomial models, with analytic gradients (the derivative over the dispersion of negative
+#'   binomial models is computed by finite differences), restarted from the corners of the
+#'   variances of phylogenetic terms and their partners (see \code{sparse});
+#'   \code{optimizer}, \code{tol.pql} and
 #'   \code{maxit.pql} are not used. [ranef()] gives the conditional modes of the random
 #'   effects, and \code{condVar = TRUE} their conditional standard deviations from the
 #'   Hessian of the Laplace approximation (conditional on the estimates of the parameters).
@@ -943,20 +964,25 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
     if (is.null(cov_ranef) && (!is.null(tree) || !is.null(tree_site))) {
       cov_ranef <- c(if (!is.null(tree)) list(sp = tree), if (!is.null(tree_site)) list(site = tree_site))
     }
+    # nlminb() with analytic gradients by default (also for "lbfgs"), with a
+    # relative tolerance of 1e-10; the derivative-free optimizers of nloptr
+    # when given, with a tolerance of 1e-8
+    sparse.optimizer <- if (optimizer.given) optimizer else "nlminb"
+    sparse.reltol <- if (reltol.given) reltol else if (sparse.optimizer %in% c("nlminb", "lbfgs")) 1e-10 else 1e-8
     if (family == "gaussian") {
       z <- communityPGLMM.gaussian.sparse(
         formula = formula, data = data, cov_ranef = cov_ranef, REML = REML,
-        s2.init = s2.init, reltol = if (reltol.given) reltol else 1e-8, maxit = maxit,
-        verbose = verbose, optimizer = if (optimizer.given) optimizer else "subplex",
+        s2.init = s2.init, reltol = sparse.reltol, maxit = maxit,
+        verbose = verbose, optimizer = sparse.optimizer,
         standardize_cov = standardize_cov, repulsion = repulsion, phylo_only = phylo_only
       )
     } else {
       z <- communityPGLMM.glmm.sparse(
         formula = formula, data = data, family = family, cov_ranef = cov_ranef, REML = REML,
-        s2.init = if (is.null(s2.init)) 0.25 else s2.init, B.init = B.init,
-        reltol = if (reltol.given) reltol else 1e-8, maxit = maxit,
+        s2.init = s2.init, B.init = B.init,
+        reltol = sparse.reltol, maxit = maxit,
         tol.pql = tol.pql, maxit.pql = maxit.pql, verbose = verbose,
-        optimizer = if (optimizer.given) optimizer else "subplex",
+        optimizer = sparse.optimizer,
         standardize_cov = standardize_cov, repulsion = repulsion, add.obs.re = add.obs.re,
         phylo_only = phylo_only
       )

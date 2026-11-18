@@ -76,12 +76,13 @@ likelihood estimates, comparable with \code{lme4::glmer()} and \code{glmmTMB()}.
 default for Gaussian, also available for binomial/Poisson), \code{"nelder-mead-nlopt"}
 (default for binomial/Poisson), \code{"bobyqa"}, \code{"Nelder-Mead"}, or \code{"subplex"}.
 \code{"Nelder-Mead"} is from the stats package; all others are from the nloptr package.
-With \code{sparse = TRUE}, the default (and \code{"lbfgs"}, as there is no gradient) is
-\code{"subplex"}, \code{"nelder-mead-nlopt"} and \code{"Nelder-Mead"} both use the
-Nelder-Mead algorithm of nloptr, and the optimizer is restarted from its solution until the
-likelihood does not improve (for gaussian models; for binomial and poisson models, each
-PQL iteration already starts the optimizer from the previous solution). Ignored if
-\code{bayes = TRUE} or \code{method = "Laplace"}.}
+With \code{sparse = TRUE}, the default (and \code{"lbfgs"}) is \code{nlminb()} with the
+analytic gradient of the likelihood (see \code{sparse}); \code{"subplex"},
+\code{"nelder-mead-nlopt"}, \code{"Nelder-Mead"} (both the Nelder-Mead algorithm of nloptr)
+and \code{"bobyqa"} are derivative-free, and the optimizer is restarted from its solution
+until the likelihood does not improve (for gaussian models; for binomial and poisson
+models, each PQL iteration already starts the optimizer from the previous solution). Ignored
+if \code{bayes = TRUE} or \code{method = "Laplace"}.}
 
 \item{add.obs.re}{Whether to add an observation-level random term \code{1|obs}
 for Poisson data and binomial data with more than one trial (a

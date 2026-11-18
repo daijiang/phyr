@@ -74,12 +74,14 @@ pglmm_laplace_prep <- function(pre, X, Y, size, family, has.obs) {
   } else {
     Qmult <- function(v) as.vector(Qs %*% v)
   }
+  # dw: the derivative of w in eta (for the gradient, pglmm_laplace_grad())
   if (family == "binomial") {
     fam <- function(eta, phi = 0) {
       pr <- stats::plogis(eta)
-      l1pe <- ifelse(eta > 0, eta + log1p(exp(-eta)), log1p(exp(eta))) # log(1 + exp(eta))
+      l1pe <- pmax(eta, 0) + log1p(exp(-abs(eta))) # log(1 + exp(eta)), without overflow
       m <- size * pr
-      list(m = m, g = Y - m, w = size * pr * (1 - pr), logp = sum(Y * eta - size * l1pe))
+      w <- size * pr * (1 - pr)
+      list(m = m, g = Y - m, w = w, dw = w * (1 - 2 * pr), logp = sum(Y * eta - size * l1pe))
     }
     const <- sum(lchoose(size, Y))
   } else if (family == "nbinomial") {
@@ -89,13 +91,14 @@ pglmm_laplace_prep <- function(pre, X, Y, size, family, has.obs) {
       m <- exp(eta)
       den <- 1 + phi * m
       logp <- suppressWarnings(sum(stats::dnbinom(Y, size = 1 / phi, mu = m, log = TRUE)))
-      list(m = m, g = (Y - m) / den, w = m * (1 + phi * Y) / den^2, logp = logp)
+      w <- m * (1 + phi * Y) / den^2
+      list(m = m, g = (Y - m) / den, w = w, dw = w * (1 - phi * m) / den, logp = logp)
     }
     const <- 0
   } else {
     fam <- function(eta, phi = 0) {
       m <- exp(eta)
-      list(m = m, g = Y - m, w = m, logp = sum(Y * eta - m))
+      list(m = m, g = Y - m, w = m, dw = m, logp = sum(Y * eta - m))
     }
     const <- -sum(lgamma(Y + 1))
   }
@@ -205,8 +208,9 @@ pglmm_laplace_mode <- function(beta, ss, lp, st, fit.beta = FALSE, maxit = 50, t
 # Laplace approximation of the log-likelihood (ML: par = c(beta, ss); REML or
 # fit.beta = TRUE: par = ss, with b in the mode; for negative binomial models,
 # the dispersion phi is the last element of par). Returns -Inf when the mode
-# cannot be found.
-pglmm_laplace_ll <- function(par, lp, st, REML = FALSE, fit.beta = REML) {
+# cannot be found. With an environment keep, the mode and the parameters are
+# saved in it, for pglmm_laplace_grad().
+pglmm_laplace_ll <- function(par, lp, st, REML = FALSE, fit.beta = REML, keep = NULL) {
   phi <- 0
   if (lp$nb) {
     phi <- max(par[length(par)], 0)
@@ -221,12 +225,122 @@ pglmm_laplace_ll <- function(par, lp, st, REML = FALSE, fit.beta = REML) {
   }
   md <- tryCatch(pglmm_laplace_mode(beta, ss, lp, st, fit.beta, phi = phi),
                  error = function(e) NULL)
+  if (!is.null(keep)) {
+    keep$md <- if (!is.null(md) && is.finite(md$ll)) md
+    keep$ss <- ss
+    keep$phi <- phi
+  }
   if (is.null(md) || !is.finite(md$ll)) return(-Inf)
   ll <- md$ll
   if (fit.beta && REML) {
     ll <- ll - 0.5 * as.numeric(determinant(md$G)$modulus) + 0.5 * lp$p * log(2 * pi)
   }
   ll
+}
+
+# Gradient of the Laplace approximation of the log-likelihood
+# (pglmm_laplace_ll()) at the mode md, over the standard deviations of the
+# terms (theta), the variance s2 of 1|obs (if any) and, for ML (fit.beta =
+# FALSE), the fixed effects; not over the dispersion of negative binomial
+# models. ss: the standard deviations (terms, then 1|obs).
+#
+# With the mode x = (v, o, b) (b only with fit.beta) of the penalized log
+# density P = log p(y | eta) - v'Qv / 2 - o'o / (2 s2), the log-likelihood is
+# P(x) + D(eta(x), psi), with D = -(log|M| + sum(log(1 + s2 w)) + REML log|G|)
+# / 2, where w depends on the mode through eta. As dP/dx = 0 at the mode,
+#   dl / dpsi = dP/dpsi + dD/dpsi + c' J dx/dpsi,
+# with c = dD/deta, J = d eta / dx = [Z Theta, I, X], and dx/dpsi = H^-1 b_psi
+# (H: minus the Hessian of P, factorized as in pglmm_laplace_mode();
+# b_psi = d2P / dx dpsi). The last term is lambda' b_psi with the single
+# solve lambda = H^-1 J'c (adjoint). With dZ = diag(Z Theta M^-1 Theta Z')
+# (from the selected inverse of M on the pattern of Z'Z) and, for REML,
+# qi = diag(Xt G^-1 Xt') with Xt = X - Z Theta M^-1 Theta Z' Wt X (so that
+# d log|G| / d wt_i = qi),
+#   c = w' (-(dZ + qi) / (1 + s2 w)^2 - s2 / (1 + s2 w)) / 2  (w' = dw/deta).
+# For theta_k, with a_k = Z D_k v (the change of eta) and zeta = J lambda:
+#   dl/dtheta_k = (g + c - w zeta)' a_k + (D_k lambda_v)' Z'g
+#                 - tr(M^-1 dM_k) / 2 - REML tr(G^-1 dG_k) / 2,
+# for s2: dl/ds2 = o'o / (2 s2^2) + lambda_o' o / s2^2
+#                  + sum(wt^2 (dZ + qi)) / 2 - sum(wt) / 2,
+# and for b (ML): dl/db = X'(g + c - w zeta).
+pglmm_laplace_grad <- function(md, ss, lp, REML = FALSE, fit.beta = REML) {
+  pre <- lp$pre
+  X <- lp$X
+  Z <- pre$Z
+  nt <- lp$nt
+  th <- abs(unname(ss[seq_len(nt)]))
+  s2 <- if (lp$has.obs) unname(ss[nt + 1])^2 else 0
+  thc <- th[pre$term.of.col]
+  cur <- md$cur
+  w <- cur$w
+  g <- cur$g
+  den <- 1 + s2 * w
+  wt <- w / den
+  L <- md$L
+  ia <- pre$ia
+  ti <- pre$ti[ia]
+  tj <- pre$tj[ia]
+  aw <- as.vector(pre$wmap.ia %*% wt)
+  zi <- pre$amult * pglmm_sparse_inv_at(L, pre$mi[ia], pre$mj[ia])
+  dZ <- as.vector(Matrix::crossprod(pre$wmap.ia, zi * th[ti] * th[tj]))
+  reml <- fit.beta && REML
+  qi <- 0
+  if (fit.beta) {
+    Tm <- as.matrix(Matrix::crossprod(Z, wt * X)) # Z' Wt X
+    S <- pglmm_sparse_solve(L, pre, thc * Tm) # M^-1 Theta Z' Wt X
+    G <- md$G
+    if (reml) {
+      iG <- solve(G)
+      Xt <- X - as.matrix(Z %*% (thc * S))
+      qi <- rowSums((Xt %*% iG) * Xt)
+    }
+  }
+  cc <- cur$dw * (-0.5 * (dZ + qi) / den^2 - 0.5 * s2 / den)
+  # adjoint: lambda = H^-1 J'c, with o eliminated as in pglmm_laplace_mode()
+  cd <- cc / den
+  rv <- thc * as.vector(Matrix::crossprod(Z, cd))
+  if (fit.beta) {
+    Sr <- as.vector(pglmm_sparse_solve(L, pre, rv))
+    lb <- solve(G, as.vector(crossprod(X, cd)) - as.vector(crossprod(thc * Tm, Sr)))
+    lv <- Sr - as.vector(S %*% lb)
+    zeta <- as.vector(Z %*% (thc * lv)) + as.vector(X %*% lb)
+  } else {
+    lv <- as.vector(pglmm_sparse_solve(L, pre, rv))
+    zeta <- as.vector(Z %*% (thc * lv))
+  }
+  lo <- if (s2 > 0) (s2 / den) * (cc - w * zeta) else 0
+  zeta <- zeta + lo
+  u <- g + cc - w * zeta
+  Zg <- as.vector(Matrix::crossprod(Z, g))
+  v <- cur$v
+  ce <- zi * aw
+  trM <- pglmm_sum_by(ce * th[tj], ti, nt) + pglmm_sum_by(ce * th[ti], tj, nt)
+  if (reml) {
+    Aw <- pre$Asym
+    Aw@x <- aw
+    ATS <- as.matrix(Aw %*% (thc * S))
+  }
+  gth <- vapply(seq_len(nt), function(k) {
+    rk <- pre$cols[[k]]
+    a <- as.vector(Z[, rk, drop = FALSE] %*% v[rk])
+    out <- sum(u * a) + sum(lv[rk] * Zg[rk]) - 0.5 * trM[k]
+    if (reml) {
+      E <- crossprod(Tm[rk, , drop = FALSE], S[rk, , drop = FALSE])
+      Sk <- crossprod(S[rk, , drop = FALSE], ATS[rk, , drop = FALSE])
+      out <- out - 0.5 * sum(iG * (Sk + t(Sk) - E - t(E)))
+    }
+    out
+  }, 1)
+  gs2 <- NULL
+  if (lp$has.obs) {
+    o <- cur$o
+    gs2 <- if (s2 > 0) {
+      0.5 * sum(o^2) / s2^2 + sum(lo * o) / s2^2 + 0.5 * sum(wt^2 * (dZ + qi)) - 0.5 * sum(wt)
+    } else {
+      NA_real_
+    }
+  }
+  list(theta = gth, s2 = gs2, beta = if (!fit.beta) as.vector(crossprod(X, u)))
 }
 
 # Minimize f with nlminb(), with the gradient by finite differences (central,
@@ -236,7 +350,9 @@ pglmm_laplace_ll <- function(par, lp, st, REML = FALSE, fit.beta = REML) {
 # derivative there that tells whether the variance should be larger. (With
 # standard deviations, the log-likelihood is even in each of them, so that zero
 # is always a stationary point, where a gradient-based optimizer can stop.)
-pglmm_laplace_optim <- function(f, x0, lower, control) {
+# With grad (a function of x), the gradient is analytic, except for its NA
+# values (computed by finite differences).
+pglmm_laplace_optim <- function(f, x0, lower, control, grad = NULL) {
   last.x <- NULL
   last.f <- NULL
   fc <- function(x) {
@@ -247,9 +363,12 @@ pglmm_laplace_optim <- function(f, x0, lower, control) {
     last.f
   }
   gr <- function(x) {
+    g <- if (is.null(grad)) rep(NA_real_, length(x)) else grad(x)
+    todo <- which(is.na(g))
+    if (!length(todo)) return(g)
     f0 <- fc(x)
     h <- 1e-4 * pmax(abs(x), 0.1)
-    vapply(seq_along(x), function(i) {
+    g[todo] <- vapply(todo, function(i) {
       xp <- xm <- x
       if (x[i] - h[i] < lower[i]) {
         xp[i] <- x[i] + h[i]
@@ -261,8 +380,45 @@ pglmm_laplace_optim <- function(f, x0, lower, control) {
         (f(xp) - f(xm)) / (2 * h[i])
       }
     }, 1)
+    g
   }
-  stats::nlminb(x0, fc, gr, lower = lower, control = control)
+  o <- stats::nlminb(x0, fc, gr, lower = lower, control = control)
+  if (o$convergence != 0 && !grepl("limit", o$message)) {
+    # singular or false convergence, which happens on flat or badly
+    # conditioned likelihoods (e.g. with variances at zero), where the
+    # function has rounding errors at the scale of the remaining
+    # improvement: restart once, then accept the solution if no step along
+    # the projected gradient (steps of 1e-7 to 0.1 for its largest element)
+    # decreases the function by more than 1e-9 (relative)
+    o2 <- stats::nlminb(o$par, fc, gr, lower = lower, control = control)
+    o2$evaluations <- o$evaluations + o2$evaluations
+    o2$iterations <- o$iterations + o2$iterations
+    if (o2$objective <= o$objective) {
+      o <- o2
+    } else {
+      o$evaluations <- o2$evaluations
+    }
+    if (o$convergence != 0 && !grepl("limit", o$message)) {
+      g <- tryCatch(gr(o$par), error = function(e) NA)
+      at.lower <- o$par <= lower * (1 + 1e-8) + 1e-12 * (lower == 0)
+      pg <- ifelse(at.lower, pmin(g, 0), g)
+      if (all(is.finite(pg))) {
+        f0 <- o$objective
+        better <- if (max(abs(pg)) > 0) {
+          vapply(10^-(1:7) / max(abs(pg)), function(t) {
+            f(pmax(o$par - t * pg, lower)) < f0 - 1e-9 * (abs(f0) + 1)
+          }, TRUE)
+        } else {
+          FALSE
+        }
+        if (!any(better)) {
+          o$message <- paste0(o$message, "; accepted: no step along the gradient improves it")
+          o$convergence <- 0L
+        }
+      }
+    }
+  }
+  o
 }
 
 # Hessian of f at x by central differences, with steps h
@@ -354,28 +510,58 @@ communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_
   sf[!is.finite(sf) | sf <= 0] <- 1
   # the scaled variances, then the dispersion phi of negative binomial models
   s20 <- c(if (is.null(s2.init)) rep(0.25, q) else rep_len(s2.init, q) * sf, phi.init)
+  # lower bounds: pglmm_var_lb for the variances (d/dv is computed analytically
+  # down to it), zero for the dispersion of negative binomial models
+  lower <- c(rep(pglmm_var_lb, q), if (nb) 0)
+  s20 <- pmax(s20, lower)
   np <- length(s20)
   ctrl <- list(rel.tol = reltol, eval.max = maxit, iter.max = maxit)
   n.eval <- 0
+  at <- new.env(parent = emptyenv()) # the mode at the last evaluation, for the gradient
   # minus the log-likelihood, for the scaled variances (and b for ML) in par
   objective <- function(par, REML, fit.beta) {
     n.eval <<- n.eval + 1
+    x <- par
     iv <- (if (fit.beta) 0 else p) + iq
-    par[iv] <- sqrt(pmax(par[iv], 0) / sf)
-    ll <- pglmm_laplace_ll(par, lp, st, REML, fit.beta)
-    if (verbose) show(c(ll, par))
+    x[iv] <- sqrt(pmax(x[iv], 0) / sf)
+    ll <- pglmm_laplace_ll(x, lp, st, REML, fit.beta, keep = at)
+    at$par <- par
+    if (verbose) show(c(ll, x))
     if (is.finite(ll)) -ll else Inf
+  }
+  # its analytic gradient (pglmm_laplace_grad()); NA (finite differences) for
+  # the dispersion of negative binomial models
+  gradient <- function(par, REML, fit.beta) {
+    if (!identical(at$par, par)) objective(par, REML, fit.beta)
+    out <- rep(NA_real_, length(par))
+    if (is.null(at$md)) return(out)
+    gr <- tryCatch(pglmm_laplace_grad(at$md, at$ss, lp, REML, fit.beta), error = function(e) NULL)
+    if (is.null(gr)) return(out)
+    off <- if (fit.beta) 0 else p
+    if (!fit.beta) out[ip] <- -gr$beta
+    it <- seq_len(nt)
+    gt <- -gr$theta / (2 * at$ss[it] * sf[it])
+    out[off + it] <- gt
+    if (has.obs) out[off + q] <- -gr$s2
+    out[!is.finite(out)] <- NA
+    out
   }
 
   # variances, with b in the mode (for ML, only the starting point of the
   # joint estimation: a lower tolerance is enough)
   ctrl1 <- ctrl
   if (!REML) ctrl1$rel.tol <- max(reltol, 1e-6)
-  o1 <- pglmm_laplace_optim(function(par) objective(par, REML, TRUE), s20, rep(0, np), ctrl1)
+  # with restarts from the corners of phylogenetic terms and their partners
+  # (pglmm_optim_corners())
+  o1 <- pglmm_optim_corners(function(x, iter.max = maxit) {
+    pglmm_laplace_optim(function(par) objective(par, REML, TRUE), pmax(x, lower), lower,
+                        modifyList(ctrl1, list(iter.max = iter.max)),
+                        grad = function(par) gradient(par, REML, TRUE))
+  }, s20, pglmm_sparse_pairs(terms))
   convcode <- o1$convergence
   message.opt <- o1$message
   if (REML) {
-    ss <- sqrt(o1$par[iq] / sf)
+    ss <- sqrt(pglmm_var_snap(o1$par[iq]) / sf)
     phi <- if (nb) o1$par[q + 1] else 0
     md <- pglmm_laplace_mode(NULL, ss, lp, st, fit.beta = TRUE, phi = phi)
     B <- md$cur$beta
@@ -385,11 +571,12 @@ communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_
     pglmm_laplace_mode(NULL, sqrt(o1$par[iq] / sf), lp, st, fit.beta = TRUE,
                        phi = if (nb) o1$par[q + 1] else 0) # b at the mode
     o2 <- pglmm_laplace_optim(function(par) objective(par, FALSE, FALSE), c(st$beta, o1$par),
-                              c(rep(-Inf, p), rep(0, np)), ctrl)
+                              c(rep(-Inf, p), lower), ctrl,
+                              grad = function(par) gradient(par, FALSE, FALSE))
     convcode <- o2$convergence
     message.opt <- o2$message
     B <- o2$par[ip]
-    ss <- sqrt(o2$par[p + iq] / sf)
+    ss <- sqrt(pglmm_var_snap(o2$par[p + iq]) / sf)
     phi <- if (nb) o2$par[p + q + 1] else 0
     o2$par[p + iq] <- ss
     # covariance matrix of b: inverse of the Hessian of -log L over b, the

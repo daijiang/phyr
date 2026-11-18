@@ -433,11 +433,21 @@ test_that("pglmm(sparse = TRUE) gives the same fit and methods as the default co
     # tight tolerances, so that both reach the fixed point of the PQL iterations
     m1 <- suppressMessages(pglmm(cs[[1]], s$d, family = cs[[2]], cov_ranef = cr, REML = cs[[3]],
                                  optimizer = "subplex", reltol = 1e-12, maxit = 5000, tol.pql = 1e-8))
+    # the same (derivative-free) optimizer, so that the comparison is of the
+    # algebra, not of where two optimizers stop on a flat likelihood
     expect_message(
       m2 <- pglmm(cs[[1]], s$d, family = cs[[2]], cov_ranef = cr, REML = cs[[3]], sparse = TRUE,
-                  reltol = 1e-12, tol.pql = 1e-8),
+                  optimizer = "subplex", reltol = 1e-12, maxit = 5000, tol.pql = 1e-8),
       cs[[4]]
     )
+    # the default optimizer (nlminb() with analytic gradients) reaches the
+    # same fit; the likelihood of the second case is so flat that the
+    # parameters differ more
+    m3 <- suppressMessages(pglmm(cs[[1]], s$d, family = cs[[2]], cov_ranef = cr, REML = cs[[3]],
+                                 sparse = TRUE, reltol = 1e-12, tol.pql = 1e-8))
+    expect_equal(m3$logLik, m1$logLik, tolerance = 1e-5)
+    expect_equal(m3$B, m1$B, tolerance = 1e-4)
+    expect_equal(m3$ss^2, m1$ss^2, tolerance = 1e-2)
     expect_equal(m2$B, m1$B, tolerance = 1e-5)
     expect_equal(m2$B.se, m1$B.se, tolerance = 1e-5)
     expect_equal(m2$ss^2, m1$ss^2, tolerance = 1e-4)
