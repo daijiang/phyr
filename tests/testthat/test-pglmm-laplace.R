@@ -4,8 +4,9 @@ quiet <- function(expr) suppressWarnings(suppressMessages(expr))
 
 # explicit dense Laplace approximation, from the covariance matrices of the
 # default code (prep_dat_pglmm() and get_design_matrix()): latent effects
-# x = (rows of Zt, one vector per nested term), with eta = X b + A x
-dense_laplace <- function(beta, ss, dm, family, REML = FALSE) {
+# x = (rows of Zt, one vector per nested term), with eta = X b + A x; phi:
+# the dispersion of negative binomial (1 / theta) and Gamma (1 / shape) models
+dense_laplace <- function(beta, ss, dm, family, REML = FALSE, phi = NULL) {
   X <- dm$X
   Y <- dm$Y
   size <- dm$size
@@ -27,18 +28,27 @@ dense_laplace <- function(beta, ss, dm, family, REML = FALSE) {
   off <- if (REML) rep(0, n) else as.vector(X %*% beta)
   x <- rep(0, ncol(A))
   if (REML) x[seq_len(p)] <- beta
+  # score g and observed information w of log p(y | eta)
   fam <- function(eta) {
     if (family == "binomial") {
       pr <- plogis(eta)
-      list(m = size * pr, w = size * pr * (1 - pr), lp = sum(dbinom(Y, size, pr, log = TRUE)))
-    } else {
+      list(g = Y - size * pr, w = size * pr * (1 - pr), lp = sum(dbinom(Y, size, pr, log = TRUE)))
+    } else if (family == "poisson") {
       m <- exp(eta)
-      list(m = m, w = m, lp = sum(dpois(Y, m, log = TRUE)))
+      list(g = Y - m, w = m, lp = sum(dpois(Y, m, log = TRUE)))
+    } else if (family == "nbinomial") {
+      m <- exp(eta)
+      list(g = (Y - m) / (1 + phi * m), w = m * (1 + phi * Y) / (1 + phi * m)^2,
+           lp = sum(dnbinom(Y, size = 1 / phi, mu = m, log = TRUE)))
+    } else { # Gamma
+      m <- exp(eta)
+      list(g = (Y / m - 1) / phi, w = Y / (m * phi),
+           lp = sum(dgamma(Y, shape = 1 / phi, rate = 1 / (phi * m), log = TRUE)))
     }
   }
   for (it in 1:100) {
     f <- fam(off + drop(A %*% x))
-    dx <- solve(crossprod(A, f$w * A) + P, drop(crossprod(A, Y - f$m)) - drop(P %*% x))
+    dx <- solve(crossprod(A, f$w * A) + P, drop(crossprod(A, f$g)) - drop(P %*% x))
     x <- x + dx
     if (max(abs(dx)) < 1e-12) break
   }
@@ -50,7 +60,7 @@ dense_laplace <- function(beta, ss, dm, family, REML = FALSE) {
 
 # Laplace approximation of the new code at fixed parameters
 new_laplace <- function(formula, data, family, cov_ranef, beta, ss, REML = FALSE,
-                        repulsion = FALSE) {
+                        repulsion = FALSE, phi = NULL) {
   dd <- quiet(phyr:::pglmm_glmm_data(formula, data, family))
   tm <- quiet(phyr:::pglmm_sparse_terms(formula, dd$data, cov_ranef, TRUE, repulsion,
                                         allow.matrix = TRUE))
@@ -61,9 +71,9 @@ new_laplace <- function(formula, data, family, cov_ranef, beta, ss, REML = FALSE
   st$v <- rep(0, pre$q)
   st$o <- rep(0, nrow(dd$X))
   if (REML) {
-    phyr:::pglmm_laplace_ll(ss, lp, st, REML = TRUE)
+    phyr:::pglmm_laplace_ll(c(ss, phi), lp, st, REML = TRUE)
   } else {
-    phyr:::pglmm_laplace_ll(c(beta, ss), lp, st)
+    phyr:::pglmm_laplace_ll(c(beta, ss, phi), lp, st)
   }
 }
 
@@ -87,11 +97,29 @@ test_that("Laplace likelihood equals an explicit dense computation", {
   s <- sim_laplace_data()
   V <- ape::vcv(s$phy)
   V <- V / max(V)
+  # responses of negative binomial and Gamma models, and a phylogeny of sites
+  set.seed(31)
+  eta <- 0.3 + 0.4 * s$d$x + rnorm(15)[match(s$d$sp, s$phy$tip.label)]
+  s$d$nb <- rnbinom(nrow(s$d), mu = exp(eta), size = 2)
+  s$d$ga <- rgamma(nrow(s$d), shape = 3, rate = 3 / exp(eta))
+  phy_site <- ape::rcoal(6, tip.label = paste0("s", 1:6))
+  cov2 <- list(sp = s$phy, site = phy_site)
   cases <- list(
     list(f = y ~ x + (1 | sp__) + (x | sp) + (1 | site), fam = "binomial", cov = list(sp = s$phy)),
     list(f = cbind(s, f) ~ x + (1 | sp__) + (1 | sp__@site), fam = "binomial", cov = list(sp = s$phy)),
     list(f = cnt ~ x + (1 | site) + (1 | sp__@site), fam = "poisson", cov = list(sp = s$phy), rep = TRUE),
-    list(f = y ~ x + (1 | sp__) + (1 | sp__@site), fam = "binomial", cov = list(sp = V), rep = TRUE)
+    list(f = y ~ x + (1 | sp__) + (1 | sp__@site), fam = "binomial", cov = list(sp = V), rep = TRUE),
+    # bipartite terms (phylogenies of species and sites), inverting both or one
+    list(f = y ~ x + (1 | sp__) + (1 | sp__@site__), fam = "binomial", cov = cov2, rep = c(TRUE, TRUE)),
+    list(f = cnt ~ x + (1 | site__) + (1 | sp__@site__), fam = "poisson", cov = cov2, rep = c(FALSE, TRUE)),
+    # negative binomial and Gamma models with nested terms
+    list(f = nb ~ x + (1 | sp__) + (1 | site) + (1 | sp__@site), fam = "nbinomial", cov = list(sp = s$phy),
+         phi = 0.6),
+    list(f = nb ~ x + (1 | sp) + (1 | sp__@site), fam = "nbinomial", cov = list(sp = s$phy), rep = TRUE,
+         phi = 0.6),
+    list(f = ga ~ x + (1 | sp__) + (1 | sp__@site__), fam = "Gamma", cov = cov2, rep = c(TRUE, TRUE),
+         phi = 0.4),
+    list(f = ga ~ x + (1 | site) + (1 | sp@site__) + (1 | sp__@site), fam = "Gamma", cov = cov2, phi = 0.4)
   )
   for (cs in cases) {
     rep <- if (is.null(cs$rep)) FALSE else cs$rep
@@ -100,8 +128,8 @@ test_that("Laplace likelihood equals an explicit dense computation", {
     nss <- (if (is.null(dm$St)) 0 else nrow(dm$St)) + length(dm$nested)
     ss <- seq(0.4, 1.1, length.out = nss)
     for (REML in c(FALSE, TRUE)) {
-      expect_equal(new_laplace(cs$f, s$d, cs$fam, cs$cov, c(-0.2, 0.5), ss, REML, rep),
-                   dense_laplace(c(-0.2, 0.5), ss, dm, cs$fam, REML), tolerance = 1e-9)
+      expect_equal(new_laplace(cs$f, s$d, cs$fam, cs$cov, c(-0.2, 0.5), ss, REML, rep, cs$phi),
+                   dense_laplace(c(-0.2, 0.5), ss, dm, cs$fam, REML, cs$phi), tolerance = 1e-9)
     }
   }
 })
