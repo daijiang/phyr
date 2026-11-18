@@ -47,12 +47,14 @@ The phylogenetic random term is added automatically; the formula must not
 have random terms.}
 
 \item{family}{Either "gaussian" for a Linear Mixed Model, or
-"binomial" or "poisson" for Generalized Linear Mixed Models.
+"binomial", "poisson" or "nbinomial" (negative binomial) for Generalized Linear Mixed Models.
 \code{family} should be specified as a character string (i.e., quoted). For binomial and
-Poisson data, we use the canonical logit and log link functions, respectively.
+Poisson data, we use the canonical logit and log link functions, respectively; negative
+binomial data use the log link (see \code{\link[=pglmm]{pglmm()}}).
 Binomial data can be either presence/absence, or a two-column array of 'successes' and 'failures'.
 If \code{bayes = TRUE} there are
-two additional families available: "zeroinflated.binomial", and "zeroinflated.poisson",
+three additional families available: "zeroinflated.binomial", "zeroinflated.poisson" and
+"zeroinflated.nbinomial",
 which add a zero inflation parameter; this parameter gives the probability that the response is
 a zero. The rest of the parameters of the model then reflect the "non-zero" part
 of the model. Note that "zeroinflated.binomial" only makes sense for success/failure
@@ -94,7 +96,10 @@ role) or binary data. Earlier versions ignored this argument, so set
 estimates of \code{s2} and \code{B} are plotted each iteration
 during optimization.}
 
-\item{cpp}{Whether to use C++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE}.}
+\item{cpp}{Whether to use C++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE},
+\code{sparse = TRUE} or \code{method = "Laplace"} (and thus for \code{family = "nbinomial"}):
+these models are fitted with R code, with the sparse Cholesky factorizations of the Matrix
+package (CHOLMOD).}
 
 \item{bayes}{Whether to fit a Bayesian version of the PGLMM using \code{r-inla}. We recommend
 against Bayesian fitting for non-Gaussian data unless sample sizes are large (>1000), because
@@ -216,7 +221,8 @@ choice; only the scale of the variances (and of \code{s2.init}) does. Not used w
 \code{random.effects} is given.}
 
 \item{method}{For binomial and poisson data, \code{"PQL"} (default) or
-\code{"Laplace"}: see Details and \code{\link[=pglmm]{pglmm()}}.}
+\code{"Laplace"}: see Details and \code{\link[=pglmm]{pglmm()}}. Negative binomial data are always
+fitted with \code{"Laplace"}.}
 
 \item{object}{A fitted model with class pglmm_compare.}
 

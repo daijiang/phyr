@@ -6,7 +6,8 @@
 \usage{
 \method{residuals}{communityPGLMM}(
   object,
-  type = if (object$family \%in\% c("binomial", "poisson")) "deviance" else "response",
+  type = if (object$family \%in\% c("binomial", "poisson", "nbinomial")) "deviance" else
+    "response",
   scaled = FALSE,
   ...
 )
@@ -15,9 +16,9 @@
 \item{object}{A fitted model with class communityPGLMM.}
 
 \item{type}{Type of residuals, currently only "response" for gaussian pglmm;
-"deviance" (default) and "response" for binomial and poisson pglmm. For
-binomial models with more than one trial, the response is the proportion
-of successes.}
+"deviance" (default) and "response" for binomial, poisson and negative
+binomial pglmm. For binomial models with more than one trial, the response
+is the proportion of successes.}
 
 \item{scaled}{Scale residuals by residual standard deviation for gaussian pglmm.}
 

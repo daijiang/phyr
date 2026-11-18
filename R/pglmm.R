@@ -135,13 +135,26 @@
 #'   \code{pglmm}. As a result, \code{pglmm(data_with_NAs)} and
 #'   \code{pglmm(data[!is.na(data$y), ])} produce identical estimates.
 #' @param family Either "gaussian" for a Linear Mixed Model, or
-#'   "binomial" or "poisson" for Generalized Linear Mixed Models.
+#'   "binomial", "poisson" or "nbinomial" for Generalized Linear Mixed Models.
 #'   "family" should be specified as a character string (i.e., quoted). For binomial and
 #'   Poisson data, we use the canonical logit and log link functions, respectively.
 #'   Binomial data can be either presence/absence, or a two-column array of 'successes' and 'failures'.
 #'   For both binomial  and Poisson data, we add an observation-level
-#'   random term by default via \code{add.obs.re = TRUE}. If \code{bayes = TRUE} there are
-#'   two additional families available: "zeroinflated.binomial", and "zeroinflated.poisson",
+#'   random term by default via \code{add.obs.re = TRUE}.
+#'
+#'   "nbinomial" is the negative binomial distribution for overdispersed counts, with the log
+#'   link and the variance \eqn{\mu + \mu^2 / \theta}{mu + mu^2 / theta} given the random
+#'   effects (as \code{lme4::glmer.nb()}, \code{glmmTMB(family = nbinom2)} and
+#'   \code{MASS::glm.nb()}). Its dispersion parameter \eqn{\theta}{theta} is estimated with the
+#'   other parameters (element \code{theta} of the fitted model); \eqn{\theta = \infty}{theta = Inf}
+#'   is the poisson distribution. As \eqn{\theta}{theta} accounts for overdispersion, no
+#'   observation-level random term is added. With \code{bayes = FALSE}, negative binomial models
+#'   are always fitted with \code{method = "Laplace"}, with starting values from
+#'   \code{MASS::glm.nb()}.
+#'
+#'   If \code{bayes = TRUE} there are
+#'   three additional families available: "zeroinflated.binomial", "zeroinflated.poisson" and
+#'   "zeroinflated.nbinomial",
 #'   which add a zero inflation parameter; this parameter gives the probability that the response is
 #'   a zero. The rest of the parameters of the model then reflect the "non-zero" part part
 #'   of the model. Note that "zeroinflated.binomial" only makes sense for success/failure
@@ -204,14 +217,18 @@
 #' @param verbose If \code{TRUE}, the model deviance and running
 #'   estimates of \code{s2} and \code{B} are plotted each iteration
 #'   during optimization.
-#' @param cpp Whether to use C++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE}.
+#' @param cpp Whether to use C++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE},
+#'   \code{sparse = TRUE} or \code{method = "Laplace"} (and thus for \code{family = "nbinomial"}):
+#'   these models are fitted with R code, with the sparse Cholesky factorizations of the Matrix
+#'   package (CHOLMOD).
 #' @param bayes Whether to fit a Bayesian version of the PGLMM using \code{r-inla}.
 #' @param s2.init An array of initial estimates of s2 for each random
 #'   effect that scales the variance. If s2.init is not provided for
 #'   \code{family="gaussian"}, these are estimated using \code{\link{lm}} assuming
 #'   no phylogenetic signal. A better approach might be to run \code{link[lme4:lmer]{lmer}}
 #'   and use the output random effects for \code{s2.init}. If \code{s2.init} is not
-#'   provided for \code{family = "binomial"}, these are set to 0.25.
+#'   provided for \code{family = "binomial"}, these are set to 0.25 (with
+#'   \code{method = "Laplace"}, 0.25 for the variances multiplied by \code{scale_factors}).
 #'   For \code{family = "gaussian"} and \code{bayes = FALSE}, the model is parameterized with the
 #'   variances of random terms relative to the residual variance (see \code{ss} in the Value
 #'   section), and \code{s2.init} gives the starting values of these ratios.
@@ -355,7 +372,8 @@
 #'   choice; only the scale of the variances (and of \code{s2.init}) does. Not used when
 #'   \code{random.effects} is given.
 #' @param method For binomial and poisson models with \code{bayes = FALSE}, the
-#'   approximation of the likelihood: \code{"PQL"} (default) for penalized
+#'   approximation of the likelihood (negative binomial models, \code{family = "nbinomial"},
+#'   are always fitted with \code{"Laplace"}): \code{"PQL"} (default) for penalized
 #'   quasi-likelihood, as in earlier versions, or \code{"Laplace"} for the Laplace
 #'   approximation of the marginal likelihood, as in \code{lme4::glmer()} (with
 #'   \code{nAGQ = 1}) and \code{glmmTMB}. PQL is known to underestimate the variances of
@@ -381,8 +399,10 @@
 #'   \code{glmmTMB}), and the covariance matrix of the fixed effects is from the inverse of
 #'   the (numerical) Hessian of the log-likelihood over the fixed effects and the standard
 #'   deviations of the random terms, as in these packages. The optimizer is
-#'   \code{nlminb()}, on the scale of the variances (with a lower bound of zero), with
-#'   gradients by finite differences; \code{optimizer}, \code{tol.pql} and
+#'   \code{nlminb()}, on the scale of the variances multiplied by their \code{scale_factors}
+#'   (the variances of an average level, with a lower bound of zero; the default starting
+#'   values are 0.25 on this scale), and of the dispersion \eqn{1/\theta}{1/theta} of negative
+#'   binomial models, with gradients by finite differences; \code{optimizer}, \code{tol.pql} and
 #'   \code{maxit.pql} are not used. [ranef()] gives the conditional modes of the random
 #'   effects, and \code{condVar = TRUE} their conditional standard deviations from the
 #'   Hessian of the Laplace approximation (conditional on the estimates of the parameters).
@@ -415,7 +435,13 @@
 #' \item{formula}{the formula for fixed effects}
 #' \item{formula_original}{the formula for both fixed effects and random effects}
 #' \item{data}{the dataset}
-#' \item{family}{\code{gaussian}, \code{binomial}, or \code{poisson} depending on the model fit}
+#' \item{family}{\code{gaussian}, \code{binomial}, \code{poisson}, or \code{nbinomial} depending
+#'   on the model fit}
+#' \item{theta}{for negative binomial models, the estimate of the dispersion parameter
+#'   \eqn{\theta}{theta} (\code{Inf} if the data are not overdispersed: the poisson model); for
+#'   \code{bayes = TRUE}, its posterior summary, with the credible interval in \code{theta.ci}.
+#'   It is \code{sigma()} of \code{glmmTMB(family = nbinom2)} models and
+#'   \code{getME(, "glmer.nb.theta")} of \code{lme4::glmer.nb()} models.}
 #' \item{random.effects}{the list of random effects}
 #' \item{B}{estimates of the regression coefficients}
 #' \item{B.se}{approximate standard errors of the fixed effects regression coefficients.
@@ -812,8 +838,16 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
                       return.fitted.marginals = TRUE,
                       sparse = FALSE, standardize_cov = TRUE, phylo_only = FALSE,
                       method = c("PQL", "Laplace"), reltol.given = !missing(reltol)) {
+  if (identical(family, "nbinomial") && !bayes) {
+    # negative binomial models are only fitted with the Laplace approximation
+    # (PQL has no likelihood to estimate the dispersion with)
+    if (length(method) == 1 && identical(match.arg(method, c("PQL", "Laplace")), "PQL")) {
+      stop('family = "nbinomial" is only available with method = "Laplace".', call. = FALSE)
+    }
+    method <- "Laplace"
+  }
   method <- match.arg(method)
-  laplace <- method == "Laplace" && !bayes && family %in% c("binomial", "poisson")
+  laplace <- method == "Laplace" && !bayes && family %in% c("binomial", "poisson", "nbinomial")
   valid_optimizers <- c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex", "lbfgs")
   optimizer.given <- !is.null(optimizer)
   if (is.null(optimizer)) {
@@ -822,8 +856,8 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
     optimizer <- match.arg(optimizer, valid_optimizers)
   }
 
-  if ((family %nin% c("gaussian", "binomial", "poisson")) & (bayes == FALSE)) {
-    stop("\nSorry, but only binomial, poisson and gaussian options are available for
+  if ((family %nin% c("gaussian", "binomial", "poisson", "nbinomial")) & (bayes == FALSE)) {
+    stop("\nSorry, but only binomial, poisson, nbinomial and gaussian options are available for
          pglmm at this time")
   }
 
@@ -833,15 +867,16 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
            Please run in your R terminal:\
            install.packages('INLA', repos='https://inla.r-inla-download.org/R/stable')")
     }
-    if ((family %nin% c("gaussian", "binomial", "poisson", "zeroinflated.binomial", "zeroinflated.poisson"))) {
-      stop("\nSorry, but only binomial (binary or success/failure), poisson (count), and gaussian options
-           are available for Bayesian pglmm at this time")
+    if ((family %nin% c("gaussian", "binomial", "poisson", "nbinomial", "zeroinflated.binomial",
+                        "zeroinflated.poisson", "zeroinflated.nbinomial"))) {
+      stop("\nSorry, but only binomial (binary or success/failure), poisson and nbinomial (count),
+           and gaussian options are available for Bayesian pglmm at this time")
     }
   }
 
-  if (family %in% c("binomial", "poisson") & !is.null(tree)) {
+  if (family %in% c("binomial", "poisson", "nbinomial") & !is.null(tree)) {
     if (("phylo" %in% class(tree)) & !ape::is.ultrametric(tree)) {
-      warning("The tree is not ultrametric, which will likely give misleading results for family=binomial and poisson models.")
+      warning("The tree is not ultrametric, which will likely give misleading results for family=binomial, poisson and nbinomial models.")
     }
   }
 
@@ -888,7 +923,7 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
     }
     z <- communityPGLMM.glmm.laplace(
       formula = formula, data = data, family = family, cov_ranef = cov_ranef, REML = REML,
-      s2.init = if (is.null(s2.init)) 0.25 else s2.init, B.init = B.init,
+      s2.init = s2.init, B.init = B.init,
       reltol = if (reltol.given) reltol else 1e-10, maxit = maxit, verbose = verbose,
       standardize_cov = standardize_cov, repulsion = repulsion, add.obs.re = add.obs.re,
       phylo_only = phylo_only
@@ -1563,6 +1598,9 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   if (family == "zeroinflated.poisson") {
     family <- "zeroinflatedpoisson1"
   }
+  if (family == "zeroinflated.nbinomial") {
+    family <- "zeroinflatednbinomial1"
+  }
 
   if (family == "gaussian") q <- q + 1
 
@@ -1585,7 +1623,8 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     if (!is.null(B.init) & length(B.init) != p) {
       warning("B.init not correct length, so computed B.init using glm()")
     }
-    glm_bayes <- glm(formula = formula, data = data, family = base_family, na.action = na.omit)
+    glm_bayes <- glm(formula = formula, data = data, na.action = na.omit,
+                     family = if (base_family == "nbinomial") "poisson" else base_family)
     if ((is.null(B.init) | (!is.null(B.init) & length(B.init) != p))) {
       B.init <- t(matrix(glm_bayes$coefficients, ncol = p))
     } else {
@@ -1834,6 +1873,17 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     resid_var.ci <- NULL
   }
 
+  # negative binomial: the first hyperparameter is the size theta (not a precision)
+  if (base_family == "nbinomial") {
+    nb_theta <- unname(1 / variances[1])
+    nb_theta.ci <- rev(1 / variances.ci[1, ])
+    variances <- variances[-1]
+    variances.ci <- variances.ci[-1, ]
+  } else {
+    nb_theta <- NULL
+    nb_theta.ci <- NULL
+  }
+
   if (grepl("zeroinflated", family)) {
     zeroinlated_param <- 1 / variances[1]
     variances <- variances[-1]
@@ -1870,7 +1920,7 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     s2resid = resid_var, scale_factors = scale_factors,
     zi = zeroinlated_param, s2n.ci = variances.ci[nested, ],
     s2r.ci = variances.ci[!nested, ], s2resid.ci = resid_var.ci,
-    zi.ci = zeroinflated_param.ci,
+    zi.ci = zeroinflated_param.ci, theta = nb_theta, theta.ci = nb_theta.ci,
     logLik = out$mlik[1, 1], AIC = NULL, BIC = NULL, DIC = DIC, WAIC = WAIC,
     REML = NULL, bayes = TRUE, marginal.summ = marginal.summ,
     s2.init = s2.init, B.init = B.init, Y = Y, size = Ntrials, X = X, H = H,

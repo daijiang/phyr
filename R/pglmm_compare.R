@@ -101,13 +101,15 @@
 #' @param data A data frame containing the variables named in formula. It must has
 #' the tip labels of the phylogeny as row names; if they are not in the same order,
 #' the data frame will be arranged so that row names match the order of tip labels.
-#' @param family Either "gaussian" for a Linear Mixed Model, or 
-#'   "binomial" or "poisson" for Generalized Linear Mixed Models.
-#'   \code{family} should be specified as a character string (i.e., quoted). For binomial and 
-#'   Poisson data, we use the canonical logit and log link functions, respectively. 
-#'   Binomial data can be either presence/absence, or a two-column array of 'successes' and 'failures'. 
+#' @param family Either "gaussian" for a Linear Mixed Model, or
+#'   "binomial", "poisson" or "nbinomial" (negative binomial) for Generalized Linear Mixed Models.
+#'   \code{family} should be specified as a character string (i.e., quoted). For binomial and
+#'   Poisson data, we use the canonical logit and log link functions, respectively; negative
+#'   binomial data use the log link (see [pglmm()]).
+#'   Binomial data can be either presence/absence, or a two-column array of 'successes' and 'failures'.
 #'   If \code{bayes = TRUE} there are
-#'   two additional families available: "zeroinflated.binomial", and "zeroinflated.poisson",
+#'   three additional families available: "zeroinflated.binomial", "zeroinflated.poisson" and
+#'   "zeroinflated.nbinomial",
 #'   which add a zero inflation parameter; this parameter gives the probability that the response is
 #'   a zero. The rest of the parameters of the model then reflect the "non-zero" part 
 #'   of the model. Note that "zeroinflated.binomial" only makes sense for success/failure
@@ -130,7 +132,8 @@
 #'   with the sparse precision matrix of the phylogeny, which is much faster for
 #'   large phylogenies (see Details and [pglmm()]). Only with \code{bayes = FALSE}.
 #' @param method For binomial and poisson data, \code{"PQL"} (default) or
-#'   \code{"Laplace"}: see Details and [pglmm()].
+#'   \code{"Laplace"}: see Details and [pglmm()]. Negative binomial data are always
+#'   fitted with \code{"Laplace"}.
 #' @inheritParams pglmm
 #' @return An object of class \code{c("pglmm_compare", "communityPGLMM")}: all
 #'   the elements returned by [pglmm()] (see its Value section), and:
@@ -279,7 +282,7 @@ pglmm_compare <- function(formula, family = "gaussian",
                           return.fitted.marginals = TRUE,
                           sparse = FALSE, standardize_cov = TRUE,
                           method = c("PQL", "Laplace")) {
-  method <- match.arg(method)
+  # method is matched by pglmm_fit() (the default is "Laplace" for nbinomial)
   if (!inherits(phy, "phylo")) stop("phy must be a phylogeny with class 'phylo'.", call. = FALSE)
   if (!is.null(reformulas::findbars(formula))) {
     stop("The formula of pglmm_compare() has fixed effects only: the phylogenetic random term ",
@@ -396,25 +399,7 @@ summary.pglmm_compare <- function(object, digits = max(3, getOption("digits") - 
   x <- object # summary generic function first argument is object, not x.
   if(is.null(x$bayes)) x$bayes = FALSE # to be compatible with models fitting by pez
   
-  if(x$bayes) {
-    if (x$family == "gaussian") {
-      cat("Linear mixed model fit by Bayesian INLA")
-    }
-    if (x$family == "binomial") {
-      cat("Generalized linear mixed model for binomial data fit by Bayesian INLA")
-    }
-    if (x$family == "poisson") {
-      cat("Generalized linear mixed model for poisson data fit by Bayesian INLA")
-    }
-    if (x$family == "zeroinflated.binomial") {
-      cat("Generalized linear mixed model for binomial data with zero inflation fit by Bayesian INLA")
-    }
-    if (x$family == "zeroinflated.poisson") {
-      cat("Generalized linear mixed model for poisson data with zero inflation fit by Bayesian INLA")
-    }
-  } else {
-    cat(pglmm_fit_title(x))
-  }
+  cat(if (x$bayes) pglmm_bayes_title(x) else pglmm_fit_title(x))
   
   cat("\n\nCall:")
   print(x$formula)
@@ -439,7 +424,8 @@ summary.pglmm_compare <- function(object, digits = max(3, getOption("digits") - 
     cat("\nZero Inflation Parameter:\n")
     print(data.frame(Estimate = x$zi, lower.CI = x$zi.ci[1, 1], upper.CI = x$zi.ci[1, 2]), digits = digits)
   }
-  
+  pglmm_print_theta(x, digits)
+
   cat("\nPhylogenetic random effects variance (s2):\n")
   w <- data.frame(Variance = c(x$s2n, x$s2resid))
   w$Std.Dev = sqrt(w$Variance)

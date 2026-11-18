@@ -112,13 +112,26 @@ is equivalent to removing those rows from \code{data} manually before calling
 \code{pglmm(data[!is.na(data$y), ])} produce identical estimates.}
 
 \item{family}{Either "gaussian" for a Linear Mixed Model, or
-"binomial" or "poisson" for Generalized Linear Mixed Models.
+"binomial", "poisson" or "nbinomial" for Generalized Linear Mixed Models.
 "family" should be specified as a character string (i.e., quoted). For binomial and
 Poisson data, we use the canonical logit and log link functions, respectively.
 Binomial data can be either presence/absence, or a two-column array of 'successes' and 'failures'.
 For both binomial  and Poisson data, we add an observation-level
-random term by default via \code{add.obs.re = TRUE}. If \code{bayes = TRUE} there are
-two additional families available: "zeroinflated.binomial", and "zeroinflated.poisson",
+random term by default via \code{add.obs.re = TRUE}.
+
+"nbinomial" is the negative binomial distribution for overdispersed counts, with the log
+link and the variance \eqn{\mu + \mu^2 / \theta}{mu + mu^2 / theta} given the random
+effects (as \code{lme4::glmer.nb()}, \code{glmmTMB(family = nbinom2)} and
+\code{MASS::glm.nb()}). Its dispersion parameter \eqn{\theta}{theta} is estimated with the
+other parameters (element \code{theta} of the fitted model); \eqn{\theta = \infty}{theta = Inf}
+is the poisson distribution. As \eqn{\theta}{theta} accounts for overdispersion, no
+observation-level random term is added. With \code{bayes = FALSE}, negative binomial models
+are always fitted with \code{method = "Laplace"}, with starting values from
+\code{MASS::glm.nb()}.
+
+If \code{bayes = TRUE} there are
+three additional families available: "zeroinflated.binomial", "zeroinflated.poisson" and
+"zeroinflated.nbinomial",
 which add a zero inflation parameter; this parameter gives the probability that the response is
 a zero. The rest of the parameters of the model then reflect the "non-zero" part part
 of the model. Note that "zeroinflated.binomial" only makes sense for success/failure
@@ -189,7 +202,10 @@ so \code{add.obs.re = TRUE} by default.}
 estimates of \code{s2} and \code{B} are plotted each iteration
 during optimization.}
 
-\item{cpp}{Whether to use C++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE}.}
+\item{cpp}{Whether to use C++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE},
+\code{sparse = TRUE} or \code{method = "Laplace"} (and thus for \code{family = "nbinomial"}):
+these models are fitted with R code, with the sparse Cholesky factorizations of the Matrix
+package (CHOLMOD).}
 
 \item{bayes}{Whether to fit a Bayesian version of the PGLMM using \code{r-inla}.}
 
@@ -198,7 +214,8 @@ effect that scales the variance. If s2.init is not provided for
 \code{family="gaussian"}, these are estimated using \code{\link{lm}} assuming
 no phylogenetic signal. A better approach might be to run \code{link[lme4:lmer]{lmer}}
 and use the output random effects for \code{s2.init}. If \code{s2.init} is not
-provided for \code{family = "binomial"}, these are set to 0.25.
+provided for \code{family = "binomial"}, these are set to 0.25 (with
+\code{method = "Laplace"}, 0.25 for the variances multiplied by \code{scale_factors}).
 For \code{family = "gaussian"} and \code{bayes = FALSE}, the model is parameterized with the
 variances of random terms relative to the residual variance (see \code{ss} in the Value
 section), and \code{s2.init} gives the starting values of these ratios.}
@@ -365,7 +382,8 @@ choice; only the scale of the variances (and of \code{s2.init}) does. Not used w
 \code{random.effects} is given.}
 
 \item{method}{For binomial and poisson models with \code{bayes = FALSE}, the
-approximation of the likelihood: \code{"PQL"} (default) for penalized
+approximation of the likelihood (negative binomial models, \code{family = "nbinomial"},
+are always fitted with \code{"Laplace"}): \code{"PQL"} (default) for penalized
 quasi-likelihood, as in earlier versions, or \code{"Laplace"} for the Laplace
 approximation of the marginal likelihood, as in \code{lme4::glmer()} (with
 \code{nAGQ = 1}) and \code{glmmTMB}. PQL is known to underestimate the variances of
@@ -391,8 +409,10 @@ the variances are then estimated jointly (as \code{glmer(nAGQ = 1)} and
 \code{glmmTMB}), and the covariance matrix of the fixed effects is from the inverse of
 the (numerical) Hessian of the log-likelihood over the fixed effects and the standard
 deviations of the random terms, as in these packages. The optimizer is
-\code{nlminb()}, on the scale of the variances (with a lower bound of zero), with
-gradients by finite differences; \code{optimizer}, \code{tol.pql} and
+\code{nlminb()}, on the scale of the variances multiplied by their \code{scale_factors}
+(the variances of an average level, with a lower bound of zero; the default starting
+values are 0.25 on this scale), and of the dispersion \eqn{1/\theta}{1/theta} of negative
+binomial models, with gradients by finite differences; \code{optimizer}, \code{tol.pql} and
 \code{maxit.pql} are not used. \code{\link[=ranef]{ranef()}} gives the conditional modes of the random
 effects, and \code{condVar = TRUE} their conditional standard deviations from the
 Hessian of the Laplace approximation (conditional on the estimates of the parameters).
@@ -427,7 +447,13 @@ An object (list) of class \code{communityPGLMM} with the following elements:
 \item{formula}{the formula for fixed effects}
 \item{formula_original}{the formula for both fixed effects and random effects}
 \item{data}{the dataset}
-\item{family}{\code{gaussian}, \code{binomial}, or \code{poisson} depending on the model fit}
+\item{family}{\code{gaussian}, \code{binomial}, \code{poisson}, or \code{nbinomial} depending
+on the model fit}
+\item{theta}{for negative binomial models, the estimate of the dispersion parameter
+\eqn{\theta}{theta} (\code{Inf} if the data are not overdispersed: the poisson model); for
+\code{bayes = TRUE}, its posterior summary, with the credible interval in \code{theta.ci}.
+It is \code{sigma()} of \code{glmmTMB(family = nbinom2)} models and
+\code{getME(, "glmer.nb.theta")} of \code{lme4::glmer.nb()} models.}
 \item{random.effects}{the list of random effects}
 \item{B}{estimates of the regression coefficients}
 \item{B.se}{approximate standard errors of the fixed effects regression coefficients.

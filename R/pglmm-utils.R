@@ -1060,25 +1060,7 @@ summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") -
   x <- object # summary generic function first argument is object, not x.
   if (is.null(x$bayes)) x$bayes <- FALSE # to be compatible with models fitting by pez
 
-  if (x$bayes) {
-    if (x$family == "gaussian") {
-      cat("Linear mixed model fit by Bayesian INLA")
-    }
-    if (x$family == "binomial") {
-      cat("Generalized linear mixed model for binomial data fit by Bayesian INLA")
-    }
-    if (x$family == "poisson") {
-      cat("Generalized linear mixed model for poisson data fit by Bayesian INLA")
-    }
-    if (x$family == "zeroinflated.binomial") {
-      cat("Generalized linear mixed model for binomial data with zero inflation fit by Bayesian INLA")
-    }
-    if (x$family == "zeroinflated.poisson") {
-      cat("Generalized linear mixed model for poisson data with zero inflation fit by Bayesian INLA")
-    }
-  } else {
-    cat(pglmm_fit_title(x))
-  }
+  cat(if (x$bayes) pglmm_bayes_title(x) else pglmm_fit_title(x))
 
   cat("\n\nCall:")
   print(x$formula)
@@ -1109,6 +1091,7 @@ summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") -
       upper.CI = x$zi.ci[1, 2]
     ), digits = digits)
   }
+  pglmm_print_theta(x, digits)
 
   cat("\nRandom effects:\n")
   w <- data.frame(Variance = c(x$s2r, x$s2n, x$s2resid))
@@ -1164,11 +1147,41 @@ print.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ..
 }
 
 
+# name of the distribution of a family for printing; family can be the name
+# used by INLA for zero-inflated models (e.g. zeroinflatedpoisson1)
+pglmm_family_label <- function(family) {
+  if (grepl("nbinomial", family)) return("negative binomial")
+  if (grepl("binomial", family)) return("binomial")
+  if (grepl("poisson", family)) return("poisson")
+  family
+}
+
+# title of the summary of a model fitted with bayes = TRUE
+pglmm_bayes_title <- function(x) {
+  if (x$family == "gaussian") return("Linear mixed model fit by Bayesian INLA")
+  paste0("Generalized linear mixed model for ", pglmm_family_label(x$family), " data",
+         if (grepl("zeroinflated", x$family)) " with zero inflation", " fit by Bayesian INLA")
+}
+
+# the dispersion parameter theta of negative binomial models, for summary()
+pglmm_print_theta <- function(x, digits) {
+  theta <- x[["theta"]]
+  if (is.null(theta)) return(invisible(NULL))
+  cat("\nDispersion parameter of the negative binomial distribution (theta):\n")
+  if (isTRUE(x$bayes) && !is.null(x[["theta.ci"]])) {
+    print(data.frame(Estimate = theta, lower.CI = x$theta.ci[1, 1], upper.CI = x$theta.ci[1, 2],
+                     row.names = "theta"), digits = digits)
+  } else {
+    print(c(theta = theta), digits = digits)
+  }
+  invisible(NULL)
+}
+
 # title of the summary of a model fitted with bayes = FALSE
 pglmm_fit_title <- function(x) {
   lik <- if (isTRUE(x$REML)) "restricted maximum likelihood" else "maximum likelihood"
   if (x$family == "gaussian") return(paste("Linear mixed model fit by", lik))
-  out <- paste("Generalized linear mixed model for", x$family, "data fit by")
+  out <- paste("Generalized linear mixed model for", pglmm_family_label(x$family), "data fit by")
   if (identical(x$method, "Laplace")) {
     paste0(out, " Laplace approximation (", lik, ")")
   } else if (identical(x$method, "PQL")) {
@@ -1594,10 +1607,11 @@ pglmm_predicted_values <- function(x, cpp = TRUE,
     } else if (x$family == "binomial") {
       # mu is linkinv(X %*% B + b), with b the random effects estimated by PQL
       predicted.values <- logit(as.vector(x$mu))
-    } else if (x$family == "poisson") {
+    } else if (x$family %in% c("poisson", "nbinomial")) {
       predicted.values <- log(as.vector(x$mu))
     } else {
-      stop("no predicted values for family other than gaussian, binomial and poisson, yet", call. = FALSE)
+      stop("no predicted values for family other than gaussian, binomial, poisson and nbinomial, yet",
+           call. = FALSE)
     }
     if (type == "response") predicted.values <- linkinv(predicted.values)
   }
@@ -1608,13 +1622,20 @@ pglmm_predicted_values <- function(x, cpp = TRUE,
 # inverse link function of a fitted model; family is a string, which can be the
 # name used by INLA for zero-inflated models (e.g. zeroinflatedbinomial1)
 pglmm_linkinv <- function(family) {
+  if (grepl("poisson", family) || grepl("nbinomial", family)) {
+    return(make.link("log")$linkinv)
+  }
   if (grepl("binomial", family)) {
     return(make.link("logit")$linkinv)
   }
-  if (grepl("poisson", family)) {
-    return(make.link("log")$linkinv)
-  }
   identity
+}
+
+# family object of negative binomial models with the dispersion theta (the
+# poisson family for theta = Inf)
+pglmm_nb_family <- function(theta) {
+  if (is.null(theta) || !is.finite(theta)) return(stats::poisson())
+  MASS::negative.binomial(theta)
 }
 
 # number of trials of binomial models
@@ -1641,9 +1662,9 @@ communityPGLMM.predicted.values <- function(x, cpp = TRUE,
 #'
 #' @param object A fitted model with class communityPGLMM.
 #' @param type Type of residuals, currently only "response" for gaussian pglmm;
-#'   "deviance" (default) and "response" for binomial and poisson pglmm. For
-#'   binomial models with more than one trial, the response is the proportion
-#'   of successes.
+#'   "deviance" (default) and "response" for binomial, poisson and negative
+#'   binomial pglmm. For binomial models with more than one trial, the response
+#'   is the proportion of successes.
 #' @param scaled Scale residuals by residual standard deviation for gaussian pglmm.
 #' @param \dots Additional arguments, ignored for method compatibility.
 #' @method residuals communityPGLMM
@@ -1677,11 +1698,12 @@ communityPGLMM.predicted.values <- function(x, cpp = TRUE,
 #' @export
 residuals.communityPGLMM <- function(
   object,
-  type = if (object$family %in% c("binomial", "poisson")) "deviance" else "response",
+  type = if (object$family %in% c("binomial", "poisson", "nbinomial")) "deviance" else "response",
   scaled = FALSE, ...
 ) {
-  if (object$family %nin% c("gaussian", "binomial", "poisson")) {
-    stop("no residual methods for family other than gaussian, binomial and poisson, yet", call. = FALSE)
+  if (object$family %nin% c("gaussian", "binomial", "poisson", "nbinomial")) {
+    stop("no residual methods for family other than gaussian, binomial, poisson and nbinomial, yet",
+         call. = FALSE)
   }
   type <- match.arg(type, c("deviance", "response"))
 
@@ -1696,6 +1718,9 @@ residuals.communityPGLMM <- function(
       size <- pglmm_binomial_size(object)
       y <- y / size # proportion of successes
       dres <- sqrt(binomial()$dev.resids(y, mu, rep_len(size, length(y))))
+    } else if (object$family == "nbinomial") {
+      dev <- pglmm_nb_family(object[["theta"]])$dev.resids(y, mu, rep(1, length(y)))
+      dres <- sqrt(pmax(dev, 0))
     } else {
       dres <- sqrt(poisson()$dev.resids(y, mu, rep(1, length(y))))
     }
@@ -1745,7 +1770,7 @@ fitted.communityPGLMM <- function(object, ...) {
   if (isTRUE(object$bayes)) {
     ft <- pglmm_predicted_values(object, type = "response")$Y_hat
   } else {
-    if (object$family %in% c("binomial", "poisson")) {
+    if (object$family %in% c("binomial", "poisson", "nbinomial")) {
       ft <- object$mu[, 1]
     } else {
       ft <- pglmm_predicted_values(object, ...)$Y_hat
@@ -2241,6 +2266,7 @@ VarCorr.communityPGLMM <- function(x, sigma = 1, ...) {
 #'
 #' @export
 family.communityPGLMM <- function(object, ...) {
+  if (grepl("nbinomial", object$family)) return(pglmm_nb_family(object[["theta"]]))
   fam <- match.fun(object$family)
   fam()
 }
@@ -2574,6 +2600,10 @@ simulate.communityPGLMM <- function(object, nsim = 1, seed = NULL,
       mu_sim <- make.link("log")$linkinv(sim) # exp(sim)
       sim <- apply(mu_sim, MARGIN = 2, FUN = function(x) rpois(length(x), x))
     }
+    if (object$family == "nbinomial") {
+      mu_sim <- make.link("log")$linkinv(sim)
+      sim <- apply(mu_sim, MARGIN = 2, FUN = function(x) rnbinom(length(x), mu = x, size = object$theta))
+    }
     if (object$family == "binomial") {
       mu_sim <- make.link("logit")$linkinv(sim) # 1/(1 + exp(-sim))
       Ntrials <- pglmm_binomial_size(object)
@@ -2664,6 +2694,7 @@ bayes_simulate <- function(object, nsim = 250, re.form, ntry = 5, full = FALSE) 
       sim <- switch(object$family,
         binomial = lapply(mu_sim, function(x) rbinom(length(x), Ntrials, x)),
         poisson = lapply(mu_sim, function(x) rpois(length(x), x)),
+        nbinomial = lapply(mu_sim, function(x) rnbinom(length(x), mu = x, size = object$theta)),
         mu_sim
       )
 
@@ -2678,6 +2709,7 @@ bayes_simulate <- function(object, nsim = 250, re.form, ntry = 5, full = FALSE) 
       sim <- switch(object$family,
         binomial = lapply(mu_sim, function(x) rbinom(length(x), Ntrials, x)),
         poisson = lapply(mu_sim, function(x) rpois(length(x), x)),
+        nbinomial = lapply(mu_sim, function(x) rnbinom(length(x), mu = x, size = object$theta)),
         mu_sim
       )
 
@@ -2693,6 +2725,7 @@ bayes_simulate <- function(object, nsim = 250, re.form, ntry = 5, full = FALSE) 
           sim[missing] <- switch(object$family,
             binomial = lapply(mu_sim[missing], function(x) rbinom(length(x), Ntrials, x)),
             poisson = lapply(mu_sim[missing], function(x) rpois(length(x), x)),
+            nbinomial = lapply(mu_sim[missing], function(x) rnbinom(length(x), mu = x, size = object$theta)),
             mu_sim
           )
           missing <- sapply(sim, function(x) any(is.na(x)))
@@ -2731,6 +2764,7 @@ bayes_simulate <- function(object, nsim = 250, re.form, ntry = 5, full = FALSE) 
         sim <- switch(object$family,
           binomial = lapply(mu_sim, function(x) rbinom(length(x), Ntrials, x)),
           poisson = lapply(mu_sim, function(x) rpois(length(x), x)),
+          nbinomial = lapply(mu_sim, function(x) rnbinom(length(x), mu = x, size = object$theta)),
           mu_sim
         )
 
@@ -2751,6 +2785,7 @@ bayes_simulate <- function(object, nsim = 250, re.form, ntry = 5, full = FALSE) 
         sim <- switch(object$family,
           binomial = lapply(mu_sim, function(x) rbinom(length(x), Ntrials, x)),
           poisson = lapply(mu_sim, function(x) rpois(length(x), x)),
+          nbinomial = lapply(mu_sim, function(x) rnbinom(length(x), mu = x, size = object$theta)),
           mu_sim
         )
 
@@ -2769,6 +2804,7 @@ bayes_simulate <- function(object, nsim = 250, re.form, ntry = 5, full = FALSE) 
             sim[missing] <- switch(object$family,
               binomial = lapply(mu_sim[missing], function(x) rbinom(length(x), Ntrials, x)),
               poisson = lapply(mu_sim[missing], function(x) rpois(length(x), x)),
+              nbinomial = lapply(mu_sim[missing], function(x) rnbinom(length(x), mu = x, size = object$theta)),
               mu_sim
             )
             missing <- sapply(sim, function(x) any(is.na(x)))

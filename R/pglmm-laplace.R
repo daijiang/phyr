@@ -1,17 +1,23 @@
-# Laplace approximation for binomial and poisson pglmm ----
+# Laplace approximation for binomial, poisson and negative binomial pglmm ----
 #
 # With method = "Laplace", the marginal likelihood of a binomial or poisson
 # model is approximated with the Laplace approximation, as lme4::glmer() (with
 # nAGQ = 1) and glmmTMB do, instead of the penalized quasi-likelihood (PQL).
+# Negative binomial models (family = "nbinomial") are only fitted this way.
 # It uses the precision matrices of pglmm_sparse_terms() and the weighted setup
 # of pglmm_sparse_setup(weights = TRUE). With the random effects u = Theta v of
 # all terms, v ~ N(0, Q^-1), and the effects o ~ N(0, s2 I) of the
 # observation-level term 1|obs (if any), the linear predictor is
 #   eta = X b + Z Theta v + o.
 # For given b, Theta and s2, let (v, o) be the mode of the joint density
-# p(y | eta) p(v) p(o), and W = diag(w) the variances of y given eta at the
-# mode (the canonical links make the observed and expected information the
-# same). The Laplace approximation of the log-likelihood is
+# p(y | eta) p(v) p(o), and W = diag(w) the observed information
+# -d2 log p(y | eta) / d eta2 at the mode. With the canonical links of binomial
+# and poisson models, this is the variance of y given eta, and the score
+# d log p(y | eta) / d eta is y - m (m: the mean of y given eta). For the
+# negative binomial (NB2: Var(y) = m + phi m^2, with the dispersion
+# phi = 1 / theta) with a log link, the score is g = (y - m) / (1 + phi m) and
+# w = m (1 + phi y) / (1 + phi m)^2 > 0; below, y - m stands for the score g.
+# The Laplace approximation of the log-likelihood is
 #   log L = log p(y | eta) - v'Q v / 2 - o'o / (2 s2) + log|Q| / 2
 #           - n log(s2) / 2 - log|H| / 2,
 # with H = [M_W, Theta Z'W; W Z Theta, W + I / s2] the Hessian of minus the log
@@ -31,19 +37,24 @@
 # least squares) with step halving. The same elimination of o gives the
 # Newton step of v from M only:
 #   M dv = Theta Z' e - Q v,  e = (y - m + w o) / (1 + s2 w)
-#   do = (s2 (y - m) - o) / (1 + s2 w) - s2 wt Z Theta dv
-# (m: the mean of y given eta). The mode of the previous evaluation is the
-# starting point of the next one.
+#   do = (s2 (y - m) - o) / (1 + s2 w) - s2 wt Z Theta dv.
+# The mode of the previous evaluation is the starting point of the next one.
 #
 # REML: the fixed effects b are integrated out too (flat prior), as glmmTMB
 # does with REML = TRUE. Then b is part of the mode (its Newton step uses the
 # Schur complement G = X'Wt X - X'Wt Z Theta M^-1 Theta Z'Wt X =
 # X' V^-1 X), and log L gets the extra terms - log|G| / 2 + p log(2 pi) / 2.
+#
+# Negative binomial models: the dispersion phi >= 0 is estimated with the
+# variances of the random terms (phi = 0 is the poisson model); it is the last
+# element of the parameters of pglmm_laplace_ll().
 
 # Pieces of the Laplace approximation that do not depend on the parameters:
 # the products with the precision matrix Q of all terms (with auxiliary
 # variables of repulsion terms, Q = M0 + C B^-1 C', with B factorized once),
-# and the functions of the family.
+# and the functions of the family: for the linear predictor eta (and the
+# dispersion phi of negative binomial models), the mean m, the score g, the
+# observed information w, and the log density logp (without const).
 pglmm_laplace_prep <- function(pre, X, Y, size, family, has.obs) {
   Qs <- pre$M
   Qs@x <- pre$qx
@@ -64,22 +75,33 @@ pglmm_laplace_prep <- function(pre, X, Y, size, family, has.obs) {
     Qmult <- function(v) as.vector(Qs %*% v)
   }
   if (family == "binomial") {
-    fam <- function(eta) {
+    fam <- function(eta, phi = 0) {
       pr <- stats::plogis(eta)
       l1pe <- ifelse(eta > 0, eta + log1p(exp(-eta)), log1p(exp(eta))) # log(1 + exp(eta))
-      list(m = size * pr, w = size * pr * (1 - pr), logp = sum(Y * eta - size * l1pe))
+      m <- size * pr
+      list(m = m, g = Y - m, w = size * pr * (1 - pr), logp = sum(Y * eta - size * l1pe))
     }
     const <- sum(lchoose(size, Y))
-  } else {
-    fam <- function(eta) {
+  } else if (family == "nbinomial") {
+    # dnbinom() is accurate for any theta = 1 / phi, also the poisson
+    # distribution for phi = 0
+    fam <- function(eta, phi = 0) {
       m <- exp(eta)
-      list(m = m, w = m, logp = sum(Y * eta - m))
+      den <- 1 + phi * m
+      logp <- suppressWarnings(sum(stats::dnbinom(Y, size = 1 / phi, mu = m, log = TRUE)))
+      list(m = m, g = (Y - m) / den, w = m * (1 + phi * Y) / den^2, logp = logp)
+    }
+    const <- 0
+  } else {
+    fam <- function(eta, phi = 0) {
+      m <- exp(eta)
+      list(m = m, g = Y - m, w = m, logp = sum(Y * eta - m))
     }
     const <- -sum(lgamma(Y + 1))
   }
   list(pre = pre, X = X, Y = Y, size = size, family = family, has.obs = has.obs,
        n = nrow(X), p = ncol(X), nt = max(pre$term.of.col), Qmult = Qmult, fam = fam,
-       const = const)
+       const = const, nb = family == "nbinomial")
 }
 
 # Mode of the random effects and Laplace approximation of the log-likelihood
@@ -88,8 +110,10 @@ pglmm_laplace_prep <- function(pre, X, Y, size, family, has.obs) {
 # environment with the starting point (v, o, and beta with fit.beta = TRUE),
 # updated with the mode. Returns the log-likelihood ll (without the REML
 # terms), the mode (cur), the factorization L of M and, with fit.beta = TRUE,
-# G = X' V^-1 X, all at the mode.
-pglmm_laplace_mode <- function(beta, ss, lp, st, fit.beta = FALSE, maxit = 50, tol = 1e-20) {
+# G = X' V^-1 X, all at the mode. phi: the dispersion of negative binomial
+# models.
+pglmm_laplace_mode <- function(beta, ss, lp, st, fit.beta = FALSE, maxit = 50, tol = 1e-20,
+                               phi = 0) {
   pre <- lp$pre
   X <- lp$X
   Z <- pre$Z
@@ -101,7 +125,7 @@ pglmm_laplace_mode <- function(beta, ss, lp, st, fit.beta = FALSE, maxit = 50, t
   thc <- th[pre$term.of.col]
   point <- function(beta, v, o) {
     eta <- as.vector(X %*% beta) + as.vector(Z %*% (thc * v)) + o
-    f <- lp$fam(eta)
+    f <- lp$fam(eta, phi)
     Qv <- lp$Qmult(v)
     pen <- f$logp - 0.5 * sum(v * Qv) - (if (s2 > 0) 0.5 * sum(o^2) / s2 else 0)
     if (!is.finite(pen)) pen <- -Inf
@@ -119,7 +143,7 @@ pglmm_laplace_mode <- function(beta, ss, lp, st, fit.beta = FALSE, maxit = 50, t
     w <- cur$w
     den <- 1 + s2 * w
     wt <- w / den
-    res <- lp$Y - cur$m
+    res <- cur$g # the score of log p(y | eta): y - m for canonical links
     e <- (res + w * cur$o) / den
     gv <- thc * as.vector(Matrix::crossprod(Z, e)) - cur$Qv
     M@x <- pre$qx + th[pre$ti] * th[pre$tj] * as.vector(pre$wmap %*% wt)
@@ -179,9 +203,15 @@ pglmm_laplace_mode <- function(beta, ss, lp, st, fit.beta = FALSE, maxit = 50, t
 }
 
 # Laplace approximation of the log-likelihood (ML: par = c(beta, ss); REML or
-# fit.beta = TRUE: par = ss, with b in the mode). Returns -Inf when the mode
+# fit.beta = TRUE: par = ss, with b in the mode; for negative binomial models,
+# the dispersion phi is the last element of par). Returns -Inf when the mode
 # cannot be found.
 pglmm_laplace_ll <- function(par, lp, st, REML = FALSE, fit.beta = REML) {
+  phi <- 0
+  if (lp$nb) {
+    phi <- max(par[length(par)], 0)
+    par <- par[-length(par)]
+  }
   if (fit.beta) {
     beta <- NULL
     ss <- par
@@ -189,7 +219,8 @@ pglmm_laplace_ll <- function(par, lp, st, REML = FALSE, fit.beta = REML) {
     beta <- par[seq_len(lp$p)]
     ss <- par[-seq_len(lp$p)]
   }
-  md <- tryCatch(pglmm_laplace_mode(beta, ss, lp, st, fit.beta), error = function(e) NULL)
+  md <- tryCatch(pglmm_laplace_mode(beta, ss, lp, st, fit.beta, phi = phi),
+                 error = function(e) NULL)
   if (is.null(md) || !is.finite(md$ll)) return(-Inf)
   ll <- md$ll
   if (fit.beta && REML) {
@@ -255,14 +286,16 @@ pglmm_num_hessian <- function(f, x, h = 1e-4 * pmax(abs(x), 1)) {
   H
 }
 
-# Fit a binomial or poisson pglmm with the Laplace approximation. The
-# variances of the random terms are first estimated with b in the mode (as
+# Fit a binomial, poisson or negative binomial pglmm with the Laplace
+# approximation. The variances of the random terms (and the dispersion phi of
+# negative binomial models) are first estimated with b in the mode (as
 # lme4::glmer() with nAGQ = 0; with REML = TRUE, b is integrated out and this
 # is the final fit), then, for ML, b and the variances are estimated jointly
 # (as glmer() with nAGQ = 1, and glmmTMB), with nlminb() and gradients by
-# finite differences.
+# finite differences. The starting values of negative binomial models are
+# from MASS::glm.nb().
 communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_ranef = NULL,
-                                        REML = TRUE, s2.init = 0.25, B.init = NULL,
+                                        REML = TRUE, s2.init = NULL, B.init = NULL,
                                         reltol = 10^-8, maxit = 500, verbose = FALSE,
                                         standardize_cov = TRUE, repulsion = FALSE,
                                         add.obs.re = TRUE, phylo_only = FALSE) {
@@ -285,27 +318,50 @@ communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_
   pre <- pglmm_sparse_setup(X, NULL, terms, weights = TRUE)
   q <- nt + has.obs
   lp <- pglmm_laplace_prep(pre, X, Y, size, family, has.obs)
+  nb <- lp$nb
+  iq <- seq_len(q)
 
   if (!is.null(B.init) && length(B.init) != p) {
     warning("B.init not correct length, so computed B.init using glm()")
     B.init <- NULL
   }
+  phi.init <- NULL
+  if (nb) {
+    # starting values of b and of the dispersion phi = 1 / theta
+    g0 <- tryCatch(suppressWarnings(MASS::glm.nb(formula.nobars, data = data, na.action = na.omit)),
+                   error = function(e) NULL)
+    phi.init <- if (!is.null(g0) && is.finite(g0$theta) && g0$theta > 0) 1 / g0$theta else 1
+    if (is.null(B.init) && !is.null(g0)) B.init <- stats::coef(g0)
+  }
   if (is.null(B.init)) {
-    B.init <- glm(formula = formula.nobars, data = data, family = family, na.action = na.omit)$coefficients
+    B.init <- glm(formula = formula.nobars, data = data, family = if (nb) "poisson" else family,
+                  na.action = na.omit)$coefficients
   }
   B.init <- matrix(as.numeric(B.init), ncol = 1)
   st <- new.env(parent = emptyenv())
   st$beta <- st$beta0 <- as.vector(B.init)
   st$v <- rep(0, pre$q)
   st$o <- rep(0, n)
-  s20 <- rep_len(s2.init, q)
+  # The variances are optimized multiplied by the scale factors of their terms
+  # (the mean diagonal of the standardized covariance matrices), i.e. as the
+  # variances of an average level: with a covariance matrix standardized to a
+  # determinant of one, the variance of a phylogenetic term can be orders of
+  # magnitude smaller than the other parameters for large phylogenies, which
+  # makes the finite-difference gradients and nlminb() unreliable. The default
+  # starting values are 0.25 on this scale; s2.init is on the scale of the
+  # standardized matrices.
+  sf <- c(vapply(terms, function(z) z$mean.diag, 1), if (has.obs) 1)
+  sf[!is.finite(sf) | sf <= 0] <- 1
+  # the scaled variances, then the dispersion phi of negative binomial models
+  s20 <- c(if (is.null(s2.init)) rep(0.25, q) else rep_len(s2.init, q) * sf, phi.init)
+  np <- length(s20)
   ctrl <- list(rel.tol = reltol, eval.max = maxit, iter.max = maxit)
   n.eval <- 0
-  # minus the log-likelihood, for the variances (and b for ML) in par
+  # minus the log-likelihood, for the scaled variances (and b for ML) in par
   objective <- function(par, REML, fit.beta) {
     n.eval <<- n.eval + 1
-    iv <- if (fit.beta) seq_along(par) else p + seq_len(q)
-    par[iv] <- sqrt(pmax(par[iv], 0))
+    iv <- (if (fit.beta) 0 else p) + iq
+    par[iv] <- sqrt(pmax(par[iv], 0) / sf)
     ll <- pglmm_laplace_ll(par, lp, st, REML, fit.beta)
     if (verbose) show(c(ll, par))
     if (is.finite(ll)) -ll else Inf
@@ -315,29 +371,33 @@ communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_
   # joint estimation: a lower tolerance is enough)
   ctrl1 <- ctrl
   if (!REML) ctrl1$rel.tol <- max(reltol, 1e-6)
-  o1 <- pglmm_laplace_optim(function(par) objective(par, REML, TRUE), s20, rep(0, q), ctrl1)
+  o1 <- pglmm_laplace_optim(function(par) objective(par, REML, TRUE), s20, rep(0, np), ctrl1)
   convcode <- o1$convergence
   message.opt <- o1$message
   if (REML) {
-    ss <- sqrt(o1$par)
-    md <- pglmm_laplace_mode(NULL, ss, lp, st, fit.beta = TRUE)
+    ss <- sqrt(o1$par[iq] / sf)
+    phi <- if (nb) o1$par[q + 1] else 0
+    md <- pglmm_laplace_mode(NULL, ss, lp, st, fit.beta = TRUE, phi = phi)
     B <- md$cur$beta
     B.cov <- solve(md$G)
-    LL <- pglmm_laplace_ll(ss, lp, st, REML = TRUE)
+    LL <- pglmm_laplace_ll(c(ss, if (nb) phi), lp, st, REML = TRUE)
   } else {
-    pglmm_laplace_mode(NULL, sqrt(o1$par), lp, st, fit.beta = TRUE) # b at the mode
+    pglmm_laplace_mode(NULL, sqrt(o1$par[iq] / sf), lp, st, fit.beta = TRUE,
+                       phi = if (nb) o1$par[q + 1] else 0) # b at the mode
     o2 <- pglmm_laplace_optim(function(par) objective(par, FALSE, FALSE), c(st$beta, o1$par),
-                              c(rep(-Inf, p), rep(0, q)), ctrl)
+                              c(rep(-Inf, p), rep(0, np)), ctrl)
     convcode <- o2$convergence
     message.opt <- o2$message
     B <- o2$par[ip]
-    ss <- sqrt(o2$par[-ip])
-    o2$par[-ip] <- ss
-    # covariance matrix of b: inverse of the Hessian of -log L over b and the
-    # standard deviations (as glmmTMB and glmer); the standard deviations at
-    # (nearly) zero are left out (the log-likelihood is even in them, so that
-    # its second derivatives with b are zero at zero)
-    keep <- c(ip, p + which(ss > 1e-4))
+    ss <- sqrt(o2$par[p + iq] / sf)
+    phi <- if (nb) o2$par[p + q + 1] else 0
+    o2$par[p + iq] <- ss
+    # covariance matrix of b: inverse of the Hessian of -log L over b, the
+    # standard deviations and the dispersion (as glmmTMB and glmer); the
+    # standard deviations at (nearly) zero are left out (the log-likelihood is
+    # even in them, so that its second derivatives with b are zero at zero),
+    # as is a dispersion at (nearly) zero (the poisson model)
+    keep <- c(ip, p + which(ss > 1e-4), if (nb && phi > 1e-3) p + q + 1)
     f <- function(par) {
       x <- o2$par
       x[keep] <- par
@@ -350,7 +410,7 @@ communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_
         matrix(NA_real_, p, p)
       })
     }
-    md <- pglmm_laplace_mode(B, ss, lp, st)
+    md <- pglmm_laplace_mode(B, ss, lp, st, phi = phi)
     LL <- md$ll
   }
   ss <- abs(ss)
@@ -374,14 +434,14 @@ communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_
   mu <- unname(linkinv(cur$eta))
   w <- unname(cur$w)
   # working residuals, as for PQL
-  H <- unname(cur$eta - as.vector(X %*% B) + (Y - cur$m) / w)
+  H <- unname(cur$eta - as.vector(X %*% B) + cur$g / w)
 
   names(ss) <- c(names(terms), if (has.obs) "1|obs")
   s2 <- ss^2
   i.nested <- c(which(nested), if (has.obs) q)
   s2n <- if (length(i.nested)) s2[i.nested] else NULL
   s2r <- if (any(!nested)) s2[which(!nested)] else NULL
-  k <- p + q
+  k <- p + q + nb
 
   random.effects <- pglmm_sparse_random_effects(terms, data)[tm$formula.order]
   if (has.obs) random.effects[["1|obs"]] <- list(Matrix::Diagonal(n))
@@ -391,10 +451,11 @@ communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_
     B = B, B.se = B.se, B.cov = B.cov, B.zscore = B.zscore,
     B.pvalue = 2 * pnorm(abs(B.zscore), lower.tail = FALSE),
     ss = ss, s2n = s2n, s2r = s2r, s2resid = NULL,
+    theta = if (nb) 1 / phi, # Inf for phi = 0
     scale_factors = c(vapply(terms, function(z) z$mean.diag, 1)[tm$formula.order],
                       if (has.obs) c("1|obs" = 1)),
     logLik = LL, AIC = -2 * LL + 2 * k, BIC = -2 * LL + k * (log(n) - log(pi)),
-    REML = REML, bayes = FALSE, method = "Laplace", s2.init = s2.init, B.init = B.init,
+    REML = REML, bayes = FALSE, method = "Laplace", s2.init = unname(s20[iq] / sf), B.init = B.init,
     Y = Y, size = size, X = X,
     H = matrix(H, ncol = 1), mu = matrix(mu, ncol = 1, dimnames = list(seq_len(n), NULL)),
     nested = list(), Zt = NULL, St = NULL,
@@ -415,10 +476,11 @@ communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_
 
 # Laplace approximation of the log-likelihood of a fitted model at the
 # standard deviations ss (and its fixed effects, for ML; for REML, b is
-# integrated out)
+# integrated out; and its dispersion, for negative binomial models)
 pglmm_laplace_logLik_at <- function(object, ss) {
   sp <- object$sparse
   lp <- pglmm_laplace_prep(sp$pre, object$X, object$Y, object$size, object$family, sp$has.obs)
+  if (lp$nb) ss <- c(ss, 1 / object$theta)
   st <- new.env(parent = emptyenv())
   st$beta <- st$beta0 <- as.vector(object$B)
   st$v <- rep(0, sp$pre$q)

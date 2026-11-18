@@ -124,13 +124,26 @@ is equivalent to removing those rows from \code{data} manually before calling
 \code{pglmm(data[!is.na(data$y), ])} produce identical estimates.}
 
 \item{family}{Either "gaussian" for a Linear Mixed Model, or
-"binomial" or "poisson" for Generalized Linear Mixed Models.
+"binomial", "poisson" or "nbinomial" for Generalized Linear Mixed Models.
 "family" should be specified as a character string (i.e., quoted). For binomial and
 Poisson data, we use the canonical logit and log link functions, respectively.
 Binomial data can be either presence/absence, or a two-column array of 'successes' and 'failures'.
 For both binomial  and Poisson data, we add an observation-level
-random term by default via \code{add.obs.re = TRUE}. If \code{bayes = TRUE} there are
-two additional families available: "zeroinflated.binomial", and "zeroinflated.poisson",
+random term by default via \code{add.obs.re = TRUE}.
+
+"nbinomial" is the negative binomial distribution for overdispersed counts, with the log
+link and the variance \eqn{\mu + \mu^2 / \theta}{mu + mu^2 / theta} given the random
+effects (as \code{lme4::glmer.nb()}, \code{glmmTMB(family = nbinom2)} and
+\code{MASS::glm.nb()}). Its dispersion parameter \eqn{\theta}{theta} is estimated with the
+other parameters (element \code{theta} of the fitted model); \eqn{\theta = \infty}{theta = Inf}
+is the poisson distribution. As \eqn{\theta}{theta} accounts for overdispersion, no
+observation-level random term is added. With \code{bayes = FALSE}, negative binomial models
+are always fitted with \code{method = "Laplace"}, with starting values from
+\code{MASS::glm.nb()}.
+
+If \code{bayes = TRUE} there are
+three additional families available: "zeroinflated.binomial", "zeroinflated.poisson" and
+"zeroinflated.nbinomial",
 which add a zero inflation parameter; this parameter gives the probability that the response is
 a zero. The rest of the parameters of the model then reflect the "non-zero" part part
 of the model. Note that "zeroinflated.binomial" only makes sense for success/failure
