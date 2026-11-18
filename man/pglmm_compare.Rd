@@ -44,7 +44,8 @@ pglmm_compare(
 fixed-effects of the model; for example, Y ~ X. Binomial data can be either
 presence/absence, or a two-column array of 'successes' and 'failures'.
 The phylogenetic random term is added automatically; the formula must not
-have random terms.}
+have random terms. Offsets (e.g. \code{+ offset(log(area))}) are supported with
+\code{method = "Laplace"} and \code{bayes = TRUE}.}
 
 \item{family}{Either "gaussian" for a Linear Mixed Model, or
 "binomial", "poisson" or "nbinomial" (negative binomial) for Generalized Linear Mixed Models.

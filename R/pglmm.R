@@ -129,6 +129,13 @@
 #'   Note that correlated random terms are not allowed. For example,
 #'   \code{(x|g)} will be the same as \code{(0 + x|g)} in the \code{lme4::lmer} syntax. However,
 #'   \code{(x1 + x2|g)} won't work, so instead use  \code{(x1|g) + (x2|g)}.
+#'
+#'   The formula can have offsets, e.g. \code{+ offset(log(effort))} for counts with
+#'   different sampling efforts or areas: terms of the linear predictor with a known
+#'   coefficient of one. They are supported with \code{method = "Laplace"} (binomial,
+#'   poisson and negative binomial models) and \code{bayes = TRUE}, and are included in the
+#'   predicted values (\code{predict()}, \code{fitted()}, \code{simulate()}; with
+#'   \code{newdata}, the offset is calculated from it).
 #' @param data A \code{\link{data.frame}} containing the variables named in formula.
 #'   Rows where the response variable is \code{NA} are dropped before fitting; this
 #'   is equivalent to removing those rows from \code{data} manually before calling
@@ -907,10 +914,11 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
   data <- as.data.frame(data) # in case of tibbles
   fm_original <- formula
   if (!bayes && !isTRUE(sparse) && !laplace) pglmm_blas_hint(nrow(data))
-  # offsets are not used by the maximum likelihood code; stop instead of
+  # offsets are only used by the Laplace code (and INLA); stop instead of
   # silently fitting the model without them
-  if (!bayes && !is.null(attr(terms(reformulas::nobars(formula)), "offset"))) {
-    stop("offset() in the formula is not supported yet when bayes = FALSE.", call. = FALSE)
+  if (!bayes && !laplace && !is.null(attr(terms(reformulas::nobars(formula)), "offset"))) {
+    stop("offset() in the formula is only supported with method = \"Laplace\" (binomial, poisson ",
+         "and negative binomial models) or bayes = TRUE.", call. = FALSE)
   }
   prep_re <- if (is.null(random.effects)) TRUE else FALSE
 

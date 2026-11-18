@@ -97,7 +97,8 @@
 #'   fixed-effects of the model; for example, Y ~ X. Binomial data can be either 
 #'   presence/absence, or a two-column array of 'successes' and 'failures'. 
 #'   The phylogenetic random term is added automatically; the formula must not
-#'   have random terms.
+#'   have random terms. Offsets (e.g. \code{+ offset(log(area))}) are supported with
+#'   \code{method = "Laplace"} and \code{bayes = TRUE}.
 #' @param data A data frame containing the variables named in formula. It must has
 #' the tip labels of the phylogeny as row names; if they are not in the same order,
 #' the data frame will be arranged so that row names match the order of tip labels.

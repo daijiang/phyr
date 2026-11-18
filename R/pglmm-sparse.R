@@ -867,8 +867,11 @@ pglmm_glmm_data <- function(formula, data, family, add.obs.re = TRUE) {
     size <- rep(1, length(Y))
   }
   Y <- as.numeric(Y)
+  # offset() terms of the formula (NULL if none), used with method = "Laplace"
+  offset <- model.offset(mf)
+  if (!is.null(offset)) offset <- as.numeric(offset)
   list(formula.nobars = formula.nobars, data = data, X = X, Y = Y, size = size,
-       has.obs = has.obs)
+       has.obs = has.obs, offset = offset)
 }
 
 # Fit a binomial or poisson pglmm (PQL) with the sparse precision matrix of the

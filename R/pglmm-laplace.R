@@ -8,7 +8,7 @@
 # of pglmm_sparse_setup(weights = TRUE). With the random effects u = Theta v of
 # all terms, v ~ N(0, Q^-1), and the effects o ~ N(0, s2 I) of the
 # observation-level term 1|obs (if any), the linear predictor is
-#   eta = X b + Z Theta v + o.
+#   eta = X b + Z Theta v + o (+ the offset, if any).
 # For given b, Theta and s2, let (v, o) be the mode of the joint density
 # p(y | eta) p(v) p(o), and W = diag(w) the observed information
 # -d2 log p(y | eta) / d eta2 at the mode. With the canonical links of binomial
@@ -54,8 +54,9 @@
 # variables of repulsion terms, Q = M0 + C B^-1 C', with B factorized once),
 # and the functions of the family: for the linear predictor eta (and the
 # dispersion phi of negative binomial models), the mean m, the score g, the
-# observed information w, and the log density logp (without const).
-pglmm_laplace_prep <- function(pre, X, Y, size, family, has.obs) {
+# observed information w, and the log density logp (without const). offset:
+# the offset of the linear predictor (NULL if none).
+pglmm_laplace_prep <- function(pre, X, Y, size, family, has.obs, offset = NULL) {
   Qs <- pre$M
   Qs@x <- pre$qx
   q <- pre$q
@@ -104,7 +105,7 @@ pglmm_laplace_prep <- function(pre, X, Y, size, family, has.obs) {
   }
   list(pre = pre, X = X, Y = Y, size = size, family = family, has.obs = has.obs,
        n = nrow(X), p = ncol(X), nt = max(pre$term.of.col), Qmult = Qmult, fam = fam,
-       const = const, nb = family == "nbinomial")
+       const = const, nb = family == "nbinomial", offset = if (is.null(offset)) 0 else offset)
 }
 
 # Mode of the random effects and Laplace approximation of the log-likelihood
@@ -127,7 +128,7 @@ pglmm_laplace_mode <- function(beta, ss, lp, st, fit.beta = FALSE, maxit = 50, t
   s2 <- if (lp$has.obs) unname(ss[nt + 1])^2 else 0
   thc <- th[pre$term.of.col]
   point <- function(beta, v, o) {
-    eta <- as.vector(X %*% beta) + as.vector(Z %*% (thc * v)) + o
+    eta <- as.vector(X %*% beta) + as.vector(Z %*% (thc * v)) + o + lp$offset
     f <- lp$fam(eta, phi)
     Qv <- lp$Qmult(v)
     pen <- f$logp - 0.5 * sum(v * Qv) - (if (s2 > 0) 0.5 * sum(o^2) / s2 else 0)
@@ -473,7 +474,8 @@ communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_
   nested <- vapply(terms, function(z) z$nested, TRUE)
   pre <- pglmm_sparse_setup(X, NULL, terms, weights = TRUE)
   q <- nt + has.obs
-  lp <- pglmm_laplace_prep(pre, X, Y, size, family, has.obs)
+  offset <- dd$offset # offset() terms of the formula (NULL if none)
+  lp <- pglmm_laplace_prep(pre, X, Y, size, family, has.obs, offset)
   nb <- lp$nb
   iq <- seq_len(q)
 
@@ -620,8 +622,8 @@ communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_
   linkinv <- if (family == "binomial") stats::plogis else exp
   mu <- unname(linkinv(cur$eta))
   w <- unname(cur$w)
-  # working residuals, as for PQL
-  H <- unname(cur$eta - as.vector(X %*% B) + cur$g / w)
+  # working residuals, as for PQL (without the offset)
+  H <- unname(cur$eta - as.vector(X %*% B) - lp$offset + cur$g / w)
 
   names(ss) <- c(names(terms), if (has.obs) "1|obs")
   s2 <- ss^2
@@ -643,7 +645,7 @@ communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_
                       if (has.obs) c("1|obs" = 1)),
     logLik = LL, AIC = -2 * LL + 2 * k, BIC = -2 * LL + k * (log(n) - log(pi)),
     REML = REML, bayes = FALSE, method = "Laplace", s2.init = unname(s20[iq] / sf), B.init = B.init,
-    Y = Y, size = size, X = X,
+    Y = Y, size = size, X = X, offset = offset,
     H = matrix(H, ncol = 1), mu = matrix(mu, ncol = 1, dimnames = list(seq_len(n), NULL)),
     nested = list(), Zt = NULL, St = NULL,
     convcode = convcode, niter = n.eval,
@@ -666,7 +668,8 @@ communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_
 # integrated out; and its dispersion, for negative binomial models)
 pglmm_laplace_logLik_at <- function(object, ss) {
   sp <- object$sparse
-  lp <- pglmm_laplace_prep(sp$pre, object$X, object$Y, object$size, object$family, sp$has.obs)
+  lp <- pglmm_laplace_prep(sp$pre, object$X, object$Y, object$size, object$family, sp$has.obs,
+                           object$offset)
   if (lp$nb) ss <- c(ss, 1 / object$theta)
   st <- new.env(parent = emptyenv())
   st$beta <- st$beta0 <- as.vector(object$B)

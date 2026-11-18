@@ -1574,8 +1574,8 @@ pglmm_predicted_values <- function(x, cpp = TRUE,
   type <- match.arg(type)
   linkinv <- pglmm_linkinv(x$family)
 
-  if (!is.null(re.form)) { # re.form = NA or ~0: no random effects, Xb
-    predicted.values <- as.vector(x$X %*% x$B)
+  if (!is.null(re.form)) { # re.form = NA or ~0: no random effects, Xb (+ offset)
+    predicted.values <- as.vector(x$X %*% x$B) + pglmm_offset(x)
     if (type == "response") predicted.values <- linkinv(predicted.values)
   } else if (isTRUE(x$bayes)) {
     marginal.summ <- x$marginal.summ
@@ -1617,6 +1617,19 @@ pglmm_predicted_values <- function(x, cpp = TRUE,
   }
 
   data.frame(Y_hat = predicted.values)
+}
+
+# offset of the linear predictor for the observations of a fitted model (zero
+# if none): stored by the Laplace code; for bayes = TRUE (INLA uses the offset()
+# terms of the formula), calculated from the formula and the data
+pglmm_offset <- function(object) {
+  if (!is.null(object$offset)) return(as.numeric(object$offset))
+  fm <- object$formula
+  if (!inherits(fm, "formula") || is.null(attr(terms(fm), "offset"))) return(0)
+  mf <- tryCatch(model.frame(fm, data = object$data, na.action = NULL), error = function(e) NULL)
+  off <- if (!is.null(mf)) model.offset(mf)
+  if (is.null(off) || length(off) != nrow(object$X)) return(0)
+  as.numeric(off)
 }
 
 # inverse link function of a fitted model; family is a string, which can be the
@@ -2463,7 +2476,10 @@ pglmm_predict_fixed <- function(object, newdata) {
       call. = FALSE
     )
   }
-  as.vector(X %*% B)
+  out <- as.vector(X %*% B)
+  off <- model.offset(mf) # offset() terms of the formula, from newdata
+  if (!is.null(off)) out <- out + as.numeric(off)
+  out
 }
 
 # Random part (Zu) of the predictions for new data: sum of the estimates of the
@@ -2586,9 +2602,9 @@ simulate.communityPGLMM <- function(object, nsim = 1, seed = NULL,
       sim <- sim %*% matrix(1, 1, nsim)
     } else if (identical(re.form, NA) ||
       (inherits(re.form, "formula") && identical(deparse(re.form), "~0"))) {
-      # condition on none of the random effects: Xb + Zu, with new values of u
-      # drawn with the estimated variances of random terms
-      sim <- as.vector(object$X %*% object$B) %*% matrix(1, 1, nsim)
+      # condition on none of the random effects: Xb + Zu (+ offset), with new
+      # values of u drawn with the estimated variances of random terms
+      sim <- (as.vector(object$X %*% object$B) + pglmm_offset(object)) %*% matrix(1, 1, nsim)
       sim <- sim + pglmm_sim_ranef(object, nsim)
     } else {
       stop("Formula for random effects to condition on currently is not supported yet")

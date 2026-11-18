@@ -103,7 +103,14 @@ correlations among species, while the form \code{(1|sp__@site)} excludes the cor
 
 Note that correlated random terms are not allowed. For example,
 \code{(x|g)} will be the same as \code{(0 + x|g)} in the \code{lme4::lmer} syntax. However,
-\code{(x1 + x2|g)} won't work, so instead use  \code{(x1|g) + (x2|g)}.}
+\code{(x1 + x2|g)} won't work, so instead use  \code{(x1|g) + (x2|g)}.
+
+The formula can have offsets, e.g. \code{+ offset(log(effort))} for counts with
+different sampling efforts or areas: terms of the linear predictor with a known
+coefficient of one. They are supported with \code{method = "Laplace"} (binomial,
+poisson and negative binomial models) and \code{bayes = TRUE}, and are included in the
+predicted values (\code{predict()}, \code{fitted()}, \code{simulate()}; with
+\code{newdata}, the offset is calculated from it).}
 
 \item{data}{A \code{\link{data.frame}} containing the variables named in formula.
 Rows where the response variable is \code{NA} are dropped before fitting; this
