@@ -532,7 +532,10 @@ This is set to NULL if \code{bayes = FALSE}}
 \item{s2resid.ci}{Bayesian credible interval for linear mixed models, the residual variance.
 This is set to NULL if \code{bayes = FALSE}}
 \item{logLik}{the log-likelihood, restricted (\code{REML = TRUE}) or not (\code{REML = FALSE}).
-For binomial and poisson models fitted with \code{method = "PQL"}, it is an approximation
+For gaussian models with \code{REML = TRUE}, it is the restricted log-likelihood of
+\code{lmer()}, \code{glmmTMB()} and \code{nlme::lme()} (the likelihood integrated over the
+fixed effects); versions of phyr before 1.3.0 added \eqn{\log|X'X|/2}{log|X'X| / 2}
+to it. For binomial and poisson models fitted with \code{method = "PQL"}, it is an approximation
 from the gaussian model of the working response; with \code{method = "Laplace"}, it is the
 Laplace approximation of the (restricted) marginal log-likelihood, the same as that of
 \code{glmer()} and \code{glmmTMB()}. If \code{bayes = TRUE}, this is the marginal

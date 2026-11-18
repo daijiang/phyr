@@ -465,3 +465,19 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
     test_fit_equal(z_repul1, z_repul2)
   })
 })
+
+test_that("the log-likelihood of gaussian models is the same as that of lme4", {
+  skip_if_not_installed("lme4")
+  set.seed(3)
+  d <- expand.grid(sp = paste0("s", 1:12), site = paste0("site", 1:8), stringsAsFactors = FALSE)
+  d$x <- rnorm(nrow(d), sd = 3)
+  d$y <- 1 + 0.5 * d$x + rnorm(12)[match(d$sp, unique(d$sp))] + rnorm(8, sd = 0.5)[match(d$site, unique(d$site))] +
+    rnorm(nrow(d))
+  for (reml in c(TRUE, FALSE)) {
+    l <- lme4::lmer(y ~ x + (1 | sp) + (1 | site), data = d, REML = reml)
+    for (a in list(list(cpp = TRUE), list(cpp = FALSE), list(sparse = TRUE))) {
+      m <- suppressMessages(do.call(pglmm, c(list(y ~ x + (1 | sp) + (1 | site), data = d, REML = reml), a)))
+      expect_equal(m$logLik, as.numeric(logLik(l)), tolerance = 1e-6)
+    }
+  }
+})

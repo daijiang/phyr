@@ -86,11 +86,14 @@ test_that("cor_phylo produces proper output", {
     eval(bquote(expect_equal(phyr_cp[[.(cp_par)]], ape_cp[[.(ape_par)]], ignore_attr = TRUE)))
   }
   expect_par_equal("corrs", "cor.matrix")
-  expect_par_equal("logLik")
   expect_par_equal("d")
-  expect_par_equal("AIC")
-  expect_par_equal("BIC")
   expect_par_equal("convcode")
+  # the restricted log-likelihood of ape::corphylo() includes log(XX' XX) / 2,
+  # with XX the variates standardized to a standard deviation of one: log(p (n - 1)) / 2
+  c_reml <- 0.5 * log(p * (n - 1))
+  expect_equal(phyr_cp$logLik, ape_cp$logLik - c_reml)
+  expect_equal(phyr_cp$AIC, ape_cp$AIC + 2 * c_reml)
+  expect_equal(phyr_cp$BIC, ape_cp$BIC + 2 * c_reml)
   
   
   # Test that not converging produces proper warning:

@@ -504,8 +504,7 @@ pglmm_sparse_setup <- function(X, Y, terms, weights = FALSE) {
     # simplicial factorizations, for pglmm_sparse_inv_at()
     L = Matrix::Cholesky(M, perm = TRUE, LDL = ldl, super = FALSE),
     logdetQ = sum(vapply(terms, function(z) z$logdetQ, 1)) + logdetB,
-    ZtXY = as.matrix(Matrix::crossprod(Z, XY)), XYtXY = crossprod(XY),
-    logdetXtX = as.numeric(determinant(crossprod(X))$modulus)
+    ZtXY = as.matrix(Matrix::crossprod(Z, XY)), XYtXY = crossprod(XY)
   )
 }
 
@@ -1257,7 +1256,7 @@ communityPGLMM.gaussian.sparse <- function(formula, data, cov_ranef = NULL, REML
   u <- th.col * as.vector(pglmm_sparse_solve(ev$L, pre, th.col * as.vector(Matrix::crossprod(pre$Z, H))))
 
   if (REML) {
-    logLik <- -0.5 * (n - p) * log(2 * pi) + 0.5 * pre$logdetXtX - LL
+    logLik <- -0.5 * (n - p) * log(2 * pi) - LL
   } else {
     logLik <- -0.5 * n * log(2 * pi) - LL
   }

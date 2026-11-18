@@ -943,7 +943,7 @@ pglmm_profile_LRT <- function(x, re.number = 0, cpp = TRUE) {
   }
 
   if (x$REML) {
-    logLik <- -0.5 * (n - p - 1) * log(2 * pi) + 0.5 * determinant(t(x$X) %*% x$X)$modulus[1] - LL
+    logLik <- -0.5 * (n - p) * log(2 * pi) - LL
   } else {
     logLik <- -0.5 * n * log(2 * pi) - LL
   }
@@ -970,7 +970,7 @@ pglmm_profile_LRT <- function(x, re.number = 0, cpp = TRUE) {
   }
 
   if (x$REML) {
-    logLik0 <- -0.5 * (n - p - 1) * log(2 * pi) + 0.5 * determinant(t(x$X) %*% x$X)$modulus[1] - LL0
+    logLik0 <- -0.5 * (n - p) * log(2 * pi) - LL0
   } else {
     logLik0 <- -0.5 * n * log(2 * pi) - LL0
   }

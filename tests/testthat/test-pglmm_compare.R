@@ -27,11 +27,13 @@ qfit <- function(...) suppressMessages(pglmm_compare(...))
 
 test_that("pglmm_compare gives the same estimates as the earlier implementation", {
   # reference values from pglmm_compare() of phyr before it used the formula
-  # interface of pglmm() (it passed the covariance matrix via random.effects)
+  # interface of pglmm() (it passed the covariance matrix via random.effects);
+  # the REML log-likelihood of gaussian models no longer includes log|X'X| / 2
+  # (it was -46.09842325)
   ref <- list(
     g_reml = list(f = yg ~ x, fam = "gaussian", REML = TRUE,
                   B = c(2.447160104, 0.390783412), se = c(1.104582086, 0.2338868775),
-                  s2n = 0.1798785595, s2resid = 0.3050963025, logLik = -46.09842325),
+                  s2n = 0.1798785595, s2resid = 0.3050963025, logLik = -49.77464380),
     g_ml = list(f = yg ~ x, fam = "gaussian", REML = FALSE,
                 B = c(2.445720561, 0.393827475), se = c(1.031931946, 0.2239864306),
                 s2n = 0.1567282812, s2resid = 0.3059584062, logLik = -50.20198991),
