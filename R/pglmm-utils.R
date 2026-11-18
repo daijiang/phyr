@@ -1471,6 +1471,9 @@ pglmm_iV_mult <- function(object, M, fac = NULL) {
   if (!is.null(object$iV)) {
     return(as.matrix(object$iV %*% as.matrix(M)))
   }
+  if (!is.null(object$sparse)) { # sparse = TRUE or method = "Laplace"
+    return(pglmm_sparse_iV_mult(pglmm_sparse_iV_pieces(object), M))
+  }
   if (is.null(fac)) fac <- pglmm_iV_object_factors(object)
   pglmm_iV_mult_factors(fac, M)
 }
@@ -1494,6 +1497,9 @@ pglmm_ZiVZt <- function(object, fac = NULL) {
 pglmm_iV_diag <- function(object) {
   if (!is.null(object$iV)) {
     return(diag(as.matrix(object$iV)))
+  }
+  if (!is.null(object$sparse)) { # sparse = TRUE or method = "Laplace"
+    return(pglmm_sparse_iV_diag(pglmm_sparse_iV_pieces(object)))
   }
   fac <- pglmm_iV_object_factors(object)
   n <- length(fac$d)
@@ -1526,7 +1532,11 @@ pglmm_iV_diag <- function(object) {
 #'   observations used to fit the model. For gaussian models, it includes the
 #'   residual variance. For binomial and poisson models, it is the inverse of
 #'   the covariance matrix of the working response of the penalized
-#'   quasi-likelihood fit.
+#'   quasi-likelihood fit; for models fitted with `method = "Laplace"`, the same
+#'   with the weights at the mode of the random effects (the observed
+#'   information). For models fitted with `sparse = TRUE` or
+#'   `method = "Laplace"`, it is calculated from the sparse factorization of the
+#'   fit (with the Woodbury identity).
 #' @export
 #' @examples
 #' dat <- data.frame(
@@ -1623,12 +1633,18 @@ pglmm_predicted_values <- function(x, cpp = TRUE,
   } else {
     if (x$family == "gaussian") {
       H <- as.vector(x$H) # H is Y - X %*% B
-      if (!is.null(x$sparse)) {
-        if (ptype == "tip_rm") pglmm_sparse_stop(x, "gaussian.pred = 'tip_rm'")
+      if (!is.null(x$sparse) && ptype == "nearest_node") {
         # Xb + Zu
         return(data.frame(Y_hat = as.vector(x$X %*% x$B) + as.vector(x$sparse$pre$Z %*% x$sparse$u)))
       }
-      iVH <- as.vector(pglmm_iV_mult(x, H))
+      if (!is.null(x$sparse)) { # tip_rm, with the sparse factorization
+        pc <- pglmm_sparse_iV_pieces(x)
+        iVH <- as.vector(pglmm_sparse_iV_mult(pc, H))
+        iVd <- pglmm_sparse_iV_diag(pc)
+      } else {
+        iVH <- as.vector(pglmm_iV_mult(x, H))
+        iVd <- if (ptype == "tip_rm") pglmm_iV_diag(x)
+      }
       if (ptype == "nearest_node") {
         # Xb + Zu: the random effects are (V - s2resid * I) %*% iV %*% H
         predicted.values <- as.vector(x$Y) - as.numeric(x$s2resid) * iVH
@@ -1636,7 +1652,7 @@ pglmm_predicted_values <- function(x, cpp = TRUE,
       if (ptype == "tip_rm") {
         # prediction of H[i] given H[-i], V[i, -i] %*% solve(V[-i, -i]) %*% H[-i],
         # which is H[i] - (iV %*% H)[i] / iV[i, i]
-        h <- H - iVH / pglmm_iV_diag(x)
+        h <- H - iVH / iVd
         predicted.values <- as.vector(x$X %*% x$B) + h
       }
     } else if (!is.null(spec <- pglmm_family_spec(x$family))) {

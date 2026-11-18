@@ -1314,6 +1314,68 @@ pglmm_sparse_stop <- function(object, what) {
   invisible(NULL)
 }
 
+# The inverse V^-1 of the marginal covariance matrix of a model fitted with
+# sparse = TRUE or method = "Laplace", from the Woodbury identity: with
+# V = D + Z Theta Q^-1 Theta Z' (gaussian models: V = s2resid (I + Z Theta
+# Q^-1 Theta Z'), Theta relative to the residual standard deviation; binomial
+# and poisson models: D = diag(1 / wt), wt = w / (1 + s2_obs w), with the
+# working weights w of PQL or the observed information at the mode for the
+# Laplace approximation, and the variance s2_obs of 1|obs, if any),
+#   V^-1 = c (Dw - Dw Z Theta M^-1 Theta Z' Dw),
+# with the matrix M = Q + Theta Z' Dw Z Theta of the fit (c = 1 / s2resid and
+# Dw = I for gaussian models; c = 1 and Dw = diag(wt) otherwise). Returns the
+# pieces of pglmm_sparse_iV_mult() and pglmm_sparse_iV_diag().
+pglmm_sparse_iV_pieces <- function(object) {
+  sp <- object$sparse
+  pre <- sp$pre
+  if (object$family == "gaussian") {
+    ev <- pglmm_sparse_eval(sp$theta, pre)
+    list(pre = pre, L = ev$L, thc = sp$theta[pre$term.of.col], dw = rep(1, nrow(object$X)),
+         c = 1 / as.numeric(object$s2resid))
+  } else {
+    ev <- pglmm_sparse_weval(object$ss, pre, sp$w, object$X, sp$has.obs, full = TRUE)
+    list(pre = pre, L = ev$L, thc = ev$th[pre$term.of.col], dw = ev$wt, c = 1)
+  }
+}
+
+# V^-1 R (pieces pc of pglmm_sparse_iV_pieces())
+pglmm_sparse_iV_mult <- function(pc, R) {
+  DR <- pc$dw * as.matrix(R)
+  S <- pglmm_sparse_solve(pc$L, pc$pre, pc$thc * as.matrix(Matrix::crossprod(pc$pre$Z, DR)))
+  pc$c * (DR - pc$dw * as.matrix(pc$pre$Z %*% (pc$thc * S)))
+}
+
+# diag(V^-1) = c (dw - dw^2 diag(Z Theta M^-1 Theta Z'))
+pglmm_sparse_iV_diag <- function(pc) {
+  pc$c * (pc$dw - pc$dw^2 * pglmm_sparse_diag_ZMiZ(pc$pre, pc$L, pc$thc))
+}
+
+# diag(Z Theta M^-1 Theta Z'): for each row of Z, the sum over the pairs of
+# its nonzero columns (j, k) of Z_ij thc_j (M^-1)_jk thc_k Z_ik, with the
+# entries of M^-1 from the selected inverse (the pairs are on the pattern of
+# Z'Z, and thus of the factor of M)
+pglmm_sparse_diag_ZMiZ <- function(pre, L, thc) {
+  ZT <- as(Matrix::t(pre$Z), "CsparseMatrix") # column i: row i of Z
+  n <- ncol(ZT)
+  nr <- diff(ZT@p)
+  row <- rep.int(seq_len(n), nr)
+  col <- ZT@i # 0-based
+  x <- ZT@x * thc[col + 1L]
+  nn <- length(x)
+  a <- b <- vector("list", max(nr))
+  for (k in seq_len(max(nr)) - 1L) { # pairs of the nonzeros k apart in the same row
+    t1 <- seq_len(nn - k)
+    t1 <- t1[row[t1] == row[t1 + k]]
+    a[[k + 1L]] <- t1
+    b[[k + 1L]] <- t1 + k
+  }
+  mult <- rep(c(1, rep(2, length(a) - 1L)), lengths(a))
+  a <- unlist(a)
+  b <- unlist(b)
+  z <- pglmm_sparse_inv_at(L, col[a], col[b])
+  pglmm_sum_by(mult * x[a] * x[b] * z, row[a], n)
+}
+
 # Conditional modes of the random effects of a model fitted with sparse = TRUE,
 # in the same format (and order of terms) as pglmm_cond_modes(). With
 # nodes = TRUE, the estimates of the internal nodes of the phylogeny are

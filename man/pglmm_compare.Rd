@@ -327,8 +327,7 @@ the methods for models fitted by \code{\link[=pglmm]{pglmm()}} can be used: \cod
 with \code{condVar = TRUE} for their standard deviations), \code{\link[=VarCorr]{VarCorr()}},
 \code{\link[=fitted]{fitted()}}, \code{\link[=residuals]{residuals()}}, \code{\link[=predict]{predict()}} (with \code{newdata}, the species are
 the row names of \code{newdata}), \code{\link[=simulate]{simulate()}}, \code{\link[=logLik]{logLik()}} and \code{\link[=AIC]{AIC()}}
-(\code{bayes = FALSE}), and \code{\link[=pglmm_profile_LRT]{pglmm_profile_LRT()}}. With \code{sparse = TRUE},
-\code{\link[=pglmm_iV]{pglmm_iV()}} is not available (nor with \code{method = "Laplace"}).
+(\code{bayes = FALSE}), \code{\link[=pglmm_profile_LRT]{pglmm_profile_LRT()}} and \code{\link[=pglmm_iV]{pglmm_iV()}}.
 
 \strong{Test of phylogenetic signal.} For models fitted with \code{bayes = FALSE},
 the element \code{LRT} is \code{pglmm_profile_LRT(fit, re.number = 1)}: a likelihood

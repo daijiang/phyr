@@ -14,7 +14,11 @@ A matrix with as many rows and columns as the number of
 observations used to fit the model. For gaussian models, it includes the
 residual variance. For binomial and poisson models, it is the inverse of
 the covariance matrix of the working response of the penalized
-quasi-likelihood fit.
+quasi-likelihood fit; for models fitted with \code{method = "Laplace"}, the same
+with the weights at the mode of the random effects (the observed
+information). For models fitted with \code{sparse = TRUE} or
+\code{method = "Laplace"}, it is calculated from the sparse factorization of the
+fit (with the Woodbury identity).
 }
 \description{
 Calculate the inverse of the marginal covariance matrix (\code{iV}) of the data

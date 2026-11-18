@@ -100,8 +100,23 @@ test_that("methods work for models fitted with sparse = TRUE", {
   expect_equal(dim(sim), c(nrow(s$d), 4000L))
   expect_equal(mean(apply(sim, 1, var)) / mean(diag(V)), 1, tolerance = 0.05)
   expect_gt(cor(as.vector(cov(t(sim))), as.vector(V)), 0.98)
-  # not available yet
-  expect_error(pglmm_iV(m2), "not available yet")
+  # inverse of the covariance matrix, from the sparse factorization: the same
+  # as the dense model, and the inverse of V = s2resid (I + Z Theta Q^-1 Theta Z')
+  # at the estimates of the sparse fit
+  iV2 <- pglmm_iV(m2)
+  expect_equal(iV2, pglmm_iV(m1), tolerance = 1e-3)
+  pre <- m2$sparse$pre
+  Q <- pre$M
+  Q@x <- pre$qx
+  ZT <- as.matrix(pre$Z %*% Matrix::Diagonal(x = m2$sparse$theta[pre$term.of.col]))
+  V2 <- as.numeric(m2$s2resid) * (diag(nrow(ZT)) + ZT %*% solve(as.matrix(Q), t(ZT)))
+  expect_equal(iV2 %*% V2, diag(nrow(ZT)), tolerance = 1e-8)
+  expect_equal(phyr:::pglmm_iV_diag(m2), diag(iV2), tolerance = 1e-10)
+  # leave-one-out predictions (gaussian.pred = "tip_rm")
+  p2 <- pglmm_predicted_values(m2, gaussian.pred = "tip_rm")$Y_hat
+  expect_equal(p2, pglmm_predicted_values(m1, gaussian.pred = "tip_rm")$Y_hat, tolerance = 1e-3)
+  H <- as.vector(m2$H)
+  expect_equal(p2, as.vector(m2$X %*% m2$B) + H - as.vector(iV2 %*% H) / diag(iV2), tolerance = 1e-8)
 })
 
 test_that("sparse = TRUE stops for what it does not support", {
@@ -476,6 +491,7 @@ test_that("pglmm(sparse = TRUE) gives the same fit and methods as the default co
     expect_equal(pglmm_profile_LRT(m2, 2)$LR, pglmm_profile_LRT(m1, 2)$LR, tolerance = 1e-4)
     expect_output(print(m2), "1\\|sp__")
     expect_equal(dim(simulate(m2, nsim = 2)), c(nrow(s$d), 2L))
-    expect_error(pglmm_iV(m2), "not available yet")
+    # inverse of the covariance matrix of the working response
+    expect_equal(pglmm_iV(m2), pglmm_iV(m1), tolerance = 1e-4)
   }
 })

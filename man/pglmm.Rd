@@ -448,21 +448,22 @@ the (numerical) Hessian of the log-likelihood over the fixed effects and the sta
 deviations of the random terms, as in these packages. The optimizer is
 \code{nlminb()}, on the scale of the variances multiplied by their \code{scale_factors}
 (the variances of an average level, with a lower bound of zero; the default starting
-values are 0.25 on this scale), and of the dispersion \eqn{1/\theta}{1/theta} of negative
-binomial models, with analytic gradients (the derivative over the dispersion of negative
-binomial models is computed by finite differences), restarted from the corners of the
+values are 0.25 on this scale), and of the dispersion of negative binomial and Gamma
+models (\eqn{1/\theta}{1/theta}, 1/shape), with analytic gradients, restarted from the
+corners of the
 variances of phylogenetic terms and their partners (see \code{sparse});
 \code{optimizer}, \code{tol.pql} and
 \code{maxit.pql} are not used. \code{\link[=ranef]{ranef()}} gives the conditional modes of the random
 effects, and \code{condVar = TRUE} their conditional standard deviations from the
 Hessian of the Laplace approximation (conditional on the estimates of the parameters).
-\code{\link[=pglmm_iV]{pglmm_iV()}} is not available for these models.
+\code{\link[=pglmm_iV]{pglmm_iV()}} gives the inverse of the covariance matrix of the working response at
+the mode.
 
 Choosing between them:
 \itemize{
 \item \code{"PQL"} (default): fastest (about 3--4 times faster than \code{"Laplace"}),
-supports every model of \code{pglmm()} (including \code{random.effects} and
-\code{\link[=pglmm_iV]{pglmm_iV()}}), and gives the same estimates as earlier versions of phyr. But its
+supports every model of \code{pglmm()} (including \code{random.effects}), and gives
+the same estimates as earlier versions of phyr. But its
 estimates are biased for binary data: compared with \code{"Laplace"} (and
 \code{glmer()}/\code{glmmTMB}), the fixed effects were about 5--10\% closer to zero
 and the variances of random terms about 10--30\% smaller in our comparisons. For counts,

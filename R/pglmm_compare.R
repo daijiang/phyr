@@ -62,8 +62,7 @@
 #' with `condVar = TRUE` for their standard deviations), [VarCorr()],
 #' [fitted()], [residuals()], [predict()] (with `newdata`, the species are
 #' the row names of `newdata`), [simulate()], [logLik()] and [AIC()]
-#' (`bayes = FALSE`), and [pglmm_profile_LRT()]. With `sparse = TRUE`,
-#' [pglmm_iV()] is not available (nor with `method = "Laplace"`).
+#' (`bayes = FALSE`), [pglmm_profile_LRT()] and [pglmm_iV()].
 #'
 #' **Test of phylogenetic signal.** For models fitted with `bayes = FALSE`,
 #' the element `LRT` is `pglmm_profile_LRT(fit, re.number = 1)`: a likelihood

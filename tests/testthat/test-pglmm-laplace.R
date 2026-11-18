@@ -193,7 +193,10 @@ test_that("methods work for models fitted with method = 'Laplace'", {
   ss0[2] <- 0
   expect_equal(lrt$LR, m$logLik - phyr:::pglmm_laplace_logLik_at(m, ss0), tolerance = 1e-8)
   expect_equal(phyr:::pglmm_laplace_logLik_at(m, m$ss), m$logLik, tolerance = 1e-8)
-  expect_error(pglmm_iV(m), "not available yet")
+  # inverse of the covariance matrix of the working response at the mode
+  iv <- pglmm_iV(m)
+  expect_equal(dim(iv), c(nrow(m$X), nrow(m$X)))
+  expect_equal(diag(iv), phyr:::pglmm_iV_diag(m), tolerance = 1e-10)
   # REML
   mr <- quiet(pglmm(y ~ x + (1 | sp__), s$d, "binomial", cov_ranef = list(sp = s$phy), method = "Laplace"))
   expect_output(print(mr), "fit by Laplace approximation \\(restricted maximum likelihood\\)")
