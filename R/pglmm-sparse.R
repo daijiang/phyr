@@ -138,7 +138,7 @@ phylo_precision <- function(tree, standardize = TRUE) {
 #' `phylo_precision()`, in the same order, so that the branches are labelled
 #' by `pp$node.label`. With independent rates `r` on the branches, with
 #' variances proportional to the inverse of their lengths
-#' (`r ~ N(0, s2 diag(1 / edge.len))`), the values of the tips `F r` have the
+#' (\code{r ~ N(0, s2 diag(1 / edge.len))}), the values of the tips `F r` have the
 #' covariance matrix `s2 F diag(1 / edge.len) F'`, which is `s2` times the
 #' covariance matrix of the tips used by [pglmm()] (Brownian motion on the
 #' branch lengths `edge.len`): the trait changes by `edge.len * r` along each
