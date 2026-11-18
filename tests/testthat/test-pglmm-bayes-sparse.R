@@ -83,8 +83,10 @@ test_that("dense, sparse precision and flow bayesian fits agree", {
       expect_equal(as.vector(fitted(m)), as.vector(fitted(m0)), tolerance = 0.01)
       expect_equal(m$scale_factors, m0$scale_factors[names(m$scale_factors)], tolerance = 1e-8)
     }
-    # both report the marginal likelihood, including log|C| / 2 of 'generic0'
-    # terms; with the matrix A of "flow", INLA's value differs by about one unit
+    # all report the marginal likelihood, including log|C| / 2 of 'generic0'
+    # terms (also dense, nested terms included); with the matrix A of "flow",
+    # INLA's value differs by about one unit
+    expect_lt(abs(m0$logLik - m1$logLik), 0.5)
     expect_lt(abs(m1$logLik - m2$logLik), 3)
     expect_equal(m1$bayes_sparse$method, "precision")
     expect_equal(m2$bayes_sparse$method, "flow")

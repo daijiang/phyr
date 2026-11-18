@@ -1150,6 +1150,15 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
 # terms it is the inflation factor from det=1 standardization. Multiplying s2r[i]
 # by scale_factors[i] gives the average per-observation variance on a scale
 # comparable across all terms (including non-phylogenetic ones).
+# Log determinant of the Cmatrix of a 'generic0' term, which INLA leaves out of
+# the marginal likelihood. With bayes_options$diagonal, the matrix used is
+# Cmatrix + diagonal * I; with replicate, it is used once per replicate.
+inla_logdet_cmatrix <- function(C, diagonal = NULL, n.rep = 1) {
+  if (!is.null(diagonal)) C <- C + Matrix::Diagonal(nrow(C), diagonal)
+  C <- Matrix::forceSymmetric(Matrix::Matrix(C))
+  n.rep * as.numeric(Matrix::determinant(C, logarithm = TRUE)$modulus)
+}
+
 compute_scale_factors <- function(random.effects) {
   vapply(random.effects, function(re_i) {
     len <- length(re_i)
@@ -1994,10 +2003,15 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     scale_factors <- vapply(sparse_terms, function(z) z$mean.diag, 1)
     # INLA leaves out log|Cmatrix| / 2 of 'generic0' models from the marginal
     # likelihood (see pglmm_bayes_sparse_terms())
-    logLik <- out$mlik[1, 1] + sum(vapply(sparse_terms, function(z) z$logdetC / 2, 1))
+    logLik <- out$mlik[1, 1] + sum(vapply(sparse_terms, function(z) {
+      if (is.null(diagonal)) z$logdetC / 2 else inla_logdet_cmatrix(z$C, diagonal) / 2
+    }, 1))
   } else {
     scale_factors <- compute_scale_factors(random.effects)
-    logLik <- out$mlik[1, 1]
+    logLik <- out$mlik[1, 1] + sum(vapply(seq_along(inla_Cmat), function(i) {
+      n.rep <- if (is.null(inla_reps[[i]])) 1 else length(unique(inla_reps[[i]]))
+      inla_logdet_cmatrix(inla_Cmat[[i]], diagonal, n.rep) / 2
+    }, 1))
   }
 
   results <- list(
