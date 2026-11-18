@@ -67,9 +67,10 @@ phylo_precision <- function(tree, standardize = TRUE) {
     stop("The phylogeny has negative or missing branch lengths.", call. = FALSE)
   }
   ntip <- ape::Ntip(tree)
-  # internal branches with length zero: collapse to polytomies
+  # internal branches with length zero: collapse to polytomies (di2multi()
+  # collapses the branches shorter than tol, so tol = 0 would keep them)
   if (any(tree$edge.length[tree$edge[, 2] > ntip] == 0)) {
-    tree <- ape::di2multi(tree, tol = 0)
+    tree <- ape::di2multi(tree, tol = .Machine$double.eps)
   }
   if (any(tree$edge.length == 0)) {
     stop("The phylogeny has terminal branches with length zero, ",
