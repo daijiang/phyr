@@ -85,7 +85,7 @@ pglmm_laplace_prep <- function(pre, X, Y, size, family, has.obs, offset = NULL) 
   fl <- spec$laplace(Y, size)
   list(pre = pre, X = X, Y = Y, size = size, family = family, has.obs = has.obs,
        n = nrow(X), p = ncol(X), nt = max(pre$term.of.col), Qmult = Qmult, fam = fl$fam,
-       const = fl$const, spec = spec, has.disp = !is.null(spec$disp),
+       const = fl$const, dphi = fl$dphi, spec = spec, has.disp = !is.null(spec$disp),
        disp.lower = if (!is.null(spec$disp)) spec$disp$lower,
        offset = if (is.null(offset)) 0 else offset)
 }
@@ -239,8 +239,10 @@ pglmm_laplace_ll <- function(par, lp, st, REML = FALSE, fit.beta = REML, keep = 
 # Gradient of the Laplace approximation of the log-likelihood
 # (pglmm_laplace_ll()) at the mode md, over the standard deviations of the
 # terms (theta), the variance s2 of 1|obs (if any) and, for ML (fit.beta =
-# FALSE), the fixed effects; not over the dispersion of negative binomial
-# models. ss: the standard deviations (terms, then 1|obs).
+# FALSE), the fixed effects, and the dispersion phi of families that have one
+# (when the family gives its derivatives: dphi of pglmm_family_spec(); NA
+# otherwise, for finite differences). ss: the standard deviations (terms, then
+# 1|obs).
 #
 # With the mode x = (v, o, b) (b only with fit.beta) of the penalized log
 # density P = log p(y | eta) - v'Qv / 2 - o'o / (2 s2), the log-likelihood is
@@ -260,8 +262,11 @@ pglmm_laplace_ll <- function(par, lp, st, REML = FALSE, fit.beta = REML, keep = 
 #                 - tr(M^-1 dM_k) / 2 - REML tr(G^-1 dG_k) / 2,
 # for s2: dl/ds2 = o'o / (2 s2^2) + lambda_o' o / s2^2
 #                  + sum(wt^2 (dZ + qi)) / 2 - sum(wt) / 2,
-# and for b (ML): dl/db = X'(g + c - w zeta).
-pglmm_laplace_grad <- function(md, ss, lp, REML = FALSE, fit.beta = REML) {
+# for b (ML): dl/db = X'(g + c - w zeta), and for phi, which changes the log
+# density at a given eta (b_phi = J' dg/dphi):
+#   dl/dphi = sum(d log p / dphi) + (dD/dw)' dw/dphi + zeta' dg/dphi,
+#   dD/dw = -(dZ + qi) / (2 (1 + s2 w)^2) - s2 / (2 (1 + s2 w)).
+pglmm_laplace_grad <- function(md, ss, lp, REML = FALSE, fit.beta = REML, phi = 0) {
   pre <- lp$pre
   X <- lp$X
   Z <- pre$Z
@@ -293,7 +298,8 @@ pglmm_laplace_grad <- function(md, ss, lp, REML = FALSE, fit.beta = REML) {
       qi <- rowSums((Xt %*% iG) * Xt)
     }
   }
-  cc <- cur$dw * (-0.5 * (dZ + qi) / den^2 - 0.5 * s2 / den)
+  Dw <- -0.5 * (dZ + qi) / den^2 - 0.5 * s2 / den # dD/dw
+  cc <- cur$dw * Dw
   # adjoint: lambda = H^-1 J'c, with o eliminated as in pglmm_laplace_mode()
   cd <- cc / den
   rv <- thc * as.vector(Matrix::crossprod(Z, cd))
@@ -338,7 +344,12 @@ pglmm_laplace_grad <- function(md, ss, lp, REML = FALSE, fit.beta = REML) {
       NA_real_
     }
   }
-  list(theta = gth, s2 = gs2, beta = if (!fit.beta) as.vector(crossprod(X, u)))
+  gphi <- NULL
+  if (lp$has.disp) {
+    dp <- if (!is.null(lp$dphi)) lp$dphi(cur$eta, phi)
+    gphi <- if (is.null(dp)) NA_real_ else dp$lphi + sum(Dw * dp$wphi) + sum(zeta * dp$gphi)
+  }
+  list(theta = gth, s2 = gs2, beta = if (!fit.beta) as.vector(crossprod(X, u)), phi = gphi)
 }
 
 # Minimize f with nlminb(), with the gradient by finite differences (central,
@@ -446,7 +457,8 @@ pglmm_num_hessian <- function(f, x, h = 1e-4 * pmax(abs(x), 1)) {
 # lme4::glmer() with nAGQ = 0; with REML = TRUE, b is integrated out and this
 # is the final fit), then, for ML, b and the variances are estimated jointly
 # (as glmer() with nAGQ = 1, and glmmTMB), with nlminb() and analytic gradients
-# (finite differences for phi). The starting values are from glm() (for
+# (also for phi, if the family gives its derivatives in phi; finite
+# differences otherwise). The starting values are from glm() (for
 # negative binomial models, MASS::glm.nb()); see pglmm_family_spec().
 communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_ranef = NULL,
                                         REML = TRUE, s2.init = NULL, B.init = NULL,
@@ -524,12 +536,13 @@ communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_
     if (is.finite(ll)) -ll else Inf
   }
   # its analytic gradient (pglmm_laplace_grad()); NA (finite differences) for
-  # the dispersion phi
+  # the dispersion phi when the family has no derivatives in phi
   gradient <- function(par, REML, fit.beta) {
     if (!identical(at$par, par)) objective(par, REML, fit.beta)
     out <- rep(NA_real_, length(par))
     if (is.null(at$md)) return(out)
-    gr <- tryCatch(pglmm_laplace_grad(at$md, at$ss, lp, REML, fit.beta), error = function(e) NULL)
+    gr <- tryCatch(pglmm_laplace_grad(at$md, at$ss, lp, REML, fit.beta, phi = at$phi),
+                   error = function(e) NULL)
     if (is.null(gr)) return(out)
     off <- if (fit.beta) 0 else p
     if (!fit.beta) out[ip] <- -gr$beta
@@ -537,6 +550,7 @@ communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_
     gt <- -gr$theta / (2 * at$ss[it] * sf[it])
     out[off + it] <- gt
     if (has.obs) out[off + q] <- -gr$s2
+    if (has.disp && !is.null(gr$phi)) out[off + q + 1] <- -gr$phi
     out[!is.finite(out)] <- NA
     out
   }

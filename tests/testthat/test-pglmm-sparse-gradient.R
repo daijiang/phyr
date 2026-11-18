@@ -16,6 +16,7 @@ dg$cnt <- rpois(nrow(dg), exp(eta_g))
 dg$nb <- rnbinom(nrow(dg), mu = exp(eta_g), size = 2)
 dg$succ <- rbinom(nrow(dg), 5, plogis(eta_g))
 dg$fail <- 5 - dg$succ
+dg$ga <- rgamma(nrow(dg), shape = 3, rate = 3 / exp(eta_g))
 crg <- list(sp = phy_g, site = phys_g)
 Xg <- model.matrix(~x, dg)
 
@@ -80,7 +81,8 @@ test_that("the gradient of the Laplace approximation is correct", {
   cases <- list(
     list(cbind(succ, fail) ~ x + (1 | sp__) + (1 | sp__@site), "binomial"),
     list(cnt ~ x + (1 | sp__) + (1 | sp@site__), "poisson"),
-    list(nb ~ x + (1 | sp__) + (1 | site), "nbinomial")
+    list(nb ~ x + (1 | sp__) + (1 | site), "nbinomial"),
+    list(ga ~ x + (1 | sp__) + (1 | site), "Gamma")
   )
   for (cs in cases) {
     fam <- cs[[2]]
@@ -90,7 +92,8 @@ test_that("the gradient of the Laplace approximation is correct", {
     lp <- phyr:::pglmm_laplace_prep(pre, dd$X, dd$Y, dd$size, fam, dd$has.obs)
     nt <- length(tm$terms)
     th <- seq(0.4, 1.1, length.out = nt)
-    phi <- if (fam == "nbinomial") 0.4
+    # dispersion (with its analytic derivative)
+    phi <- switch(fam, nbinomial = 0.4, Gamma = 0.3, NULL)
     st <- new.env()
     st$beta0 <- st$beta <- c(0.2, 0.4)
     st$v <- rep(0, pre$q)
@@ -98,18 +101,46 @@ test_that("the gradient of the Laplace approximation is correct", {
     for (mode in c("REML", "ML1", "ML2")) {
       REML <- mode == "REML"
       fit.beta <- mode != "ML2"
-      # (fixed effects for ML2), standard deviations of terms, variance of 1|obs
-      x0 <- c(if (!fit.beta) c(0.2, 0.4), th, if (dd$has.obs) 0.2)
+      # (fixed effects for ML2), standard deviations of terms, variance of 1|obs,
+      # dispersion
+      x0 <- c(if (!fit.beta) c(0.2, 0.4), th, if (dd$has.obs) 0.2, phi)
+      io <- length(x0) - length(phi) # position of the variance of 1|obs
       to_par <- function(x) {
-        if (dd$has.obs) x[length(x)] <- sqrt(x[length(x)])
-        c(x, phi)
+        if (dd$has.obs) x[io] <- sqrt(x[io])
+        x
       }
       keep <- new.env()
       phyr:::pglmm_laplace_ll(to_par(x0), lp, st, REML, fit.beta, keep = keep)
-      gr <- phyr:::pglmm_laplace_grad(keep$md, keep$ss, lp, REML, fit.beta)
+      gr <- phyr:::pglmm_laplace_grad(keep$md, keep$ss, lp, REML, fit.beta, phi = keep$phi)
       gn <- num_grad(function(x) phyr:::pglmm_laplace_ll(to_par(x), lp, st, REML, fit.beta), x0, 1e-5)
-      expect_lt(rel_err(c(gr$beta, gr$theta, gr$s2), gn), 1e-5)
+      expect_lt(rel_err(c(gr$beta, gr$theta, gr$s2, gr$phi), gn), 1e-5)
     }
+  }
+})
+
+test_that("the log densities of the families are those of dnbinom() and dgamma()", {
+  eta <- rnorm(200, 1, 0.8)
+  y <- rnbinom(200, mu = exp(eta), size = 2)
+  fl <- phyr:::pglmm_family_spec("nbinomial")$laplace(y, 1)
+  m <- exp(eta)
+  for (phi in c(0, 1e-4, 0.5, 3)) {
+    ref <- if (phi == 0) sum(dpois(y, m, log = TRUE)) else sum(dnbinom(y, size = 1 / phi, mu = m, log = TRUE))
+    expect_equal(fl$fam(eta, phi)$logp + fl$const, ref, tolerance = 1e-10)
+  }
+  # near the poisson model, the exact sum (dnbinom() approximates it for very
+  # large theta, with errors of about 1e-8 per observation)
+  phi <- 1e-10
+  l <- log1p(phi * m)
+  ref <- sum(vapply(y, function(k) sum(log1p((seq_len(k) - 1) * phi)), 1) - lgamma(y + 1) +
+               y * (eta - l) - l / phi)
+  expect_equal(fl$fam(eta, phi)$logp + fl$const, ref, tolerance = 1e-12)
+  # the derivative in phi at the poisson model
+  expect_equal(fl$dphi(eta, 0)$lphi, 0.5 * sum((y - m)^2 - y))
+  yg <- rgamma(200, shape = 2, rate = 2 / exp(eta))
+  fg <- phyr:::pglmm_family_spec("Gamma")$laplace(yg, 1)
+  for (phi in c(0.01, 0.5, 4)) {
+    expect_equal(fg$fam(eta, phi)$logp + fg$const,
+                 sum(dgamma(yg, shape = 1 / phi, rate = 1 / (phi * exp(eta)), log = TRUE)), tolerance = 1e-10)
   }
 })
 

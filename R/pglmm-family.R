@@ -20,13 +20,19 @@
 #   family, link: names of the family and of the link function
 #   label: name of the distribution in the summary
 #   linkfun, linkinv: link function and its inverse (from make.link())
-#   laplace(Y, size): list(fam, const), with fam(eta, phi) returning list(m =
-#     mean of y (size times the probability for binomial models), g = score
-#     d log p(y | eta) / d eta, w = observed information -d2 log p / d eta2
-#     (> 0), dw = dw / d eta, logp = sum of the log densities without the
-#     constant const)
+#   laplace(Y, size): list(fam, const, dphi), with fam(eta, phi) returning
+#     list(m = mean of y (size times the probability for binomial models),
+#     g = score d log p(y | eta) / d eta, w = observed information
+#     -d2 log p / d eta2 (> 0), dw = dw / d eta, logp = sum of the log
+#     densities without the constant const); it is called at each step of the
+#     search for the mode, so that logp should be cheap (precompute what does
+#     not depend on eta and phi). For families with a dispersion parameter,
+#     dphi(eta, phi) gives the derivatives in phi for the analytic gradient
+#     (pglmm_laplace_grad()): list(lphi = sum of d log p / d phi, gphi =
+#     dg / dphi, wphi = dw / dphi), or NULL (no dphi, or NULL from it: finite
+#     differences).
 #   disp: NULL, or the dispersion parameter, estimated as phi (the last
-#     parameter of pglmm_laplace_ll(), with finite-difference derivatives):
+#     parameter of pglmm_laplace_ll()):
 #     list(name = element of the fitted model with its reported value (e.g.
 #     "theta"), label = for the summary, value = function(phi) giving it,
 #     phi = its inverse, lower = lower bound of phi)
@@ -119,7 +125,18 @@ pglmm_family_poisson <- function() {
 
 # negative binomial (NB2): Var(y) = m + phi m^2, phi = 1 / theta >= 0 (phi = 0:
 # the poisson distribution); with the log link, the score is
-# g = (y - m) / (1 + phi m) and w = m (1 + phi y) / (1 + phi m)^2 > 0
+# g = (y - m) / (1 + phi m) and w = m (1 + phi y) / (1 + phi m)^2 > 0. The log
+# density, with lgamma(y + theta) - lgamma(theta) + y log(phi) =
+# sum_{k < y} log(1 + k phi), is
+#   log p = sum_{k < y} log(1 + k phi) - lgamma(y + 1) + y (eta - l) - l / phi,
+# with l = log(1 + phi m): accurate for any phi, also near zero (the poisson
+# distribution, where lgamma(y + theta) - lgamma(theta) would lose precision),
+# and cheap: the sums over k < y depend only on phi (computed once for each
+# phi, from cumulative sums up to max(y)). Its derivative in phi is
+#   sum_{k < y} k / (1 + k phi) + (l - x / (1 + x)) / phi^2 - y m / (1 + x),
+# x = phi m, with the series m^2 (1/2 - 2x/3 + 3x^2/4 - 4x^3/5) of the middle
+# term for small x, and dg/dphi = -(y - m) m / (1 + x)^2,
+# dw/dphi = m (y - 2m - x y) / (1 + x)^3.
 pglmm_family_nbinomial <- function() {
   lk <- stats::make.link("log")
   list(
@@ -128,20 +145,60 @@ pglmm_family_nbinomial <- function() {
     disp = list(name = "theta", label = "Dispersion parameter of the negative binomial distribution (theta)",
                 value = function(phi) 1 / phi, phi = function(theta) 1 / theta, lower = 0),
     laplace = function(Y, size) {
+      ymax <- max(Y)
+      # very large counts: dnbinom() (accurate, but slower) and finite differences
+      big <- ymax > 1e6
+      k <- if (!big) seq_len(ymax) - 1 # 0, ..., max(y) - 1
+      ny <- if (!big) tabulate(Y + 1, nbins = ymax + 1) # number of each value 0, ..., max(y)
+      lgy1 <- sum(lgamma(Y + 1))
+      # sums over the observations of sum_{k < y} log(1 + k phi) and of its
+      # derivative, for the last phi
+      cache <- new.env(parent = emptyenv())
+      ksums <- function(phi) {
+        if (!identical(cache$phi, phi)) {
+          cache$S <- sum(ny * c(0, cumsum(log1p(k * phi))))
+          cache$T <- sum(ny * c(0, cumsum(k / (1 + k * phi))))
+          cache$phi <- phi
+        }
+        cache
+      }
       list(
-        # dnbinom() is accurate for any theta = 1 / phi, also the poisson
-        # distribution for phi = 0
         fam = function(eta, phi = 0) {
           m <- exp(eta)
-          den <- 1 + phi * m
-          logp <- suppressWarnings(sum(stats::dnbinom(Y, size = 1 / phi, mu = m, log = TRUE)))
+          x <- phi * m
+          den <- 1 + x
+          logp <- if (big) {
+            suppressWarnings(sum(stats::dnbinom(Y, size = 1 / phi, mu = m, log = TRUE))) + lgy1
+          } else if (phi > 0) {
+            l <- log1p(x)
+            ksums(phi)$S + sum(Y * (eta - l) - l / phi)
+          } else {
+            sum(Y * eta - m)
+          }
           w <- m * (1 + phi * Y) / den^2
-          list(m = m, g = (Y - m) / den, w = w, dw = w * (1 - phi * m) / den, logp = logp)
+          list(m = m, g = (Y - m) / den, w = w, dw = w * (1 - x) / den, logp = logp)
         },
-        const = 0
+        const = -lgy1,
+        dphi = function(eta, phi) {
+          if (big) return(NULL)
+          m <- exp(eta)
+          x <- phi * m
+          den <- 1 + x
+          # (log(1 + x) - x / (1 + x)) / phi^2, with its series for small x
+          f <- m^2 * (0.5 - 2 * x / 3 + 0.75 * x^2 - 0.8 * x^3)
+          j <- x >= 1e-3
+          f[j] <- (log1p(x[j]) - x[j] / den[j]) / phi^2
+          list(lphi = ksums(phi)$T + sum(f - Y * m / den), gphi = -(Y - m) * m / den^2,
+               wphi = m * (Y - 2 * m - x * Y) / den^3)
+        }
       )
     },
-    check = function(Y, size) invisible(NULL),
+    check = function(Y, size) {
+      if (any(Y < 0 | Y != round(Y))) {
+        stop('family = "nbinomial" needs counts (integers, zero or larger) as response.', call. = FALSE)
+      }
+      invisible(NULL)
+    },
     # starting values of b and of the dispersion phi = 1 / theta from
     # MASS::glm.nb() (the poisson model if it fails)
     start = function(formula, data, X, Y, size, offset) {
@@ -160,9 +217,12 @@ pglmm_family_nbinomial <- function() {
 
 # Gamma with the log link: shape nu, Var(y) = m^2 / nu, estimated as the
 # dispersion phi = 1 / nu (as summary.glm(), and sigma()^2 of lme4::glmer();
-# sigma() of glmmTMB is sqrt(phi)). With
-# log p(y | eta) = nu log(nu y / m) - nu y / m - log(y) - lgamma(nu),
-# g = nu (y / m - 1), w = nu y / m > 0 and dw = -w.
+# sigma() of glmmTMB is sqrt(phi)). With r = y / m = y exp(-eta),
+#   log p(y | eta) = nu log(nu) - lgamma(nu) + (nu - 1) log(y) - nu (eta + r),
+# g = nu (r - 1), w = nu r > 0 and dw = -w; the sum of log(y) is computed
+# once. With d nu / d phi = -nu^2, d log p / d phi =
+# -nu^2 (log(nu) + 1 - digamma(nu) + log(y) - eta - r), dg/dphi = -nu^2 (r - 1)
+# and dw/dphi = -nu^2 r.
 pglmm_family_gamma <- function() {
   lk <- stats::make.link("log")
   list(
@@ -171,17 +231,23 @@ pglmm_family_gamma <- function() {
     disp = list(name = "shape", label = "Shape parameter of the Gamma distribution (shape)",
                 value = function(phi) 1 / phi, phi = function(shape) 1 / shape, lower = 1e-8),
     laplace = function(Y, size) {
+      n <- length(Y)
+      slogy <- sum(log(Y))
       list(
         fam = function(eta, phi) {
-          m <- exp(eta)
           nu <- 1 / phi
-          w <- nu * Y / m
-          # NaN (no warning) when eta overflows, at the trial points of the
-          # optimizer far from the optimum (pglmm_laplace_ll() then gives -Inf)
-          list(m = m, g = nu * (Y / m - 1), w = w, dw = -w,
-               logp = suppressWarnings(sum(stats::dgamma(Y, shape = nu, rate = nu / m, log = TRUE))))
+          r <- Y * exp(-eta)
+          w <- nu * r
+          list(m = exp(eta), g = nu * (r - 1), w = w, dw = -w,
+               logp = n * (nu * log(nu) - lgamma(nu)) + (nu - 1) * slogy - nu * sum(eta + r))
         },
-        const = 0
+        const = 0,
+        dphi = function(eta, phi) {
+          nu <- 1 / phi
+          r <- Y * exp(-eta)
+          list(lphi = -nu^2 * (n * (log(nu) + 1 - digamma(nu)) + slogy - sum(eta + r)),
+               gphi = -nu^2 * (r - 1), wphi = -nu^2 * r)
+        }
       )
     },
     check = function(Y, size) {
