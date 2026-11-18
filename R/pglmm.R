@@ -610,6 +610,13 @@
 #' with the reference BLAS; use `options(phyr.blas.hint = FALSE)` to turn it
 #' off. `extSoftVersion()["BLAS"]` shows the BLAS library that R uses.
 #'
+#' For large models with a phylogeny (at least 2000 observations or 300 tips),
+#' `pglmm()` shows a message once per session about the faster options:
+#' `sparse = TRUE` for gaussian models, and `method = "Laplace"` for binomial
+#' and poisson models fitted with the default `method = "PQL"` (which is also
+#' more accurate; with PQL, `sparse = TRUE` is the fast option). Use
+#' `options(phyr.sparse.hint = FALSE)` to turn these messages off.
+#'
 #' @section Comparative data:
 #' A phylogenetic term such as `(1 | sp__)` also adds the non-phylogenetic
 #' term `(1 | sp)`. With comparative data (one row per species), that term is
@@ -885,6 +892,7 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
                       sparse = FALSE, standardize_cov = TRUE, phylo_only = FALSE,
                       method = c("PQL", "Laplace"), reltol.given = !missing(reltol)) {
   family <- pglmm_family_name(family) # "gamma" for "Gamma"
+  method.given <- length(method) == 1 # (the default is c("PQL", "Laplace"))
   if (family %in% pglmm_laplace_only_families && !bayes) {
     # negative binomial and Gamma models are only fitted with the Laplace
     # approximation (PQL has no likelihood to estimate their dispersion with)
@@ -953,9 +961,14 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
     data <- data[!is.na(resp_vec), , drop = FALSE]
   }
 
-  if (!isTRUE(sparse) && !bayes && !laplace && prep_re &&
-      grepl("__", paste(deparse(formula), collapse = ""))) {
-    pglmm_sparse_hint(nrow(data), if (is.null(cov_ranef)) list(tree, tree_site) else cov_ranef)
+  if (!bayes && !laplace && prep_re && grepl("__", paste(deparse(formula), collapse = ""))) {
+    covs <- if (is.null(cov_ranef)) list(tree, tree_site) else cov_ranef
+    if (family %in% c("binomial", "poisson") && !method.given) {
+      # PQL by default: suggest method = "Laplace" (and sparse = TRUE for PQL)
+      pglmm_laplace_hint(nrow(data), covs, sparse = isTRUE(sparse))
+    } else if (!isTRUE(sparse)) {
+      pglmm_sparse_hint(nrow(data), covs)
+    }
   }
   if (!phylo_only && prep_re) pglmm_compare_hint(formula, data)
   if (phylo_only && (!prep_re || !is.null(tree) || !is.null(tree_site))) {

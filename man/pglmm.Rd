@@ -716,6 +716,13 @@ Apple's Accelerate; R can be switched to it by running, in a terminal,
 session when a model with at least 1000 observations is fitted on a Mac
 with the reference BLAS; use \code{options(phyr.blas.hint = FALSE)} to turn it
 off. \code{extSoftVersion()["BLAS"]} shows the BLAS library that R uses.
+
+For large models with a phylogeny (at least 2000 observations or 300 tips),
+\code{pglmm()} shows a message once per session about the faster options:
+\code{sparse = TRUE} for gaussian models, and \code{method = "Laplace"} for binomial
+and poisson models fitted with the default \code{method = "PQL"} (which is also
+more accurate; with PQL, \code{sparse = TRUE} is the fast option). Use
+\code{options(phyr.sparse.hint = FALSE)} to turn these messages off.
 }
 
 \section{Comparative data}{

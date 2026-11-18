@@ -1263,6 +1263,33 @@ pglmm_sparse_hint <- function(n, covs, min.n = 2000, min.sp = 300) {
   invisible(TRUE)
 }
 
+# Suggest method = "Laplace" for binomial and poisson models fitted with the
+# default method = "PQL" with large data or phylogenies: it uses the sparse
+# precision matrices (whatever sparse is), and is more accurate than PQL; with
+# PQL, sparse = TRUE is the fast option (mentioned when sparse = FALSE). covs:
+# phylogenies or covariance matrices. Shown once per session;
+# options(phyr.sparse.hint = FALSE) turns it off.
+pglmm_laplace_hint <- function(n, covs, sparse = FALSE, min.n = 2000, min.sp = 300) {
+  if (!isTRUE(getOption("phyr.sparse.hint", TRUE)) || isTRUE(.phyr_state$laplace.hint.shown)) {
+    return(invisible(FALSE))
+  }
+  covs <- Filter(Negate(is.null), covs)
+  if (!length(covs)) return(invisible(FALSE))
+  n.sp <- max(vapply(covs, function(x) if (inherits(x, "phylo")) ape::Ntip(x) else NROW(x), numeric(1)))
+  if (n < min.n && n.sp < min.sp) return(invisible(FALSE))
+  .phyr_state$laplace.hint.shown <- TRUE
+  message(
+    "This model is large; method = \"Laplace\" fits it with the sparse precision matrix of the ",
+    "phylogeny (fast for large phylogenies) and the Laplace approximation of the likelihood, which is ",
+    "more accurate than PQL (the default, which underestimates the variances of random terms, ",
+    "especially for binary data) and gives a log-likelihood comparable with that of lme4::glmer() ",
+    "and glmmTMB (see ?pglmm).",
+    if (!sparse) " With PQL, sparse = TRUE is much faster for large phylogenies.",
+    " This message is shown once per session; set options(phyr.sparse.hint = FALSE) to turn it off."
+  )
+  invisible(TRUE)
+}
+
 # Suggest pglmm_compare() when a phylogenetic term such as (1 | sp__) (not
 # nested) has one row per level of its grouping variable: the
 # non-phylogenetic term (1 | sp) that pglmm() adds automatically is then
