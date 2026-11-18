@@ -323,9 +323,11 @@
 #'   quasi-likelihood (PQL) iterations as with \code{sparse = FALSE} (same updates and
 #'   convergence rules, \code{tol.pql} and \code{maxit.pql}); at each iteration, the working
 #'   weights change only the values of the sparse matrix, and the observation-level term
-#'   \code{1|obs} is folded into the weights. Only available with \code{bayes = FALSE},
-#'   and phylogenies (class \code{phylo}) in \code{cov_ranef}. The default optimizer is then
-#'   \code{"subplex"} (see \code{optimizer}), with \code{reltol = 1e-8}.
+#'   \code{1|obs} is folded into the weights. Only available with phylogenies (class
+#'   \code{phylo}) in \code{cov_ranef}. The default optimizer is then
+#'   \code{"subplex"} (see \code{optimizer}), with \code{reltol = 1e-8}. With
+#'   \code{bayes = TRUE}, the model is given to INLA with one of the sparse representations
+#'   of \code{sparse_method}.
 #'
 #'   The sparse precision matrix exists because the trait evolves along the branches as a
 #'   Markov process (the value at a node depends only on its parent). This is not limited to
@@ -342,6 +344,34 @@
 #'   is exact for ultrametric trees; for non-ultrametric trees, check that it matches the
 #'   assumption about the root. Covariance matrices that cannot be written as a tree with
 #'   non-negative branch lengths (e.g. an arbitrary similarity matrix) need \code{sparse = FALSE}.
+#' @param sparse_method With \code{sparse = TRUE} and \code{bayes = TRUE}, how the
+#'   phylogenetic terms are given to INLA. \code{"precision"} (default): as a latent field
+#'   over all nodes of the phylogeny (tips and internal nodes, without the root), with the
+#'   sparse precision matrix of \code{sparse = TRUE}; the posterior of the internal nodes
+#'   (ancestral states) comes with the fit. \code{"flow"}: in the phylogenetic flow
+#'   representation of the phyf and fibre packages, as independent rates of evolution
+#'   \eqn{r_b} on the branches, \eqn{u_i = \sum_b \ell_b r_b} for the branches \eqn{b} from
+#'   the root to tip \eqn{i}, with \eqn{r_b \sim N(0, \sigma^2 / \ell_b)} and \eqn{\ell_b}
+#'   the (standardized) branch lengths. The trait then changes by \eqn{\ell_b r_b} along
+#'   each branch, with variance \eqn{\sigma^2 \ell_b}, so that the covariance matrix of the
+#'   tips is the same as with \code{"precision"} (Brownian motion), and the two give the
+#'   same model; \code{"flow"} gives the posterior of the rates, on the scale of the trait
+#'   per unit of branch length of the phylogenies in \code{cov_ranef}. For nested terms with
+#'   phylogenies (e.g. \code{(1 | sp__@site)}, \code{(1 | sp__@site__)}), the rates are those
+#'   of the pairs of branches (or of a branch and a level), from the row-wise Kronecker
+#'   product of the two flow matrices, with \eqn{r \sim N(0, \sigma^2 / (\ell_1 \ell_2))},
+#'   which gives the covariance matrix of the Kronecker product of the two covariance
+#'   matrices. Terms without phylogeny are the same with both methods. The estimates of the
+#'   rates (\code{"flow"}) or of the nodes of non-nested phylogenetic terms
+#'   (\code{"precision"}) are in \code{bayes_sparse$latent} of the fitted model. Both methods
+#'   report the marginal log-likelihood of the model (\code{logLik}; with \code{"flow"}, INLA's
+#'   value with the matrix \code{A} can differ from that of \code{"precision"} by about one
+#'   unit); \code{"flow"} is only available with \code{bayes = TRUE} for now. \code{repulsion}, \code{ML.init},
+#'   \code{ranef()}, \code{predict()} with \code{newdata} and \code{simulate()} with
+#'   \code{re.form = NA} (any \code{simulate()} for \code{"flow"}) are not available yet for
+#'   these models. With \code{"flow"}, the rates are linked to the observations by the matrix
+#'   \code{A} of \code{control.predictor} of INLA (as in fibre), so \code{inla.model} has more
+#'   fitted values than observations (the first ones are those of the observations).
 #' @param standardize_cov Logical (default \code{TRUE}). Whether to standardize the covariance
 #'   matrices of \code{cov_ranef} to have a determinant of one (a phylogeny is first converted to
 #'   its covariance matrix, which is divided by its largest element). If \code{FALSE}, the matrices
@@ -771,7 +801,8 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
                   bayes_nested_matrix_as_list = FALSE,
                   posterior.sample = TRUE,
                   return.fitted.marginals = TRUE,
-                  sparse = FALSE, standardize_cov = TRUE, method = c("PQL", "Laplace")) {
+                  sparse = FALSE, standardize_cov = TRUE, method = c("PQL", "Laplace"),
+                  sparse_method = c("precision", "flow")) {
   pglmm_fit(
     formula = formula, data = data, family = family, cov_ranef = cov_ranef,
     random.effects = random.effects, REML = REML, optimizer = optimizer,
@@ -785,7 +816,7 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
     posterior.sample = posterior.sample,
     return.fitted.marginals = return.fitted.marginals,
     sparse = sparse, standardize_cov = standardize_cov, method = method,
-    reltol.given = !missing(reltol)
+    reltol.given = !missing(reltol), sparse_method = sparse_method
   )
 }
 
@@ -811,8 +842,13 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
                       posterior.sample = TRUE,
                       return.fitted.marginals = TRUE,
                       sparse = FALSE, standardize_cov = TRUE, phylo_only = FALSE,
-                      method = c("PQL", "Laplace"), reltol.given = !missing(reltol)) {
+                      method = c("PQL", "Laplace"), reltol.given = !missing(reltol),
+                      sparse_method = c("precision", "flow")) {
   method <- match.arg(method)
+  sparse_method <- match.arg(sparse_method)
+  if (sparse_method == "flow" && !bayes) {
+    stop("sparse_method = \"flow\" is only available with bayes = TRUE for now.", call. = FALSE)
+  }
   laplace <- method == "Laplace" && !bayes && family %in% c("binomial", "poisson")
   valid_optimizers <- c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex", "lbfgs")
   optimizer.given <- !is.null(optimizer)
@@ -901,12 +937,39 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
   }
 
   if (isTRUE(sparse)) {
-    if (bayes) {
-      stop("sparse = TRUE is only available with bayes = FALSE.", call. = FALSE)
-    }
     if (!prep_re) stop("sparse = TRUE needs random terms specified in the formula.", call. = FALSE)
     if (is.null(cov_ranef) && (!is.null(tree) || !is.null(tree_site))) {
       cov_ranef <- c(if (!is.null(tree)) list(sp = tree), if (!is.null(tree_site)) list(site = tree_site))
+    }
+    if (bayes) {
+      if (ML.init) stop("ML.init = TRUE is not available yet with bayes = TRUE and sparse = TRUE.", call. = FALSE)
+      if (any(as.logical(repulsion))) {
+        stop("repulsion = TRUE is not available yet with bayes = TRUE and sparse = TRUE.", call. = FALSE)
+      }
+      # rows with missing values are dropped, and 1|obs is added, as for
+      # sparse = TRUE with bayes = FALSE
+      gd <- pglmm_glmm_data(formula, data, family, add.obs.re = add.obs.re)
+      data <- gd$data
+      tm <- pglmm_sparse_terms(formula, data, cov_ranef, standardize_cov = standardize_cov,
+                               phylo_only = phylo_only, flow = sparse_method == "flow")
+      z <- communityPGLMM.bayes(
+        formula = gd$formula.nobars, data = data, family = family,
+        s2.init = s2.init, B.init = B.init,
+        verbose = verbose,
+        marginal.summ = marginal.summ, calc.DIC = calc.DIC, calc.WAIC = calc.WAIC,
+        prior = prior,
+        prior_alpha = prior_alpha,
+        prior_mu = prior_mu,
+        bayes_options = bayes_options,
+        posterior.sample = posterior.sample,
+        return.fitted.marginals = return.fitted.marginals,
+        sparse_terms = pglmm_bayes_sparse_terms(tm, nrow(data), sparse_method, has.obs = gd$has.obs)
+      )
+      z$bayes_sparse$method <- sparse_method
+      z$standardize_cov <- standardize_cov
+      z$formula_original <- fm_original
+      z$cov_ranef <- if (length(tm$cov_ranef_updated)) tm$cov_ranef_updated else NA
+      return(z)
     }
     if (family == "gaussian") {
       z <- communityPGLMM.gaussian.sparse(
@@ -1533,13 +1596,17 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
                                  prior = "inla.default",
                                  prior_alpha = 0.1, prior_mu = 1, bayes_options = NULL,
                                  posterior.sample = TRUE,
-                                 return.fitted.marginals = TRUE) {
+                                 return.fitted.marginals = TRUE,
+                                 sparse_terms = NULL) {
   mf <- model.frame(formula = formula, data = data, na.action = NULL)
   X <- model.matrix(attr(mf, "terms"), data = mf)
   Y <- model.response(mf)
   p <- ncol(X)
   n <- nrow(X)
-  q <- length(random.effects)
+  # sparse_terms: random terms of pglmm_bayes_sparse_terms() (sparse = TRUE),
+  # used instead of random.effects
+  sparse <- !is.null(sparse_terms)
+  q <- if (sparse) length(sparse_terms) else length(random.effects)
 
   if (is.matrix(Y) && ncol(Y) == 2) { # success, fails for binomial data
     Ntrials <- rowSums(Y) # total trials
@@ -1631,39 +1698,6 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     ## very flat prior, generally not recommended!
   }
 
-  # contruct INLA formula
-  inla_formula <- Reduce(paste, deparse(formula_bayes))
-  inla_effects <- vector("list", length = length(random.effects))
-  if (is.null(names(random.effects))) {
-    names(inla_effects) <- as.character(1:length(inla_effects))
-  } else { # assign names so that the inla.model has names in random terms
-    names(inla_effects) <- names(random.effects)
-  }
-  inla_Cmat <- inla_weights <- inla_reps <- inla_effects
-
-  for (i in seq_along(random.effects)) {
-    if (length(random.effects[[i]]) == 1) {
-      # nested term: 1|sp@site, 1|sp__@site, 1|sp@site__, 1|sp__@site__
-      inla_effects[[i]] <- 1:nrow(data)
-      inla_Cmat[[i]] <- solve(random.effects[[i]][[1]])
-    } else if (length(random.effects[[i]]) == 2) {
-      # nested term: x|sp@site, x|sp__@site, x|sp@site__, x|sp__@site__
-      inla_effects[[i]] <- 1:nrow(data)
-      inla_weights[[i]] <- random.effects[[i]][[1]]
-      inla_Cmat[[i]] <- solve(random.effects[[i]][[2]])
-    } else if (length(random.effects[[i]]) == 3) {
-      # non-nested term: e.g. 1|sp__, x|sp__
-      inla_effects[[i]] <- as.numeric(random.effects[[i]][[2]])
-      inla_Cmat[[i]] <- solve(random.effects[[i]][[3]])
-      inla_weights[[i]] <- random.effects[[i]][[1]]
-    } else { # nested term: 1|sp@site, 1|sp__@site, 1|sp@site__, 1|sp__@site__
-      inla_effects[[i]] <- as.numeric(random.effects[[i]][[2]])
-      inla_Cmat[[i]] <- solve(random.effects[[i]][[3]])
-      inla_weights[[i]] <- random.effects[[i]][[1]]
-      inla_reps[[i]] <- as.numeric(random.effects[[i]][[4]])
-    }
-  }
-
   if (!is.null(bayes_options$diagonal)) {
     diagonal <- bayes_options$diagonal
     bayes_options <- bayes_options[-which(names(bayes_options) == "diagonal")]
@@ -1674,29 +1708,99 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     diagonal <- NULL
   }
 
-  f_form <- vector(mode = "character", length = length(random.effects))
-  for (i in seq_along(random.effects)) {
-    if (length(random.effects[[i]]) == 3) { # non-nested term
-      if (length(random.effects[[i]][[1]]) == 1) { # 1 | sp, 1 | sp__, 1 | site, 1 | site__
-        f_form[i] <- paste0("f(inla_effects[['", names(inla_effects)[i], "']], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
-      } else { # x | sp, x | sp__, x | site, x | site__
-        f_form[i] <- paste0("f(inla_effects[['", names(inla_effects)[i], "']], inla_weights[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
-      }
-    } else { # nested term 1 | sp__@site, etc.
-      if (length(random.effects[[i]]) == 4) {
-        if (length(random.effects[[i]][[1]]) == 1) {
-          f_form[i] <- paste0("f(inla_effects[['", names(inla_effects)[i], "']], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
+  # contruct INLA formula
+  inla_formula <- Reduce(paste, deparse(formula_bayes))
+  if (sparse) {
+    inla_effects <- lapply(sparse_terms, function(z) z$idx)
+    inla_weights <- lapply(sparse_terms, function(z) z$w)
+    inla_Cmat <- lapply(sparse_terms, function(z) z$C)
+    inla_values <- lapply(sparse_terms, function(z) z$values)
+    # phylogenetic flow: the rates of the branches are linked to the
+    # observations by the matrix A of control.predictor, A = [I, D_1, D_2, ...]
+    # (see pglmm_bayes_sparse_terms()); the other terms and the fixed effects
+    # are on the first n rows of the latent predictor
+    is.flow <- vapply(sparse_terms, function(z) z$type == "flow", TRUE)
+    inla_A <- NULL
+    if (any(is.flow)) {
+      m <- vapply(sparse_terms[is.flow], function(z) ncol(z$D), 1)
+      nA <- n + sum(m)
+      start <- n + cumsum(c(0, m))[seq_along(m)]
+      for (i in seq_along(sparse_terms)) {
+        if (is.flow[i]) {
+          k <- which(which(is.flow) == i)
+          inla_effects[[i]] <- rep(NA, nA)
+          inla_effects[[i]][start[k] + seq_len(m[k])] <- seq_len(m[k])
         } else {
-          f_form[i] <- paste0("f(inla_effects[['", names(inla_effects)[i], "']], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
+          inla_effects[[i]] <- c(inla_effects[[i]], rep(NA, nA - n))
+          if (!is.null(inla_weights[[i]])) inla_weights[[i]] <- c(inla_weights[[i]], rep(0, nA - n))
         }
-      } else { # length of 1 or 2: specified as a matrix (1|sp__@site) or list of 2 (x|sp__@site)
-        if (length(random.effects[[i]]) == 1) { # (1|sp__@site) etc.
+      }
+      inla_A <- do.call(cbind, c(list(Matrix::Diagonal(n)), lapply(sparse_terms[is.flow], function(z) z$D)))
+    }
+    f_form <- vapply(seq_along(sparse_terms), function(i) {
+      # all levels of the term (for phylogenies: all nodes but the root, or all
+      # branches for the flow)
+      paste0("f(inla_effects[['", names(sparse_terms)[i], "']]",
+             if (!is.null(sparse_terms[[i]]$w)) paste0(", inla_weights[[", i, "]]"),
+             ", model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i,
+             "]], values = inla_values[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
+    }, "")
+  } else {
+    inla_effects <- vector("list", length = length(random.effects))
+    if (is.null(names(random.effects))) {
+      names(inla_effects) <- as.character(1:length(inla_effects))
+    } else { # assign names so that the inla.model has names in random terms
+      names(inla_effects) <- names(random.effects)
+    }
+    inla_Cmat <- inla_weights <- inla_reps <- inla_effects
+
+    for (i in seq_along(random.effects)) {
+      if (length(random.effects[[i]]) == 1) {
+        # nested term: 1|sp@site, 1|sp__@site, 1|sp@site__, 1|sp__@site__
+        inla_effects[[i]] <- 1:nrow(data)
+        inla_Cmat[[i]] <- solve(random.effects[[i]][[1]])
+      } else if (length(random.effects[[i]]) == 2) {
+        # nested term: x|sp@site, x|sp__@site, x|sp@site__, x|sp__@site__
+        inla_effects[[i]] <- 1:nrow(data)
+        inla_weights[[i]] <- random.effects[[i]][[1]]
+        inla_Cmat[[i]] <- solve(random.effects[[i]][[2]])
+      } else if (length(random.effects[[i]]) == 3) {
+        # non-nested term: e.g. 1|sp__, x|sp__
+        inla_effects[[i]] <- as.numeric(random.effects[[i]][[2]])
+        inla_Cmat[[i]] <- solve(random.effects[[i]][[3]])
+        inla_weights[[i]] <- random.effects[[i]][[1]]
+      } else { # nested term: 1|sp@site, 1|sp__@site, 1|sp@site__, 1|sp__@site__
+        inla_effects[[i]] <- as.numeric(random.effects[[i]][[2]])
+        inla_Cmat[[i]] <- solve(random.effects[[i]][[3]])
+        inla_weights[[i]] <- random.effects[[i]][[1]]
+        inla_reps[[i]] <- as.numeric(random.effects[[i]][[4]])
+      }
+    }
+
+    f_form <- vector(mode = "character", length = length(random.effects))
+    for (i in seq_along(random.effects)) {
+      if (length(random.effects[[i]]) == 3) { # non-nested term
+        if (length(random.effects[[i]][[1]]) == 1) { # 1 | sp, 1 | sp__, 1 | site, 1 | site__
           f_form[i] <- paste0("f(inla_effects[['", names(inla_effects)[i], "']], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
-        } else {
-          if (length(random.effects[[i]]) == 2) { # (x|sp__@site) etc.
-            f_form[i] <- paste0("f(inla_effects[['", names(inla_effects)[i], "']], inla_weights[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
-          } else { # other lengths? just in case ...
+        } else { # x | sp, x | sp__, x | site, x | site__
+          f_form[i] <- paste0("f(inla_effects[['", names(inla_effects)[i], "']], inla_weights[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
+        }
+      } else { # nested term 1 | sp__@site, etc.
+        if (length(random.effects[[i]]) == 4) {
+          if (length(random.effects[[i]][[1]]) == 1) {
+            f_form[i] <- paste0("f(inla_effects[['", names(inla_effects)[i], "']], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
+          } else {
+            f_form[i] <- paste0("f(inla_effects[['", names(inla_effects)[i], "']], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
+          }
+        } else { # length of 1 or 2: specified as a matrix (1|sp__@site) or list of 2 (x|sp__@site)
+          if (length(random.effects[[i]]) == 1) { # (1|sp__@site) etc.
             f_form[i] <- paste0("f(inla_effects[['", names(inla_effects)[i], "']], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
+          } else {
+            if (length(random.effects[[i]]) == 2) { # (x|sp__@site) etc.
+              f_form[i] <- paste0("f(inla_effects[['", names(inla_effects)[i], "']], inla_weights[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
+            } else { # other lengths? just in case ...
+              f_form[i] <- paste0("f(inla_effects[['", names(inla_effects)[i], "']], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
+            }
           }
         }
       }
@@ -1772,6 +1876,22 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     }
   }
 
+  if (sparse && !is.null(inla_A)) {
+    if (!is.null(attr(terms(formula_bayes), "offset"))) {
+      stop("offset() is not available yet with sparse_method = \"flow\".", call. = FALSE)
+    }
+    # the fixed effects (columns of X, intercept included) only on the first n
+    # rows of the latent predictor, zero for the rates of the branches; the
+    # response stays of length n
+    X.names <- paste0("inla_X", seq_len(p))
+    data_A <- stats::setNames(lapply(seq_len(p), function(j) c(X[, j], rep(0, ncol(inla_A) - n))), X.names)
+    for (v in all.vars(formula_bayes[[2]])) data_A[[v]] <- data[[v]]
+    argus$formula <- as.formula(paste(deparse(formula_bayes[[2]]), "~ -1 +", paste(X.names, collapse = " + "),
+                                      "+", f_form))
+    argus$data <- data_A
+    argus$control.predictor$A <- inla_A
+  }
+
   if (family == "gaussian") {
     if (is.null(argus$control.family)) {
       argus$control.family <- list(hyper = list(prec = list(initial = resid.init)))
@@ -1792,6 +1912,10 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   }
 
   out <- do.call(INLA::inla, argus)
+  if (sparse && !is.null(inla_A)) { # names of the fixed effects, as with the formula
+    rownames(out$summary.fixed) <- colnames(X)
+    names(out$marginals.fixed) <- colnames(X)
+  }
 
   # out <- INLA::inla(as.formula(inla_formula), data = data,
   #                       verbose = verbose,
@@ -1817,7 +1941,12 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
 
   if (marginal.summ == "median") marginal.summ <- "0.5quant"
 
-  nested <- sapply(random.effects, length) %in% c(1, 2, 4)
+  if (sparse) {
+    nested <- vapply(sparse_terms, function(z) z$nested, TRUE)
+    random.effects <- stats::setNames(vector("list", length(sparse_terms)), names(sparse_terms)) # names only
+  } else {
+    nested <- sapply(random.effects, length) %in% c(1, 2, 4)
+  }
 
   variances <- 1 / out$summary.hyperpar[, marginal.summ]
   # names(variances) <- gsub("Precision for ", "", rownames(out$summary.hyperpar))
@@ -1855,11 +1984,21 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   if (marginal.summ == "median") marginal.summ <- "0.5quant"
 
   B <- out$summary.fixed[, marginal.summ]
-  H <- Y - out$summary.fitted.values[, marginal.summ, drop = TRUE]
-  mu <- out$summary.fitted.values[, marginal.summ, drop = FALSE]
+  # with the matrix A (sparse_method = "flow"), the first n fitted values are
+  # those of the observations
+  H <- Y - out$summary.fitted.values[seq_len(n), marginal.summ, drop = TRUE]
+  mu <- out$summary.fitted.values[seq_len(n), marginal.summ, drop = FALSE]
   # H <- NULL
 
-  scale_factors <- compute_scale_factors(random.effects)
+  if (sparse) {
+    scale_factors <- vapply(sparse_terms, function(z) z$mean.diag, 1)
+    # INLA leaves out log|Cmatrix| / 2 of 'generic0' models from the marginal
+    # likelihood (see pglmm_bayes_sparse_terms())
+    logLik <- out$mlik[1, 1] + sum(vapply(sparse_terms, function(z) z$logdetC / 2, 1))
+  } else {
+    scale_factors <- compute_scale_factors(random.effects)
+    logLik <- out$mlik[1, 1]
+  }
 
   results <- list(
     formula = formula, data = data, family = family, random.effects = random.effects,
@@ -1871,12 +2010,18 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     zi = zeroinlated_param, s2n.ci = variances.ci[nested, ],
     s2r.ci = variances.ci[!nested, ], s2resid.ci = resid_var.ci,
     zi.ci = zeroinflated_param.ci,
-    logLik = out$mlik[1, 1], AIC = NULL, BIC = NULL, DIC = DIC, WAIC = WAIC,
+    logLik = logLik, AIC = NULL, BIC = NULL, DIC = DIC, WAIC = WAIC,
     REML = NULL, bayes = TRUE, marginal.summ = marginal.summ,
     s2.init = s2.init, B.init = B.init, Y = Y, size = Ntrials, X = X, H = H,
     mu = mu, nested = nested, Zt = NULL, St = NULL,
     convcode = NULL, niter = NULL, inla.model = out
   )
+  if (sparse) {
+    results$bayes_sparse <- list(
+      method = if (any(vapply(sparse_terms, function(z) z$type == "flow", TRUE))) "flow" else "precision",
+      latent = pglmm_bayes_sparse_latent(out, sparse_terms, n)
+    )
+  }
   class(results) <- c("communityPGLMM", "pglmm")
   results
 }

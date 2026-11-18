@@ -1567,10 +1567,12 @@ pglmm_predicted_values <- function(x, cpp = TRUE,
   } else if (isTRUE(x$bayes)) {
     marginal.summ <- x$marginal.summ
     if (marginal.summ == "median") marginal.summ <- "0.5quant"
+    # the first rows are those of the observations (more rows with the matrix
+    # A of sparse_method = "flow")
     if (type == "link") {
-      predicted.values <- x$inla.model$summary.linear.predictor[, marginal.summ, drop = TRUE]
+      predicted.values <- x$inla.model$summary.linear.predictor[seq_len(nrow(x$X)), marginal.summ, drop = TRUE]
     } else {
-      predicted.values <- x$inla.model$summary.fitted.values[, marginal.summ, drop = TRUE]
+      predicted.values <- x$inla.model$summary.fitted.values[seq_len(nrow(x$X)), marginal.summ, drop = TRUE]
     }
   } else {
     if (x$family == "gaussian") {
@@ -2083,6 +2085,7 @@ pglmm_cond_modes <- function(object, condVar = FALSE) {
 
 # Posterior summaries of the latent random effects of a model fitted by INLA.
 pglmm_ranef_bayes <- function(object) {
+  pglmm_bayes_sparse_stop(object, "ranef() (see object$bayes_sparse$latent)")
   re <- object$random.effects
   sr <- object$inla.model$summary.random
   if (is.null(sr) || length(sr) != length(re)) {
@@ -2399,6 +2402,7 @@ predict.communityPGLMM <- function(object, newdata = NULL, re.form = NULL,
   if (is.null(newdata)) {
     return(as.matrix(pglmm_predicted_values(object, re.form = re.form, type = type, ...)))
   }
+  pglmm_bayes_sparse_stop(object, "predict() with newdata")
 
   newdata <- as.data.frame(newdata) # in case of tibbles
   eta <- pglmm_predict_fixed(object, newdata)
@@ -2648,6 +2652,10 @@ rmvnorm_cov <- function(S, nsim) {
 }
 
 bayes_simulate <- function(object, nsim = 250, re.form, ntry = 5, full = FALSE) {
+  if (!is.null(re.form)) pglmm_bayes_sparse_stop(object, "simulate() with re.form = NA")
+  if (identical(object$bayes_sparse$method, "flow")) {
+    stop("simulate() is not available yet for models fitted with sparse_method = \"flow\".", call. = FALSE)
+  }
   Ntrials <- if (object$family == "binomial") pglmm_binomial_size(object) else 1
 
   if (is.null(re.form)) {
