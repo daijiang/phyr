@@ -129,9 +129,11 @@
 #' the phylogenetic variance tends to get trapped near zero.
 #' @param s2.init Initial estimate of s2 (default 1; \code{NULL} uses the
 #'   defaults of [pglmm()]).
-#' @param sparse Logical (default \code{FALSE}). If \code{TRUE}, fit the model
-#'   with the sparse precision matrix of the phylogeny, which is much faster for
-#'   large phylogenies (see Details and [pglmm()]). Only with \code{bayes = FALSE}.
+#' @param sparse Whether to fit the model with the sparse precision matrix of the
+#'   phylogeny, which is much faster for large phylogenies (see Details and
+#'   [pglmm()]). The default, \code{NULL}, is \code{TRUE} with \code{bayes = FALSE}
+#'   (\code{FALSE} before phyr 1.3.0); use \code{sparse = FALSE} for the dense
+#'   covariance matrix (then also returned in \code{vcv.phy}).
 #' @param method For binomial and poisson data, \code{"PQL"} (default) or
 #'   \code{"Laplace"}: see Details and [pglmm()]. Negative binomial data are always
 #'   fitted with \code{"Laplace"}.
@@ -281,7 +283,7 @@ pglmm_compare <- function(formula, family = "gaussian",
                           prior_alpha = 0.1, prior_mu = 1, ML.init = FALSE, s2.init = 1, B.init = NULL,
                           calc.WAIC = TRUE, bayes_options = NULL, posterior.sample = TRUE,
                           return.fitted.marginals = TRUE,
-                          sparse = FALSE, standardize_cov = TRUE,
+                          sparse = NULL, standardize_cov = TRUE,
                           method = c("PQL", "Laplace")) {
   # method is matched by pglmm_fit() (the default is "Laplace" for nbinomial and Gamma)
   if (!inherits(phy, "phylo")) stop("phy must be a phylogeny with class 'phylo'.", call. = FALSE)

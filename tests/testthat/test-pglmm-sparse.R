@@ -36,7 +36,7 @@ test_that("precision matrix of a phylogeny is the inverse of the standardized vc
 test_that("sparse and dense likelihoods are the same at the same parameters", {
   s <- sim_sparse_data()
   f <- y ~ x + (1 | sp__) + (1 | site) + (x | sp__)
-  m1 <- pglmm(f, s$d, cov_ranef = list(sp = s$phy))
+  m1 <- pglmm(f, s$d, sparse = FALSE, cov_ranef = list(sp = s$phy))
   tm <- phyr:::pglmm_sparse_terms(f, s$d, list(sp = s$phy))
   pre <- phyr:::pglmm_sparse_setup(m1$X, m1$Y, tm$terms)
   for (REML in c(TRUE, FALSE)) {
@@ -55,7 +55,7 @@ test_that("pglmm(sparse = TRUE) gives the same fit as the default code", {
     s <- sim_sparse_data(ultrametric = ultrametric)
     f <- y ~ x + (1 | sp__) + (1 | site)
     for (REML in c(TRUE, FALSE)) {
-      m1 <- pglmm(f, s$d, cov_ranef = list(sp = s$phy), REML = REML,
+      m1 <- pglmm(f, s$d, sparse = FALSE, cov_ranef = list(sp = s$phy), REML = REML,
                   optimizer = "nelder-mead-nlopt", reltol = 1e-10)
       m2 <- pglmm(f, s$d, cov_ranef = list(sp = s$phy), REML = REML, sparse = TRUE, reltol = 1e-10)
       expect_equal(m2$logLik, m1$logLik, tolerance = 1e-6)
@@ -72,7 +72,7 @@ test_that("pglmm(sparse = TRUE) gives the same fit as the default code", {
 test_that("methods work for models fitted with sparse = TRUE", {
   s <- sim_sparse_data()
   f <- y ~ x + (1 | sp__) + (1 | site)
-  m1 <- pglmm(f, s$d, cov_ranef = list(sp = s$phy), optimizer = "nelder-mead-nlopt", reltol = 1e-10)
+  m1 <- pglmm(f, s$d, sparse = FALSE, cov_ranef = list(sp = s$phy), optimizer = "nelder-mead-nlopt", reltol = 1e-10)
   m2 <- pglmm(f, s$d, cov_ranef = list(sp = s$phy), sparse = TRUE, reltol = 1e-10)
   expect_output(print(m2), "1\\|sp__")
   r1 <- ranef(m1, condVar = TRUE)
@@ -117,6 +117,27 @@ test_that("methods work for models fitted with sparse = TRUE", {
   expect_equal(p2, pglmm_predicted_values(m1, gaussian.pred = "tip_rm")$Y_hat, tolerance = 1e-3)
   H <- as.vector(m2$H)
   expect_equal(p2, as.vector(m2$X %*% m2$B) + H - as.vector(iV2 %*% H) / diag(iV2), tolerance = 1e-8)
+})
+
+test_that("sparse = NULL (the default) uses the sparse code whenever it supports the model", {
+  s <- sim_sparse_data(nsp = 15, nsite = 5)
+  q <- function(...) suppressWarnings(suppressMessages(pglmm(...)))
+  expect_false(is.null(q(y ~ x + (1 | sp__) + (1 | site), s$d, cov_ranef = list(sp = s$phy))$sparse))
+  expect_false(is.null(q(y ~ x + (1 | sp__) + (x | sp), s$d, cov_ranef = list(sp = s$phy))$sparse))
+  # the dense code: covariance matrices, random.effects
+  V <- ape::vcv(s$phy)
+  expect_null(q(y ~ x + (1 | sp__), s$d, cov_ranef = list(sp = V))$sparse)
+  re <- list(list(1, sp = factor(s$d$sp), covar = diag(length(unique(s$d$sp)))))
+  expect_null(q(y ~ x, s$d, random.effects = re)$sparse)
+  # TRUE and FALSE are used as given (TRUE stops for what the sparse code does
+  # not support, see below); other values are errors
+  expect_null(q(y ~ x + (1 | sp__) + (1 | site), s$d, cov_ranef = list(sp = s$phy), sparse = FALSE)$sparse)
+  expect_false(is.null(q(y ~ x + (1 | sp__), s$d, cov_ranef = list(sp = s$phy), sparse = TRUE)$sparse))
+  expect_error(q(y ~ x + (1 | sp__), s$d, cov_ranef = list(sp = V), sparse = TRUE), "phylogeny")
+  expect_error(q(y ~ x + (1 | sp__), s$d, cov_ranef = list(sp = s$phy), sparse = NA), "TRUE, FALSE or NULL")
+  expect_error(q(y ~ x + (1 | sp__), s$d, cov_ranef = list(sp = s$phy), sparse = "yes"), "TRUE, FALSE or NULL")
+  expect_false(phyr:::pglmm_sparse_default(y ~ x + (1 | sp), NULL, NULL, NULL, NULL, bayes = TRUE))
+  expect_true(phyr:::pglmm_sparse_default(y ~ x + (1 | sp), NULL, NULL, NULL, NULL, bayes = FALSE))
 })
 
 test_that("sparse = TRUE stops for what it does not support", {
@@ -218,7 +239,7 @@ test_that("pglmm(sparse = TRUE) gives the same fit as the default code for neste
   for (f in fs) {
     for (REML in c(TRUE, FALSE)) {
       # subplex: the other optimizers of the default code can stop short on these data
-      m1 <- pglmm(f, s$d, cov_ranef = cr, REML = REML, optimizer = "subplex", reltol = 1e-10,
+      m1 <- pglmm(f, s$d, sparse = FALSE, cov_ranef = cr, REML = REML, optimizer = "subplex", reltol = 1e-10,
                   maxit = 5000)
       m2 <- pglmm(f, s$d, cov_ranef = cr, REML = REML, sparse = TRUE, reltol = 1e-10)
       expect_equal(m2$logLik, m1$logLik, tolerance = 1e-6)
@@ -239,7 +260,7 @@ test_that("methods work for models with nested terms fitted with sparse = TRUE",
   s <- sim_nested_data()
   cr <- list(sp = s$phy, site = s$phy_site)
   f <- y ~ x + (1 | sp__@site) + (1 | sp__) + (1 | site__) + (1 | sp@site)
-  m1 <- pglmm(f, s$d, cov_ranef = cr, optimizer = "nelder-mead-nlopt", reltol = 1e-10)
+  m1 <- pglmm(f, s$d, sparse = FALSE, cov_ranef = cr, optimizer = "nelder-mead-nlopt", reltol = 1e-10)
   m2 <- pglmm(f, s$d, cov_ranef = cr, sparse = TRUE, reltol = 1e-10)
   expect_output(print(m2), "1\\|sp__@site")
   expect_identical(rownames(VarCorr(m2)), rownames(VarCorr(m1)))
@@ -319,7 +340,7 @@ test_that("pglmm(sparse = TRUE) with repulsion gives the same fit and methods as
     list(y ~ x + (1 | sp__) + (1 | site__) + (1 | sp__@site__), c(TRUE, FALSE))
   )
   for (cs in cases) {
-    m1 <- pglmm(cs[[1]], s$d, cov_ranef = cr, repulsion = cs[[2]], optimizer = "subplex",
+    m1 <- pglmm(cs[[1]], s$d, sparse = FALSE, cov_ranef = cr, repulsion = cs[[2]], optimizer = "subplex",
                 reltol = 1e-10, maxit = 5000)
     m2 <- pglmm(cs[[1]], s$d, cov_ranef = cr, repulsion = cs[[2]], sparse = TRUE, reltol = 1e-10)
     expect_equal(m2$logLik, m1$logLik, tolerance = 1e-6)
@@ -365,7 +386,7 @@ test_that("the default optimizer of sparse = TRUE avoids a known poor optimum", 
   d <- d[sort(sample(nrow(d), round(0.7 * nrow(d)))), ]
   f <- y ~ x + (1 | sp__) + (1 | site__) + (1 | sp__@site__) + (1 | sp@site__)
   cr <- list(sp = phy, site = phs)
-  m1 <- pglmm(f, d, cov_ranef = cr, standardize_cov = FALSE, optimizer = "subplex", reltol = 1e-10,
+  m1 <- pglmm(f, d, sparse = FALSE, cov_ranef = cr, standardize_cov = FALSE, optimizer = "subplex", reltol = 1e-10,
               maxit = 5000)
   m2 <- pglmm(f, d, cov_ranef = cr, standardize_cov = FALSE, sparse = TRUE)
   expect_equal(m2$logLik, m1$logLik, tolerance = 1e-5)
@@ -446,7 +467,7 @@ test_that("pglmm(sparse = TRUE) gives the same fit and methods as the default co
   )
   for (cs in cases) {
     # tight tolerances, so that both reach the fixed point of the PQL iterations
-    m1 <- suppressMessages(pglmm(cs[[1]], s$d, family = cs[[2]], cov_ranef = cr, REML = cs[[3]],
+    m1 <- suppressMessages(pglmm(cs[[1]], s$d, sparse = FALSE, family = cs[[2]], cov_ranef = cr, REML = cs[[3]],
                                  optimizer = "subplex", reltol = 1e-12, maxit = 5000, tol.pql = 1e-8))
     # the same (derivative-free) optimizer, so that the comparison is of the
     # algebra, not of where two optimizers stop on a flat likelihood

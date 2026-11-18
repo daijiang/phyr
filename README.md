@@ -115,17 +115,17 @@ test1
 ## -463.3  940.6  956.5 
 ## 
 ## Random effects:
-##              Variance   Std.Dev
-## 1|sp        7.345e-01 0.8570105
-## 1|sp__      1.800e-04 0.0134157
-## 1|site      1.035e-07 0.0003217
-## 1|sp__@site 2.138e-05 0.0046238
-## residual    3.261e+00 1.8058430
+##             Variance Std.Dev
+## 1|sp          0.7389  0.8596
+## 1|sp__        0.0000  0.0000
+## 1|site        0.0000  0.0000
+## 1|sp__@site   0.0000  0.0000
+## residual      3.2601  1.8056
 ## 
 ## Fixed effects:
-##                  Value  Std.Error  Zscore   Pvalue    
-## (Intercept) -0.1911039  0.3920853 -0.4874 0.625972    
-## shade        0.0226917  0.0067263  3.3736 0.000742 ***
+##                  Value  Std.Error  Zscore    Pvalue    
+## (Intercept) -0.1910424  0.3923416 -0.4869 0.6263088    
+## shade        0.0226918  0.0067252  3.3741 0.0007405 ***
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 # phy-GLMM
@@ -134,7 +134,7 @@ test2 = phyr::pglmm(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site),
                     cov_ranef = list(sp = phylotree))
 ## Warning: Drop species from the phylogeny that are not in the variable sp
 test2
-## Generalized linear mixed model for binomial data fit by maximum likelihood
+## Generalized linear mixed model for binomial data fit by penalized quasi-likelihood (PQL, maximum likelihood)
 ## 
 ## Call:pa ~ 1 + shade
 ## 
@@ -142,16 +142,16 @@ test2
 ## -122.7  259.5  275.4 
 ## 
 ## Random effects:
-##              Variance  Std.Dev
-## 1|sp        1.786e-06 0.001336
-## 1|sp__      4.441e-01 0.666389
-## 1|site      4.496e-06 0.002120
-## 1|sp__@site 8.689e-06 0.002948
+##             Variance Std.Dev
+## 1|sp          0.0000  0.0000
+## 1|sp__        0.4513  0.6718
+## 1|site        0.0000  0.0000
+## 1|sp__@site   0.0000  0.0000
 ## 
 ## Fixed effects:
-##                  Value  Std.Error  Zscore    Pvalue    
-## (Intercept) -2.0835724  0.5744500 -3.6271 0.0002867 ***
-## shade        0.0165916  0.0087165  1.9035 0.0569784 .  
+##                  Value  Std.Error  Zscore   Pvalue    
+## (Intercept) -2.0860496  0.5764527 -3.6188 0.000296 ***
+## shade        0.0166047  0.0087201  1.9042 0.056885 .  
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 # bipartite
@@ -171,19 +171,19 @@ z_bipartite
 ## -467.4  954.8  977.5 
 ## 
 ## Random effects:
-##                Variance   Std.Dev
-## 1|sp          4.417e-07 6.646e-04
-## 1|sp__        7.749e-01 8.803e-01
-## 1|site        4.729e-09 6.877e-05
-## 1|site__      3.742e-10 1.934e-05
-## 1|sp__@site   2.568e-09 5.068e-05
-## 1|sp@site__   2.653e-09 5.151e-05
-## 1|sp__@site__ 2.621e-09 5.120e-05
-## residual      3.266e+00 1.807e+00
+##               Variance Std.Dev
+## 1|sp            0.0000  0.0000
+## 1|sp__          0.7748  0.8802
+## 1|site          0.0000  0.0000
+## 1|site__        0.0000  0.0000
+## 1|sp__@site     0.0000  0.0000
+## 1|sp@site__     0.0000  0.0000
+## 1|sp__@site__   0.0000  0.0000
+## residual        3.2656  1.8071
 ## 
 ## Fixed effects:
 ##                  Value  Std.Error  Zscore    Pvalue    
-## (Intercept) -0.2721733  0.5674118 -0.4797 0.6314584    
+## (Intercept) -0.2721731  0.5674007 -0.4797 0.6314521    
 ## shade        0.0226918  0.0067309  3.3713 0.0007482 ***
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1

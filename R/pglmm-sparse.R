@@ -1305,6 +1305,17 @@ communityPGLMM.gaussian.sparse <- function(formula, data, cov_ranef = NULL, REML
   results
 }
 
+# The value of sparse = NULL (the default of pglmm()): TRUE when the sparse
+# code supports the model, i.e. with bayes = FALSE, random terms in the formula
+# (not random.effects), and phylogenies (not covariance matrices) in cov_ranef
+# (and tree, tree_site); FALSE otherwise
+pglmm_sparse_default <- function(formula, cov_ranef, tree, tree_site, random.effects, bayes) {
+  if (bayes || !is.null(random.effects)) return(FALSE)
+  if (!length(reformulas::findbars(formula))) return(FALSE)
+  covs <- Filter(Negate(is.null), c(if (is.list(cov_ranef)) cov_ranef, list(tree, tree_site)))
+  all(vapply(covs, inherits, logical(1), "phylo"))
+}
+
 # Stop for the methods that are not available yet for the sparse path
 pglmm_sparse_stop <- function(object, what) {
   if (!is.null(object$sparse)) {

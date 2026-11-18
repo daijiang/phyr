@@ -139,14 +139,28 @@ test_that("pglmm_iV() gives the inverse covariance matrix that is not stored any
   d$x <- rnorm(80)
   d$y <- rnorm(80) + 0.5 * d$x
   d$cnt <- rpois(80, 2)
-  fits <- list(
-    quiet(pglmm(y ~ x + (1 | sp__) + (1 | site), data = d, cov_ranef = list(sp = phy))),
-    quiet(pglmm(y ~ x + (1 | sp__) + (1 | site) + (1 | sp__@site), data = d, cov_ranef = list(sp = phy))),
-    quiet(pglmm(y ~ x + (1 | sp__@site), data = d, cov_ranef = list(sp = phy))),
-    quiet(pglmm(cnt ~ x + (1 | sp__) + (1 | site), data = d, family = "poisson", cov_ranef = list(sp = phy))),
-    quiet(pglmm(cnt > 1 ~ x + (1 | sp) + (1 | sp__@site), data = d, family = "binomial", cov_ranef = list(sp = phy)))
-  )
-  for (m in fits) {
+  fit_all <- function(sparse) {
+    list(
+      quiet(pglmm(y ~ x + (1 | sp__) + (1 | site), data = d, cov_ranef = list(sp = phy), sparse = sparse)),
+      quiet(pglmm(y ~ x + (1 | sp__) + (1 | site) + (1 | sp__@site), data = d, cov_ranef = list(sp = phy),
+                  sparse = sparse)),
+      quiet(pglmm(y ~ x + (1 | sp__@site), data = d, cov_ranef = list(sp = phy), sparse = sparse)),
+      quiet(pglmm(cnt ~ x + (1 | sp__) + (1 | site), data = d, family = "poisson", cov_ranef = list(sp = phy),
+                  sparse = sparse)),
+      quiet(pglmm(cnt > 1 ~ x + (1 | sp) + (1 | sp__@site), data = d, family = "binomial",
+                  cov_ranef = list(sp = phy), sparse = sparse))
+    )
+  }
+  # sparse = TRUE (the default): from the sparse factorization
+  for (m in fit_all(NULL)) {
+    expect_false(is.null(m$sparse))
+    iV <- pglmm_iV(m)
+    expect_equal(dim(iV), c(80L, 80L))
+    expect_equal(iV, t(iV))
+    expect_equal(solve(t(m$X) %*% iV %*% m$X), as.matrix(m$B.cov), tolerance = 1e-6, ignore_attr = TRUE)
+    expect_equal(phyr:::pglmm_iV_diag(m), diag(iV), tolerance = 1e-8)
+  }
+  for (m in fit_all(FALSE)) {
     expect_null(m$iV)
     iV <- pglmm_iV(m)
     expect_equal(dim(iV), c(80L, 80L))

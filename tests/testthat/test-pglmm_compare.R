@@ -55,7 +55,8 @@ test_that("pglmm_compare gives the same estimates as the earlier implementation"
   )
   for (r in ref) {
     # add.obs.re = FALSE: the model of earlier versions (which ignored the argument)
-    z <- qfit(r$f, family = r$fam, data = cmp$d, phy = cmp$phy, REML = r$REML, add.obs.re = FALSE)
+    z <- qfit(r$f, family = r$fam, data = cmp$d, phy = cmp$phy, REML = r$REML, add.obs.re = FALSE,
+              sparse = FALSE)
     expect_equal(as.vector(z$B), r$B, tolerance = 1e-5)
     expect_equal(as.vector(z$B.se), r$se, tolerance = 1e-5)
     expect_equal(unname(z$s2n), r$s2n, tolerance = 1e-5)
@@ -66,7 +67,7 @@ test_that("pglmm_compare gives the same estimates as the earlier implementation"
   # rows not in the order of the tips, and a tip without data
   d2 <- cmp$d[c(5:40, 1:4), ][-3, ]
   expect_warning(expect_warning(
-    z <- pglmm_compare(yg ~ x, data = d2, phy = cmp$phy),
+    z <- pglmm_compare(yg ~ x, data = d2, phy = cmp$phy, sparse = FALSE),
     "resorted"), "drop these species")
   expect_equal(as.vector(z$B), c(2.443433677, 0.4058866027), tolerance = 1e-5)
   expect_equal(unname(z$s2n), 0.1910847419, tolerance = 1e-5)
@@ -102,7 +103,7 @@ test_that("pglmm_compare with sparse = TRUE gives the same estimates", {
     f <- switch(fam, gaussian = yg ~ x, binomial = yb ~ x, poisson = yp ~ x)
     # tight tolerances, so that both fits reach the same optimum
     a <- qfit(f, family = fam, data = cmp$d, phy = cmp$phy, optimizer = "subplex",
-              reltol = 1e-12, maxit = 5000, tol.pql = 1e-8)
+              reltol = 1e-12, maxit = 5000, tol.pql = 1e-8, sparse = FALSE)
     b <- qfit(f, family = fam, data = cmp$d, phy = cmp$phy, sparse = TRUE,
               optimizer = "subplex", reltol = 1e-12, maxit = 5000, tol.pql = 1e-8)
     expect_equal(as.vector(b$B), as.vector(a$B), tolerance = 1e-4)
@@ -117,14 +118,14 @@ test_that("pglmm_compare with sparse = TRUE gives the same estimates", {
     expect_equal(rb$estimate, ra$estimate, tolerance = 1e-3)
   }
   # default settings give close estimates
-  a <- qfit(yg ~ x, data = cmp$d, phy = cmp$phy)
-  b <- qfit(yg ~ x, data = cmp$d, phy = cmp$phy, sparse = TRUE)
+  a <- qfit(yg ~ x, data = cmp$d, phy = cmp$phy, sparse = FALSE)
+  b <- qfit(yg ~ x, data = cmp$d, phy = cmp$phy)
   expect_equal(as.vector(b$B), as.vector(a$B), tolerance = 1e-4)
   # standardize_cov = FALSE
-  a <- qfit(yg ~ x, data = cmp$d, phy = cmp$phy, standardize_cov = FALSE)
-  b <- qfit(yg ~ x, data = cmp$d, phy = cmp$phy, standardize_cov = FALSE, sparse = TRUE)
+  a <- qfit(yg ~ x, data = cmp$d, phy = cmp$phy, standardize_cov = FALSE, sparse = FALSE)
+  b <- qfit(yg ~ x, data = cmp$d, phy = cmp$phy, standardize_cov = FALSE)
   expect_equal(unname(b$s2n), unname(a$s2n), tolerance = 1e-3)
-  expect_equal(a$logLik, qfit(yg ~ x, data = cmp$d, phy = cmp$phy)$logLik, tolerance = 1e-6)
+  expect_equal(a$logLik, qfit(yg ~ x, data = cmp$d, phy = cmp$phy, sparse = FALSE)$logLik, tolerance = 1e-6)
 })
 
 test_that("methods of pglmm() work with pglmm_compare models", {

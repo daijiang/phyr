@@ -39,7 +39,7 @@ pglmm(
   bayes_nested_matrix_as_list = FALSE,
   posterior.sample = TRUE,
   return.fitted.marginals = TRUE,
-  sparse = FALSE,
+  sparse = NULL,
   standardize_cov = TRUE,
   method = c("PQL", "Laplace")
 )
@@ -78,7 +78,7 @@ communityPGLMM(
   bayes_nested_matrix_as_list = FALSE,
   posterior.sample = TRUE,
   return.fitted.marginals = TRUE,
-  sparse = FALSE,
+  sparse = NULL,
   standardize_cov = TRUE,
   method = c("PQL", "Laplace")
 )
@@ -220,9 +220,10 @@ so \code{add.obs.re = TRUE} by default.}
 estimates of \code{s2} and \code{B} are plotted each iteration
 during optimization.}
 
-\item{cpp}{Whether to use C++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE},
-\code{sparse = TRUE} or \code{method = "Laplace"} (and thus for \code{family = "nbinomial"}
-and \code{"Gamma"}):
+\item{cpp}{Whether to use C++ function for optim. Default is TRUE. Only used by the dense
+code (\code{sparse = FALSE}, which is the default only for models that the sparse code does
+not support, see \code{sparse}); ignored if \code{bayes = TRUE}, \code{sparse = TRUE} or
+\code{method = "Laplace"} (and thus for \code{family = "nbinomial"} and \code{"Gamma"}):
 these models are fitted with R code, with the sparse Cholesky factorizations of the Matrix
 package (CHOLMOD).}
 
@@ -352,7 +353,16 @@ up fitting when simulation is not needed. If both \code{posterior.sample} and
 \code{return.fitted.marginals} are \code{FALSE}, INLA runs at maximum speed but \code{simulate()} will
 not work on the fitted model.}
 
-\item{sparse}{Logical (default \code{FALSE}). If \code{TRUE}, fit the model with the sparse
+\item{sparse}{Whether to fit the model with the sparse precision matrix of the phylogeny
+(\code{TRUE}) or with the dense covariance matrices (\code{FALSE}). The default,
+\code{NULL}, is \code{TRUE} whenever the sparse code supports the model, i.e. with
+\code{bayes = FALSE}, random terms in the formula (not \code{random.effects}), phylogenies
+(class \code{phylo}, not covariance matrices) in \code{cov_ranef}; \code{FALSE}
+otherwise (it was
+\code{FALSE} before phyr 1.3.0). Both give the same model; the estimates can differ
+slightly, as the optimizers differ (for binomial and poisson models fitted by PQL, the
+log-likelihood also depends on the path of the iterations). With \code{TRUE}, the model is
+fitted with the sparse
 precision matrix of the phylogeny (which includes its internal nodes) and a sparse Cholesky
 decomposition, instead of the dense phylogenetic covariance matrix. This gives the same
 likelihood, but the time and memory needed grow about linearly with the number of species,

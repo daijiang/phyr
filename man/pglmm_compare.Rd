@@ -32,7 +32,7 @@ pglmm_compare(
   bayes_options = NULL,
   posterior.sample = TRUE,
   return.fitted.marginals = TRUE,
-  sparse = FALSE,
+  sparse = NULL,
   standardize_cov = TRUE,
   method = c("PQL", "Laplace")
 )
@@ -99,9 +99,10 @@ role) or binary data. Earlier versions ignored this argument, so set
 estimates of \code{s2} and \code{B} are plotted each iteration
 during optimization.}
 
-\item{cpp}{Whether to use C++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE},
-\code{sparse = TRUE} or \code{method = "Laplace"} (and thus for \code{family = "nbinomial"}
-and \code{"Gamma"}):
+\item{cpp}{Whether to use C++ function for optim. Default is TRUE. Only used by the dense
+code (\code{sparse = FALSE}, which is the default only for models that the sparse code does
+not support, see \code{sparse}); ignored if \code{bayes = TRUE}, \code{sparse = TRUE} or
+\code{method = "Laplace"} (and thus for \code{family = "nbinomial"} and \code{"Gamma"}):
 these models are fitted with R code, with the sparse Cholesky factorizations of the Matrix
 package (CHOLMOD).}
 
@@ -207,9 +208,11 @@ up fitting when simulation is not needed. If both \code{posterior.sample} and
 \code{return.fitted.marginals} are \code{FALSE}, INLA runs at maximum speed but \code{simulate()} will
 not work on the fitted model.}
 
-\item{sparse}{Logical (default \code{FALSE}). If \code{TRUE}, fit the model
-with the sparse precision matrix of the phylogeny, which is much faster for
-large phylogenies (see Details and \code{\link[=pglmm]{pglmm()}}). Only with \code{bayes = FALSE}.}
+\item{sparse}{Whether to fit the model with the sparse precision matrix of the
+phylogeny, which is much faster for large phylogenies (see Details and
+\code{\link[=pglmm]{pglmm()}}). The default, \code{NULL}, is \code{TRUE} with \code{bayes = FALSE}
+(\code{FALSE} before phyr 1.3.0); use \code{sparse = FALSE} for the dense
+covariance matrix (then also returned in \code{vcv.phy}).}
 
 \item{standardize_cov}{Logical (default \code{TRUE}). Whether to standardize the covariance
 matrices of \code{cov_ranef} to have a determinant of one (a phylogeny is first converted to

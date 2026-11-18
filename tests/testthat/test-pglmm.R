@@ -1,5 +1,10 @@
 # context("test phylogenetic GLMMs")
 
+# these tests are of the dense code (cpp = TRUE and FALSE), and of its
+# equality with pez: sparse = FALSE (the default is the sparse code whenever it
+# supports the model)
+pglmm_dense <- function(...) phyr::communityPGLMM(..., sparse = FALSE)
+
 test_that("ignore these tests when on CRAN since they are time consuming", {
   testthat::skip_on_cran()
   testthat::skip_on_travis()
@@ -43,12 +48,12 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   }
 
   # poisson plmm
-  test_poisson_cpp <- phyr::communityPGLMM(
+  test_poisson_cpp <- pglmm_dense(
     freq ~ 1 + shade + (1 | Species__) + (1 | site) + (1 | Species__@site),
     dat,
     cov_ranef = list(Species = phylotree), family = "poisson", REML = FALSE, cpp = TRUE
   )
-  test_poisson_r <- phyr::communityPGLMM(
+  test_poisson_r <- pglmm_dense(
     freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site),
     dat,
     cov_ranef = list(sp = phylotree), family = "poisson", REML = FALSE, cpp = FALSE
@@ -56,12 +61,12 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   test_fit_equal(test_poisson_cpp, test_poisson_r)
 
   # to add observation level random term, add (1 | Species@site)
-  test_poisson_cpp2 <- phyr::communityPGLMM(
+  test_poisson_cpp2 <- pglmm_dense(
     freq ~ 1 + shade + (1 | Species__) + (1 | Location) + (1 | Species__@site) + (1 | Species@site),
     dat,
     cov_ranef = list(Species = phylotree), family = "poisson", REML = FALSE, cpp = TRUE
   )
-  test_poisson_r2 <- phyr::communityPGLMM(
+  test_poisson_r2 <- pglmm_dense(
     freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site) + (1 | sp@site),
     dat,
     cov_ranef = list(sp = phylotree), family = "poisson", REML = FALSE, cpp = FALSE
@@ -71,13 +76,13 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
 
 
   # binomial plmm
-  test_binomial_cpp <- phyr::communityPGLMM(
+  test_binomial_cpp <- pglmm_dense(
     cbind(freq, freq2) ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site),
     dat,
     cov_ranef = list(sp = phylotree), family = "binomial",
     REML = FALSE, cpp = TRUE, add.obs.re = FALSE
   )
-  test_binomial_r <- phyr::communityPGLMM(
+  test_binomial_r <- pglmm_dense(
     cbind(freq, freq2) ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site),
     dat,
     cov_ranef = list(sp = phylotree), family = "binomial",
@@ -87,12 +92,12 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
 
   # another form: provide prob
   dat$prob <- dat$freq / 20
-  test_binomial_cpp2 <- phyr::communityPGLMM(
+  test_binomial_cpp2 <- pglmm_dense(
     prob ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site),
     dat,
     cov_ranef = list(sp = phylotree), family = "binomial", REML = FALSE, cpp = TRUE
   )
-  test_binomial_r2 <- phyr::communityPGLMM(
+  test_binomial_r2 <- pglmm_dense(
     prob ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site),
     dat,
     cov_ranef = list(sp = phylotree), family = "binomial", REML = FALSE, cpp = FALSE
@@ -100,21 +105,21 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   test_fit_equal(test_binomial_cpp2, test_binomial_r2)
 
   # fit models
-  test1_gaussian_cpp <- phyr::communityPGLMM(
+  test1_gaussian_cpp <- pglmm_dense(
     freq ~ 1 + shade + (1 | Species__) + (1 | site) + (1 | Species__@site),
     dat,
     cov_ranef = list(Species = phylotree), REML = FALSE,
     cpp = TRUE, optimizer = "Nelder-Mead"
   )
 
-  expect_warning(phyr::communityPGLMM(
+  expect_warning(pglmm_dense(
     freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site),
     dat,
     tree = phylotree, REML = FALSE,
     cpp = TRUE, optimizer = "Nelder-Mead"
   ))
 
-  test1_gaussian_r <- phyr::communityPGLMM(
+  test1_gaussian_r <- pglmm_dense(
     freq ~ 1 + shade + (1 | sp__) + (1 | Location) + (1 | sp__@site),
     dat,
     cov_ranef = list(sp = phylotree), REML = FALSE,
@@ -123,14 +128,14 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
 
   test_fit_equal(test1_gaussian_cpp, test1_gaussian_r)
 
-  test2_binary_cpp <- phyr::communityPGLMM(
+  test2_binary_cpp <- pglmm_dense(
     pa ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site),
     dat,
     family = "binomial", cov_ranef = list(sp = phylotree),
     REML = FALSE, cpp = TRUE, optimizer = "Nelder-Mead"
   )
 
-  test2_binary_r <- phyr::communityPGLMM(
+  test2_binary_r <- pglmm_dense(
     pa ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site),
     dat,
     family = "binomial", cov_ranef = list(sp = phylotree),
@@ -138,21 +143,21 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   )
 
   if (requireNamespace("INLA", quietly = TRUE)) {
-    test1_gaussian_bayes <- phyr::communityPGLMM(
+    test1_gaussian_bayes <- pglmm_dense(
       freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site),
       dat,
       cov_ranef = list(sp = phylotree), bayes = TRUE,
       prior = "pc.prior.auto"
     )
 
-    test1_binomial_bayes <- phyr::communityPGLMM(
+    test1_binomial_bayes <- pglmm_dense(
       pa ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site),
       dat,
       cov_ranef = list(sp = phylotree), ML.init = FALSE, bayes = TRUE,
       family = "binomial", prior = "pc.prior.auto"
     )
 
-    test1_poisson_bayes <- phyr::communityPGLMM(
+    test1_poisson_bayes <- pglmm_dense(
       freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site),
       dat,
       cov_ranef = list(sp = phylotree), bayes = TRUE, ML.init = FALSE,
@@ -160,21 +165,21 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
       prior_alpha = 0.01, prior_mu = 1
     )
 
-    test2_binomial_bayes <- phyr::communityPGLMM(
+    test2_binomial_bayes <- pglmm_dense(
       cbind(freq, freq2) ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site),
       dat,
       cov_ranef = list(sp = phylotree), family = "binomial", add.obs.re = FALSE,
       bayes = TRUE, ML.init = FALSE, prior = "pc.prior.auto"
     )
 
-    test2_binomial_bayes_zi <- phyr::communityPGLMM(
+    test2_binomial_bayes_zi <- pglmm_dense(
       cbind(freq, freq2) ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site),
       dat,
       cov_ranef = list(sp = phylotree), family = "zeroinflated.binomial",
       add.obs.re = FALSE, bayes = TRUE, ML.init = FALSE, prior = "pc.prior.auto"
     )
 
-    test2_poisson_bayes_zi <- phyr::communityPGLMM(
+    test2_poisson_bayes_zi <- pglmm_dense(
       freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site),
       dat,
       cov_ranef = list(sp = phylotree), bayes = TRUE, ML.init = FALSE,
@@ -184,7 +189,7 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
 
     ## try a 'overdispersed' Poisson (e.g. add row random effect to account for
     ## variance in the lambda values)
-    test1_poisson_bayes_overdispersed <- phyr::communityPGLMM(
+    test1_poisson_bayes_overdispersed <- pglmm_dense(
       freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site) + (1 | sp@site),
       dat,
       cov_ranef = list(sp = phylotree),
@@ -219,7 +224,7 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   # branch for "lbfgs". Fixed by falling back to subplex when cpp=FALSE.
   test_that("gaussian cpp=FALSE with default optimizer does not error", {
     expect_no_error(
-      test1_gaussian_r_default <- phyr::communityPGLMM(
+      test1_gaussian_r_default <- pglmm_dense(
         freq ~ 1 + shade + (1 | sp__) + (1 | Location) + (1 | sp__@site),
         dat,
         cov_ranef = list(sp = phylotree), REML = FALSE,
@@ -296,7 +301,7 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   })
 
   test_that("phyr should be able to run in the format of pez: gaussian", {
-    pglmm_phyr_pez <- phyr::communityPGLMM(
+    pglmm_phyr_pez <- pglmm_dense(
       freq ~ 1 + shade,
       data = dat, sp = dat$sp, site = dat$site,
       random.effects = re, REML = FALSE, optimizer = "Nelder-Mead"
@@ -315,7 +320,7 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   })
 
   test_that("phyr should be able to run in the format of pez: binomial", {
-    pglmm_phyr_pez <- phyr::communityPGLMM(
+    pglmm_phyr_pez <- pglmm_dense(
       pa ~ 1 + shade,
       data = dat, family = "binomial",
       sp = dat$sp, site = dat$site, random.effects = re,
@@ -330,12 +335,12 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   dat.na.rm <- dat.na[!is.na(dat.na$freq), ]
 
   test_that("testing data with NA, gaussian models", {
-    z.na <- phyr::communityPGLMM(
+    z.na <- pglmm_dense(
       freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site),
       dat.na,
       cov_ranef = list(sp = phylotree), REML = FALSE, cpp = F
     )
-    z.na.rm <- phyr::communityPGLMM(
+    z.na.rm <- pglmm_dense(
       freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site),
       dat.na.rm,
       cov_ranef = list(sp = phylotree), REML = FALSE, cpp = F
@@ -349,11 +354,11 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   dat.na.rm <- dat.na[!is.na(dat.na$pa), ]
 
   test_that("testing data with NA, binomial models", {
-    z2.na <- phyr::communityPGLMM(
+    z2.na <- pglmm_dense(
       pa ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), dat.na,
       family = "binomial", cov_ranef = list(sp = phylotree), REML = FALSE
     )
-    z2.na.rm <- phyr::communityPGLMM(
+    z2.na.rm <- pglmm_dense(
       pa ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site), dat.na.rm,
       family = "binomial", cov_ranef = list(sp = phylotree), REML = FALSE
     )
@@ -378,21 +383,21 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
     tip.label = sort(unique(dat$site))
   )
 
-  expect_error(phyr::communityPGLMM(
+  expect_error(pglmm_dense(
     freq ~ 1 + shade + (1 | sp__) + (1 | site__) + (1 | sp__@site) +
       (1 | sp@site__) + (1 | sp__@site__),
     data = dat, family = "gaussian",
     cov_ranef = list(spi = phylotree), REML = TRUE
   ))
 
-  z_bipartite <- phyr::communityPGLMM(
+  z_bipartite <- pglmm_dense(
     freq ~ 1 + shade + (1 | sp__) + (1 | site__) + (1 | sp__@site) +
       (1 | sp@site__) + (1 | sp__@site__),
     data = dat, family = "gaussian",
     cov_ranef = list(sp = phylotree, site = tree_site), REML = TRUE
   )
 
-  z_bipartite2 <- phyr::communityPGLMM(
+  z_bipartite2 <- pglmm_dense(
     freq ~ 1 + shade + (1 | Species__) + (1 | Location__) + (1 | Species__@Location) +
       (1 | Species@Location__) + (1 | Species__@Location__),
     data = dat, family = "gaussian",
@@ -401,7 +406,7 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   test_fit_equal(z_bipartite, z_bipartite2)
 
   if (requireNamespace("INLA", quietly = TRUE)) {
-    z_bipartite_bayes <- phyr::communityPGLMM(
+    z_bipartite_bayes <- pglmm_dense(
       freq ~ 1 + shade + (1 | sp__) + (1 | site__) +
         (1 | sp__@site) + (1 | sp@site__) + (1 | sp__@site__),
       data = dat,
@@ -409,7 +414,7 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
       bayes = TRUE, ML.init = FALSE
     )
 
-    z_bipartite_bayes_2 <- phyr::communityPGLMM(
+    z_bipartite_bayes_2 <- pglmm_dense(
       freq ~ 1 + shade + (1 | sp__) + (1 | site__) +
         (1 | sp__@site) + (1 | sp@site__) + (1 | sp__@site__),
       data = dat,
@@ -420,7 +425,7 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
 
   # # test tree and tree_site as cov matrix
   # test_that("testing tree and tree_site as cov matrix", {
-  #     z_mat = phyr::communityPGLMM(freq ~ 1 + shade + (1 | sp__) + (1 | site__) + (1 |
+  #     z_mat = pglmm_dense(freq ~ 1 + shade + (1 | sp__) + (1 | site__) + (1 |
   #         sp__@site) + (1 | sp@site__) + (1 | sp__@site__), data = dat, family = "gaussian",
   #         tree = vcv2(phylotree), tree_site = vcv2(tree_site), REML = TRUE)
   #     test_fit_equal(z_bipartite, z_mat)
@@ -451,11 +456,11 @@ test_that("ignore these tests when on CRAN since they are time consuming", {
   )
 
   test_that("testing repulsion as a vector", {
-    z_repul1 <- phyr::communityPGLMM(
+    z_repul1 <- pglmm_dense(
       freq ~ 1 + shade,
       data = dat, family = "gaussian", random.effects = re
     )
-    z_repul2 <- phyr::communityPGLMM(
+    z_repul2 <- pglmm_dense(
       freq ~ 1 + shade + (1 | sp__) + (1 | site__) +
         (1 | sp__@site) + (1 | sp@site__) + (1 | sp__@site__),
       data = dat,
@@ -475,7 +480,7 @@ test_that("the log-likelihood of gaussian models is the same as that of lme4", {
     rnorm(nrow(d))
   for (reml in c(TRUE, FALSE)) {
     l <- lme4::lmer(y ~ x + (1 | sp) + (1 | site), data = d, REML = reml)
-    for (a in list(list(cpp = TRUE), list(cpp = FALSE), list(sparse = TRUE))) {
+    for (a in list(list(cpp = TRUE, sparse = FALSE), list(cpp = FALSE, sparse = FALSE), list(sparse = TRUE))) {
       m <- suppressMessages(do.call(pglmm, c(list(y ~ x + (1 | sp) + (1 | site), data = d, REML = reml), a)))
       expect_equal(m$logLik, as.numeric(logLik(l)), tolerance = 1e-6)
     }

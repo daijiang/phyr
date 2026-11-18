@@ -14,9 +14,10 @@ communityPGLMM.profile.LRT(x, re.number = 0, cpp = TRUE)
 
 \item{re.number}{Which random term to test? Can be a vector with length >1.}
 
-\item{cpp}{Whether to use C++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE},
-\code{sparse = TRUE} or \code{method = "Laplace"} (and thus for \code{family = "nbinomial"}
-and \code{"Gamma"}):
+\item{cpp}{Whether to use C++ function for optim. Default is TRUE. Only used by the dense
+code (\code{sparse = FALSE}, which is the default only for models that the sparse code does
+not support, see \code{sparse}); ignored if \code{bayes = TRUE}, \code{sparse = TRUE} or
+\code{method = "Laplace"} (and thus for \code{family = "nbinomial"} and \code{"Gamma"}):
 these models are fitted with R code, with the sparse Cholesky factorizations of the Matrix
 package (CHOLMOD).}
 }
