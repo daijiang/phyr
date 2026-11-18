@@ -142,7 +142,7 @@
 #'   \code{pglmm}. As a result, \code{pglmm(data_with_NAs)} and
 #'   \code{pglmm(data[!is.na(data$y), ])} produce identical estimates.
 #' @param family Either "gaussian" for a Linear Mixed Model, or
-#'   "binomial", "poisson" or "nbinomial" for Generalized Linear Mixed Models.
+#'   "binomial", "poisson", "nbinomial" or "Gamma" for Generalized Linear Mixed Models.
 #'   "family" should be specified as a character string (i.e., quoted). For binomial and
 #'   Poisson data, we use the canonical logit and log link functions, respectively.
 #'   Binomial data can be either presence/absence, or a two-column array of 'successes' and 'failures'.
@@ -158,6 +158,16 @@
 #'   observation-level random term is added. With \code{bayes = FALSE}, negative binomial models
 #'   are always fitted with \code{method = "Laplace"}, with starting values from
 #'   \code{MASS::glm.nb()}.
+#'
+#'   "Gamma" (or "gamma") is the Gamma distribution for positive continuous responses (e.g.
+#'   biomass, body size, durations), with the log link and the variance
+#'   \eqn{\mu^2 / \nu}{mu^2 / shape} given the random effects (as \code{glm()},
+#'   \code{lme4::glmer()} and \code{glmmTMB()} with \code{family = Gamma(link = "log")}). Its shape
+#'   parameter \eqn{\nu}{shape} is estimated with the other parameters (element \code{shape} of the
+#'   fitted model; \code{sigma()} of \code{glmmTMB} is \eqn{1/\sqrt{\nu}}{1 / sqrt(shape)}, the
+#'   coefficient of variation). No observation-level random term is added. Gamma models are only
+#'   available with \code{bayes = FALSE}, and are always fitted with \code{method = "Laplace"},
+#'   with starting values from \code{glm()} and \code{MASS::gamma.shape()}.
 #'
 #'   If \code{bayes = TRUE} there are
 #'   three additional families available: "zeroinflated.binomial", "zeroinflated.poisson" and
@@ -226,7 +236,8 @@
 #'   estimates of \code{s2} and \code{B} are plotted each iteration
 #'   during optimization.
 #' @param cpp Whether to use C++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE},
-#'   \code{sparse = TRUE} or \code{method = "Laplace"} (and thus for \code{family = "nbinomial"}):
+#'   \code{sparse = TRUE} or \code{method = "Laplace"} (and thus for \code{family = "nbinomial"}
+#'   and \code{"Gamma"}):
 #'   these models are fitted with R code, with the sparse Cholesky factorizations of the Matrix
 #'   package (CHOLMOD).
 #' @param bayes Whether to fit a Bayesian version of the PGLMM using \code{r-inla}.
@@ -397,8 +408,9 @@
 #'   choice; only the scale of the variances (and of \code{s2.init}) does. Not used when
 #'   \code{random.effects} is given.
 #' @param method For binomial and poisson models with \code{bayes = FALSE}, the
-#'   approximation of the likelihood (negative binomial models, \code{family = "nbinomial"},
-#'   are always fitted with \code{"Laplace"}): \code{"PQL"} (default) for penalized
+#'   approximation of the likelihood (negative binomial and Gamma models, \code{family =
+#'   "nbinomial"} and \code{"Gamma"}, are always fitted with \code{"Laplace"}): \code{"PQL"}
+#'   (default) for penalized
 #'   quasi-likelihood, as in earlier versions, or \code{"Laplace"} for the Laplace
 #'   approximation of the marginal likelihood, as in \code{lme4::glmer()} (with
 #'   \code{nAGQ = 1}) and \code{glmmTMB}. PQL is known to underestimate the variances of
@@ -463,13 +475,16 @@
 #' \item{formula}{the formula for fixed effects}
 #' \item{formula_original}{the formula for both fixed effects and random effects}
 #' \item{data}{the dataset}
-#' \item{family}{\code{gaussian}, \code{binomial}, \code{poisson}, or \code{nbinomial} depending
-#'   on the model fit}
+#' \item{family}{\code{gaussian}, \code{binomial}, \code{poisson}, \code{nbinomial} or
+#'   \code{Gamma} depending on the model fit}
 #' \item{theta}{for negative binomial models, the estimate of the dispersion parameter
 #'   \eqn{\theta}{theta} (\code{Inf} if the data are not overdispersed: the poisson model); for
 #'   \code{bayes = TRUE}, its posterior summary, with the credible interval in \code{theta.ci}.
 #'   It is \code{sigma()} of \code{glmmTMB(family = nbinom2)} models and
 #'   \code{getME(, "glmer.nb.theta")} of \code{lme4::glmer.nb()} models.}
+#' \item{shape}{for Gamma models, the estimate of the shape parameter \eqn{\nu}{shape} (the
+#'   variance is \eqn{\mu^2 / \nu}{mu^2 / shape}); \code{1 / sigma()^2} of \code{glmmTMB()} models
+#'   with \code{family = Gamma(link = "log")}.}
 #' \item{random.effects}{the list of random effects}
 #' \item{B}{estimates of the regression coefficients}
 #' \item{B.se}{approximate standard errors of the fixed effects regression coefficients.
@@ -869,16 +884,17 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
                       return.fitted.marginals = TRUE,
                       sparse = FALSE, standardize_cov = TRUE, phylo_only = FALSE,
                       method = c("PQL", "Laplace"), reltol.given = !missing(reltol)) {
-  if (identical(family, "nbinomial") && !bayes) {
-    # negative binomial models are only fitted with the Laplace approximation
-    # (PQL has no likelihood to estimate the dispersion with)
+  family <- pglmm_family_name(family) # "gamma" for "Gamma"
+  if (family %in% pglmm_laplace_only_families && !bayes) {
+    # negative binomial and Gamma models are only fitted with the Laplace
+    # approximation (PQL has no likelihood to estimate their dispersion with)
     if (length(method) == 1 && identical(match.arg(method, c("PQL", "Laplace")), "PQL")) {
-      stop('family = "nbinomial" is only available with method = "Laplace".', call. = FALSE)
+      stop('family = "', family, '" is only available with method = "Laplace".', call. = FALSE)
     }
     method <- "Laplace"
   }
   method <- match.arg(method)
-  laplace <- method == "Laplace" && !bayes && family %in% c("binomial", "poisson", "nbinomial")
+  laplace <- method == "Laplace" && !bayes && family %in% pglmm_laplace_families
   valid_optimizers <- c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex", "lbfgs")
   optimizer.given <- !is.null(optimizer)
   if (is.null(optimizer)) {
@@ -887,11 +903,14 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
     optimizer <- match.arg(optimizer, valid_optimizers)
   }
 
-  if ((family %nin% c("gaussian", "binomial", "poisson", "nbinomial")) & (bayes == FALSE)) {
-    stop("\nSorry, but only binomial, poisson, nbinomial and gaussian options are available for
+  if ((family %nin% c("gaussian", pglmm_laplace_families)) & (bayes == FALSE)) {
+    stop("\nSorry, but only gaussian, binomial, poisson, nbinomial and Gamma options are available for
          pglmm at this time")
   }
 
+  if (bayes && family == "Gamma") {
+    stop('family = "Gamma" is only available with bayes = FALSE.', call. = FALSE)
+  }
   if (bayes) {
     if (!requireNamespace("INLA", quietly = TRUE)) {
       stop("To run pglmm with bayes = TRUE, you need to install the packages 'INLA'. \
@@ -905,9 +924,10 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
     }
   }
 
-  if (family %in% c("binomial", "poisson", "nbinomial") & !is.null(tree)) {
+  if (family != "gaussian" & !is.null(tree)) {
     if (("phylo" %in% class(tree)) & !ape::is.ultrametric(tree)) {
-      warning("The tree is not ultrametric, which will likely give misleading results for family=binomial, poisson and nbinomial models.")
+      warning("The tree is not ultrametric, which will likely give misleading results for family=",
+              family, " models.")
     }
   }
 

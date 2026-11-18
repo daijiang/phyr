@@ -103,10 +103,11 @@
 #' the tip labels of the phylogeny as row names; if they are not in the same order,
 #' the data frame will be arranged so that row names match the order of tip labels.
 #' @param family Either "gaussian" for a Linear Mixed Model, or
-#'   "binomial", "poisson" or "nbinomial" (negative binomial) for Generalized Linear Mixed Models.
+#'   "binomial", "poisson", "nbinomial" (negative binomial) or "Gamma" for Generalized Linear
+#'   Mixed Models.
 #'   \code{family} should be specified as a character string (i.e., quoted). For binomial and
 #'   Poisson data, we use the canonical logit and log link functions, respectively; negative
-#'   binomial data use the log link (see [pglmm()]).
+#'   binomial and Gamma data use the log link (see [pglmm()]).
 #'   Binomial data can be either presence/absence, or a two-column array of 'successes' and 'failures'.
 #'   If \code{bayes = TRUE} there are
 #'   three additional families available: "zeroinflated.binomial", "zeroinflated.poisson" and
@@ -283,7 +284,7 @@ pglmm_compare <- function(formula, family = "gaussian",
                           return.fitted.marginals = TRUE,
                           sparse = FALSE, standardize_cov = TRUE,
                           method = c("PQL", "Laplace")) {
-  # method is matched by pglmm_fit() (the default is "Laplace" for nbinomial)
+  # method is matched by pglmm_fit() (the default is "Laplace" for nbinomial and Gamma)
   if (!inherits(phy, "phylo")) stop("phy must be a phylogeny with class 'phylo'.", call. = FALSE)
   if (!is.null(reformulas::findbars(formula))) {
     stop("The formula of pglmm_compare() has fixed effects only: the phylogenetic random term ",
@@ -425,7 +426,7 @@ summary.pglmm_compare <- function(object, digits = max(3, getOption("digits") - 
     cat("\nZero Inflation Parameter:\n")
     print(data.frame(Estimate = x$zi, lower.CI = x$zi.ci[1, 1], upper.CI = x$zi.ci[1, 2]), digits = digits)
   }
-  pglmm_print_theta(x, digits)
+  pglmm_print_disp(x, digits)
 
   cat("\nPhylogenetic random effects variance (s2):\n")
   w <- data.frame(Variance = c(x$s2n, x$s2resid))

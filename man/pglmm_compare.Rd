@@ -48,10 +48,11 @@ have random terms. Offsets (e.g. \code{+ offset(log(area))}) are supported with
 \code{method = "Laplace"} and \code{bayes = TRUE}.}
 
 \item{family}{Either "gaussian" for a Linear Mixed Model, or
-"binomial", "poisson" or "nbinomial" (negative binomial) for Generalized Linear Mixed Models.
+"binomial", "poisson", "nbinomial" (negative binomial) or "Gamma" for Generalized Linear
+Mixed Models.
 \code{family} should be specified as a character string (i.e., quoted). For binomial and
 Poisson data, we use the canonical logit and log link functions, respectively; negative
-binomial data use the log link (see \code{\link[=pglmm]{pglmm()}}).
+binomial and Gamma data use the log link (see \code{\link[=pglmm]{pglmm()}}).
 Binomial data can be either presence/absence, or a two-column array of 'successes' and 'failures'.
 If \code{bayes = TRUE} there are
 three additional families available: "zeroinflated.binomial", "zeroinflated.poisson" and
@@ -99,7 +100,8 @@ estimates of \code{s2} and \code{B} are plotted each iteration
 during optimization.}
 
 \item{cpp}{Whether to use C++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE},
-\code{sparse = TRUE} or \code{method = "Laplace"} (and thus for \code{family = "nbinomial"}):
+\code{sparse = TRUE} or \code{method = "Laplace"} (and thus for \code{family = "nbinomial"}
+and \code{"Gamma"}):
 these models are fitted with R code, with the sparse Cholesky factorizations of the Matrix
 package (CHOLMOD).}
 

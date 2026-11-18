@@ -85,7 +85,7 @@ repulsion to be something like \code{c(TRUE, FALSE, TRUE, TRUE)} (length of 4).}
 \item{prep.re.effects}{Whether to prepare random effects for users.}
 
 \item{family}{Either "gaussian" for a Linear Mixed Model, or
-"binomial", "poisson" or "nbinomial" for Generalized Linear Mixed Models.
+"binomial", "poisson", "nbinomial" or "Gamma" for Generalized Linear Mixed Models.
 "family" should be specified as a character string (i.e., quoted). For binomial and
 Poisson data, we use the canonical logit and log link functions, respectively.
 Binomial data can be either presence/absence, or a two-column array of 'successes' and 'failures'.
@@ -101,6 +101,16 @@ is the poisson distribution. As \eqn{\theta}{theta} accounts for overdispersion,
 observation-level random term is added. With \code{bayes = FALSE}, negative binomial models
 are always fitted with \code{method = "Laplace"}, with starting values from
 \code{MASS::glm.nb()}.
+
+"Gamma" (or "gamma") is the Gamma distribution for positive continuous responses (e.g.
+biomass, body size, durations), with the log link and the variance
+\eqn{\mu^2 / \nu}{mu^2 / shape} given the random effects (as \code{glm()},
+\code{lme4::glmer()} and \code{glmmTMB()} with \code{family = Gamma(link = "log")}). Its shape
+parameter \eqn{\nu}{shape} is estimated with the other parameters (element \code{shape} of the
+fitted model; \code{sigma()} of \code{glmmTMB} is \eqn{1/\sqrt{\nu}}{1 / sqrt(shape)}, the
+coefficient of variation). No observation-level random term is added. Gamma models are only
+available with \code{bayes = FALSE}, and are always fitted with \code{method = "Laplace"},
+with starting values from \code{glm()} and \code{MASS::gamma.shape()}.
 
 If \code{bayes = TRUE} there are
 three additional families available: "zeroinflated.binomial", "zeroinflated.poisson" and

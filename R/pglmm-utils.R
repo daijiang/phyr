@@ -1091,7 +1091,7 @@ summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") -
       upper.CI = x$zi.ci[1, 2]
     ), digits = digits)
   }
-  pglmm_print_theta(x, digits)
+  pglmm_print_disp(x, digits)
 
   cat("\nRandom effects:\n")
   w <- data.frame(Variance = c(x$s2r, x$s2n, x$s2resid))
@@ -1150,6 +1150,8 @@ print.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ..
 # name of the distribution of a family for printing; family can be the name
 # used by INLA for zero-inflated models (e.g. zeroinflatedpoisson1)
 pglmm_family_label <- function(family) {
+  spec <- pglmm_family_spec(family)
+  if (!is.null(spec)) return(spec$label)
   if (grepl("nbinomial", family)) return("negative binomial")
   if (grepl("binomial", family)) return("binomial")
   if (grepl("poisson", family)) return("poisson")
@@ -1163,16 +1165,22 @@ pglmm_bayes_title <- function(x) {
          if (grepl("zeroinflated", x$family)) " with zero inflation", " fit by Bayesian INLA")
 }
 
-# the dispersion parameter theta of negative binomial models, for summary()
-pglmm_print_theta <- function(x, digits) {
-  theta <- x[["theta"]]
-  if (is.null(theta)) return(invisible(NULL))
-  cat("\nDispersion parameter of the negative binomial distribution (theta):\n")
-  if (isTRUE(x$bayes) && !is.null(x[["theta.ci"]])) {
-    print(data.frame(Estimate = theta, lower.CI = x$theta.ci[1, 1], upper.CI = x$theta.ci[1, 2],
-                     row.names = "theta"), digits = digits)
+# the dispersion parameter of the family (if any; e.g. theta of negative
+# binomial models, the shape of Gamma models), for summary(); with
+# bayes = TRUE, with its credible interval (element <name>.ci)
+pglmm_print_disp <- function(x, digits) {
+  spec <- pglmm_family_spec(x$family)
+  if (is.null(spec) || is.null(spec$disp)) return(invisible(NULL))
+  nm <- spec$disp$name
+  value <- x[[nm]]
+  if (is.null(value)) return(invisible(NULL))
+  cat("\n", spec$disp$label, ":\n", sep = "")
+  ci <- x[[paste0(nm, ".ci")]]
+  if (isTRUE(x$bayes) && !is.null(ci)) {
+    print(data.frame(Estimate = value, lower.CI = ci[1, 1], upper.CI = ci[1, 2], row.names = nm),
+          digits = digits)
   } else {
-    print(c(theta = theta), digits = digits)
+    print(setNames(value, nm), digits = digits)
   }
   invisible(NULL)
 }
@@ -1604,14 +1612,11 @@ pglmm_predicted_values <- function(x, cpp = TRUE,
         h <- H - iVH / pglmm_iV_diag(x)
         predicted.values <- as.vector(x$X %*% x$B) + h
       }
-    } else if (x$family == "binomial") {
-      # mu is linkinv(X %*% B + b), with b the random effects estimated by PQL
-      predicted.values <- logit(as.vector(x$mu))
-    } else if (x$family %in% c("poisson", "nbinomial")) {
-      predicted.values <- log(as.vector(x$mu))
+    } else if (!is.null(spec <- pglmm_family_spec(x$family))) {
+      # mu is linkinv(X %*% B + b), with b the estimates of the random effects
+      predicted.values <- spec$linkfun(as.vector(x$mu))
     } else {
-      stop("no predicted values for family other than gaussian, binomial, poisson and nbinomial, yet",
-           call. = FALSE)
+      stop("no predicted values for family ", x$family, " yet", call. = FALSE)
     }
     if (type == "response") predicted.values <- linkinv(predicted.values)
   }
@@ -1635,6 +1640,8 @@ pglmm_offset <- function(object) {
 # inverse link function of a fitted model; family is a string, which can be the
 # name used by INLA for zero-inflated models (e.g. zeroinflatedbinomial1)
 pglmm_linkinv <- function(family) {
+  spec <- pglmm_family_spec(family)
+  if (!is.null(spec)) return(spec$linkinv)
   if (grepl("poisson", family) || grepl("nbinomial", family)) {
     return(make.link("log")$linkinv)
   }
@@ -1675,9 +1682,9 @@ communityPGLMM.predicted.values <- function(x, cpp = TRUE,
 #'
 #' @param object A fitted model with class communityPGLMM.
 #' @param type Type of residuals, currently only "response" for gaussian pglmm;
-#'   "deviance" (default) and "response" for binomial, poisson and negative
-#'   binomial pglmm. For binomial models with more than one trial, the response
-#'   is the proportion of successes.
+#'   "deviance" (default) and "response" for binomial, poisson, negative
+#'   binomial and Gamma pglmm. For binomial models with more than one trial, the
+#'   response is the proportion of successes.
 #' @param scaled Scale residuals by residual standard deviation for gaussian pglmm.
 #' @param \dots Additional arguments, ignored for method compatibility.
 #' @method residuals communityPGLMM
@@ -1711,12 +1718,12 @@ communityPGLMM.predicted.values <- function(x, cpp = TRUE,
 #' @export
 residuals.communityPGLMM <- function(
   object,
-  type = if (object$family %in% c("binomial", "poisson", "nbinomial")) "deviance" else "response",
+  type = if (object$family == "gaussian") "response" else "deviance",
   scaled = FALSE, ...
 ) {
-  if (object$family %nin% c("gaussian", "binomial", "poisson", "nbinomial")) {
-    stop("no residual methods for family other than gaussian, binomial, poisson and nbinomial, yet",
-         call. = FALSE)
+  spec <- pglmm_family_spec(object$family)
+  if (object$family != "gaussian" && is.null(spec)) {
+    stop("no residual methods for family ", object$family, " yet", call. = FALSE)
   }
   type <- match.arg(type, c("deviance", "response"))
 
@@ -1727,16 +1734,15 @@ residuals.communityPGLMM <- function(
   } else {
     y <- as.numeric(object$Y)
     mu <- as.numeric(object$mu[, 1])
+    wt <- rep(1, length(y))
     if (object$family == "binomial") {
-      size <- pglmm_binomial_size(object)
-      y <- y / size # proportion of successes
-      dres <- sqrt(binomial()$dev.resids(y, mu, rep_len(size, length(y))))
-    } else if (object$family == "nbinomial") {
-      dev <- pglmm_nb_family(object[["theta"]])$dev.resids(y, mu, rep(1, length(y)))
-      dres <- sqrt(pmax(dev, 0))
-    } else {
-      dres <- sqrt(poisson()$dev.resids(y, mu, rep(1, length(y))))
+      wt <- rep_len(pglmm_binomial_size(object), length(y))
+      y <- y / wt # proportion of successes
     }
+    # deviance residuals of the stats family object of the family (with the
+    # estimated dispersion parameter, e.g. theta of negative binomial models)
+    dev <- spec$glm.family(pglmm_disp_value(object, spec))$dev.resids(y, mu, wt)
+    dres <- sqrt(pmax(dev, 0))
     res <- switch(type,
       deviance = ifelse(y > mu, dres, -dres),
       response = y - mu
@@ -1783,7 +1789,7 @@ fitted.communityPGLMM <- function(object, ...) {
   if (isTRUE(object$bayes)) {
     ft <- pglmm_predicted_values(object, type = "response")$Y_hat
   } else {
-    if (object$family %in% c("binomial", "poisson", "nbinomial")) {
+    if (!is.null(pglmm_family_spec(object$family))) {
       ft <- object$mu[, 1]
     } else {
       ft <- pglmm_predicted_values(object, ...)$Y_hat
@@ -2279,6 +2285,8 @@ VarCorr.communityPGLMM <- function(x, sigma = 1, ...) {
 #'
 #' @export
 family.communityPGLMM <- function(object, ...) {
+  spec <- pglmm_family_spec(object$family)
+  if (!is.null(spec)) return(spec$glm.family(pglmm_disp_value(object, spec)))
   if (grepl("nbinomial", object$family)) return(pglmm_nb_family(object[["theta"]]))
   fam <- match.fun(object$family)
   fam()
@@ -2611,19 +2619,14 @@ simulate.communityPGLMM <- function(object, nsim = 1, seed = NULL,
     }
     if (object$family == "gaussian") {
       sim <- sim + sqrt(as.numeric(object$s2resid)) * matrix(rnorm(nsim * nn), nrow = nn)
-    }
-    if (object$family == "poisson") {
-      mu_sim <- make.link("log")$linkinv(sim) # exp(sim)
-      sim <- apply(mu_sim, MARGIN = 2, FUN = function(x) rpois(length(x), x))
-    }
-    if (object$family == "nbinomial") {
-      mu_sim <- make.link("log")$linkinv(sim)
-      sim <- apply(mu_sim, MARGIN = 2, FUN = function(x) rnbinom(length(x), mu = x, size = object$theta))
-    }
-    if (object$family == "binomial") {
-      mu_sim <- make.link("logit")$linkinv(sim) # 1/(1 + exp(-sim))
-      Ntrials <- pglmm_binomial_size(object)
-      sim <- apply(mu_sim, MARGIN = 2, FUN = function(x) rbinom(length(x), Ntrials, x))
+    } else {
+      # responses drawn from the family (see pglmm_family_spec()), with the
+      # means given by the inverse link of the linear predictor
+      spec <- pglmm_family_spec(object$family)
+      mu_sim <- spec$linkinv(sim)
+      value <- pglmm_disp_value(object, spec)
+      size <- if (object$family == "binomial") pglmm_binomial_size(object) else 1
+      sim <- apply(mu_sim, MARGIN = 2, FUN = function(x) spec$simulate(x, value, size))
     }
   } else { # beyes version
 
