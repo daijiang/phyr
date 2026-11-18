@@ -72,11 +72,11 @@
 #' parameters). As `s2 = 0` is on the boundary of the parameter space, the
 #' p-value `Pr` is half of the p-value of a chi-square distribution with one
 #' degree of freedom. For binomial and poisson data, the log-likelihood is
-#' the approximate log-likelihood of the penalized quasi-likelihood fit (with
-#' `method = "PQL"`, the default) or the Laplace approximation of the
-#' log-likelihood (with `method = "Laplace"`). It is printed by [summary()].
+#' the Laplace approximation of the log-likelihood (with `method = "Laplace"`,
+#' the default) or the approximate log-likelihood of the penalized
+#' quasi-likelihood fit (with `method = "PQL"`). It is printed by [summary()].
 #'
-#' **Binary and count data.** With `method = "Laplace"`, binomial and
+#' **Binary and count data.** With `method = "Laplace"` (the default), binomial and
 #' poisson models are fitted with the Laplace approximation of the likelihood
 #' instead of penalized quasi-likelihood (PQL), which underestimates the
 #' phylogenetic variance (and with it the phylogenetic signal) for binary data;
@@ -134,9 +134,10 @@
 #'   [pglmm()]). The default, \code{NULL}, is \code{TRUE} with \code{bayes = FALSE}
 #'   (\code{FALSE} before phyr 1.3.0); use \code{sparse = FALSE} for the dense
 #'   covariance matrix (then also returned in \code{vcv.phy}).
-#' @param method For binomial and poisson data, \code{"PQL"} (default) or
-#'   \code{"Laplace"}: see Details and [pglmm()]. Negative binomial data are always
-#'   fitted with \code{"Laplace"}.
+#' @param method For binomial and poisson data, \code{"Laplace"} (default since
+#'   phyr 1.3.0) or \code{"PQL"} (the default of earlier versions): see Details and
+#'   [pglmm()]. Negative binomial and Gamma data are always fitted with
+#'   \code{"Laplace"}.
 #' @inheritParams pglmm
 #' @return An object of class \code{c("pglmm_compare", "communityPGLMM")}: all
 #'   the elements returned by [pglmm()] (see its Value section), and:
@@ -284,7 +285,7 @@ pglmm_compare <- function(formula, family = "gaussian",
                           calc.WAIC = TRUE, bayes_options = NULL, posterior.sample = TRUE,
                           return.fitted.marginals = TRUE,
                           sparse = NULL, standardize_cov = TRUE,
-                          method = c("PQL", "Laplace")) {
+                          method = c("Laplace", "PQL")) {
   # method is matched by pglmm_fit() (the default is "Laplace" for nbinomial and Gamma)
   if (!inherits(phy, "phylo")) stop("phy must be a phylogeny with class 'phylo'.", call. = FALSE)
   if (!is.null(reformulas::findbars(formula))) {

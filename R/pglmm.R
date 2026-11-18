@@ -419,11 +419,11 @@
 #'   \code{random.effects} is given.
 #' @param method For binomial and poisson models with \code{bayes = FALSE}, the
 #'   approximation of the likelihood (negative binomial and Gamma models, \code{family =
-#'   "nbinomial"} and \code{"Gamma"}, are always fitted with \code{"Laplace"}): \code{"PQL"}
-#'   (default) for penalized
-#'   quasi-likelihood, as in earlier versions, or \code{"Laplace"} for the Laplace
-#'   approximation of the marginal likelihood, as in \code{lme4::glmer()} (with
-#'   \code{nAGQ = 1}) and \code{glmmTMB}. PQL is known to underestimate the variances of
+#'   "nbinomial"} and \code{"Gamma"}, are always fitted with \code{"Laplace"}):
+#'   \code{"Laplace"} (default since phyr 1.3.0) for the Laplace approximation of the
+#'   marginal likelihood, as in \code{lme4::glmer()} (with \code{nAGQ = 1}) and
+#'   \code{glmmTMB}, or \code{"PQL"} for penalized quasi-likelihood (the default of earlier
+#'   versions, and with \code{random.effects}, which the Laplace code does not support). PQL is known to underestimate the variances of
 #'   random terms, and to shrink the fixed effects towards zero, for binary data and counts
 #'   with small means; the Laplace approximation is much less biased, and its
 #'   log-likelihood approximates the marginal likelihood of the model, so that it can be
@@ -436,7 +436,8 @@
 #'   precision matrix of all its nodes, and a covariance matrix in \code{cov_ranef} its (dense)
 #'   inverse. The time to fit a model thus grows about linearly with the number of species,
 #'   and nested terms and \code{repulsion} are supported. The random terms must be given in
-#'   the formula (\code{random.effects} is not supported). The mode of the random effects
+#'   the formula (\code{random.effects} is not supported: models with it are fitted with PQL
+#'   by default). The mode of the random effects
 #'   (including the observation-level term \code{1|obs}) is found by Newton iterations. The
 #'   variances of the random terms are estimated first with the fixed effects at the mode
 #'   (as \code{glmer(nAGQ = 0)}); this is the final fit with \code{REML = TRUE}, where the
@@ -461,16 +462,16 @@
 #'
 #'   Choosing between them:
 #'   \itemize{
-#'     \item \code{"PQL"} (default): fastest (about 3--4 times faster than \code{"Laplace"}),
-#'       supports every model of \code{pglmm()} (including \code{random.effects}), and gives
-#'       the same estimates as earlier versions of phyr. But its
+#'     \item \code{"PQL"} (the default of earlier versions): often faster (about 1--3 times
+#'       with \code{sparse = TRUE}), supports every model of \code{pglmm()} (including
+#'       \code{random.effects}), and gives the same estimates as earlier versions of phyr. But its
 #'       estimates are biased for binary data: compared with \code{"Laplace"} (and
 #'       \code{glmer()}/\code{glmmTMB}), the fixed effects were about 5--10% closer to zero
 #'       and the variances of random terms about 10--30% smaller in our comparisons. For counts,
 #'       the differences were small (variances a few percent smaller). Its log-likelihood is not that
 #'       of the model, so AIC and likelihood ratio tests (including tests for phylogenetic
 #'       signal with [pglmm_profile_LRT()]) are only rough approximations.
-#'     \item \code{"Laplace"}: gives the same estimates and log-likelihood as
+#'     \item \code{"Laplace"} (default): gives the same estimates and log-likelihood as
 #'       \code{lme4::glmer()} and \code{glmmTMB} (to optimizer tolerance), much less biased
 #'       estimates (about unbiased fixed effects with \code{REML = FALSE}, and the least biased
 #'       phylogenetic variance with \code{REML = TRUE}), and a log-likelihood that can be used
@@ -621,12 +622,10 @@
 #' with the reference BLAS; use `options(phyr.blas.hint = FALSE)` to turn it
 #' off. `extSoftVersion()["BLAS"]` shows the BLAS library that R uses.
 #'
-#' For large models with a phylogeny (at least 2000 observations or 300 tips),
-#' `pglmm()` shows a message once per session about the faster options:
-#' `sparse = TRUE` for gaussian models, and `method = "Laplace"` for binomial
-#' and poisson models fitted with the default `method = "PQL"` (which is also
-#' more accurate; with PQL, `sparse = TRUE` is the fast option). Use
-#' `options(phyr.sparse.hint = FALSE)` to turn these messages off.
+#' For large models with a phylogeny (at least 2000 observations or 300 tips)
+#' fitted with `sparse = FALSE`, `pglmm()` shows a message once per session
+#' suggesting `sparse = TRUE`; use `options(phyr.sparse.hint = FALSE)` to turn it
+#' off.
 #'
 #' @section Comparative data:
 #' A phylogenetic term such as `(1 | sp__)` also adds the non-phylogenetic
@@ -861,7 +860,7 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
                   bayes_nested_matrix_as_list = FALSE,
                   posterior.sample = TRUE,
                   return.fitted.marginals = TRUE,
-                  sparse = NULL, standardize_cov = TRUE, method = c("PQL", "Laplace")) {
+                  sparse = NULL, standardize_cov = TRUE, method = c("Laplace", "PQL")) {
   pglmm_fit(
     formula = formula, data = data, family = family, cov_ranef = cov_ranef,
     random.effects = random.effects, REML = REML, optimizer = optimizer,
@@ -901,9 +900,9 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
                       posterior.sample = TRUE,
                       return.fitted.marginals = TRUE,
                       sparse = NULL, standardize_cov = TRUE, phylo_only = FALSE,
-                      method = c("PQL", "Laplace"), reltol.given = !missing(reltol)) {
+                      method = c("Laplace", "PQL"), reltol.given = !missing(reltol)) {
   family <- pglmm_family_name(family) # "gamma" for "Gamma"
-  method.given <- length(method) == 1 # (the default is c("PQL", "Laplace"))
+  method.given <- length(method) == 1 # (the default is c("Laplace", "PQL"))
   if (family %in% pglmm_laplace_only_families && !bayes) {
     # negative binomial and Gamma models are only fitted with the Laplace
     # approximation (PQL has no likelihood to estimate their dispersion with)
@@ -912,6 +911,9 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
     }
     method <- "Laplace"
   }
+  # binomial and poisson models with random.effects (not supported by the
+  # Laplace code): PQL by default
+  if (!method.given && !is.null(random.effects)) method <- "PQL"
   method <- match.arg(method)
   laplace <- method == "Laplace" && !bayes && family %in% pglmm_laplace_families
   # sparse = NULL (default): the sparse code whenever it supports the model;
@@ -981,14 +983,9 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
     data <- data[!is.na(resp_vec), , drop = FALSE]
   }
 
-  if (!bayes && !laplace && prep_re && grepl("__", paste(deparse(formula), collapse = ""))) {
-    covs <- if (is.null(cov_ranef)) list(tree, tree_site) else cov_ranef
-    if (family %in% c("binomial", "poisson") && !method.given) {
-      # PQL by default: suggest method = "Laplace" (and sparse = TRUE for PQL)
-      pglmm_laplace_hint(nrow(data), covs, sparse = isTRUE(sparse))
-    } else if (!isTRUE(sparse)) {
-      pglmm_sparse_hint(nrow(data), covs)
-    }
+  if (!isTRUE(sparse) && !bayes && !laplace && prep_re &&
+      grepl("__", paste(deparse(formula), collapse = ""))) {
+    pglmm_sparse_hint(nrow(data), if (is.null(cov_ranef)) list(tree, tree_site) else cov_ranef)
   }
   if (!phylo_only && prep_re) pglmm_compare_hint(formula, data)
   if (phylo_only && (!prep_re || !is.null(tree) || !is.null(tree_site))) {

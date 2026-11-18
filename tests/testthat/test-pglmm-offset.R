@@ -113,7 +113,7 @@ test_that("pglmm_compare() supports offsets", {
 test_that("offsets are not supported with PQL and gaussian models", {
   d <- od$d
   expect_error(qfit_off(cnt ~ x + offset(log(effort)) + (1 | sp__), data = d, family = "poisson",
-                        cov_ranef = list(sp = od$phy)), "Laplace")
+                        cov_ranef = list(sp = od$phy), method = "PQL"), "Laplace")
   expect_error(qfit_off(x ~ offset(log(effort)) + (1 | sp__), data = d, cov_ranef = list(sp = od$phy)),
                "Laplace")
 })

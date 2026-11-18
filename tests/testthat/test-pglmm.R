@@ -2,8 +2,9 @@
 
 # these tests are of the dense code (cpp = TRUE and FALSE), and of its
 # equality with pez: sparse = FALSE (the default is the sparse code whenever it
-# supports the model)
-pglmm_dense <- function(...) phyr::communityPGLMM(..., sparse = FALSE)
+# supports the model), and PQL for binomial and poisson models (the default is
+# the Laplace approximation)
+pglmm_dense <- function(...) phyr::communityPGLMM(..., sparse = FALSE, method = "PQL")
 
 test_that("ignore these tests when on CRAN since they are time consuming", {
   testthat::skip_on_cran()

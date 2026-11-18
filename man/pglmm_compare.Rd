@@ -34,7 +34,7 @@ pglmm_compare(
   return.fitted.marginals = TRUE,
   sparse = NULL,
   standardize_cov = TRUE,
-  method = c("PQL", "Laplace")
+  method = c("Laplace", "PQL")
 )
 
 \method{predict}{pglmm_compare}(object, newdata = NULL, ...)
@@ -227,9 +227,10 @@ matrices. The likelihood, the fixed effects and the predictions do not depend on
 choice; only the scale of the variances (and of \code{s2.init}) does. Not used when
 \code{random.effects} is given.}
 
-\item{method}{For binomial and poisson data, \code{"PQL"} (default) or
-\code{"Laplace"}: see Details and \code{\link[=pglmm]{pglmm()}}. Negative binomial data are always
-fitted with \code{"Laplace"}.}
+\item{method}{For binomial and poisson data, \code{"Laplace"} (default since
+phyr 1.3.0) or \code{"PQL"} (the default of earlier versions): see Details and
+\code{\link[=pglmm]{pglmm()}}. Negative binomial and Gamma data are always fitted with
+\code{"Laplace"}.}
 
 \item{object}{A fitted model with class pglmm_compare.}
 
@@ -340,11 +341,11 @@ one obtained by setting \code{s2} to zero, without re-estimating the other
 parameters). As \code{s2 = 0} is on the boundary of the parameter space, the
 p-value \code{Pr} is half of the p-value of a chi-square distribution with one
 degree of freedom. For binomial and poisson data, the log-likelihood is
-the approximate log-likelihood of the penalized quasi-likelihood fit (with
-\code{method = "PQL"}, the default) or the Laplace approximation of the
-log-likelihood (with \code{method = "Laplace"}). It is printed by \code{\link[=summary]{summary()}}.
+the Laplace approximation of the log-likelihood (with \code{method = "Laplace"},
+the default) or the approximate log-likelihood of the penalized
+quasi-likelihood fit (with \code{method = "PQL"}). It is printed by \code{\link[=summary]{summary()}}.
 
-\strong{Binary and count data.} With \code{method = "Laplace"}, binomial and
+\strong{Binary and count data.} With \code{method = "Laplace"} (the default), binomial and
 poisson models are fitted with the Laplace approximation of the likelihood
 instead of penalized quasi-likelihood (PQL), which underestimates the
 phylogenetic variance (and with it the phylogenetic signal) for binary data;

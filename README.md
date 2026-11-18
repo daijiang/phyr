@@ -134,24 +134,24 @@ test2 = phyr::pglmm(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site),
                     cov_ranef = list(sp = phylotree))
 ## Warning: Drop species from the phylogeny that are not in the variable sp
 test2
-## Generalized linear mixed model for binomial data fit by penalized quasi-likelihood (PQL, maximum likelihood)
+## Generalized linear mixed model for binomial data fit by Laplace approximation (maximum likelihood)
 ## 
 ## Call:pa ~ 1 + shade
 ## 
 ## logLik    AIC    BIC 
-## -122.7  259.5  275.4 
+## -123.3  258.5  272.1 
 ## 
 ## Random effects:
 ##             Variance Std.Dev
 ## 1|sp          0.0000  0.0000
-## 1|sp__        0.4513  0.6718
+## 1|sp__        0.5094  0.7137
 ## 1|site        0.0000  0.0000
 ## 1|sp__@site   0.0000  0.0000
 ## 
 ## Fixed effects:
-##                  Value  Std.Error  Zscore   Pvalue    
-## (Intercept) -2.0860496  0.5764527 -3.6188 0.000296 ***
-## shade        0.0166047  0.0087201  1.9042 0.056885 .  
+##                  Value  Std.Error  Zscore    Pvalue    
+## (Intercept) -2.2018860  0.6138127 -3.5872 0.0003342 ***
+## shade        0.0173478  0.0089481  1.9387 0.0525361 .  
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 # bipartite

@@ -56,7 +56,7 @@ test_that("pglmm_compare gives the same estimates as the earlier implementation"
   for (r in ref) {
     # add.obs.re = FALSE: the model of earlier versions (which ignored the argument)
     z <- qfit(r$f, family = r$fam, data = cmp$d, phy = cmp$phy, REML = r$REML, add.obs.re = FALSE,
-              sparse = FALSE)
+              sparse = FALSE, method = "PQL")
     expect_equal(as.vector(z$B), r$B, tolerance = 1e-5)
     expect_equal(as.vector(z$B.se), r$se, tolerance = 1e-5)
     expect_equal(unname(z$s2n), r$s2n, tolerance = 1e-5)
@@ -103,9 +103,9 @@ test_that("pglmm_compare with sparse = TRUE gives the same estimates", {
     f <- switch(fam, gaussian = yg ~ x, binomial = yb ~ x, poisson = yp ~ x)
     # tight tolerances, so that both fits reach the same optimum
     a <- qfit(f, family = fam, data = cmp$d, phy = cmp$phy, optimizer = "subplex",
-              reltol = 1e-12, maxit = 5000, tol.pql = 1e-8, sparse = FALSE)
+              reltol = 1e-12, maxit = 5000, tol.pql = 1e-8, sparse = FALSE, method = "PQL")
     b <- qfit(f, family = fam, data = cmp$d, phy = cmp$phy, sparse = TRUE,
-              optimizer = "subplex", reltol = 1e-12, maxit = 5000, tol.pql = 1e-8)
+              optimizer = "subplex", reltol = 1e-12, maxit = 5000, tol.pql = 1e-8, method = "PQL")
     expect_equal(as.vector(b$B), as.vector(a$B), tolerance = 1e-4)
     expect_equal(as.vector(b$B.se), as.vector(a$B.se), tolerance = 1e-4)
     expect_equal(unname(b$s2n), unname(a$s2n), tolerance = 1e-3)
@@ -132,7 +132,7 @@ test_that("methods of pglmm() work with pglmm_compare models", {
   for (sparse in c(FALSE, TRUE)) {
     for (fam in c("gaussian", "binomial")) {
       f <- if (fam == "gaussian") yg ~ x else yb ~ x
-      z <- qfit(f, family = fam, data = cmp$d, phy = cmp$phy, sparse = sparse)
+      z <- qfit(f, family = fam, data = cmp$d, phy = cmp$phy, sparse = sparse, method = "PQL")
       expect_s3_class(z, c("pglmm_compare", "communityPGLMM"))
       expect_output(print(z), "Test of phylogenetic signal")
       expect_equal(fixef(z)$Value, as.vector(z$B))

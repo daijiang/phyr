@@ -83,7 +83,7 @@ test_that("offset() is not silently ignored", {
   dp <- data.frame(sp = rep(paste0("s", 1:10), 8), x = rnorm(80), logE = log(runif(80, 1, 20)))
   dp$cnt <- rpois(80, exp(-1 + 0.3 * dp$x + dp$logE))
   expect_error(
-    pglmm(cnt ~ x + offset(logE) + (1 | sp), data = dp, family = "poisson"),
+    pglmm(cnt ~ x + offset(logE) + (1 | sp), data = dp, family = "poisson", method = "PQL"),
     "offset"
   )
 })
@@ -146,9 +146,9 @@ test_that("pglmm_iV() gives the inverse covariance matrix that is not stored any
                   sparse = sparse)),
       quiet(pglmm(y ~ x + (1 | sp__@site), data = d, cov_ranef = list(sp = phy), sparse = sparse)),
       quiet(pglmm(cnt ~ x + (1 | sp__) + (1 | site), data = d, family = "poisson", cov_ranef = list(sp = phy),
-                  sparse = sparse)),
+                  sparse = sparse, method = "PQL")),
       quiet(pglmm(cnt > 1 ~ x + (1 | sp) + (1 | sp__@site), data = d, family = "binomial",
-                  cov_ranef = list(sp = phy), sparse = sparse))
+                  cov_ranef = list(sp = phy), sparse = sparse, method = "PQL"))
     )
   }
   # sparse = TRUE (the default): from the sparse factorization
@@ -238,53 +238,6 @@ test_that("the hint about sparse = TRUE is only for large models with phylogenie
   options(old)
   expect_message(phyr:::pglmm_sparse_hint(100, list(big)), "sparse = TRUE")
   expect_silent(phyr:::pglmm_sparse_hint(5000, list(big)))           # once per session
-})
-
-test_that("binomial and poisson models with PQL get a hint about method = 'Laplace'", {
-  st <- phyr:::.phyr_state
-  old.shown <- c(st$laplace.hint.shown, st$sparse.hint.shown)
-  on.exit({
-    st$laplace.hint.shown <- old.shown[1]
-    st$sparse.hint.shown <- old.shown[2]
-  })
-  big <- ape::rtree(600)
-  st$laplace.hint.shown <- FALSE
-  expect_silent(phyr:::pglmm_laplace_hint(100, list(ape::rtree(20)))) # small model
-  expect_silent(phyr:::pglmm_laplace_hint(5000, list(NULL)))          # no phylogeny
-  old <- options(phyr.sparse.hint = FALSE)
-  expect_silent(phyr:::pglmm_laplace_hint(5000, list(big)))
-  options(old)
-  expect_message(phyr:::pglmm_laplace_hint(100, list(big)), "With PQL, sparse = TRUE")
-  expect_silent(phyr:::pglmm_laplace_hint(5000, list(big)))           # once per session
-  st$laplace.hint.shown <- FALSE
-  msg <- tryCatch(phyr:::pglmm_laplace_hint(5000, list(ape::vcv(big)), sparse = TRUE),
-                  message = function(m) conditionMessage(m))
-  expect_match(msg, "method = \"Laplace\"")
-  expect_false(grepl("With PQL", msg))
-  # from pglmm(): for binomial models with the default method, not for
-  # method = "Laplace" or an explicit method = "PQL"
-  set.seed(2)
-  tr <- ape::rcoal(300)
-  d <- data.frame(sp = rep(tr$tip.label, 2), x = rnorm(600))
-  d$y <- rbinom(600, 1, 0.5)
-  fit <- function(...) suppressWarnings(pglmm(y ~ x + (1 | sp__), data = d, family = "binomial",
-                                             cov_ranef = list(sp = tr), ...))
-  st$laplace.hint.shown <- FALSE
-  st$sparse.hint.shown <- TRUE
-  expect_message(fit(sparse = TRUE), "method = \"Laplace\"")
-  st$laplace.hint.shown <- FALSE
-  msgs <- character()
-  withCallingHandlers(fit(method = "Laplace"), message = function(m) {
-    msgs <<- c(msgs, conditionMessage(m))
-    invokeRestart("muffleMessage")
-  })
-  expect_false(any(grepl("method = \"Laplace\" fits", msgs)))
-  msgs <- character()
-  withCallingHandlers(fit(method = "PQL", sparse = TRUE), message = function(m) {
-    msgs <<- c(msgs, conditionMessage(m))
-    invokeRestart("muffleMessage")
-  })
-  expect_false(any(grepl("method = \"Laplace\" fits", msgs)))
 })
 
 test_that("repulsion is used when bayes nested matrices are prepared as a list", {

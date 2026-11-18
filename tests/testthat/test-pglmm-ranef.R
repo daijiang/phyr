@@ -235,7 +235,8 @@ test_that("estimates of all random terms sum to the fitted random effects", {
     f <- update(fm, paste(resp[[fam]], "~ ."))
     fits <- lapply(c(TRUE, FALSE), function(cpp) {
       suppressWarnings(suppressMessages(
-        pglmm(f, data = d, family = fam, cov_ranef = list(sp = phy), cpp = cpp)
+        pglmm(f, data = d, family = fam, cov_ranef = list(sp = phy), cpp = cpp, sparse = FALSE,
+              method = "PQL")
       ))
     })
     rs <- lapply(fits, ranef, condVar = TRUE)
