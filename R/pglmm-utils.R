@@ -1839,9 +1839,11 @@ fixef.communityPGLMM <- function(object, ...) {
 #' @param object A fitted model with class communityPGLMM.
 #' @param condVar Whether to also return the conditional standard deviations of
 #'   the estimates (column `se`), calculated conditional on the estimated fixed
-#'   effects and variances of random terms, as in `lme4`. Only used when
-#'   `bayes = FALSE`. This needs more computation than the estimates themselves
-#'   for large data sets. Default is `FALSE`.
+#'   effects and variances of random terms, as in `lme4`. They are therefore
+#'   smaller than those of `glmmTMB::ranef(condVar = TRUE)`, which also include
+#'   the uncertainty of these estimates. Only used when `bayes = FALSE`. This
+#'   needs more computation than the estimates themselves for large data sets.
+#'   Default is `FALSE`.
 #' @param ... Ignored.
 #' @return A named list with one data frame for each random term, in the same
 #'   order as the random terms of the model. Each data frame has one row per

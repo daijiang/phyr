@@ -17,9 +17,11 @@
 
 \item{condVar}{Whether to also return the conditional standard deviations of
 the estimates (column \code{se}), calculated conditional on the estimated fixed
-effects and variances of random terms, as in \code{lme4}. Only used when
-\code{bayes = FALSE}. This needs more computation than the estimates themselves
-for large data sets. Default is \code{FALSE}.}
+effects and variances of random terms, as in \code{lme4}. They are therefore
+smaller than those of \code{glmmTMB::ranef(condVar = TRUE)}, which also include
+the uncertainty of these estimates. Only used when \code{bayes = FALSE}. This
+needs more computation than the estimates themselves for large data sets.
+Default is \code{FALSE}.}
 
 \item{...}{Ignored.}
 
