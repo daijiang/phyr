@@ -430,6 +430,24 @@ pglmm_laplace_optim <- function(f, x0, lower, control, grad = NULL) {
   o
 }
 
+# Hessian from central differences of the gradient g (a function of x), with
+# steps h; NULL if g fails (returns NULL or non-finite values)
+pglmm_num_hessian_grad <- function(g, x, h = 1e-4 * pmax(abs(x), 1)) {
+  d <- length(x)
+  H <- matrix(0, d, d)
+  for (i in seq_len(d)) {
+    e <- replace(numeric(d), i, h[i])
+    gp <- g(x + e)
+    gm <- g(x - e)
+    if (is.null(gp) || is.null(gm) || length(gp) != d || length(gm) != d ||
+        any(!is.finite(c(gp, gm)))) {
+      return(NULL)
+    }
+    H[, i] <- (gp - gm) / (2 * h[i])
+  }
+  (H + t(H)) / 2
+}
+
 # Hessian of f at x by central differences, with steps h
 pglmm_num_hessian <- function(f, x, h = 1e-4 * pmax(abs(x), 1)) {
   d <- length(x)
@@ -599,7 +617,22 @@ communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_
       x[keep] <- par
       -pglmm_laplace_ll(x, lp, st)
     }
-    Hs <- pglmm_num_hessian(f, o2$par[keep])
+    # from central differences of the analytic gradient (the errors of the
+    # mode search in log L, amplified by 1 / h^2 in second differences of
+    # log L, change the standard errors by up to about 1e-3), or of log L
+    # when the gradient is not available (e.g. no derivatives in phi)
+    g <- function(par) {
+      x <- o2$par
+      x[keep] <- par
+      kp <- new.env(parent = emptyenv())
+      pglmm_laplace_ll(x, lp, st, keep = kp)
+      if (is.null(kp$md)) return(NULL)
+      gr <- tryCatch(pglmm_laplace_grad(kp$md, kp$ss, lp, phi = kp$phi), error = function(e) NULL)
+      if (is.null(gr)) return(NULL)
+      -c(gr$beta, gr$theta, if (has.obs) 2 * kp$ss[q] * gr$s2, if (has.disp) gr$phi)[keep]
+    }
+    Hs <- pglmm_num_hessian_grad(g, o2$par[keep])
+    if (is.null(Hs)) Hs <- pglmm_num_hessian(f, o2$par[keep])
     B.cov <- tryCatch(solve(Hs)[ip, ip, drop = FALSE], error = function(e) NULL)
     if (is.null(B.cov) || any(!is.finite(B.cov)) || any(diag(B.cov) <= 0)) {
       B.cov <- tryCatch(solve(Hs[ip, ip, drop = FALSE]), error = function(e) {

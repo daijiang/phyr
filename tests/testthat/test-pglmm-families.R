@@ -48,7 +48,7 @@ test_that("negative binomial pglmm agrees with glmmTMB", {
     }
     if (reml) next
     # ML: standard errors of the fixed effects (with theta in the Hessian)
-    expect_lt(max(abs(m$B.se / sqrt(diag(vcov(tm)$cond)) - 1)), 1e-3)
+    expect_lt(max(abs(m$B.se / sqrt(diag(vcov(tm)$cond)) - 1)), 1e-4)
     expect_equal(m$AIC, AIC(tm), tolerance = 1e-6)
     # conditional modes and their standard deviations given the parameters
     # (from the Hessian of TMB; glmmTMB's own condsd includes the uncertainty
