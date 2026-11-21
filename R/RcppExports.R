@@ -117,3 +117,7 @@ sparse_inv_subset <- function(p, i, x, nz, is_ll, qi, qj) {
     .Call(`_phyr_sparse_inv_subset`, p, i, x, nz, is_ll, qi, qj)
 }
 
+sparse_inv_subset_super <- function(super, pi, px, s, x, qi, qj) {
+    .Call(`_phyr_sparse_inv_subset_super`, super, pi, px, s, x, qi, qj)
+}
+

@@ -34,8 +34,9 @@ test_that("the selected inverse gives the entries of the inverse on the pattern 
   A <- Matrix::forceSymmetric(Matrix::crossprod(A) + Matrix::Diagonal(150))
   T <- as(as(Matrix::triu(as(A, "generalMatrix")), "generalMatrix"), "TsparseMatrix")
   Ai <- solve(as.matrix(A))
-  for (ldl in c(FALSE, TRUE)) {
-    L <- Matrix::Cholesky(A, perm = TRUE, LDL = ldl, super = FALSE)
+  # simplicial LL', LDL', and supernodal factorizations
+  for (a in list(c(FALSE, FALSE), c(TRUE, FALSE), c(FALSE, TRUE))) {
+    L <- Matrix::Cholesky(A, perm = TRUE, LDL = a[1], super = a[2])
     z <- phyr:::pglmm_sparse_inv_at(L, T@i, T@j)
     expect_lt(max(abs(z - Ai[cbind(T@i + 1, T@j + 1)])), 1e-12)
   }

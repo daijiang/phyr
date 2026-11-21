@@ -135,7 +135,7 @@ pglmm_laplace_mode <- function(beta, ss, lp, st, fit.beta = FALSE, maxit = 50, t
     e <- (res + w * cur$o) / den
     gv <- thc * as.vector(Matrix::crossprod(Z, e)) - cur$Qv
     M@x <- pre$qx + th[pre$ti] * th[pre$tj] * as.vector(pre$wmap %*% wt)
-    L <- Matrix::update(pre$L, M)
+    L <- pglmm_sparse_factor(pre, M)
     if (fit.beta) {
       ip <- seq_len(p)
       WX <- wt * X
@@ -688,7 +688,7 @@ communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_
     nested = list(), Zt = NULL, St = NULL,
     convcode = convcode, niter = n.eval,
     sparse = list(
-      pre = pre, u = u, u.obs = u.obs, theta = th, has.obs = has.obs, w = w,
+      pre = pglmm_sparse_keep(pre), u = u, u.obs = u.obs, theta = th, has.obs = has.obs, w = w,
       formula.order = tm$formula.order,
       terms = lapply(terms, function(z) {
         z[intersect(c("name", "group", "phy", "nested", "labels", "n.levels", "level.order", "pick"),

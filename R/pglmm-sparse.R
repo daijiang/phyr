@@ -586,28 +586,56 @@ pglmm_sparse_setup <- function(X, Y, terms, weights = FALSE) {
   stopifnot(identical(Asym@i, mi[ia]))
   XY <- cbind(X, Y)
   ldl <- qa > q
+  # supernodal LL' factorizations (several times faster than simplicial
+  # ones for large models), simplicial LDL' ones for auxiliary variables
+  # (K is indefinite)
+  L <- Matrix::Cholesky(M, perm = TRUE, LDL = ldl, super = !ldl)
+  M@factors <- list() # Cholesky() caches the factorization in M
   list(
     n = n, p = p, q = q, qa = qa, Z = Z, term.of.col = term.of.col,
     M = M, qx = qx, ax = ax, wmap = wmap, ti = toc[mi + 1L], tj = toc[mj + 1L], ldl = ldl,
     mi = mi, mj = mj, ia = ia, Asym = Asym, amult = ifelse(mi[ia] == mj[ia], 1, 2),
     wmap.ia = if (weights) wmap[ia, , drop = FALSE],
     cols = split(seq_len(q), factor(term.of.col, levels = seq_along(terms))),
-    # simplicial factorizations, for pglmm_sparse_inv_at()
-    L = Matrix::Cholesky(M, perm = TRUE, LDL = ldl, super = FALSE),
+    L = L,
     logdetQ = sum(vapply(terms, function(z) z$logdetQ, 1)) + logdetB,
     ZtXY = as.matrix(Matrix::crossprod(Z, XY)), XYtXY = crossprod(XY)
   )
 }
 
 # Entries of M^-1 (or of K^-1 with auxiliary variables) at the positions
-# (i, j) (0-based) of M, from the simplicial factorization L of M: the selected
-# inverse on the pattern of the factor (see src/sparse_inverse.cpp), which
-# includes the pattern of M. It costs about as much as the factorization.
+# (i, j) (0-based) of M, from the factorization L of M (supernodal or
+# simplicial): the selected inverse on the pattern of the factor (see
+# src/sparse_inverse.cpp), which includes the pattern of M. It costs about as
+# much as the factorization.
 pglmm_sparse_inv_at <- function(L, i, j) {
-  if (!methods::is(L, "dCHMsimpl")) stop("internal error: the factorization is not simplicial")
   ip <- integer(length(L@perm))
   ip[L@perm + 1L] <- seq_along(L@perm) - 1L # position of each row of M in the factor
-  sparse_inv_subset(L@p, L@i, L@x, L@nz, L@type[2] == 1L, ip[i + 1L], ip[j + 1L])
+  if (methods::is(L, "dCHMsuper")) {
+    sparse_inv_subset_super(L@super, L@pi, L@px, L@s, L@x, ip[i + 1L], ip[j + 1L])
+  } else {
+    sparse_inv_subset(L@p, L@i, L@x, L@nz, L@type[2] == 1L, ip[i + 1L], ip[j + 1L])
+  }
+}
+
+# Factorization of M (with the values of pre$M replaced), from the symbolic
+# factorization pre$L, which fitted models do not keep (pglmm_sparse_keep())
+pglmm_sparse_factor <- function(pre, M) {
+  if (is.null(pre$L)) {
+    ldl <- isTRUE(pre$ldl)
+    # not the factorization cached in M for other values of M@x
+    M@factors <- list()
+    Matrix::Cholesky(M, perm = TRUE, LDL = ldl, super = !ldl)
+  } else {
+    Matrix::update(pre$L, M)
+  }
+}
+
+# pre (pglmm_sparse_setup()) as kept in fitted models: without the
+# factorization, as large as the rest of pre for large models
+pglmm_sparse_keep <- function(pre) {
+  pre$L <- NULL
+  pre
 }
 
 # M^-1 R, with the factorization L of M (or of K, with auxiliary variables)
@@ -622,7 +650,7 @@ pglmm_sparse_solve <- function(L, pre, R) {
 pglmm_sparse_eval <- function(theta, pre) {
   M <- pre$M
   M@x <- pre$qx + theta[pre$ti] * theta[pre$tj] * pre$ax
-  L <- Matrix::update(pre$L, M)
+  L <- pglmm_sparse_factor(pre, M)
   R <- theta[pre$term.of.col] * pre$ZtXY
   MiR <- pglmm_sparse_solve(L, pre, R)
   # G = [X Y]' V^-1 [X Y]
@@ -816,7 +844,7 @@ pglmm_sparse_weval <- function(ss, pre, w, XR, has.obs, full = FALSE) {
   M <- pre$M
   aw <- as.vector(pre$wmap %*% wt) # values of Z' Wt Z on the pattern of M
   M@x <- pre$qx + th[pre$ti] * th[pre$tj] * aw
-  L <- Matrix::update(pre$L, M)
+  L <- pglmm_sparse_factor(pre, M)
   WXR <- wt * XR
   ZW <- as.matrix(Matrix::crossprod(pre$Z, WXR))
   R <- th[pre$term.of.col] * ZW
@@ -1167,7 +1195,7 @@ communityPGLMM.glmm.sparse <- function(formula, data, family = "binomial", cov_r
     nested = list(), Zt = NULL, St = NULL,
     convcode = convcode, niter = n.eval, iterations.pql = iteration,
     sparse = list(
-      pre = pre, u = u, u.obs = u.obs, theta = ev$th, has.obs = has.obs, w = w,
+      pre = pglmm_sparse_keep(pre), u = u, u.obs = u.obs, theta = ev$th, has.obs = has.obs, w = w,
       formula.order = tm$formula.order,
       terms = lapply(terms, function(z) {
         z[intersect(c("name", "group", "phy", "nested", "labels", "n.levels", "level.order", "pick"),
@@ -1348,7 +1376,7 @@ communityPGLMM.gaussian.sparse <- function(formula, data, cov_ranef = NULL, REML
     H = matrix(H, ncol = 1), mu = NULL, nested = list(), Zt = NULL, St = NULL,
     convcode = convcode, niter = n.eval,
     sparse = list(
-      pre = pre, u = u, theta = theta, formula.order = tm$formula.order,
+      pre = pglmm_sparse_keep(pre), u = u, theta = theta, formula.order = tm$formula.order,
       terms = lapply(terms, function(z) {
         z[intersect(c("name", "group", "phy", "nested", "labels", "n.levels", "level.order", "pick"),
                     names(z))]
@@ -1488,9 +1516,9 @@ pglmm_cond_modes_sparse <- function(object, condVar = FALSE, nodes = FALSE) {
     W <- Matrix::solve(ev$L, Matrix::solve(ev$L, E, system = "P"), system = "L")
     Matrix::colSums(W * Matrix::solve(ev$L, W, system = "D"))
   }
-  # selected inverse of M (simplicial factorizations, since phyr 1.3.0); the
-  # solves of quad_Mi() otherwise (models fitted with earlier versions)
-  selinv <- condVar && methods::is(ev$L, "dCHMsimpl") && !is.null(pre$ia)
+  # selected inverse of M; the solves of quad_Mi() for models fitted with
+  # earlier versions (without the pattern of A)
+  selinv <- condVar && !is.null(pre$ia)
   if (condVar) {
     # diagonal of M^-1 for these columns (in chunks of columns to limit memory
     # without the selected inverse)
