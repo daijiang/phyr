@@ -552,7 +552,8 @@ An object (list) of class \code{communityPGLMM} with the following elements:
 e.g. \code{"1|sp"} and \code{"1|sp__"} for \code{(1 | sp__)}) with the covariate
 (\code{lhs}, \code{"1"} for intercepts), the grouping variables (\code{group}),
 whether each has a phylogeny or covariance matrix (\code{phy}), and whether the term is
-nested (\code{nested}); \code{NULL} with \code{random.effects}}
+nested (\code{nested}) and, for nested terms, whether each covariance matrix is inverted
+(\code{repulsion}); \code{NULL} with \code{random.effects}}
 \item{data}{the dataset}
 \item{family}{\code{gaussian}, \code{binomial}, \code{poisson}, \code{nbinomial} or
 \code{Gamma} depending on the model fit}
@@ -858,7 +859,6 @@ if (FALSE) {
 # and phylogenetic models: a conceptual introduction to correlated data.
 
 library(ape)
-library(mvtnorm)
 
 # Investigating covariance matrices for different types of model structure
 nspp <- 6
@@ -892,7 +892,9 @@ Vphy <- Vphy / (det(Vphy)^(1 / nspp))
 # Construct the overall covariance matrix for phylogenetic attraction.
 # (For an explanation of Kronecker products, see subsection 4.3.1 in the book)
 V <- kronecker(diag(nrow = nsite, ncol = nsite), Vphy)
-Y.attract <- array(t(rmvnorm(n = 1, sigma = sd.attract^2 * V)))
+# (a draw from the multivariate normal distribution with covariance matrix
+# sd.attract^2 * V, from its Cholesky decomposition)
+Y.attract <- array(t(chol(sd.attract^2 * V)) \%*\% rnorm(nrow(V)))
 
 # Simulate residual errors
 sd.e <- 1
@@ -948,19 +950,19 @@ sd.sp.attract <- 1
 Vphy.sp <- vcv(phy.sp)
 Vphy.sp <- Vphy.sp / (det(Vphy.sp)^(1 / nspp))
 V.sp <- kronecker(diag(nrow = nsite, ncol = nsite), Vphy.sp)
-Y.sp.attract <- array(t(rmvnorm(n = 1, sigma = sd.sp.attract^2 * V.sp)))
+Y.sp.attract <- array(t(chol(sd.sp.attract^2 * V.sp)) \%*\% rnorm(nrow(V.sp)))
 
 # Generate covariance matrix for phylogenetic attraction among sites
 sd.site.attract <- 1
 Vphy.site <- vcv(phy.site)
 Vphy.site <- Vphy.site/(det(Vphy.site)^(1/nsite))
 V.site <- kronecker(Vphy.site, diag(nrow = nspp, ncol = nspp))
-Y.site.attract <- array(t(rmvnorm(n = 1, sigma = sd.site.attract^2*V.site)))
+Y.site.attract <- array(t(chol(sd.site.attract^2 * V.site)) \%*\% rnorm(nrow(V.site)))
 
 # Generate covariance matrix for phylogenetic attraction of species:site interaction
 sd.sp.site.attract <- 1
 V.sp.site <- kronecker(Vphy.site, Vphy.sp)
-Y.sp.site.attract <- array(t(rmvnorm(n = 1, sigma = sd.sp.site.attract^2*V.sp.site)))
+Y.sp.site.attract <- array(t(chol(sd.sp.site.attract^2 * V.sp.site)) \%*\% rnorm(nrow(V.sp.site)))
 
 # Simulate residual error
 sd.e <- 0.5

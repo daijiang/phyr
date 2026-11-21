@@ -7,8 +7,7 @@ NULL
 #' @importMethodsFrom Matrix t solve %*% determinant diag crossprod tcrossprod image
 #' @importFrom methods as show is hasArg
 #' @importFrom graphics par image
-#' @importFrom dplyr "%>%"
-#' @importFrom utils compareVersion packageVersion
+#' @importFrom utils compareVersion packageVersion modifyList
 #' @import stats
 NULL
 

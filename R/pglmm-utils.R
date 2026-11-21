@@ -274,6 +274,19 @@ pglmm_re_obs <- function(terms, data, formula, family, add.obs.re = TRUE) {
   add.obs.re
 }
 
+# Stop if the suggested packages pkgs (needed by the function fun) are not
+# installed
+pglmm_need_pkgs <- function(pkgs, fun) {
+  miss <- pkgs[!vapply(pkgs, requireNamespace, TRUE, quietly = TRUE)]
+  if (length(miss)) {
+    stop(fun, "() needs the package", if (length(miss) > 1) "s", " ",
+         paste(miss, collapse = ", "), ". Install ", if (length(miss) > 1) "them" else "it",
+         " with install.packages(", paste0("c(", paste0('"', miss, '"', collapse = ", "), ")"),
+         ").", call. = FALSE)
+  }
+  invisible(TRUE)
+}
+
 # The deprecated arguments tree and tree_site of pglmm(): the phylogenies of
 # the variables sp and site, given in cov_ranef instead
 pglmm_tree_cov_ranef <- function(cov_ranef, tree, tree_site) {
@@ -345,6 +358,27 @@ prep_dat_pglmm <- function(formula, data, cov_ranef = NULL, repulsion = FALSE,
     formula = formula.nobars,
     random.effects = random.effects,
     cov_ranef_updated = cov_ranef_updated
+  ))
+}
+
+# The random effects of a fitted model in the format of the dense code
+# (random.effects of prep_dat_pglmm(), with the covariance matrices), for
+# models fitted with sparse = TRUE or method = "Laplace", which do not keep
+# them: rebuilt from the formula, data, cov_ranef, repulsion (from re_terms)
+# and family of the model.
+pglmm_dense_random_effects <- function(object) {
+  if (is.null(object$formula_original)) {
+    stop("The covariance matrices of the random terms of this model are not available.",
+         call. = FALSE)
+  }
+  rep <- unlist(lapply(object$re_terms, function(t) if (isTRUE(t$nested)) t$repulsion[t$phy]))
+  if (is.null(rep)) rep <- FALSE
+  cr <- object$cov_ranef
+  if (!is.list(cr)) cr <- NULL # NA without covariance matrices
+  std <- if (is.null(object$standardize_cov)) TRUE else object$standardize_cov
+  suppressMessages(prep_dat_pglmm(
+    object$formula_original, object$data, cr, repulsion = rep, family = object$family,
+    add.obs.re = "1|obs" %in% names(object$random.effects), standardize_cov = std
   ))
 }
 
@@ -1778,7 +1812,7 @@ fitted.communityPGLMM <- function(object, ...) {
 #' @param object A fitted model with class communityPGLMM.
 #' @param ... Ignored.
 #' @return A dataframe of fixed-effects estimates.
-#' @importFrom lme4 fixef
+#' @importFrom nlme fixef
 #' @export fixef
 #' @method fixef communityPGLMM
 #' @export
@@ -1893,7 +1927,7 @@ fixef.communityPGLMM <- function(object, ...) {
 #'
 #' # variances of the random terms
 #' VarCorr(fit)
-#' @importFrom lme4 ranef
+#' @importFrom nlme ranef
 #' @export ranef
 #' @method ranef communityPGLMM
 #' @export
@@ -2240,7 +2274,7 @@ pglmm_ranef_bayes <- function(object) {
 #' # proportion of the variance among species that is phylogenetic
 #' v_sp <- v[c("1|sp", "1|sp__"), "Variance"] * fit$scale_factors[c("1|sp", "1|sp__")]
 #' v_sp[2] / sum(v_sp)
-#' @importFrom lme4 VarCorr
+#' @importFrom nlme VarCorr
 #' @export VarCorr
 #' @method VarCorr communityPGLMM
 #' @export
@@ -2727,7 +2761,7 @@ bayes_simulate <- function(object, nsim = 250, re.form, ntry = 5, full = FALSE) 
       mu_sim <- do.call(rbind, lapply(object$inla.model$marginals.fitted.values,
         INLA::inla.rmarginal,
         n = nsim
-      )) %>%
+      )) |>
         as.data.frame()
 
       sim <- switch(object$family,
@@ -2744,7 +2778,7 @@ bayes_simulate <- function(object, nsim = 250, re.form, ntry = 5, full = FALSE) 
           mu_sim[missing] <- do.call(rbind, lapply(object$inla.model$marginals.fitted.values,
             INLA::inla.rmarginal,
             n = sum(missing)
-          )) %>%
+          )) |>
             as.data.frame()
           sim[missing] <- switch(object$family,
             binomial = lapply(mu_sim[missing], function(x) rbinom(length(x), Ntrials, x)),
@@ -2780,7 +2814,7 @@ bayes_simulate <- function(object, nsim = 250, re.form, ntry = 5, full = FALSE) 
 
         beta_sim <- sapply(beta_sim, function(x) fam$linkinv(x$latent))
 
-        mu_sim <- (object$X %*% beta_sim) %>%
+        mu_sim <- (object$X %*% beta_sim) |>
           as.data.frame()
 
         mu_sim <- lapply(mu_sim, fam$linkinv)
@@ -2801,7 +2835,7 @@ bayes_simulate <- function(object, nsim = 250, re.form, ntry = 5, full = FALSE) 
           n = nsim
         ))
 
-        mu_sim <- (object$X %*% t(beta_sim)) %>%
+        mu_sim <- (object$X %*% t(beta_sim)) |>
           as.data.frame()
 
         mu_sim <- lapply(mu_sim, fam$linkinv)
@@ -2821,8 +2855,8 @@ bayes_simulate <- function(object, nsim = 250, re.form, ntry = 5, full = FALSE) 
               INLA::inla.rmarginal,
               n = sum(missing)
             ))
-            mu_sim[missing] <- (object$X %*% t(beta_sim[missing, , drop = FALSE])) %>%
-              as.data.frame() %>%
+            mu_sim[missing] <- (object$X %*% t(beta_sim[missing, , drop = FALSE])) |>
+              as.data.frame() |>
               lapply(fam$linkinv)
 
             sim[missing] <- switch(object$family,

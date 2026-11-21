@@ -277,3 +277,28 @@ test_that("a single repulsion = TRUE inverts the phylogenies of species only", {
   fit <- function(...) quiet(pglmm(y ~ 1 + (1 | sp__@site__), d, cov_ranef = list(sp = tr, site = ts), ...))
   expect_equal(fit(repulsion = TRUE, sparse = TRUE)$logLik, fit(repulsion = TRUE)$logLik, tolerance = 1e-4)
 })
+
+test_that("pglmm_plot_ranef() works with models fitted with the sparse code", {
+  # models fitted with sparse = TRUE or method = "Laplace" (the defaults) do
+  # not keep the covariance matrices of their random terms
+  set.seed(1)
+  phy <- ape::rcoal(6, tip.label = paste0("s", 1:6))
+  ts <- ape::rcoal(4, tip.label = paste0("t", 1:4))
+  d <- expand.grid(sp = phy$tip.label, site = ts$tip.label, stringsAsFactors = FALSE)
+  d$y <- rnorm(nrow(d))
+  d$cnt <- rpois(nrow(d), 2)
+  cr <- list(sp = phy, site = ts)
+  vcv_of <- function(...) {
+    m <- quiet(pglmm(..., data = d, cov_ranef = cr))
+    pdf(NULL)
+    on.exit(grDevices::dev.off())
+    lapply(pglmm_plot_ranef(x = m, show.image = FALSE, show.sim.image = FALSE)$vcv, as.matrix)
+  }
+  f <- y ~ 1 + (1 | sp__) + (1 | site) + (1 | sp__@site__)
+  expect_equal(vcv_of(f, repulsion = c(TRUE, FALSE)),
+               vcv_of(f, repulsion = c(TRUE, FALSE), sparse = FALSE))
+  f <- cnt ~ 1 + (1 | sp__) + (1 | sp__@site)
+  v <- vcv_of(f, family = "poisson")
+  expect_named(v, c("1|sp", "1|sp__", "1|sp__@site", "1|obs"))
+  expect_equal(v, vcv_of(f, family = "poisson", sparse = FALSE, method = "PQL"))
+})
