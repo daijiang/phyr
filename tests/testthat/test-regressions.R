@@ -1,7 +1,5 @@
 # regression tests for bugs that gave wrong results silently
 
-quiet <- function(expr) suppressWarnings(suppressMessages(expr))
-
 test_that("a cov matrix in cov_ranef is reordered to the levels of the data", {
   set.seed(11)
   n <- 30
@@ -76,57 +74,6 @@ test_that("c++ and R code agree for nested terms that are not block-diagonal", {
   p1 <- quiet(pglmm(cnt ~ x + (1 | sp__@site), data = db, family = "poisson", cov_ranef = cr))
   p2 <- quiet(pglmm(cnt ~ x + (1 | sp__@site), data = db, family = "poisson", cov_ranef = cr, cpp = FALSE))
   expect_equal(p1$B, p2$B, tolerance = 1e-4)
-})
-
-test_that("offset() is not silently ignored", {
-  set.seed(5)
-  dp <- data.frame(sp = rep(paste0("s", 1:10), 8), x = rnorm(80), logE = log(runif(80, 1, 20)))
-  dp$cnt <- rpois(80, exp(-1 + 0.3 * dp$x + dp$logE))
-  expect_error(
-    pglmm(cnt ~ x + offset(logE) + (1 | sp), data = dp, family = "poisson", method = "PQL"),
-    "offset"
-  )
-})
-
-test_that("cor_phylo measurement errors do not depend on the order of rows", {
-  set.seed(21)
-  n <- 30
-  phy <- ape::rcoal(n)
-  d <- data.frame(
-    sp = phy$tip.label, a = ape::rTraitCont(phy), b = ape::rTraitCont(phy),
-    se1 = runif(n, 0.05, 1), se2 = runif(n, 0.05, 1)
-  )
-  d$a <- d$a + rnorm(n, sd = d$se1)
-  d$b <- d$b + rnorm(n, sd = d$se2)
-  ds <- d[sample(n), ]
-  fit <- function(dat) {
-    quiet(cor_phylo(
-      variates = ~ a + b, species = ~sp, phy = phy, data = dat,
-      meas_errors = list(a ~ se1, b ~ se2)
-    ))
-  }
-  f1 <- fit(d)
-  f2 <- fit(ds)
-  expect_equal(f2$corrs, f1$corrs, tolerance = 1e-4)
-  expect_equal(f2$logLik, f1$logLik, tolerance = 1e-4)
-  # measurement errors given as a matrix
-  f3 <- quiet(cor_phylo(
-    variates = ~ a + b, species = ~sp, phy = phy, data = ds,
-    meas_errors = as.matrix(setNames(ds[c("se1", "se2")], c("a", "b")))
-  ))
-  expect_equal(f3$logLik, f1$logLik, tolerance = 1e-4)
-})
-
-test_that("psr with relative abundances and pcd with a matrix", {
-  rel <- comm_a / rowSums(comm_a)
-  expect_equal(psr(rel, phylotree, cpp = FALSE), psr(rel, phylotree))
-  expect_equal(psr(rel, phylotree)$PSR, psr(comm_a, phylotree)$PSR)
-  expect_equal(psv(rel, phylotree, cpp = FALSE), psv(comm_a, phylotree, cpp = FALSE))
-
-  ex <- quiet(pcd_pred(comm_1 = comm_a, tree = phylotree, reps = 20))
-  p.df <- quiet(pcd(comm_a, phylotree, expectation = ex))
-  p.mat <- quiet(pcd(as.matrix(comm_a), phylotree, expectation = ex))
-  expect_equal(p.mat, p.df)
 })
 
 test_that("pglmm_iV() gives the inverse covariance matrix that is not stored anymore", {

@@ -22,13 +22,12 @@ make_offset_data <- function(seed = 4, nsp = 30, nsite = 8) {
   list(d = d, phy = phy, C = C)
 }
 od <- make_offset_data()
-qfit_off <- function(...) suppressWarnings(suppressMessages(pglmm(...)))
 
 test_that("offsets give the same fits as glmmTMB", {
   skip_if_not_installed("glmmTMB")
   d <- od$d
   C <- od$C
-  m <- qfit_off(cnt ~ x + offset(log(effort)) + (1 | sp__) + (1 | site), data = d, family = "poisson",
+  m <- qpglmm(cnt ~ x + offset(log(effort)) + (1 | sp__) + (1 | site), data = d, family = "poisson",
                 cov_ranef = list(sp = od$phy), method = "Laplace", REML = FALSE)
   tm <- glmmTMB::glmmTMB(cnt ~ x + offset(log(effort)) + (1 | spf) + propto(0 + spf | g, C) +
                            (1 | site) + (1 | obsid), data = d, family = poisson)
@@ -37,7 +36,7 @@ test_that("offsets give the same fits as glmmTMB", {
   expect_equal(predict(m, re.form = NA)[, 1], unname(predict(tm, re.form = NA)), tolerance = 1e-4)
 
   # binomial, offset on the logit scale
-  mb <- qfit_off(pa ~ x + offset(0.5 * log(effort)) + (1 | sp__) + (1 | site), data = d,
+  mb <- qpglmm(pa ~ x + offset(0.5 * log(effort)) + (1 | sp__) + (1 | site), data = d,
                  family = "binomial", cov_ranef = list(sp = od$phy), method = "Laplace", REML = FALSE)
   tb <- glmmTMB::glmmTMB(pa ~ x + offset(0.5 * log(effort)) + (1 | spf) + propto(0 + spf | g, C) +
                            (1 | site), data = d, family = binomial)
@@ -45,7 +44,7 @@ test_that("offsets give the same fits as glmmTMB", {
   expect_equal(as.vector(mb$B), unname(glmmTMB::fixef(tb)$cond), tolerance = 1e-3)
 
   skip_on_cran()
-  mn <- qfit_off(nb ~ x + offset(log(effort)) + (1 | sp__) + (1 | site), data = d, family = "nbinomial",
+  mn <- qpglmm(nb ~ x + offset(log(effort)) + (1 | sp__) + (1 | site), data = d, family = "nbinomial",
                  cov_ranef = list(sp = od$phy), REML = FALSE)
   tn <- glmmTMB::glmmTMB(nb ~ x + offset(log(effort)) + (1 | spf) + propto(0 + spf | g, C) + (1 | site),
                          data = d, family = glmmTMB::nbinom2)
@@ -53,7 +52,7 @@ test_that("offsets give the same fits as glmmTMB", {
   expect_equal(as.vector(mn$B), unname(glmmTMB::fixef(tn)$cond), tolerance = 1e-3)
   expect_equal(mn$theta, sigma(tn), tolerance = 1e-3)
   # REML
-  mr <- qfit_off(cnt ~ x + offset(log(effort)) + (1 | sp__) + (1 | site), data = d, family = "poisson",
+  mr <- qpglmm(cnt ~ x + offset(log(effort)) + (1 | sp__) + (1 | site), data = d, family = "poisson",
                  cov_ranef = list(sp = od$phy), method = "Laplace", REML = TRUE)
   tr <- glmmTMB::glmmTMB(cnt ~ x + offset(log(effort)) + (1 | spf) + propto(0 + spf | g, C) +
                            (1 | site) + (1 | obsid), data = d, family = poisson, REML = TRUE)
@@ -62,7 +61,7 @@ test_that("offsets give the same fits as glmmTMB", {
 
 test_that("predictions and simulations include the offset", {
   d <- od$d
-  m <- qfit_off(cnt ~ x + offset(log(effort)) + (1 | sp__) + (1 | site), data = d, family = "poisson",
+  m <- qpglmm(cnt ~ x + offset(log(effort)) + (1 | sp__) + (1 | site), data = d, family = "poisson",
                 cov_ranef = list(sp = od$phy), method = "Laplace")
   expect_equal(m$offset, log(d$effort))
   xb <- as.vector(model.matrix(~x, d) %*% m$B)
@@ -83,7 +82,7 @@ test_that("predictions and simulations include the offset", {
   lrt <- pglmm_profile_LRT(m, re.number = 2)
   expect_true(lrt$LR >= 0)
   # the offset changes the fit
-  m0 <- qfit_off(cnt ~ x + (1 | sp__) + (1 | site), data = d, family = "poisson",
+  m0 <- qpglmm(cnt ~ x + (1 | sp__) + (1 | site), data = d, family = "poisson",
                  cov_ranef = list(sp = od$phy), method = "Laplace")
   expect_false(isTRUE(all.equal(m$B, m0$B)))
 })
@@ -112,8 +111,8 @@ test_that("pglmm_compare() supports offsets", {
 
 test_that("offsets are not supported with PQL and gaussian models", {
   d <- od$d
-  expect_error(qfit_off(cnt ~ x + offset(log(effort)) + (1 | sp__), data = d, family = "poisson",
+  expect_error(qpglmm(cnt ~ x + offset(log(effort)) + (1 | sp__), data = d, family = "poisson",
                         cov_ranef = list(sp = od$phy), method = "PQL"), "Laplace")
-  expect_error(qfit_off(x ~ offset(log(effort)) + (1 | sp__), data = d, cov_ranef = list(sp = od$phy)),
+  expect_error(qpglmm(x ~ offset(log(effort)) + (1 | sp__), data = d, cov_ranef = list(sp = od$phy)),
                "Laplace")
 })

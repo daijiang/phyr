@@ -43,6 +43,7 @@ total_ranef <- function(m, r = ranef(m)) {
 }
 
 test_that("ranef() of gaussian models agrees with lme4", {
+  skip_if_not_installed("lme4")
   m <- pglmm(y ~ x + (1 | sp) + (1 | site), data = d, REML = TRUE)
   l <- lme4::lmer(y ~ x + (1 | sp) + (1 | site), data = d, REML = TRUE)
   r <- ranef(m, condVar = TRUE)
@@ -67,6 +68,7 @@ test_that("ranef() of gaussian models agrees with lme4", {
 })
 
 test_that("ranef() of random slopes agrees with lme4", {
+  skip_if_not_installed("lme4")
   m <- pglmm(y ~ x + (1 | sp) + (x | sp) + (1 | site), data = d, REML = TRUE)
   l <- lme4::lmer(y ~ x + (1 | sp) + (0 + x | sp) + (1 | site), data = d, REML = TRUE)
   r <- ranef(m)
@@ -84,6 +86,7 @@ term_est <- function(r, term, what = "estimate") {
 }
 
 test_that("ranef() of Laplace fits agrees with glmer at the same parameters", {
+  skip_if_not_installed("lme4")
   # glmer's Laplace likelihood differs slightly from that of pglmm() and glmmTMB(),
   # thus so do the estimated parameters. Compare at the parameters of pglmm().
   d$obsid <- factor(rownames(d), levels = rownames(d)) # the levels of 1|obs are the rownames

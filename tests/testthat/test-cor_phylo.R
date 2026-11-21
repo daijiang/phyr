@@ -350,3 +350,32 @@ test_that("cor_phylo produces proper output", {
   
   expect_output(print(phyr_cp), "Call to cor_phylo:")
 })
+
+test_that("cor_phylo measurement errors do not depend on the order of rows", {
+  set.seed(21)
+  n <- 30
+  phy <- ape::rcoal(n)
+  d <- data.frame(
+    sp = phy$tip.label, a = ape::rTraitCont(phy), b = ape::rTraitCont(phy),
+    se1 = runif(n, 0.05, 1), se2 = runif(n, 0.05, 1)
+  )
+  d$a <- d$a + rnorm(n, sd = d$se1)
+  d$b <- d$b + rnorm(n, sd = d$se2)
+  ds <- d[sample(n), ]
+  fit <- function(dat) {
+    quiet(cor_phylo(
+      variates = ~ a + b, species = ~sp, phy = phy, data = dat,
+      meas_errors = list(a ~ se1, b ~ se2)
+    ))
+  }
+  f1 <- fit(d)
+  f2 <- fit(ds)
+  expect_equal(f2$corrs, f1$corrs, tolerance = 1e-4)
+  expect_equal(f2$logLik, f1$logLik, tolerance = 1e-4)
+  # measurement errors given as a matrix
+  f3 <- quiet(cor_phylo(
+    variates = ~ a + b, species = ~sp, phy = phy, data = ds,
+    meas_errors = as.matrix(setNames(ds[c("se1", "se2")], c("a", "b")))
+  ))
+  expect_equal(f3$logLik, f1$logLik, tolerance = 1e-4)
+})

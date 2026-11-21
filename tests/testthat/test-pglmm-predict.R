@@ -20,9 +20,8 @@ d$fail <- d$size - d$succ
 d$cnt <- rpois(nrow(d), exp(0.5 * eta))
 rownames(d) <- NULL
 
-quiet <- function(expr) suppressWarnings(suppressMessages(expr))
-
 test_that("fitted values and residuals of gaussian models agree with lme4", {
+  skip_if_not_installed("lme4")
   m <- pglmm(y ~ x + (1 | sp) + (1 | site), data = d)
   l <- lme4::lmer(y ~ x + (1 | sp) + (1 | site), data = d)
   expect_lt(max(abs(fitted(m) - fitted(l))), 1e-3)
@@ -88,6 +87,7 @@ test_that("simulate() without conditioning on random effects works", {
 })
 
 test_that("predicted values and residuals of binomial and poisson models", {
+  skip_if_not_installed("lme4")
   mb <- quiet(pglmm(cbind(succ, fail) ~ x + (1 | sp) + (1 | site), data = d, family = "binomial"))
   mu <- unname(mb$mu[, 1])
   expect_equal(pglmm_predicted_values(mb)$Y_hat, qlogis(mu))
@@ -135,6 +135,7 @@ test_that("predicted values, residuals and simulations of bayesian models", {
   expect_equal(dim(s), c(nrow(d), 100L))
   expect_true(all(s <= d$size))
   expect_equal(mean(s), mean(d$succ), tolerance = 0.15)
+  expect_error(pglmm_profile_LRT(bb, 1))
 
   bg <- quiet(pglmm(y ~ x + (1 | sp) + (1 | site), data = d, bayes = TRUE))
   mg <- pglmm(y ~ x + (1 | sp) + (1 | site), data = d)
@@ -149,6 +150,7 @@ test_that("predicted values, residuals and simulations of bayesian models", {
 })
 
 test_that("predict() with newdata agrees with lme4", {
+  skip_if_not_installed("lme4")
   d2 <- d
   d2$g <- rep(c("a", "b", "c"), length.out = nrow(d2))
   d2$y <- d2$y + 0.4 * (d2$g == "b")

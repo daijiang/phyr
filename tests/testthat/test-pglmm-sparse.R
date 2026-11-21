@@ -17,6 +17,32 @@ sim_sparse_data <- function(nsp = 40, nsite = 10, ultrametric = TRUE) {
   list(d = d[sample(nrow(d), round(0.8 * nrow(d))), ], phy = phy)
 }
 
+# fits of the sparse (m2) and dense (m1) code of the same model
+expect_same_fit <- function(m2, m1) {
+  expect_equal(m2$logLik, m1$logLik, tolerance = 1e-6)
+  expect_equal(m2$s2r, m1$s2r, tolerance = 1e-2)
+  expect_equal(m2$s2n, m1$s2n, tolerance = 1e-2)
+  expect_equal(m2$s2resid, m1$s2resid, tolerance = 1e-3)
+  expect_equal(m2$B, m1$B, tolerance = 1e-3)
+  expect_equal(m2$B.se, m1$B.se, tolerance = 1e-3)
+  expect_equal(m2$AIC, m1$AIC, tolerance = 1e-6)
+  expect_equal(m2$scale_factors, m1$scale_factors, tolerance = 1e-8)
+}
+
+# ranef(condVar = TRUE) of the sparse (m2) and dense (m1) fits: the same
+# levels, and estimates and standard errors within tolerance
+expect_same_ranef <- function(m2, m1, tolerance) {
+  r1 <- ranef(m1, condVar = TRUE)
+  r2 <- ranef(m2, condVar = TRUE)
+  expect_identical(names(r2), names(r1))
+  for (k in names(r1)) {
+    lab <- setdiff(names(r1[[k]]), c("estimate", "se"))
+    expect_identical(r2[[k]][lab], r1[[k]][lab])
+    expect_equal(r2[[k]]$estimate, r1[[k]]$estimate, tolerance = tolerance)
+    expect_equal(r2[[k]]$se, r1[[k]]$se, tolerance = tolerance)
+  }
+}
+
 test_that("precision matrix of a phylogeny is the inverse of the standardized vcv", {
   set.seed(1)
   trees <- list(ape::rtree(30), ape::rcoal(25), ape::di2multi(ape::rtree(40), tol = 0.3))
@@ -58,13 +84,7 @@ test_that("pglmm(sparse = TRUE) gives the same fit as the default code", {
       m1 <- pglmm(f, s$d, sparse = FALSE, cov_ranef = list(sp = s$phy), REML = REML,
                   optimizer = "nelder-mead-nlopt", reltol = 1e-10)
       m2 <- pglmm(f, s$d, cov_ranef = list(sp = s$phy), REML = REML, sparse = TRUE, reltol = 1e-10)
-      expect_equal(m2$logLik, m1$logLik, tolerance = 1e-6)
-      expect_equal(m2$s2r, m1$s2r, tolerance = 1e-2)
-      expect_equal(m2$s2resid, m1$s2resid, tolerance = 1e-3)
-      expect_equal(m2$B, m1$B, tolerance = 1e-3)
-      expect_equal(m2$B.se, m1$B.se, tolerance = 1e-3)
-      expect_equal(m2$AIC, m1$AIC, tolerance = 1e-6)
-      expect_equal(m2$scale_factors, m1$scale_factors, tolerance = 1e-8)
+      expect_same_fit(m2, m1)
     }
   }
 })
@@ -75,14 +95,7 @@ test_that("methods work for models fitted with sparse = TRUE", {
   m1 <- pglmm(f, s$d, sparse = FALSE, cov_ranef = list(sp = s$phy), optimizer = "nelder-mead-nlopt", reltol = 1e-10)
   m2 <- pglmm(f, s$d, cov_ranef = list(sp = s$phy), sparse = TRUE, reltol = 1e-10)
   expect_output(print(m2), "1\\|sp__")
-  r1 <- ranef(m1, condVar = TRUE)
-  r2 <- ranef(m2, condVar = TRUE)
-  expect_identical(names(r2), names(r1))
-  for (k in names(r1)) {
-    expect_identical(r2[[k]][[1]], r1[[k]][[1]])
-    expect_equal(r2[[k]]$estimate, r1[[k]]$estimate, tolerance = 1e-2)
-    expect_equal(r2[[k]]$se, r1[[k]]$se, tolerance = 1e-2)
-  }
+  expect_same_ranef(m2, m1, tolerance = 1e-2)
   expect_equal(fitted(m2), fitted(m1), tolerance = 1e-3)
   expect_equal(residuals(m2), residuals(m1), tolerance = 1e-2)
   nd <- s$d[1:10, ]
@@ -246,14 +259,7 @@ test_that("pglmm(sparse = TRUE) gives the same fit as the default code for neste
       m1 <- pglmm(f, s$d, sparse = FALSE, cov_ranef = cr, REML = REML, optimizer = "subplex", reltol = 1e-10,
                   maxit = 5000)
       m2 <- pglmm(f, s$d, cov_ranef = cr, REML = REML, sparse = TRUE, reltol = 1e-10)
-      expect_equal(m2$logLik, m1$logLik, tolerance = 1e-6)
-      expect_equal(m2$s2r, m1$s2r, tolerance = 1e-2)
-      expect_equal(m2$s2n, m1$s2n, tolerance = 1e-2)
-      expect_equal(m2$s2resid, m1$s2resid, tolerance = 1e-3)
-      expect_equal(m2$B, m1$B, tolerance = 1e-3)
-      expect_equal(m2$B.se, m1$B.se, tolerance = 1e-3)
-      expect_equal(m2$AIC, m1$AIC, tolerance = 1e-6)
-      expect_equal(m2$scale_factors, m1$scale_factors, tolerance = 1e-8)
+      expect_same_fit(m2, m1)
       expect_identical(names(m2$ss), names(m1$ss))
       expect_identical(names(m2$random.effects), names(m1$random.effects))
     }
@@ -268,18 +274,9 @@ test_that("methods work for models with nested terms fitted with sparse = TRUE",
   m2 <- pglmm(f, s$d, cov_ranef = cr, sparse = TRUE, reltol = 1e-10)
   expect_output(print(m2), "1\\|sp__@site")
   expect_identical(rownames(VarCorr(m2)), rownames(VarCorr(m1)))
-  r1 <- ranef(m1, condVar = TRUE)
-  r2 <- ranef(m2, condVar = TRUE)
-  expect_identical(names(r2), names(r1))
-  for (k in names(r1)) {
-    lab <- setdiff(names(r1[[k]]), c("estimate", "se"))
-    expect_identical(names(r2[[k]]), names(r1[[k]]))
-    expect_identical(r2[[k]][lab], r1[[k]][lab])
-    expect_equal(r2[[k]]$estimate, r1[[k]]$estimate, tolerance = 1e-2)
-    expect_equal(r2[[k]]$se, r1[[k]]$se, tolerance = 1e-2)
-  }
+  expect_same_ranef(m2, m1, tolerance = 1e-2)
   # one row per combination in the data
-  expect_equal(nrow(r2[["1|sp__@site"]]), nrow(unique(s$d[c("sp", "site")])))
+  expect_equal(nrow(ranef(m2)[["1|sp__@site"]]), nrow(unique(s$d[c("sp", "site")])))
   expect_equal(fitted(m2), fitted(m1), tolerance = 1e-3)
   expect_equal(residuals(m2), residuals(m1), tolerance = 1e-2)
   expect_equal(predict(m2), predict(m1), tolerance = 1e-3)
@@ -347,21 +344,8 @@ test_that("pglmm(sparse = TRUE) with repulsion gives the same fit and methods as
     m1 <- pglmm(cs[[1]], s$d, sparse = FALSE, cov_ranef = cr, repulsion = cs[[2]], optimizer = "subplex",
                 reltol = 1e-10, maxit = 5000)
     m2 <- pglmm(cs[[1]], s$d, cov_ranef = cr, repulsion = cs[[2]], sparse = TRUE, reltol = 1e-10)
-    expect_equal(m2$logLik, m1$logLik, tolerance = 1e-6)
-    expect_equal(m2$s2r, m1$s2r, tolerance = 1e-2)
-    expect_equal(m2$s2n, m1$s2n, tolerance = 1e-2)
-    expect_equal(m2$B, m1$B, tolerance = 1e-3)
-    expect_equal(m2$B.se, m1$B.se, tolerance = 1e-3)
-    expect_equal(m2$scale_factors, m1$scale_factors, tolerance = 1e-8)
-    r1 <- ranef(m1, condVar = TRUE)
-    r2 <- ranef(m2, condVar = TRUE)
-    expect_identical(names(r2), names(r1))
-    for (k in names(r1)) {
-      lab <- setdiff(names(r1[[k]]), c("estimate", "se"))
-      expect_identical(r2[[k]][lab], r1[[k]][lab])
-      expect_equal(r2[[k]]$estimate, r1[[k]]$estimate, tolerance = 1e-2)
-      expect_equal(r2[[k]]$se, r1[[k]]$se, tolerance = 1e-2)
-    }
+    expect_same_fit(m2, m1)
+    expect_same_ranef(m2, m1, tolerance = 1e-2)
     expect_equal(fitted(m2), fitted(m1), tolerance = 1e-3)
     expect_equal(residuals(m2), residuals(m1), tolerance = 1e-2)
     nd <- s$d[1:10, ]
@@ -505,15 +489,7 @@ test_that("pglmm(sparse = TRUE) gives the same fit and methods as the default co
     nd <- s$d[1:10, ]
     nd$x <- 0
     expect_equal(predict(m2, nd, type = "response"), predict(m1, nd, type = "response"), tolerance = 1e-5)
-    r1 <- ranef(m1, condVar = TRUE)
-    r2 <- ranef(m2, condVar = TRUE)
-    expect_identical(names(r2), names(r1))
-    for (k in names(r1)) {
-      lab <- setdiff(names(r1[[k]]), c("estimate", "se"))
-      expect_identical(r2[[k]][lab], r1[[k]][lab])
-      expect_equal(r2[[k]]$estimate, r1[[k]]$estimate, tolerance = 1e-4)
-      expect_equal(r2[[k]]$se, r1[[k]]$se, tolerance = 1e-4)
-    }
+    expect_same_ranef(m2, m1, tolerance = 1e-4)
     expect_equal(pglmm_profile_LRT(m2, 2)$LR, pglmm_profile_LRT(m1, 2)$LR, tolerance = 1e-4)
     expect_output(print(m2), "1\\|sp__")
     expect_equal(dim(simulate(m2, nsim = 2)), c(nrow(s$d), 2L))
