@@ -18,6 +18,7 @@
 #include <R_ext/BLAS.h>
 #include <R_ext/Lapack.h>
 #include <cmath>
+#include <memory>
 #include <utility>
 #include <vector>
 #ifndef FCONE
@@ -142,14 +143,20 @@ NumericVector sparse_inv_subset_super(const IntegerVector& super, const IntegerV
     if (m > mmax) mmax = m;
     if (m * nc > ymax) ymax = m * nc;
   }
-  std::vector<double> z(x.size()), zrr((size_t) mmax * mmax), y(ymax);
+  // Z (not zero-filled: all its values are written, below), and the full
+  // Z_rr of a supernode (dgemm is much faster than dsymm in some BLAS)
+  std::unique_ptr<double[]> zbuf(new double[x.size()]);
+  double* z = zbuf.get();
+  std::vector<double> zrr((size_t) mmax * mmax), y(ymax);
   const double one = 1, mone = -1, zero = 0;
   for (int J = ns - 1; J >= 0; J--) {
     const int nc = sup[J + 1] - sup[J], nr = ppi[J + 1] - ppi[J], m = nr - nc;
     const double* lx = xx + ppx[J];
-    double* zx = z.data() + ppx[J];
-    // (L_cc L_cc')^-1 in the lower triangle of the diagonal block of Z
+    double* zx = z + ppx[J];
+    // (L_cc L_cc')^-1 in the lower triangle of the diagonal block of Z (its
+    // upper triangle is not used)
     for (int j = 0; j < nc; j++) {
+      for (int t = 0; t < j; t++) zx[t + (size_t) j * nr] = 0;
       for (int t = j; t < nc; t++) zx[t + (size_t) j * nr] = lx[t + (size_t) j * nr];
     }
     int info = 0;
@@ -162,7 +169,7 @@ NumericVector sparse_inv_subset_super(const IntegerVector& super, const IntegerV
     }
     F77_CALL(dtrsm)("R", "L", "N", "N", &m, &nc, &one, lx, &nr, y.data(), &m
                     FCONE FCONE FCONE FCONE);
-    // Z_rr (lower triangle) from the columns of the ancestors: the rows r
+    // Z_rr from the columns of the ancestors: the rows r
     // from row r_a on are in the column of r_a
     const int* rows = ss + ppi[J] + nc;
     int K = -1;
@@ -173,17 +180,17 @@ NumericVector sparse_inv_subset_super(const IntegerVector& super, const IntegerV
         for (int t = ppi[K]; t < ppi[K + 1]; t++) relpos[ss[t]] = t - ppi[K];
       }
       const int nrK = ppi[K + 1] - ppi[K];
-      const double* zk = z.data() + ppx[K] + (size_t) (ra - sup[K]) * nrK;
+      const double* zk = z + ppx[K] + (size_t) (ra - sup[K]) * nrK;
       for (int b = a; b < m; b++) {
         const int pos = relpos[rows[b]];
         if (pos < 0 || pos >= nrK || ss[ppi[K] + pos] != rows[b]) {
           stop("sparse_inv_subset_super: the pattern of the factor is not closed");
         }
-        zrr[b + (size_t) a * m] = zk[pos];
+        zrr[b + (size_t) a * m] = zrr[a + (size_t) b * m] = zk[pos];
       }
     }
     // Z_rc = - Z_rr Y, then Z_cc -= Y' Z_rc
-    F77_CALL(dsymm)("L", "L", &m, &nc, &mone, zrr.data(), &m, y.data(), &m, &zero, zx + nc, &nr
+    F77_CALL(dgemm)("N", "N", &m, &nc, &m, &mone, zrr.data(), &m, y.data(), &m, &zero, zx + nc, &nr
                     FCONE FCONE);
     F77_CALL(dgemm)("T", "N", &nc, &nc, &m, &mone, y.data(), &m, zx + nc, &nr, &one, zx, &nr
                     FCONE FCONE);
