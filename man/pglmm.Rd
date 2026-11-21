@@ -358,8 +358,9 @@ not work on the fitted model.}
 \item{sparse}{Whether to fit the model with the sparse precision matrix of the phylogeny
 (\code{TRUE}) or with the dense covariance matrices (\code{FALSE}). The default,
 \code{NULL}, is \code{TRUE} whenever the sparse code supports the model, i.e. with
-\code{bayes = FALSE}, random terms in the formula (not \code{random.effects}), phylogenies
-(class \code{phylo}, not covariance matrices) in \code{cov_ranef}; \code{FALSE}
+random terms in the formula (not \code{random.effects}), phylogenies
+(class \code{phylo}, not covariance matrices) in \code{cov_ranef}, and, with
+\code{bayes = TRUE}, \code{ML.init = FALSE} and \code{repulsion = FALSE}; \code{FALSE}
 otherwise (it was
 \code{FALSE} before phyr 1.3.0). Both give the same model; the estimates can differ
 slightly, as the optimizers differ (for binomial and poisson models fitted by PQL, the
@@ -381,8 +382,10 @@ convergence rules, \code{tol.pql} and \code{maxit.pql}); at each iteration, the 
 weights change only the values of the sparse matrix, and the observation-level term
 \code{1|obs} is folded into the weights. Only available with phylogenies (class
 \code{phylo}) in \code{cov_ranef}. With \code{bayes = TRUE}, the model is given to INLA
-with one of the sparse representations of \code{sparse_method} (the default of
-\code{sparse} is then \code{FALSE}: the dense INLA model).
+with one of the sparse representations of \code{sparse_method}; use \code{sparse = FALSE}
+for the dense INLA model of earlier versions (needed for \code{ranef()},
+\code{predict()} with \code{newdata} and \code{simulate()} with \code{re.form = NA},
+see \code{sparse_method}).
 
 With \code{bayes = FALSE}, the variances (for gaussian models, relative to the residual variance; for binomial and
 poisson models, at each PQL iteration) are estimated with \code{nlminb()} and the analytic

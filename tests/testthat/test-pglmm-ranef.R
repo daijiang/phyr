@@ -344,7 +344,7 @@ test_that("ranef() works with bayesian models", {
   skip_on_cran()
   skip_if_not_installed("INLA")
   fit <- function(...) {
-    suppressWarnings(suppressMessages(pglmm(..., bayes = TRUE, cov_ranef = list(sp = phy))))
+    suppressWarnings(suppressMessages(pglmm(..., bayes = TRUE, sparse = FALSE, cov_ranef = list(sp = phy))))
   }
   # sum of the posterior means of random effects is the posterior mean of the
   # linear predictor minus that of the fixed effects

@@ -210,8 +210,8 @@ not work on the fitted model.}
 
 \item{sparse}{Whether to fit the model with the sparse precision matrix of the
 phylogeny, which is much faster for large phylogenies (see Details and
-\code{\link[=pglmm]{pglmm()}}). The default, \code{NULL}, is \code{TRUE} with \code{bayes = FALSE}
-(\code{FALSE} before phyr 1.3.0); use \code{sparse = FALSE} for the dense
+\code{\link[=pglmm]{pglmm()}}). The default, \code{NULL}, is \code{TRUE} (with \code{bayes = TRUE},
+unless \code{ML.init = TRUE}; \code{FALSE} before phyr 1.3.0); use \code{sparse = FALSE} for the dense
 covariance matrix (then also returned in \code{vcv.phy}).}
 
 \item{standardize_cov}{Logical (default \code{TRUE}). Whether to standardize the covariance

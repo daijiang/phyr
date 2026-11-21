@@ -83,7 +83,9 @@ test_that("pglmm_compare with bayes = TRUE gives the same estimates as before", 
   expect_equal(unname(z$s2resid), 0.2753523645, tolerance = 1e-3)
   expect_s3_class(z, "communityPGLMM")
   expect_true(all(c("DIC", "WAIC") %in% names(z)))
-  r <- ranef(z)[["1|sp__"]]
+  expect_false(is.null(z$bayes_sparse)) # the sparse code by default
+  # ranef() needs the dense INLA model for now
+  r <- ranef(qfit(yg ~ x, data = cmp$d, phy = cmp$phy, bayes = TRUE, sparse = FALSE))[["1|sp__"]]
   expect_equal(r$sp, rownames(cmp$d))
 })
 

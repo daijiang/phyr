@@ -233,7 +233,7 @@ test_that("predict() with newdata works with bayesian models", {
   skip_on_cran()
   skip_if_not_installed("INLA")
   b <- quiet(pglmm(y ~ x + (1 | sp__) + (x | sp) + (1 | site) + (1 | sp__@site),
-    data = d, cov_ranef = list(sp = phy), bayes = TRUE
+    data = d, cov_ranef = list(sp = phy), bayes = TRUE, sparse = FALSE
   ))
   expect_lt(max(abs(predict(b, newdata = d) - predict(b))), 0.05)
   expect_equal(predict(b, newdata = d, re.form = NA)[, 1], as.vector(b$X %*% b$B), ignore_attr = TRUE)
