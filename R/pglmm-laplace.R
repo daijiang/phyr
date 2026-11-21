@@ -448,6 +448,18 @@ pglmm_num_hessian_grad <- function(g, x, h = 1e-4 * pmax(abs(x), 1)) {
   (H + t(H)) / 2
 }
 
+# Covariance matrix of the fixed effects (positions ip) from the Hessian Hs
+# of -log L: the block of its inverse, or the inverse of its block (when Hs
+# is singular, e.g. with a parameter of the random terms that is not
+# identified); NULL if neither is a covariance matrix
+pglmm_laplace_bcov <- function(Hs, ip) {
+  ok <- function(V) !is.null(V) && all(is.finite(V)) && all(diag(V) > 0)
+  if (is.null(Hs) || any(!is.finite(Hs))) return(NULL)
+  V <- tryCatch(solve(Hs)[ip, ip, drop = FALSE], error = function(e) NULL)
+  if (!ok(V)) V <- tryCatch(solve(Hs[ip, ip, drop = FALSE]), error = function(e) NULL)
+  if (ok(V)) V else NULL
+}
+
 # Hessian of f at x by central differences, with steps h
 pglmm_num_hessian <- function(f, x, h = 1e-4 * pmax(abs(x), 1)) {
   d <- length(x)
@@ -631,14 +643,11 @@ communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_
       if (is.null(gr)) return(NULL)
       -c(gr$beta, gr$theta, if (has.obs) 2 * kp$ss[q] * gr$s2, if (has.disp) gr$phi)[keep]
     }
-    Hs <- pglmm_num_hessian_grad(g, o2$par[keep])
-    if (is.null(Hs)) Hs <- pglmm_num_hessian(f, o2$par[keep])
-    B.cov <- tryCatch(solve(Hs)[ip, ip, drop = FALSE], error = function(e) NULL)
-    if (is.null(B.cov) || any(!is.finite(B.cov)) || any(diag(B.cov) <= 0)) {
-      B.cov <- tryCatch(solve(Hs[ip, ip, drop = FALSE]), error = function(e) {
-        matrix(NA_real_, p, p)
-      })
-    }
+    # (with badly scaled parameters, e.g. counts of up to 1e9, the gradient
+    # can be too inaccurate for its differences: then from log L too)
+    B.cov <- pglmm_laplace_bcov(pglmm_num_hessian_grad(g, o2$par[keep]), ip)
+    if (is.null(B.cov)) B.cov <- pglmm_laplace_bcov(pglmm_num_hessian(f, o2$par[keep]), ip)
+    if (is.null(B.cov)) B.cov <- matrix(NA_real_, p, p)
     md <- pglmm_laplace_mode(B, ss, lp, st, phi = phi)
     LL <- md$ll
   }
