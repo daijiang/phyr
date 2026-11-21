@@ -115,7 +115,19 @@ correlations among species, while the form \code{(1|sp__@site)} excludes the cor
 
 Note that correlated random terms are not allowed. For example,
 \code{(x|g)} will be the same as \code{(0 + x|g)} in the \code{lme4::lmer} syntax. However,
-\code{(x1 + x2|g)} won't work, so instead use  \code{(x1|g) + (x2|g)}.
+\code{(x1 + x2|g)} won't work, so instead use  \code{(x1|g) + (x2|g)}, or
+\code{(x1 + x2||g)}. As the random intercept and slope of \code{(1|g) + (x|g)} are
+independent, the model depends on where \code{x} is zero: the variance among the levels
+of \code{g} is that of the intercept plus \eqn{x^2} times that of the slope. With a 0/1
+covariate (e.g. a control and a treatment), the levels then vary more in the treatment
+than in the control by construction. Center continuous covariates of random slopes
+(e.g. \code{x - mean(x)}) and code two-level factors as -1/+1 (equal variance in both
+groups) unless zero is a meaningful reference. Covariates of random slopes must be
+numeric columns of \code{data}.
+
+Grouping factors are columns of \code{data}. Their interactions as in \code{lme4},
+e.g. \code{(1|sp:site)}, are fitted as the nested terms \code{(1|sp@site)}, and
+\code{(1|site/sp)} as \code{(1|site) + (1|sp@site)}.
 
 The formula can have offsets, e.g. \code{+ offset(log(effort))} for counts with
 different sampling efforts or areas: terms of the linear predictor with a known
@@ -125,10 +137,12 @@ predicted values (\code{predict()}, \code{fitted()}, \code{simulate()}; with
 \code{newdata}, the offset is calculated from it).}
 
 \item{data}{A \code{\link{data.frame}} containing the variables named in formula.
-Rows where the response variable is \code{NA} are dropped before fitting; this
-is equivalent to removing those rows from \code{data} manually before calling
-\code{pglmm}. As a result, \code{pglmm(data_with_NAs)} and
-\code{pglmm(data[!is.na(data$y), ])} produce identical estimates.}
+Rows with missing values in the response, the fixed effects, the grouping variables
+or the covariates of random slopes are dropped before fitting; this is equivalent to
+removing those rows from \code{data} manually before calling \code{pglmm}. As a
+result, \code{pglmm(data_with_NAs)} and \code{pglmm(na.omit(data[, vars]))} (with
+\code{vars} the variables of the model) produce identical estimates. With
+\code{random.effects}, only the rows with missing values in the response are dropped.}
 
 \item{family}{Either "gaussian" for a Linear Mixed Model, or
 "binomial", "poisson", "nbinomial" or "Gamma" for Generalized Linear Mixed Models.

@@ -43,7 +43,7 @@ parse_conv_ranef <- function(x, df, standardize = TRUE) {
     if (inherits(xx, c("matrix", "Matrix"))) {
       # already a cov matrix
       if (length(setdiff(spl, row.names(xx)))) {
-        stop(paste0("Some levels of variable ", names(x)[i], " not in the martix,
+        stop(paste0("Some levels of variable ", names(x)[i], " not in the matrix,
                     please either drop these levels or update the matrix"))
       }
       # keep the levels in the data only, in the same order as the levels
@@ -54,10 +54,10 @@ parse_conv_ranef <- function(x, df, standardize = TRUE) {
       }
       xx <- xx[spl, spl, drop = FALSE]
       if (standardize && abs(det(xx) - 1) > 0.0001) {
-        warning("The cov matrix is not standarized, we will do this now...", call. = FALSE, immediate. = TRUE)
+        warning("The cov matrix is not standardized, we will do this now...", call. = FALSE, immediate. = TRUE)
         xx <- xx / max(xx)
         xx <- xx / exp(determinant(xx)$modulus[1] / nrow(xx))
-        if (abs(det(xx) - 1) > 0.0001) warning("Failed to standarized the cov matrix", call. = FALSE, immediate. = TRUE)
+        if (abs(det(xx) - 1) > 0.0001) warning("Failed to standardize the cov matrix", call. = FALSE, immediate. = TRUE)
       }
       Vphy <- xx
     }
@@ -66,6 +66,111 @@ parse_conv_ranef <- function(x, df, standardize = TRUE) {
   })
   names(out_list) <- names(x)
   list(updated_orgi_list = x2, cleaned_list = out_list)
+}
+
+# Check the random terms of the formula of pglmm() before fitting, for all the
+# code paths: the grouping variables (e.g. sp and site in 1|sp__@site) and the
+# covariates of random slopes (x in x|sp) must be columns of data, and the
+# covariates numeric. Interactions of grouping factors (lme4), e.g. 1|sp:site
+# (also from 1|site/sp), are written as nested terms, 1|sp@site. A term that
+# a phylogenetic term already includes as its
+# non-phylogenetic partner (1|sp with 1|sp__) is dropped from the formula, with
+# a message: fitting it twice gives two variances that cannot be told apart.
+# Returns the formula and the variables of the random terms.
+pglmm_check_re_terms <- function(formula, data, phylo_only = FALSE) {
+  bars <- unique(reformulas::findbars(formula))
+  if (!length(bars)) return(list(formula = formula, vars = character(0)))
+  vars <- character(0)
+  rewritten <- FALSE # a:b written as a@b
+  names.bars <- character(length(bars)) # lhs|grp, as the names of the terms
+  partners <- character(0) # non-phylogenetic partners of phylogenetic terms
+  for (k in seq_along(bars)) {
+    x2 <- as.character(bars[[k]])
+    lhs <- gsub("^0 ?[+] ?", "", x2[2])
+    grp <- x2[3]
+    term <- paste0("(", x2[2], " | ", grp, ")")
+    if (grepl("+", lhs, fixed = TRUE)) {
+      stop("Random terms with several covariates, such as ", term, ", are not allowed yet. ",
+           "Split them into terms with one covariate each (e.g. (1 | sp) + (x | sp), or ",
+           "(x || sp)); the terms are independent.", call. = FALSE)
+    }
+    if (grepl(":", grp, fixed = TRUE)) {
+      # the interaction of two grouping factors (lme4), e.g. 1|sp:site, also
+      # from 1|site/sp, is the nested term 1|sp@site: one level per
+      # combination, independent
+      grp <- gsub(" ?: ?", "@", grp)
+      bars[[k]][[3]] <- str2lang(grp)
+      rewritten <- TRUE
+    }
+    gp <- strsplit(grp, "@", fixed = TRUE)[[1]]
+    if (length(gp) > 2) {
+      stop("Nested terms have two grouping variables (e.g. 1 | sp@site), not ", length(gp),
+           " as in ", term, ".", call. = FALSE)
+    }
+    g <- sub("__$", "", gp)
+    miss <- setdiff(g, names(data))
+    if (length(miss)) {
+      stop("The grouping variable", if (length(miss) > 1) "s", " ", paste(miss, collapse = " and "),
+           " of the random term ", term, if (length(miss) > 1) " are" else " is",
+           " not in the data.", call. = FALSE)
+    }
+    if (lhs != "1") {
+      if (lhs %nin% names(data)) {
+        stop("The covariate ", lhs, " of the random slope ", term, " must be a column of data",
+             if (make.names(lhs) != lhs) " (e.g. compute it as a new column first)", ".",
+             call. = FALSE)
+      }
+      v <- data[[lhs]]
+      if (!is.numeric(v) && !is.logical(v)) {
+        stop("The covariate ", lhs, " of the random slope ", term, " is not numeric (class ",
+             class(v)[1], "). Random slopes need numeric covariates; for a factor, use numeric ",
+             "(0/1) columns for its levels, each in its own random term.", call. = FALSE)
+      }
+    }
+    vars <- c(vars, g, if (lhs != "1") lhs)
+    names.bars[k] <- paste0(lhs, "|", grp)
+    if (length(gp) == 1 && grepl("__$", grp) && !phylo_only) {
+      partners <- c(partners, paste0(lhs, "|", g))
+    }
+  }
+  dup <- names.bars %in% partners
+  if (any(dup)) {
+    message("The random term", if (sum(dup) > 1) "s", " ",
+            paste0("(", sub("|", " | ", names.bars[dup], fixed = TRUE), ")", collapse = " and "),
+            " ", if (sum(dup) > 1) "are" else "is", " dropped: ",
+            "a phylogenetic term such as (1 | sp__) already includes its non-phylogenetic ",
+            "term (1 | sp).")
+  }
+  # the same term twice (e.g. 1|sp:site and 1|sp@site): kept once
+  dup <- dup | duplicated(names.bars)
+  if (any(dup) || rewritten) {
+    rhs <- reformulas::nobars(formula)
+    rhs <- rhs[[length(rhs)]]
+    for (b in bars[!dup]) rhs <- call("+", rhs, call("(", b))
+    formula[[length(formula)]] <- rhs
+  }
+  list(formula = formula, vars = unique(vars))
+}
+
+# Rows of data without missing values in the response, the fixed effects
+# (offsets included) and the variables of the random terms (vars)
+pglmm_complete_rows <- function(formula, data, vars) {
+  mf <- tryCatch(model.frame(reformulas::nobars(formula), data, na.action = NULL),
+                 error = function(e) NULL)
+  ok <- stats::complete.cases(data[, intersect(vars, names(data)), drop = FALSE])
+  if (!is.null(mf)) ok <- ok & stats::complete.cases(mf)
+  ok
+}
+
+# Whether the grouping variables grp of a random term (e.g. "sp__@site") have
+# a phylogeny or covariance matrix: one of them ends with "__"
+pglmm_has_phy <- function(grp) any(grepl("__$", strsplit(grp, "@", fixed = TRUE)[[1]]))
+
+# Whether a nested term without phylogeny (e.g. 1|sp@site) has one level per
+# observation, i.e. each combination of its two variables appears once: it is
+# then an observation-level term
+pglmm_one_obs_per_cell <- function(data, g) {
+  !anyDuplicated(data.frame(data[[g[1]]], data[[g[2]]]))
 }
 
 #' Prepare data for \code{pglmm}
@@ -87,8 +192,7 @@ prep_dat_pglmm <- function(formula, data, cov_ranef = NULL, repulsion = FALSE,
   # make sure group variables are factors
   if (!is.null(fm)) {
     grp_vars <- unique(unlist(lapply(fm, function(x) {
-      xx <- gsub(pattern = "__", replacement = "", x = as.character(x)[3])
-      strsplit(xx, "[@]")
+      gsub("__$", "", strsplit(as.character(x)[3], "[@]")[[1]])
     })))
     # cat("reorder alphabatically ")
     # data = dplyr::mutate_at(data, grp_vars, as.factor)
@@ -104,7 +208,7 @@ prep_dat_pglmm <- function(formula, data, cov_ranef = NULL, repulsion = FALSE,
     # @ for nested; __ at the end for phylogenetic cov
     if (is.null(fm)) stop("No random terms specified, use lm or glm instead")
 
-    if (any(grepl("__", fm))) { # has specified cov
+    if (any(vapply(fm, function(x) pglmm_has_phy(as.character(x)[3]), TRUE))) { # has specified cov
       grp_vars2 <- unique(unlist(lapply(fm, function(x) {
         strsplit(as.character(x)[3], "[@]")
       })))
@@ -133,7 +237,7 @@ prep_dat_pglmm <- function(formula, data, cov_ranef = NULL, repulsion = FALSE,
     } else {
       n_repulsion <- sum(sapply(fm[grepl("@", fm)], function(x) {
         xx <- strsplit(as.character(x)[3], "@")[[1]]
-        sum(grepl("__", xx))
+        sum(grepl("__$", xx))
       }))
     }
     if (length(repulsion) == 1 && any(grepl("@", fm))) repulsion <- pglmm_expand_repulsion(fm, repulsion)
@@ -147,7 +251,7 @@ prep_dat_pglmm <- function(formula, data, cov_ranef = NULL, repulsion = FALSE,
     random.effects <- lapply(fm, function(x) {
       x2 <- as.character(x)
       x2 <- gsub(pattern = "^0 ?[+] ?", replacement = "", x2) # replace 0 + x with x
-      if (grepl("[+]", x2[2])) stop("(x1 + x2|g) form of random terms are not allowed yet, pleast split it")
+      if (grepl("[+]", x2[2])) stop("(x1 + x2|g) form of random terms are not allowed yet, please split it")
       if (x2[2] == "1") { # intercept
         if (!grepl("[@]", x2[3])) { # single column; non-nested; 1|sp or 1|sp__
           if (grepl("__$", x2[3])) {
@@ -174,22 +278,19 @@ prep_dat_pglmm <- function(formula, data, cov_ranef = NULL, repulsion = FALSE,
           colns <- gsub("__$", "", sp_or_site)
           site_sp_c <- paste(as.character(data[, colns[2]]), as.character(data[, colns[1]]), sep = "___")
 
-          if (any(colns[grepl("__", sp_or_site)] %nin% names(cov_ranef_list))) {
+          if (any(colns[grepl("__$", sp_or_site)] %nin% names(cov_ranef_list))) {
             stop(paste0(
               "Cov matrix of variable ",
-              paste(colns[grepl("__", sp_or_site)], collapse = " and "),
+              paste(colns[grepl("__$", sp_or_site)], collapse = " and "),
               " not specified in cov_ranef."
             ))
           }
 
-          if (!grepl("__", x2[3])) { # no phylogenetic term; e.g. sp@site
+          if (!pglmm_has_phy(x2[3])) { # no phylogenetic term; e.g. sp@site
             if (family == "poisson" |
               (family == "binomial" & # formula such as cbind(success, fail) ~ x
                 is.array(model.response(model.frame(formula.nobars, data = data, na.action = NULL))))) {
-              if (add.obs.re &
-                nlevels(data[, colns[2]]) * nlevels(data[, colns[1]]) == nrow(data)
-              # only wroks for full balanced design though...
-              ) {
+              if (add.obs.re && pglmm_one_obs_per_cell(data, colns)) {
                 message("It seems that you specified an observation-level random term already e.g. (1|sp@site);
                        we will set 'add.obs.re' to FALSE.")
                 add.obs.re <<- FALSE
@@ -214,7 +315,7 @@ prep_dat_pglmm <- function(formula, data, cov_ranef = NULL, repulsion = FALSE,
             xout <- xout[site_sp_c, site_sp_c]
             xout <- list(list(xout))
           } else { # has phylogenetic term; sp__@site; sp__@site__; sp@site__
-            if (grepl("__", sp_or_site[1]) & !grepl("__", sp_or_site[2])) { # sp__@site
+            if (grepl("__$", sp_or_site[1]) & !grepl("__$", sp_or_site[2])) { # sp__@site
               n_dim <- nlevels(data[, colns[2]])
               if (repulsion[nested_repul_i]) {
                 xout <- as(as(kronecker(diag(n_dim), solve(cov_ranef_list[[colns[1]]])), "generalMatrix"), "CsparseMatrix")
@@ -233,7 +334,7 @@ prep_dat_pglmm <- function(formula, data, cov_ranef = NULL, repulsion = FALSE,
               nested_repul_i <<- nested_repul_i + 1 # update repulsion index
             }
 
-            if (!grepl("__", sp_or_site[1]) & grepl("__", sp_or_site[2])) { # sp@site__
+            if (!grepl("__$", sp_or_site[1]) & grepl("__$", sp_or_site[2])) { # sp@site__
               n_dim <- length(unique(data[, colns[1]]))
               if (repulsion[nested_repul_i]) {
                 xout <- as(as(kronecker(solve(cov_ranef_list[[colns[2]]]), diag(n_dim)), "generalMatrix"), "CsparseMatrix")
@@ -254,7 +355,7 @@ prep_dat_pglmm <- function(formula, data, cov_ranef = NULL, repulsion = FALSE,
               nested_repul_i <<- nested_repul_i + 1
             }
 
-            if (grepl("__", sp_or_site[1]) & grepl("__", sp_or_site[2])) { # sp__@site__
+            if (grepl("__$", sp_or_site[1]) & grepl("__$", sp_or_site[2])) { # sp__@site__
               if (repulsion[nested_repul_i]) {
                 Vphy2 <- solve(cov_ranef_list[[colns[1]]])
               } else {
@@ -287,19 +388,19 @@ prep_dat_pglmm <- function(formula, data, cov_ranef = NULL, repulsion = FALSE,
           if (bayes_nested_matrix_as_list | (bayes & # invertible nested matrix for bayes version will cause error
             inherits(try(solve(xout[[1]][[1]]), silent = TRUE), "try-error"))) {
             message("nested matrix as a list")
-            if (!grepl("__", x2[3])) { # 1|sp@site
+            if (!pglmm_has_phy(x2[3])) { # 1|sp@site
               vm <- diag(length(unique(data[, colns[1]])))
               xout <- list(list(1, data[, colns[1]], covar = vm, data[, colns[2]]))
             } else {
               # 1 | sp__@site
-              if (grepl("__", sp_or_site[1]) & !grepl("__", sp_or_site[2])) {
+              if (grepl("__$", sp_or_site[1]) & !grepl("__$", sp_or_site[2])) {
                 vm <- cov_ranef_list[[colns[1]]]
                 # the repulsion index was already moved past this term above
                 if (repulsion[nested_repul_i - 1]) vm <- solve(vm)
                 xout <- list(list(1, data[, colns[1]], covar = vm, data[, colns[2]]))
               }
               # 1 | sp@site__
-              if (!grepl("__", sp_or_site[1]) & grepl("__", sp_or_site[2])) {
+              if (!grepl("__$", sp_or_site[1]) & grepl("__$", sp_or_site[2])) {
                 vm <- cov_ranef_list[[colns[2]]]
                 if (repulsion[nested_repul_i - 1]) vm <- solve(vm)
                 xout <- list(list(1, data[, colns[2]], covar = vm, data[, colns[1]]))
@@ -318,20 +419,20 @@ prep_dat_pglmm <- function(formula, data, cov_ranef = NULL, repulsion = FALSE,
           colns <- gsub("__$", "", sp_or_site)
           site_sp_c <- paste(as.character(data[, colns[2]]), as.character(data[, colns[1]]), sep = "___")
 
-          if (any(colns[grepl("__", sp_or_site)] %nin% names(cov_ranef_list))) {
+          if (any(colns[grepl("__$", sp_or_site)] %nin% names(cov_ranef_list))) {
             stop(paste0(
               "Cov matrix of variable ",
-              paste(colns[grepl("__", sp_or_site)], collapse = " and "),
+              paste(colns[grepl("__$", sp_or_site)], collapse = " and "),
               " not specified in cov_ranef."
             ))
           }
 
-          if (!grepl("__", x2[3])) { # no phylogenetic term; e.g. x|sp@site
+          if (!pglmm_has_phy(x2[3])) { # no phylogenetic term; e.g. x|sp@site
             # message("Nested term without specify phylogeny, use identity matrix instead")
             xout <- list(d, Matrix::Diagonal(nrow(data)))
             xout <- list(xout)
           } else { # has phylogenetic term; x|sp__@site; x|sp__@site__; x|sp@site__
-            if (grepl("__", sp_or_site[1]) & !grepl("__", sp_or_site[2])) { # x|sp__@site
+            if (grepl("__$", sp_or_site[1]) & !grepl("__$", sp_or_site[2])) { # x|sp__@site
               n_dim <- nlevels(data[, colns[2]])
               if (repulsion[nested_repul_i]) {
                 xout <- as(as(kronecker(diag(n_dim), solve(cov_ranef_list[[colns[1]]])), "generalMatrix"), "CsparseMatrix")
@@ -350,7 +451,7 @@ prep_dat_pglmm <- function(formula, data, cov_ranef = NULL, repulsion = FALSE,
               nested_repul_i <<- nested_repul_i + 1 # update repulsion index
             }
 
-            if (!grepl("__", sp_or_site[1]) & grepl("__", sp_or_site[2])) { # x|sp@site__
+            if (!grepl("__$", sp_or_site[1]) & grepl("__$", sp_or_site[2])) { # x|sp@site__
               n_dim <- length(unique(data[, colns[1]]))
               if (repulsion[nested_repul_i]) {
                 xout <- as(as(kronecker(solve(cov_ranef_list[[colns[2]]]), diag(n_dim)), "generalMatrix"), "CsparseMatrix")
@@ -371,7 +472,7 @@ prep_dat_pglmm <- function(formula, data, cov_ranef = NULL, repulsion = FALSE,
               nested_repul_i <<- nested_repul_i + 1
             }
 
-            if (grepl("__", sp_or_site[1]) & grepl("__", sp_or_site[2])) { # x|sp__@site__
+            if (grepl("__$", sp_or_site[1]) & grepl("__$", sp_or_site[2])) { # x|sp__@site__
               if (repulsion[nested_repul_i]) {
                 Vphy2 <- solve(cov_ranef_list[[colns[1]]])
               } else {
@@ -426,6 +527,7 @@ prep_dat_pglmm <- function(formula, data, cov_ranef = NULL, repulsion = FALSE,
     random.effects <- unlist(random.effects, recursive = FALSE)
     names(random.effects) <- unlist(sapply(fm, function(x) {
       x2 <- as.character(x)
+      x2[2] <- gsub("^0 ?[+] ?", "", x2[2]) # 0 + x|sp is named x|sp, as by the sparse code
       x3 <- paste0(x2[2], x2[1], x2[3])
       if (grepl("__$", x2[3]) & !grepl("@", x2[3])) { # 1|sp__
         x4 <- gsub("__$", "", x3)

@@ -365,7 +365,7 @@ pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
     x2 <- as.character(x)
     lhs <- gsub("^0 ?[+] ?", "", x2[2])
     grp <- x2[3]
-    if (grepl("[+]", lhs)) stop("(x1 + x2|g) form of random terms are not allowed yet, pleast split it")
+    if (grepl("[+]", lhs)) stop("(x1 + x2|g) form of random terms are not allowed yet, please split it")
     if (grepl("@", grp, fixed = TRUE)) { # nested term, e.g. 1|sp__@site
       if (lhs != "1") stop("Nested random term for slope is not allowed yet")
       gp <- strsplit(grp, "@", fixed = TRUE)[[1]]
@@ -938,9 +938,9 @@ pglmm_glmm_data <- function(formula, data, family, add.obs.re = TRUE) {
   if (family == "poisson" || is.array(resp)) {
     for (x in bars) {
       grp <- as.character(x)[3]
-      if (grepl("@", grp, fixed = TRUE) && !grepl("__", grp, fixed = TRUE)) {
+      if (grepl("@", grp, fixed = TRUE) && !pglmm_has_phy(grp)) {
         g <- strsplit(grp, "@", fixed = TRUE)[[1]]
-        if (add.obs.re && length(unique(data[[g[1]]])) * length(unique(data[[g[2]]])) == nrow(data)) {
+        if (add.obs.re && pglmm_one_obs_per_cell(data, g)) {
           message("It seems that you specified an observation-level random term already e.g. (1|sp@site);
                        we will set 'add.obs.re' to FALSE.")
           add.obs.re <- FALSE
