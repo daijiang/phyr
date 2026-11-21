@@ -68,22 +68,44 @@ parse_conv_ranef <- function(x, df, standardize = TRUE) {
   list(updated_orgi_list = x2, cleaned_list = out_list)
 }
 
-# Check the random terms of the formula of pglmm() before fitting, for all the
-# code paths: the grouping variables (e.g. sp and site in 1|sp__@site) and the
-# covariates of random slopes (x in x|sp) must be columns of data, and the
-# covariates numeric. Interactions of grouping factors (lme4), e.g. 1|sp:site
-# (also from 1|site/sp), are written as nested terms, 1|sp@site. A term that
-# a phylogenetic term already includes as its
-# non-phylogenetic partner (1|sp with 1|sp__) is dropped from the formula, with
-# a message: fitting it twice gives two variances that cannot be told apart.
-# Returns the formula and the variables of the random terms.
-pglmm_check_re_terms <- function(formula, data, phylo_only = FALSE) {
+# ---- Random terms of the formula ----
+#
+# pglmm_parse_re() is the only function that reads the random terms of the
+# formula: pglmm(), pglmm_compare(), prep_dat_pglmm(), the sparse and Laplace
+# code (pglmm_sparse_terms(), pglmm_glmm_data()) and the Bayesian code all use
+# its output. It checks the terms (with the same rules and messages for all
+# code paths), writes them in a standard form, and returns:
+# - formula: the formula with the terms in their standard form;
+# - specs: one element per random term of the formula (after the changes
+#   below), with lhs ("1" or the covariate of a slope), group (the grouping
+#   variables, without "__"), phy (whether each grouping variable has a
+#   phylogeny or covariance matrix, i.e. ends with "__"), nested (two grouping
+#   variables, e.g. sp@site), grp (e.g. "sp__@site") and name ("1|sp__@site");
+# - terms: the terms of the model in the order of the formula, as fitted by
+#   all code paths: a non-nested phylogenetic term such as 1|sp__ gives two
+#   terms, 1|sp (phy = FALSE) and 1|sp__ (phy = TRUE), unless phylo_only = TRUE
+#   (pglmm_compare(): the phylogenetic term only, with phylo_only = TRUE);
+# - vars: the variables of the random terms (grouping variables and covariates
+#   of slopes).
+# Changes to the formula:
+# - (0 + x | sp) is written (x | sp) (a slope without intercept in phyr);
+# - interactions of grouping factors (lme4), e.g. 1|sp:site (also from
+#   1|site/sp), are written as nested terms, 1|sp@site;
+# - a term that a phylogenetic term already includes as its non-phylogenetic
+#   partner (1|sp with 1|sp__) is dropped, with a message (fitting it twice
+#   gives two variances that cannot be told apart), and so is the same term
+#   twice.
+# The checks: grouping variables and covariates of slopes are columns of data,
+# covariates are numeric, nested terms have two grouping variables, and terms
+# have one covariate (no x1 + x2 | g). Parsing a formula already in its
+# standard form gives the same formula (no messages).
+pglmm_parse_re <- function(formula, data, phylo_only = FALSE) {
   bars <- unique(reformulas::findbars(formula))
-  if (!length(bars)) return(list(formula = formula, vars = character(0)))
-  vars <- character(0)
-  rewritten <- FALSE # a:b written as a@b
-  names.bars <- character(length(bars)) # lhs|grp, as the names of the terms
-  partners <- character(0) # non-phylogenetic partners of phylogenetic terms
+  if (!length(bars)) {
+    return(list(formula = formula, specs = list(), terms = list(), vars = character(0)))
+  }
+  rewritten <- FALSE
+  specs <- vector("list", length(bars))
   for (k in seq_along(bars)) {
     x2 <- as.character(bars[[k]])
     lhs <- gsub("^0 ?[+] ?", "", x2[2])
@@ -93,6 +115,10 @@ pglmm_check_re_terms <- function(formula, data, phylo_only = FALSE) {
       stop("Random terms with several covariates, such as ", term, ", are not allowed yet. ",
            "Split them into terms with one covariate each (e.g. (1 | sp) + (x | sp), or ",
            "(x || sp)); the terms are independent.", call. = FALSE)
+    }
+    if (lhs != x2[2]) {
+      bars[[k]][[2]] <- str2lang(lhs)
+      rewritten <- TRUE
     }
     if (grepl(":", grp, fixed = TRUE)) {
       # the interaction of two grouping factors (lme4), e.g. 1|sp:site, also
@@ -127,29 +153,48 @@ pglmm_check_re_terms <- function(formula, data, phylo_only = FALSE) {
              "(0/1) columns for its levels, each in its own random term.", call. = FALSE)
       }
     }
-    vars <- c(vars, g, if (lhs != "1") lhs)
-    names.bars[k] <- paste0(lhs, "|", grp)
-    if (length(gp) == 1 && grepl("__$", grp) && !phylo_only) {
-      partners <- c(partners, paste0(lhs, "|", g))
-    }
+    specs[[k]] <- list(lhs = lhs, group = g, phy = grepl("__$", gp), nested = length(gp) == 2,
+                       grp = grp, name = paste0(lhs, "|", grp))
   }
-  dup <- names.bars %in% partners
+  nm <- vapply(specs, `[[`, "", "name")
+  partners <- unlist(lapply(specs, function(s) {
+    if (!s$nested && s$phy && !phylo_only) paste0(s$lhs, "|", s$group)
+  }))
+  dup <- nm %in% partners
   if (any(dup)) {
     message("The random term", if (sum(dup) > 1) "s", " ",
-            paste0("(", sub("|", " | ", names.bars[dup], fixed = TRUE), ")", collapse = " and "),
+            paste0("(", sub("|", " | ", nm[dup], fixed = TRUE), ")", collapse = " and "),
             " ", if (sum(dup) > 1) "are" else "is", " dropped: ",
             "a phylogenetic term such as (1 | sp__) already includes its non-phylogenetic ",
             "term (1 | sp).")
   }
   # the same term twice (e.g. 1|sp:site and 1|sp@site): kept once
-  dup <- dup | duplicated(names.bars)
+  dup <- dup | duplicated(nm)
   if (any(dup) || rewritten) {
     rhs <- reformulas::nobars(formula)
     rhs <- rhs[[length(rhs)]]
     for (b in bars[!dup]) rhs <- call("+", rhs, call("(", b))
     formula[[length(formula)]] <- rhs
   }
-  list(formula = formula, vars = unique(vars))
+  specs <- specs[!dup]
+
+  # the terms of the model
+  terms <- list()
+  for (s in specs) {
+    if (!s$nested && s$phy) {
+      if (!phylo_only) {
+        terms[[length(terms) + 1]] <- c(s[c("lhs", "group")], list(
+          phy = FALSE, nested = FALSE, phylo_only = FALSE, name = paste0(s$lhs, "|", s$group)))
+      }
+      terms[[length(terms) + 1]] <- c(s[c("lhs", "group", "phy", "nested", "name")],
+                                      list(phylo_only = phylo_only))
+    } else {
+      terms[[length(terms) + 1]] <- c(s[c("lhs", "group", "phy", "nested", "name")],
+                                      list(phylo_only = FALSE))
+    }
+  }
+  vars <- unique(unlist(lapply(specs, function(s) c(s$group, if (s$lhs != "1") s$lhs))))
+  list(formula = formula, specs = specs, terms = terms, vars = vars)
 }
 
 # Rows of data without missing values in the response, the fixed effects
@@ -162,15 +207,80 @@ pglmm_complete_rows <- function(formula, data, vars) {
   ok
 }
 
-# Whether the grouping variables grp of a random term (e.g. "sp__@site") have
-# a phylogeny or covariance matrix: one of them ends with "__"
-pglmm_has_phy <- function(grp) any(grepl("__$", strsplit(grp, "@", fixed = TRUE)[[1]]))
+# The phylogenetic variables of the terms of pglmm_parse_re() (those with a
+# phylogeny or covariance matrix in cov_ranef)
+pglmm_re_phy_vars <- function(terms) {
+  unique(unlist(lapply(terms, function(t) t$group[t$phy])))
+}
+
+# repulsion of each term of pglmm_parse_re(): one value for each phylogenetic
+# variable of nested terms, in the order of the formula. A single value
+# applies to the phylogenies of species only, i.e. the first variable of
+# nested terms (e.g. sp in 1|sp__@site__); phylogenies of the second variable
+# (sites) are not inverted. As in Ives & Helmus (2011, Appendix A), repulsion
+# comes from competition among related species. Returns the terms, with
+# `repulsion` (one logical per grouping variable) for nested terms.
+pglmm_re_repulsion <- function(terms, repulsion) {
+  nested <- which(vapply(terms, function(t) t$nested, TRUE))
+  n.rep <- sum(vapply(terms[nested], function(t) sum(t$phy), 1L))
+  if (length(repulsion) == 1) {
+    repulsion <- unlist(lapply(terms[nested], function(t) (repulsion & c(TRUE, FALSE))[t$phy]))
+  }
+  if (length(repulsion) != n.rep) {
+    stop("The number of repulsion terms specified is not correct: please double check")
+  }
+  i <- 0
+  for (k in nested) {
+    phy <- terms[[k]]$phy
+    r <- c(FALSE, FALSE)
+    r[phy] <- as.logical(repulsion[i + seq_len(sum(phy))])
+    i <- i + sum(phy)
+    terms[[k]]$repulsion <- r
+  }
+  terms
+}
 
 # Whether a nested term without phylogeny (e.g. 1|sp@site) has one level per
 # observation, i.e. each combination of its two variables appears once: it is
 # then an observation-level term
 pglmm_one_obs_per_cell <- function(data, g) {
   !anyDuplicated(data.frame(data[[g[1]]], data[[g[2]]]))
+}
+
+# Whether the model has the observation-level term 1|obs (terms of
+# pglmm_parse_re()): poisson models and binomial models with more than one
+# trial (cbind(successes, failures)), with add.obs.re = TRUE, unless a nested
+# intercept without phylogeny (e.g. 1|sp@site) already has one level per
+# observation. Shows the messages of earlier versions.
+pglmm_re_obs <- function(terms, data, formula, family, add.obs.re = TRUE) {
+  resp <- tryCatch(model.response(model.frame(reformulas::nobars(formula), data, na.action = NULL)),
+                   error = function(e) NULL)
+  if (!(family == "poisson" || (family == "binomial" && is.array(resp)))) return(FALSE)
+  obs.term <- any(vapply(terms, function(t) {
+    t$nested && !any(t$phy) && t$lhs == "1" && pglmm_one_obs_per_cell(data, t$group)
+  }, TRUE))
+  if (obs.term) {
+    if (add.obs.re) {
+      message("It seems that you specified an observation-level random term already e.g. (1|sp@site);
+                       we will set 'add.obs.re' to FALSE.")
+    }
+    return(FALSE)
+  }
+  if (add.obs.re) {
+    message("We add an observation-level random term '1|obs' for poisson and binomial data.")
+  } else {
+    message("For poisson and binomial data, it would be a good idea to add an observation-level random term (add.obs.re = TRUE).")
+  }
+  add.obs.re
+}
+
+# The deprecated arguments tree and tree_site of pglmm(): the phylogenies of
+# the variables sp and site, given in cov_ranef instead
+pglmm_tree_cov_ranef <- function(cov_ranef, tree, tree_site) {
+  if (!is.null(cov_ranef) || (is.null(tree) && is.null(tree_site))) return(cov_ranef)
+  warning("arguments `tree` and `tree_site` are deprecated; please use `cov_ranef` instead.",
+          call. = FALSE)
+  c(if (!is.null(tree)) list(sp = tree), if (!is.null(tree_site)) list(site = tree_site))
 }
 
 #' Prepare data for \code{pglmm}
@@ -186,368 +296,49 @@ prep_dat_pglmm <- function(formula, data, cov_ranef = NULL, repulsion = FALSE,
                            prep.re.effects = TRUE, family = "gaussian",
                            add.obs.re = TRUE, bayes = FALSE, bayes_nested_matrix_as_list = FALSE,
                            standardize_cov = TRUE) {
-  fm <- unique(reformulas::findbars(formula))
-  formula.nobars <- reformulas::nobars(formula) # fixed terms
+  data <- as.data.frame(data) # in case of tibbles
+  re <- pglmm_parse_re(formula, data)
+  formula.nobars <- reformulas::nobars(re$formula) # fixed terms
+  terms <- re$terms
 
-  # make sure group variables are factors
-  if (!is.null(fm)) {
-    grp_vars <- unique(unlist(lapply(fm, function(x) {
-      gsub("__$", "", strsplit(as.character(x)[3], "[@]")[[1]])
-    })))
-    # cat("reorder alphabatically ")
-    # data = dplyr::mutate_at(data, grp_vars, as.factor)
-    ### should we use unique(as.character()) as levels?
-    ### otherwise, it will be alphebatic
-    for (ig in grp_vars) {
-      # cat("reorder by appearance ")
-      data[, ig] <- factor(data[, ig], levels = unique(as.character(data[, ig])))
+  # grouping variables as factors, with the levels in the order of appearance
+  for (ig in unique(unlist(lapply(terms, `[[`, "group")))) {
+    data[, ig] <- factor(data[, ig], levels = unique(as.character(data[, ig])))
+  }
+  if (!prep.re.effects) {
+    return(list(formula = formula.nobars, random.effects = NULL, cov_ranef_updated = NULL))
+  }
+  if (!length(terms)) stop("No random terms specified, use lm or glm instead")
+
+  # covariance matrices of the variables with __
+  phy.vars <- pglmm_re_phy_vars(terms)
+  if (length(phy.vars)) {
+    if (is.null(cov_ranef)) stop("cov_ranef, the list of cov matrices, is not specified")
+    names(cov_ranef) <- gsub("__$", "", names(cov_ranef)) # remove potential trailing __
+    if (!all(phy.vars %in% names(cov_ranef))) {
+      stop(paste0(
+        "Some group variables (",
+        paste(setdiff(phy.vars, names(cov_ranef)), collapse = ", "),
+        ") assigned to have specific cov matrix are not in cov_ranef"
+      ))
     }
+    cov_list <- parse_conv_ranef(cov_ranef, data, standardize = standardize_cov)
+    cov_ranef_list <- cov_list$cleaned_list
+    cov_ranef_updated <- cov_list$updated_orgi_list
+  } else {
+    cov_ranef_list <- NULL # no cov matrix needed, e.g. (1|sp@site)
+    cov_ranef_updated <- NULL
   }
 
-  if (prep.re.effects) {
-    # @ for nested; __ at the end for phylogenetic cov
-    if (is.null(fm)) stop("No random terms specified, use lm or glm instead")
+  terms <- pglmm_re_repulsion(terms, repulsion)
+  has.obs <- pglmm_re_obs(terms, data, formula.nobars, family, add.obs.re)
+  random.effects <- lapply(terms, pglmm_dense_re_term, data = data, covs = cov_ranef_list,
+                           bayes = bayes, as_list = bayes_nested_matrix_as_list)
+  names(random.effects) <- vapply(terms, `[[`, "", "name")
 
-    if (any(vapply(fm, function(x) pglmm_has_phy(as.character(x)[3]), TRUE))) { # has specified cov
-      grp_vars2 <- unique(unlist(lapply(fm, function(x) {
-        strsplit(as.character(x)[3], "[@]")
-      })))
-      grp_vars2 <- gsub("__$", "", grp_vars2[grepl("__$", grp_vars2)])
-
-      if (is.null(cov_ranef)) stop("cov_ranef, the list of cov matrices, is not specified")
-      names(cov_ranef) <- gsub("__$", "", names(cov_ranef)) # remove potential trailing __
-      if (!all(grp_vars2 %in% names(cov_ranef))) {
-        stop(paste0(
-          "Some group variables (",
-          paste(setdiff(grp_vars2, names(cov_ranef)), collapse = ", "),
-          ") assigned to have specific cov matrix are not in cov_ranef"
-        ))
-      }
-      cov_list <- parse_conv_ranef(cov_ranef, data, standardize = standardize_cov)
-      cov_ranef_list <- cov_list$cleaned_list
-      cov_ranef_updated <- cov_list$updated_orgi_list
-    } else {
-      cov_ranef_list <- NULL # no cov matrix needed, e.g. (1|sp@site)
-      cov_ranef_updated <- NULL
-    }
-
-    # number of potential repulsions (both __ and @)
-    if (all(grepl("@", fm) == FALSE)) { # no nested term
-      n_repulsion <- 1
-    } else {
-      n_repulsion <- sum(sapply(fm[grepl("@", fm)], function(x) {
-        xx <- strsplit(as.character(x)[3], "@")[[1]]
-        sum(grepl("__$", xx))
-      }))
-    }
-    if (length(repulsion) == 1 && any(grepl("@", fm))) repulsion <- pglmm_expand_repulsion(fm, repulsion)
-    if (length(repulsion) == 1) repulsion <- rep(repulsion, n_repulsion)
-    if (length(repulsion) != n_repulsion) {
-      stop("The number of repulsion terms specified is not correct: please double check")
-    }
-    nested_repul_i <- 1
-    no_obs_re <- TRUE # flag for message later
-
-    random.effects <- lapply(fm, function(x) {
-      x2 <- as.character(x)
-      x2 <- gsub(pattern = "^0 ?[+] ?", replacement = "", x2) # replace 0 + x with x
-      if (grepl("[+]", x2[2])) stop("(x1 + x2|g) form of random terms are not allowed yet, please split it")
-      if (x2[2] == "1") { # intercept
-        if (!grepl("[@]", x2[3])) { # single column; non-nested; 1|sp or 1|sp__
-          if (grepl("__$", x2[3])) {
-            # also want phylogenetic version,
-            # it makes sense if the phylogenetic version is in, the non-phy part should be there too
-            coln <- gsub("__$", "", x2[3])
-            d <- data[, coln] # extract the column
-            xout_nonphy <- list(1, d, covar = diag(nlevels(d)))
-            names(xout_nonphy)[2] <- coln
-            if (coln %nin% names(cov_ranef_list)) {
-              stop(paste0("Cov matrix of variable ", coln, " not specified in cov_ranef."))
-            }
-            xout_phy <- list(1, d, covar = cov_ranef_list[[coln]])
-            names(xout_phy)[2] <- x2[3]
-            xout <- list(xout_nonphy, xout_phy)
-          } else { # non phylogenetic random term
-            d <- data[, x2[3]] # extract the column
-            xout <- list(1, d, covar = diag(nlevels(d)))
-            names(xout)[2] <- x2[3]
-            xout <- list(xout)
-          }
-        } else { # nested term, e.g. sp@site, sp__@site, sp@site__, sp__@site__
-          sp_or_site <- strsplit(x2[3], split = "@")[[1]]
-          colns <- gsub("__$", "", sp_or_site)
-          site_sp_c <- paste(as.character(data[, colns[2]]), as.character(data[, colns[1]]), sep = "___")
-
-          if (any(colns[grepl("__$", sp_or_site)] %nin% names(cov_ranef_list))) {
-            stop(paste0(
-              "Cov matrix of variable ",
-              paste(colns[grepl("__$", sp_or_site)], collapse = " and "),
-              " not specified in cov_ranef."
-            ))
-          }
-
-          if (!pglmm_has_phy(x2[3])) { # no phylogenetic term; e.g. sp@site
-            if (family == "poisson" |
-              (family == "binomial" & # formula such as cbind(success, fail) ~ x
-                is.array(model.response(model.frame(formula.nobars, data = data, na.action = NULL))))) {
-              if (add.obs.re && pglmm_one_obs_per_cell(data, colns)) {
-                message("It seems that you specified an observation-level random term already e.g. (1|sp@site);
-                       we will set 'add.obs.re' to FALSE.")
-                add.obs.re <<- FALSE
-                no_obs_re <<- FALSE
-              }
-            }
-
-            # # message("Nested term without specify phylogeny, use identity matrix instead")
-            # xout = list(Matrix::Diagonal(nrow(data)))
-            # xout = list(xout)
-
-            n_dim <- length(unique(data[, colns[1]]))
-            n_dim2 <- length(unique(data[, colns[2]]))
-            xout <- as(as(kronecker(diag(n_dim2), diag(n_dim)), "generalMatrix"), "CsparseMatrix")
-            # put names back
-            rownames(xout) <- colnames(xout) <- paste(
-              rep(unique(as.character(data[, colns[2]])), each = n_dim),
-              rep(unique(as.character(data[, colns[1]])), n_dim2),
-              sep = "___"
-            )
-            # select the actual combination in the data; e.g. not all sp observed in every site.
-            xout <- xout[site_sp_c, site_sp_c]
-            xout <- list(list(xout))
-          } else { # has phylogenetic term; sp__@site; sp__@site__; sp@site__
-            if (grepl("__$", sp_or_site[1]) & !grepl("__$", sp_or_site[2])) { # sp__@site
-              n_dim <- nlevels(data[, colns[2]])
-              if (repulsion[nested_repul_i]) {
-                xout <- as(as(kronecker(diag(n_dim), solve(cov_ranef_list[[colns[1]]])), "generalMatrix"), "CsparseMatrix")
-              } else {
-                xout <- as(as(kronecker(diag(n_dim), cov_ranef_list[[colns[1]]]), "generalMatrix"), "CsparseMatrix")
-              }
-              # put names back
-              rownames(xout) <- colnames(xout) <- paste(
-                rep(levels(data[, colns[2]]), each = nrow(cov_ranef_list[[colns[1]]])),
-                rep(rownames(cov_ranef_list[[colns[1]]]), nlevels(data[, colns[2]])),
-                sep = "___"
-              )
-              # select the actual combination in the data; e.g. not all sp observed in every site.
-              xout <- xout[site_sp_c, site_sp_c]
-              xout <- list(xout)
-              nested_repul_i <<- nested_repul_i + 1 # update repulsion index
-            }
-
-            if (!grepl("__$", sp_or_site[1]) & grepl("__$", sp_or_site[2])) { # sp@site__
-              n_dim <- length(unique(data[, colns[1]]))
-              if (repulsion[nested_repul_i]) {
-                xout <- as(as(kronecker(solve(cov_ranef_list[[colns[2]]]), diag(n_dim)), "generalMatrix"), "CsparseMatrix")
-              } else {
-                xout <- as(as(kronecker(cov_ranef_list[[colns[2]]], diag(n_dim)), "generalMatrix"), "CsparseMatrix")
-              }
-
-              # put names back
-              rownames(xout) <- colnames(xout) <- paste(
-                rep(rownames(cov_ranef_list[[colns[2]]]), each = nlevels(data[, colns[1]])),
-                rep(levels(data[, colns[1]]), nrow(cov_ranef_list[[colns[2]]])),
-                sep = "___"
-              )
-              # select the actual combination in the data; e.g. not all sp observed in every site.
-              xout <- xout[site_sp_c, site_sp_c]
-
-              xout <- list(xout)
-              nested_repul_i <<- nested_repul_i + 1
-            }
-
-            if (grepl("__$", sp_or_site[1]) & grepl("__$", sp_or_site[2])) { # sp__@site__
-              if (repulsion[nested_repul_i]) {
-                Vphy2 <- solve(cov_ranef_list[[colns[1]]])
-              } else {
-                Vphy2 <- cov_ranef_list[[colns[1]]]
-              }
-              nested_repul_i <<- nested_repul_i + 1
-
-              if (repulsion[nested_repul_i]) {
-                Vphy_site2 <- solve(cov_ranef_list[[colns[2]]])
-              } else {
-                Vphy_site2 <- cov_ranef_list[[colns[2]]]
-              }
-              nested_repul_i <<- nested_repul_i + 1
-
-              xout <- as(as(kronecker(Vphy_site2, Vphy2), "generalMatrix"), "CsparseMatrix")
-              # put names back
-              rownames(xout) <- colnames(xout) <- paste(
-                rep(rownames(cov_ranef_list[[colns[2]]]), each = nrow(cov_ranef_list[[colns[1]]])),
-                rep(rownames(cov_ranef_list[[colns[1]]]), nrow(cov_ranef_list[[colns[2]]])),
-                sep = "___"
-              )
-              # select the actual combination in the data; e.g. not all sp observed in every site.
-              xout <- xout[site_sp_c, site_sp_c]
-              xout <- list(xout)
-            }
-
-            xout <- list(xout) # to put the matrix in a list
-          }
-
-          if (bayes_nested_matrix_as_list | (bayes & # invertible nested matrix for bayes version will cause error
-            inherits(try(solve(xout[[1]][[1]]), silent = TRUE), "try-error"))) {
-            message("nested matrix as a list")
-            if (!pglmm_has_phy(x2[3])) { # 1|sp@site
-              vm <- diag(length(unique(data[, colns[1]])))
-              xout <- list(list(1, data[, colns[1]], covar = vm, data[, colns[2]]))
-            } else {
-              # 1 | sp__@site
-              if (grepl("__$", sp_or_site[1]) & !grepl("__$", sp_or_site[2])) {
-                vm <- cov_ranef_list[[colns[1]]]
-                # the repulsion index was already moved past this term above
-                if (repulsion[nested_repul_i - 1]) vm <- solve(vm)
-                xout <- list(list(1, data[, colns[1]], covar = vm, data[, colns[2]]))
-              }
-              # 1 | sp@site__
-              if (!grepl("__$", sp_or_site[1]) & grepl("__$", sp_or_site[2])) {
-                vm <- cov_ranef_list[[colns[2]]]
-                if (repulsion[nested_repul_i - 1]) vm <- solve(vm)
-                xout <- list(list(1, data[, colns[2]], covar = vm, data[, colns[1]]))
-              }
-              # 1 | sp__@site__ ?? how do in the old way?
-            }
-          }
-        }
-      } else { # slope
-        if (grepl("@", x2[3])) {
-          if (!bayes) stop("Nested random term for slope is not allowed yet")
-          ############## Working on this #########################
-
-          d <- data[, x2[2]] # extract the column
-          sp_or_site <- strsplit(x2[3], split = "@")[[1]]
-          colns <- gsub("__$", "", sp_or_site)
-          site_sp_c <- paste(as.character(data[, colns[2]]), as.character(data[, colns[1]]), sep = "___")
-
-          if (any(colns[grepl("__$", sp_or_site)] %nin% names(cov_ranef_list))) {
-            stop(paste0(
-              "Cov matrix of variable ",
-              paste(colns[grepl("__$", sp_or_site)], collapse = " and "),
-              " not specified in cov_ranef."
-            ))
-          }
-
-          if (!pglmm_has_phy(x2[3])) { # no phylogenetic term; e.g. x|sp@site
-            # message("Nested term without specify phylogeny, use identity matrix instead")
-            xout <- list(d, Matrix::Diagonal(nrow(data)))
-            xout <- list(xout)
-          } else { # has phylogenetic term; x|sp__@site; x|sp__@site__; x|sp@site__
-            if (grepl("__$", sp_or_site[1]) & !grepl("__$", sp_or_site[2])) { # x|sp__@site
-              n_dim <- nlevels(data[, colns[2]])
-              if (repulsion[nested_repul_i]) {
-                xout <- as(as(kronecker(diag(n_dim), solve(cov_ranef_list[[colns[1]]])), "generalMatrix"), "CsparseMatrix")
-              } else {
-                xout <- as(as(kronecker(diag(n_dim), cov_ranef_list[[colns[1]]]), "generalMatrix"), "CsparseMatrix")
-              }
-              # put names back
-              rownames(xout) <- colnames(xout) <- paste(
-                rep(levels(data[, colns[2]]), each = nrow(cov_ranef_list[[colns[1]]])),
-                rep(rownames(cov_ranef_list[[colns[1]]]), nlevels(data[, colns[2]])),
-                sep = "___"
-              )
-              # select the actual combination in the data; e.g. not all sp observed in every site.
-              xout <- xout[site_sp_c, site_sp_c]
-              xout <- list(d, xout)
-              nested_repul_i <<- nested_repul_i + 1 # update repulsion index
-            }
-
-            if (!grepl("__$", sp_or_site[1]) & grepl("__$", sp_or_site[2])) { # x|sp@site__
-              n_dim <- length(unique(data[, colns[1]]))
-              if (repulsion[nested_repul_i]) {
-                xout <- as(as(kronecker(solve(cov_ranef_list[[colns[2]]]), diag(n_dim)), "generalMatrix"), "CsparseMatrix")
-              } else {
-                xout <- as(as(kronecker(cov_ranef_list[[colns[2]]], diag(n_dim)), "generalMatrix"), "CsparseMatrix")
-              }
-
-              # put names back
-              rownames(xout) <- colnames(xout) <- paste(
-                rep(rownames(cov_ranef_list[[colns[2]]]), each = nlevels(data[, colns[1]])),
-                rep(levels(data[, colns[1]]), nrow(cov_ranef_list[[colns[2]]])),
-                sep = "___"
-              )
-              # select the actual combination in the data; e.g. not all sp observed in every site.
-              xout <- xout[site_sp_c, site_sp_c]
-
-              xout <- list(d, xout)
-              nested_repul_i <<- nested_repul_i + 1
-            }
-
-            if (grepl("__$", sp_or_site[1]) & grepl("__$", sp_or_site[2])) { # x|sp__@site__
-              if (repulsion[nested_repul_i]) {
-                Vphy2 <- solve(cov_ranef_list[[colns[1]]])
-              } else {
-                Vphy2 <- cov_ranef_list[[colns[1]]]
-              }
-              nested_repul_i <<- nested_repul_i + 1
-
-              if (repulsion[nested_repul_i]) {
-                Vphy_site2 <- solve(cov_ranef_list[[colns[2]]])
-              } else {
-                Vphy_site2 <- cov_ranef_list[[colns[2]]]
-              }
-              nested_repul_i <<- nested_repul_i + 1
-
-              xout <- as(as(kronecker(Vphy_site2, Vphy2), "generalMatrix"), "CsparseMatrix")
-              # put names back
-              rownames(xout) <- colnames(xout) <- paste(
-                rep(rownames(cov_ranef_list[[colns[2]]]), each = nrow(cov_ranef_list[[colns[1]]])),
-                rep(rownames(cov_ranef_list[[colns[1]]]), nrow(cov_ranef_list[[colns[2]]])),
-                sep = "___"
-              )
-              # select the actual combination in the data; e.g. not all sp observed in every site.
-              xout <- xout[site_sp_c, site_sp_c]
-              xout <- list(d, xout)
-            }
-
-            xout <- list(xout) # to put the matrix in a list
-          }
-
-          ###########################################################
-        } else {
-          if (grepl("__$", x2[3])) { # x|sp__
-            # also want phylogenetic version,
-            # it makes sense if the phylogenetic version is in, the non-phy part should be there too
-            coln <- gsub("__$", "", x2[3])
-            d <- data[, coln] # extract the column
-            xout_nonphy <- list(data[, x2[2]], d, covar = diag(nlevels(d)))
-            names(xout_nonphy)[2] <- coln
-            xout_phy <- list(data[, x2[2]], d, covar = cov_ranef_list[[coln]])
-            names(xout_phy)[2] <- x2[3]
-            xout <- list(xout_nonphy, xout_phy)
-          } else { # non phylogenetic random term; x|sp
-            d <- data[, x2[3]] # extract the column
-            xout <- list(data[, x2[2]], d, covar = diag(nlevels(d)))
-            names(xout)[2] <- x2[3]
-            xout <- list(xout)
-          }
-        }
-      }
-      xout
-    })
-    random.effects <- unlist(random.effects, recursive = FALSE)
-    names(random.effects) <- unlist(sapply(fm, function(x) {
-      x2 <- as.character(x)
-      x2[2] <- gsub("^0 ?[+] ?", "", x2[2]) # 0 + x|sp is named x|sp, as by the sparse code
-      x3 <- paste0(x2[2], x2[1], x2[3])
-      if (grepl("__$", x2[3]) & !grepl("@", x2[3])) { # 1|sp__
-        x4 <- gsub("__$", "", x3)
-        return(c(x4, x3)) # 1|sp  1|sp__
-      }
-      x3
-    }), recursive = TRUE)
-
-    # Add observation-level variances for families binomial (size > 1) and poisson
-    if (family == "poisson" |
-      (family == "binomial" &
-        is.array(model.response(model.frame(formula.nobars, data = data, na.action = NULL))))) {
-      if (add.obs.re) {
-        message("We add an observation-level random term '1|obs' for poisson and binomial data.")
-        random.effects[[length(random.effects) + 1]] <- list(Matrix::Diagonal(nrow(data)))
-        names(random.effects)[length(random.effects)] <- "1|obs"
-      } else {
-        if (no_obs_re) message("For poisson and binomial data, it would be a good idea to add an observation-level random term (add.obs.re = TRUE).")
-      }
-    }
+  # observation-level variances for poisson and binomial (size > 1) data
+  if (has.obs) {
+    random.effects[["1|obs"]] <- list(Matrix::Diagonal(nrow(data)))
   }
 
   return(list(
@@ -555,6 +346,79 @@ prep_dat_pglmm <- function(formula, data, cov_ranef = NULL, repulsion = FALSE,
     random.effects = random.effects,
     cov_ranef_updated = cov_ranef_updated
   ))
+}
+
+# One term of pglmm_parse_re() (with the repulsion of pglmm_re_repulsion())
+# for the dense code, in the format of random.effects of pglmm():
+# - non-nested terms: list(covariate, grouping factor, covar = covariance
+#   matrix of its levels), the factor named after the variable (with __ for
+#   phylogenetic terms);
+# - nested intercepts: list(covariance matrix of the observations), from the
+#   Kronecker product of the matrices of the two variables (identity matrix
+#   without phylogeny), or, with bayes_nested_matrix_as_list (as_list = TRUE)
+#   or a matrix that cannot be inverted with bayes = TRUE, list(1, factor,
+#   covar, factor of the other variable);
+# - nested slopes (bayes = TRUE only): list(covariate, covariance matrix of
+#   the observations).
+# data has the grouping variables as factors; covs are the covariance matrices
+# of parse_conv_ranef(), with rows in the order of the levels.
+pglmm_dense_re_term <- function(t, data, covs, bayes = FALSE, as_list = FALSE) {
+  covariate <- if (t$lhs == "1") 1 else data[, t$lhs]
+  g <- t$group
+  if (!t$nested) {
+    d <- data[, g]
+    if (t$phy) {
+      if (g %nin% names(covs)) stop(paste0("Cov matrix of variable ", g, " not specified in cov_ranef."))
+      out <- list(covariate, d, covar = covs[[g]])
+      names(out)[2] <- paste0(g, "__")
+    } else {
+      out <- list(covariate, d, covar = diag(nlevels(d)))
+      names(out)[2] <- g
+    }
+    return(out)
+  }
+  if (t$lhs != "1" && !bayes) stop("Nested random term for slope is not allowed yet")
+  phy <- t$phy
+  if (any(g[phy] %nin% names(covs))) {
+    stop(paste0("Cov matrix of variable ", paste(g[phy], collapse = " and "),
+                " not specified in cov_ranef."))
+  }
+  if (!any(phy) && t$lhs != "1") {
+    # x|sp@site without phylogeny
+    return(list(covariate, Matrix::Diagonal(nrow(data))))
+  }
+  # matrix of each variable: its (inverted with repulsion) covariance matrix,
+  # or the identity matrix; rows in the order of the levels
+  var_matrix <- function(i) {
+    if (!phy[i]) {
+      lv <- levels(data[, g[i]])
+      return(matrix(diag(length(lv)), length(lv), dimnames = list(lv, lv)))
+    }
+    if (t$repulsion[i]) solve(covs[[g[i]]]) else covs[[g[i]]]
+  }
+  m1 <- var_matrix(1)
+  m2 <- var_matrix(2)
+  xout <- as(as(kronecker(m2, m1), "generalMatrix"), "CsparseMatrix")
+  rownames(xout) <- colnames(xout) <- paste(
+    rep(rownames(m2), each = nrow(m1)), rep(rownames(m1), nrow(m2)), sep = "___"
+  )
+  # the combinations in the data, e.g. not all species observed at every site
+  site_sp_c <- paste(as.character(data[, g[2]]), as.character(data[, g[1]]), sep = "___")
+  xout <- xout[site_sp_c, site_sp_c]
+  if (t$lhs != "1") return(list(covariate, xout))
+
+  # invertible nested matrix for the bayesian version would cause an error
+  if (as_list || (bayes && inherits(try(solve(xout), silent = TRUE), "try-error"))) {
+    message("nested matrix as a list")
+    if (!any(phy) || (phy[1] && !phy[2])) { # 1|sp@site, 1|sp__@site
+      return(list(1, data[, g[1]], covar = m1, data[, g[2]]))
+    }
+    if (!phy[1] && phy[2]) { # 1|sp@site__
+      return(list(1, data[, g[2]], covar = m2, data[, g[1]]))
+    }
+    # 1|sp__@site__: as a matrix
+  }
+  list(xout)
 }
 
 #' \code{get_design_matrix} gets design matrix for gaussian, binomial, and poisson models
@@ -1370,18 +1234,15 @@ pglmm_sparse_hint <- function(n, covs, min.n = 2000, min.sp = 300) {
 # non-phylogenetic term (1 | sp) that pglmm() adds automatically is then
 # confounded with the residual (or observation-level) variance. Shown once per
 # session; options(phyr.compare.hint = FALSE) turns it off.
-pglmm_compare_hint <- function(formula, data) {
+pglmm_compare_hint <- function(specs, data) {
   if (!isTRUE(getOption("phyr.compare.hint", TRUE)) || isTRUE(.phyr_state$compare.hint.shown)) {
     return(invisible(FALSE))
   }
-  fm <- reformulas::findbars(formula)
-  if (!length(fm)) {
+  # variables of phylogenetic intercepts such as (1 | sp__) (specs of pglmm_parse_re())
+  vars <- unique(unlist(lapply(specs, function(s) if (s$lhs == "1" && !s$nested && s$phy) s$group)))
+  if (!length(vars)) {
     return(invisible(FALSE))
   }
-  lhs <- vapply(fm, function(x) paste(deparse(x[[2]]), collapse = ""), "")
-  grp <- vapply(fm, function(x) paste(deparse(x[[3]]), collapse = ""), "")
-  grp <- grp[lhs == "1" & grepl("__$", grp) & !grepl("@", grp, fixed = TRUE)]
-  vars <- intersect(unique(sub("__$", "", grp)), names(data))
   one.row <- vapply(vars, function(v) {
     x <- as.character(data[[v]])
     x <- x[!is.na(x)]
@@ -1402,43 +1263,28 @@ pglmm_compare_hint <- function(formula, data) {
   invisible(TRUE)
 }
 
-# Random terms for phylo_only = TRUE (pglmm_compare()): drop the
-# non-phylogenetic partner (1 | sp) of each non-nested phylogenetic term
-# (1 | sp__), and give the phylogenetic term as a term with one value per
-# observation (a matrix, as nested terms), with the covariance matrix of the
-# species of the observations. With one row per species, this is the
-# covariance matrix of the phylogeny in the order of the rows.
-pglmm_phylo_only_re <- function(random.effects) {
-  nm <- names(random.effects)
-  drop <- integer(0)
-  for (i in which(grepl("__$", nm) & !grepl("@", nm, fixed = TRUE))) {
-    re.i <- random.effects[[i]]
-    if (length(re.i) != 3 || !identical(as.numeric(re.i[[1]]), 1)) {
+# Random terms for phylo_only = TRUE (pglmm_compare()): keep the terms of
+# pglmm_parse_re(phylo_only = TRUE) (terms, without the non-phylogenetic
+# partner (1 | sp) of each non-nested phylogenetic term (1 | sp__)), and give
+# the phylogenetic term as a term with one value per observation (a matrix, as
+# nested terms), with the covariance matrix of the species of the
+# observations. With one row per species, this is the covariance matrix of the
+# phylogeny in the order of the rows.
+pglmm_phylo_only_re <- function(random.effects, terms) {
+  random.effects <- random.effects[names(random.effects) %in%
+                                     c(vapply(terms, `[[`, "", "name"), "1|obs")]
+  for (t in terms) {
+    if (!isTRUE(t$phylo_only)) next
+    re.i <- random.effects[[t$name]]
+    if (t$lhs != "1") {
       stop("Only intercepts of phylogenetic terms, e.g. (1 | sp__), are allowed here.", call. = FALSE)
     }
-    partner <- match(sub("__$", "", nm[i]), nm)
-    if (!is.na(partner)) drop <- c(drop, partner)
     f <- re.i[[2]]
     V <- as.matrix(re.i[[3]])[as.integer(f), as.integer(f), drop = FALSE]
     dimnames(V) <- list(as.character(f), as.character(f))
-    random.effects[[i]] <- list(V)
+    random.effects[[t$name]] <- list(V)
   }
-  if (length(drop)) random.effects <- random.effects[-drop]
   random.effects
-}
-
-# A single repulsion value applies to the phylogenies of species only, i.e. the
-# first variable of nested terms (e.g. sp in 1|sp__@site__); phylogenies of the
-# second variable (sites) are not inverted. As in Ives & Helmus (2011, Appendix
-# A), repulsion comes from competition among related species. Returns one value
-# per phylogenetic variable of nested terms, in the order of the formula.
-pglmm_expand_repulsion <- function(fm, repulsion) {
-  unlist(lapply(fm, function(x) {
-    gp <- strsplit(as.character(x)[3], "@", fixed = TRUE)[[1]]
-    if (length(gp) < 2) return(logical(0))
-    phy <- grepl("__$", gp)
-    (repulsion & c(TRUE, FALSE))[phy]
-  }))
 }
 
 # ---- Inverse of the marginal covariance matrix V, without storing it ----
@@ -2090,6 +1936,39 @@ re_term_names <- function(object) {
   out
 }
 
+# A random term of a fitted model: its grouping variables (group, without
+# "__"), covariate (lhs, "1" for intercepts) and whether each grouping variable
+# has a phylogeny (phy), from the terms of pglmm_parse_re() stored in the model
+# (re_terms); from the name of the term for models without them (fitted
+# before phyr 1.3.0). NULL if unknown (e.g. random.effects given by the user).
+pglmm_term_info <- function(object, term_name) {
+  t <- object$re_terms[[term_name]]
+  if (!is.null(t)) return(t[c("group", "lhs", "phy", "nested")])
+  gv <- re_group_vars(term_name)
+  if (is.null(gv)) return(NULL)
+  g <- strsplit(sub("^[^|]*[|]", "", term_name), "@", fixed = TRUE)[[1]]
+  list(group = gv, lhs = trimws(sub("[|].*$", "", term_name)),
+       phy = grepl("__$", trimws(g)), nested = length(gv) == 2)
+}
+
+# Labels of the rows of a random term with one value per observation (nested
+# terms of the dense code, or (1 | sp__) of pglmm_compare()): the grouping
+# variables of the term in the rows of the data used for the fit, from the
+# terms stored in the model; otherwise from the row names of its matrix
+# (labels, see re_obs_labels()). obs: the names of the observations.
+pglmm_obs_labels <- function(object, term_name, labels, obs) {
+  t <- object$re_terms[[term_name]]
+  keep <- pglmm_kept_rows(object)
+  if (!is.null(t) && !is.null(keep) && length(keep) == length(obs) && !anyDuplicated(t$group) &&
+      all(t$group %in% names(object$data))) {
+    d <- as.data.frame(lapply(t$group, function(g) as.character(object$data[[g]][keep])),
+                       stringsAsFactors = FALSE)
+    names(d) <- t$group
+    return(d)
+  }
+  re_obs_labels(labels, term_name, obs)
+}
+
 # names of the grouping variables of a random term, from its name,
 # e.g. "1|sp__@site" gives c("sp", "site"); NULL if the name has no such info.
 re_group_vars <- function(term_name) {
@@ -2231,7 +2110,7 @@ pglmm_cond_modes <- function(object, condVar = FALSE) {
         names(d) <- gsub("__$", "", gv)
       }
     } else {
-      d <- re_obs_labels(rownames(N), term.names[i], obs)
+      d <- pglmm_obs_labels(object, term.names[i], rownames(N), obs)
     }
     n.lab <- ncol(d)
     d$estimate <- s2n[j] * as.vector(N %*% iVH)
@@ -2295,7 +2174,7 @@ pglmm_ranef_bayes <- function(object) {
       mat <- re.i[[length(re.i)]]
       obs <- rownames(object$data)
       if (is.null(obs) || length(obs) != n.i) obs <- seq_len(n.i)
-      d <- re_obs_labels(rownames(mat), term.names[i], obs)
+      d <- pglmm_obs_labels(object, term.names[i], rownames(mat), obs)
     }
     d$estimate <- s[[ms]]
     d$sd <- s[["sd"]]
@@ -2626,7 +2505,8 @@ pglmm_predict_ranef <- function(object, newdata, allow.new.levels = FALSE) {
   term.vars <- vector("list", length(r))
   for (i in which(use)) {
     term <- names(r)[i]
-    gv <- re_group_vars(term)
+    info <- pglmm_term_info(object, term)
+    gv <- info$group
     if (is.null(gv) || !all(gv %in% names(r[[i]]))) {
       stop("Predictions with newdata are not available for the random term '", term,
         "'; they need random terms specified in the formula. Use re.form = NA for ",
@@ -2634,8 +2514,7 @@ pglmm_predict_ranef <- function(object, newdata, allow.new.levels = FALSE) {
         call. = FALSE
       )
     }
-    lhs <- trimws(sub("[|].*$", "", term)) # 1 for intercepts
-    term.vars[[i]] <- list(group = gv, slope = if (lhs != "1") lhs)
+    term.vars[[i]] <- list(group = gv, slope = if (info$lhs != "1") info$lhs)
   }
   vars.missing <- setdiff(unlist(term.vars), names(newdata))
   if (length(vars.missing)) {

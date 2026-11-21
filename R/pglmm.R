@@ -533,6 +533,11 @@
 #' @return An object (list) of class \code{communityPGLMM} with the following elements:
 #' \item{formula}{the formula for fixed effects}
 #' \item{formula_original}{the formula for both fixed effects and random effects}
+#' \item{re_terms}{the random terms of the formula, as a named list (one element per term,
+#'   e.g. \code{"1|sp"} and \code{"1|sp__"} for \code{(1 | sp__)}) with the covariate
+#'   (\code{lhs}, \code{"1"} for intercepts), the grouping variables (\code{group}),
+#'   whether each has a phylogeny or covariance matrix (\code{phy}), and whether the term is
+#'   nested (\code{nested}); \code{NULL} with \code{random.effects}}
 #' \item{data}{the dataset}
 #' \item{family}{\code{gaussian}, \code{binomial}, \code{poisson}, \code{nbinomial} or
 #'   \code{Gamma} depending on the model fit}
@@ -1018,17 +1023,21 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
   data <- as.data.frame(data) # in case of tibbles
   prep_re <- if (is.null(random.effects)) TRUE else FALSE
   if (prep_re) {
-    # random terms of the formula: checked here for all the code paths, with
-    # the terms already included by a phylogenetic term (e.g. 1|sp with 1|sp__)
-    # dropped
-    re.check <- pglmm_check_re_terms(formula, data, phylo_only = phylo_only)
-    formula <- re.check$formula
+    # random terms of the formula, parsed and checked once for all the code
+    # paths (pglmm_parse_re()): the formula is then in its standard form
+    re.parsed <- pglmm_parse_re(formula, data, phylo_only = phylo_only)
+    formula <- re.parsed$formula
     # Drop the rows with missing values in the response, the fixed effects or
     # the random terms (grouping variables and covariates of random slopes)
     # before building the random effects, so that factor levels (and thus
     # covariance matrices) are built only from the rows that are used:
     # fit(data_with_NAs) == fit(data_NAs_removed), with all code paths.
-    data <- data[pglmm_complete_rows(formula, data, re.check$vars), , drop = FALSE]
+    data <- data[pglmm_complete_rows(formula, data, re.parsed$vars), , drop = FALSE]
+  }
+  # the terms of the model, stored in the fitted model (named by term), so
+  # that methods (ranef(), predict()) do not need to parse the term names
+  re.store <- if (prep_re) {
+    stats::setNames(re.parsed$terms, vapply(re.parsed$terms, `[[`, "", "name"))
   }
   fm_original <- formula
   if (!bayes && !isTRUE(sparse) && !laplace) pglmm_blas_hint(nrow(data))
@@ -1039,13 +1048,17 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
          "and negative binomial models) or bayes = TRUE.", call. = FALSE)
   }
 
-  if (!isTRUE(sparse) && !bayes && !laplace && prep_re &&
-      grepl("__", paste(deparse(formula), collapse = ""))) {
+  if (!isTRUE(sparse) && !bayes && !laplace && prep_re && length(pglmm_re_phy_vars(re.parsed$terms))) {
     pglmm_sparse_hint(nrow(data), if (is.null(cov_ranef)) list(tree, tree_site) else cov_ranef)
   }
-  if (!phylo_only && prep_re) pglmm_compare_hint(formula, data)
+  if (!phylo_only && prep_re) pglmm_compare_hint(re.parsed$specs, data)
   if (phylo_only && (!prep_re || !is.null(tree) || !is.null(tree_site))) {
     stop("phylo_only = TRUE needs random terms in the formula and cov_ranef.", call. = FALSE)
+  }
+  # the deprecated arguments tree and tree_site (phylogenies of the variables
+  # sp and site), for all the code paths
+  if (prep_re && length(pglmm_re_phy_vars(re.parsed$terms))) {
+    cov_ranef <- pglmm_tree_cov_ranef(cov_ranef, tree, tree_site)
   }
 
   if (laplace) {
@@ -1056,9 +1069,6 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
       stop("method = \"Laplace\" needs the random terms in the formula; ",
            "random.effects is not supported.", call. = FALSE)
     }
-    if (is.null(cov_ranef) && (!is.null(tree) || !is.null(tree_site))) {
-      cov_ranef <- c(if (!is.null(tree)) list(sp = tree), if (!is.null(tree_site)) list(site = tree_site))
-    }
     z <- communityPGLMM.glmm.laplace(
       formula = formula, data = data, family = family, cov_ranef = cov_ranef, REML = REML,
       s2.init = s2.init, B.init = B.init,
@@ -1068,6 +1078,7 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
     )
     z$standardize_cov <- standardize_cov
     z$formula_original <- fm_original
+    z$re_terms <- re.store
     z$cov_ranef <- if (length(z$cov_ranef_updated)) z$cov_ranef_updated else NA
     z$cov_ranef_updated <- NULL
     return(z)
@@ -1075,9 +1086,6 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
 
   if (isTRUE(sparse)) {
     if (!prep_re) stop("sparse = TRUE needs random terms specified in the formula.", call. = FALSE)
-    if (is.null(cov_ranef) && (!is.null(tree) || !is.null(tree_site))) {
-      cov_ranef <- c(if (!is.null(tree)) list(sp = tree), if (!is.null(tree_site)) list(site = tree_site))
-    }
     if (bayes) {
       if (ML.init) stop("ML.init = TRUE is not available yet with bayes = TRUE and sparse = TRUE.", call. = FALSE)
       if (any(as.logical(repulsion))) {
@@ -1105,6 +1113,7 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
       z$bayes_sparse$method <- sparse_method
       z$standardize_cov <- standardize_cov
       z$formula_original <- fm_original
+      z$re_terms <- re.store
       z$cov_ranef <- if (length(tm$cov_ranef_updated)) tm$cov_ranef_updated else NA
       return(z)
     }
@@ -1134,28 +1143,18 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
     if (family != "gaussian") z$method <- "PQL"
     z$standardize_cov <- standardize_cov
     z$formula_original <- fm_original
+    z$re_terms <- re.store
     z$cov_ranef <- if (length(z$cov_ranef_updated)) z$cov_ranef_updated else NA
     z$cov_ranef_updated <- NULL
     return(z)
   }
 
   if (prep_re) {
-    # to make old code work ...
-    if (is.null(cov_ranef) & any(grepl("__$", all.vars(formula)))) {
-      if (!is.null(tree) | !is.null(tree_site)) {
-        warning("arguments `tree` and `tree_site` are deprecated; please use `cov_ranef` instead.",
-          call. = FALSE
-        )
-      }
-      if (!is.null(tree) & is.null(tree_site)) cov_ranef <- list(sp = tree) # column name must be sp
-      if (is.null(tree) & !is.null(tree_site)) cov_ranef <- list(site = tree_site) # column name must be site
-      if (!is.null(tree) & !is.null(tree_site)) cov_ranef <- list(sp = tree, site = tree_site)
-    }
     dat_prepared <- prep_dat_pglmm(formula, data, cov_ranef, repulsion, prep_re, family, add.obs.re, bayes, bayes_nested_matrix_as_list,
                                    standardize_cov = standardize_cov)
     formula <- dat_prepared$formula
     random.effects <- dat_prepared$random.effects
-    if (phylo_only) random.effects <- pglmm_phylo_only_re(random.effects)
+    if (phylo_only) random.effects <- pglmm_phylo_only_re(random.effects, re.parsed$terms)
     cov_ranef_updated <- dat_prepared$cov_ranef_updated
   } else {
     formula <- reformulas::nobars(formula)
@@ -1271,6 +1270,7 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
 
   if (!bayes && family != "gaussian") z$method <- "PQL"
   z$formula_original <- fm_original
+  z$re_terms <- re.store
   z$cov_ranef <- if (is.null(cov_ranef)) NA else cov_ranef_updated
   z$standardize_cov <- standardize_cov
 

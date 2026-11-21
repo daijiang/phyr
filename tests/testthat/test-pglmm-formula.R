@@ -186,3 +186,63 @@ test_that("grouping variables can have __ inside their names", {
   b <- fq(y ~ x + (1 | sp__), s$d, cov_ranef = list(sp = s$phy), sparse = FALSE)
   expect_equal(unname(a$s2r), unname(b$s2r), tolerance = 1e-6)
 })
+
+test_that("one parser gives the random terms to all code paths", {
+  s <- formula_data()
+  f <- y ~ x + (1 | sp) + (x | sp) + (0 + x | sp__) + (1 | site/sp) + (1 | sp__@site)
+  expect_message(p <- phyr:::pglmm_parse_re(f, s$d), "\\(x \\| sp\\) is dropped")
+  # the standard form: no 0 +, @ for interactions, no term included twice
+  expect_equal(p$formula, y ~ x + (1 | sp) + (x | sp__) + (1 | sp@site) + (1 | site) + (1 | sp__@site))
+  # parsing the standard form gives it back, without messages
+  expect_silent(p2 <- phyr:::pglmm_parse_re(p$formula, s$d))
+  expect_identical(p2$formula, p$formula)
+  expect_identical(p2$terms, p$terms)
+  expect_equal(vapply(p$terms, `[[`, "", "name"),
+               c("1|sp", "x|sp", "x|sp__", "1|sp@site", "1|site", "1|sp__@site"))
+  expect_setequal(p$vars, c("sp", "x", "site"))
+  # the dense and sparse code build the same terms
+  pd <- suppressMessages(prep_dat_pglmm(p$formula, s$d, list(sp = s$phy)))
+  tm <- phyr:::pglmm_sparse_terms(p$formula, s$d, list(sp = s$phy))
+  expect_equal(names(pd$random.effects), names(tm$terms)[tm$formula.order])
+  # pglmm_compare(): the phylogenetic term only
+  pc <- phyr:::pglmm_parse_re(y ~ x + (1 | sp__), s$d, phylo_only = TRUE)
+  expect_equal(vapply(pc$terms, `[[`, "", "name"), "1|sp__")
+  expect_true(pc$terms[[1]]$phylo_only)
+})
+
+test_that("prep_dat_pglmm() checks the formula as pglmm() does", {
+  s <- formula_data()
+  expect_error(prep_dat_pglmm(y ~ x + (f | sp), s$d), "not numeric")
+  expect_error(prep_dat_pglmm(y ~ x + (1 | spp), s$d), "grouping variable spp")
+  pd <- suppressMessages(prep_dat_pglmm(y ~ x + (1 | sp:site), s$d))
+  expect_named(pd$random.effects, "1|sp@site")
+})
+
+test_that("fitted models keep their random terms, used by ranef() and predict()", {
+  s <- formula_data()
+  # names of levels with ___ (used to separate the levels of nested terms)
+  d <- s$d
+  d$site <- sub("t", "plot___", d$site)
+  nd <- d[c(1, 20, 40), ]
+  p <- list()
+  for (sp in c(TRUE, FALSE)) {
+    m <- fq(y ~ x + (1 | sp__) + (x | sp) + (1 | sp__@site), d, cov_ranef = list(sp = s$phy), sparse = sp)
+    expect_named(m$re_terms, c("1|sp", "1|sp__", "x|sp", "1|sp__@site"))
+    expect_equal(m$re_terms[["1|sp__@site"]]$group, c("sp", "site"))
+    r <- ranef(m)[["1|sp__@site"]]
+    expect_equal(names(r)[1:2], c("sp", "site"))
+    expect_true(all(grepl("^plot___", r$site)))
+    p[[as.character(sp)]] <- predict(m, newdata = nd)[, 1]
+    # models without re_terms (fitted with earlier versions) use the term names
+    m0 <- m
+    m0$re_terms <- NULL
+    if (sp) expect_equal(predict(m0, newdata = nd), predict(m, newdata = nd))
+  }
+  expect_equal(p[["TRUE"]], p[["FALSE"]], tolerance = 1e-4)
+  # pglmm_compare(): the phylogenetic term only
+  dc <- data.frame(y = rnorm(12), x = rnorm(12), row.names = s$phy$tip.label)
+  m <- suppressWarnings(suppressMessages(pglmm_compare(y ~ x, data = dc, phy = s$phy, sparse = FALSE)))
+  expect_named(m$re_terms, "1|sp__")
+  expect_true(m$re_terms[[1]]$phylo_only)
+  expect_equal(ranef(m)[[1]]$sp, rownames(dc))
+})

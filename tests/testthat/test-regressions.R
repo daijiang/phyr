@@ -263,9 +263,11 @@ test_that("a single repulsion = TRUE inverts the phylogenies of species only", {
   ts <- ape::rtree(4, tip.label = paste0("s", 1:4))
   d <- expand.grid(sp = tr$tip.label, site = ts$tip.label)
   d$y <- rnorm(nrow(d))
-  fm <- reformulas::findbars(y ~ (1 | sp__@site__) + (1 | sp@site__) + (1 | sp__@site) + (1 | sp@site))
-  expect_equal(phyr:::pglmm_expand_repulsion(fm, TRUE), c(TRUE, FALSE, FALSE, TRUE))
-  expect_equal(phyr:::pglmm_expand_repulsion(fm, FALSE), rep(FALSE, 4))
+  tm <- phyr:::pglmm_parse_re(y ~ (1 | sp__@site__) + (1 | sp@site__) + (1 | sp__@site) + (1 | sp@site),
+                              d)$terms
+  rr <- function(r) unlist(lapply(phyr:::pglmm_re_repulsion(tm, r), function(t) t$repulsion[t$phy]))
+  expect_equal(rr(TRUE), c(TRUE, FALSE, FALSE, TRUE))
+  expect_equal(rr(FALSE), rep(FALSE, 4))
   re <- function(rep) {
     r <- prep_dat_pglmm(y ~ 1 + (1 | sp__@site__), d, list(sp = tr, site = ts), repulsion = rep)$random.effects
     as.matrix(r[[length(r)]][[1]])

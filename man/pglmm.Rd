@@ -548,6 +548,11 @@ fitted values than observations (the first ones are those of the observations).}
 An object (list) of class \code{communityPGLMM} with the following elements:
 \item{formula}{the formula for fixed effects}
 \item{formula_original}{the formula for both fixed effects and random effects}
+\item{re_terms}{the random terms of the formula, as a named list (one element per term,
+e.g. \code{"1|sp"} and \code{"1|sp__"} for \code{(1 | sp__)}) with the covariate
+(\code{lhs}, \code{"1"} for intercepts), the grouping variables (\code{group}),
+whether each has a phylogeny or covariance matrix (\code{phy}), and whether the term is
+nested (\code{nested}); \code{NULL} with \code{random.effects}}
 \item{data}{the dataset}
 \item{family}{\code{gaussian}, \code{binomial}, \code{poisson}, \code{nbinomial} or
 \code{Gamma} depending on the model fit}

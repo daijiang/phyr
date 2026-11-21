@@ -258,8 +258,8 @@ cov_precision <- function(V) {
 pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
                                repulsion = FALSE, phylo_only = FALSE, allow.matrix = FALSE,
                                flow = FALSE) {
-  fm <- unique(reformulas::findbars(formula))
-  if (is.null(fm)) stop("No random terms specified, use lm or glm instead")
+  re.terms <- pglmm_parse_re(formula, data, phylo_only = phylo_only)$terms
+  if (!length(re.terms)) stop("No random terms specified, use lm or glm instead")
   if (!is.null(cov_ranef)) names(cov_ranef) <- gsub("__$", "", names(cov_ranef))
   n <- nrow(data)
   trees <- list() # pruned phylogenies and their precision matrices, by group variable
@@ -348,32 +348,17 @@ pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
          var = tp$tip.var[i])
   }
   get_H <- function(v) if (is.function(v$H)) v$H() else v$H
-  # repulsion: one value for each phylogenetic variable of nested terms, in
-  # the order of the formula, as in prep_dat_pglmm()
-  n.rep <- sum(vapply(fm, function(x) {
-    gp <- strsplit(as.character(x)[3], "@", fixed = TRUE)[[1]]
-    if (length(gp) > 1) sum(grepl("__$", gp)) else 0L
-  }, 1L))
-  if (length(repulsion) == 1) repulsion <- pglmm_expand_repulsion(fm, repulsion) # species only
-  if (length(repulsion) != n.rep) {
-    stop("The number of repulsion terms specified is not correct: please double check")
-  }
-  i.rep <- 0
+  # repulsion: one value for each phylogenetic variable of nested terms
+  re.terms <- pglmm_re_repulsion(re.terms, repulsion)
 
   terms <- list()
-  for (x in fm) {
-    x2 <- as.character(x)
-    lhs <- gsub("^0 ?[+] ?", "", x2[2])
-    grp <- x2[3]
-    if (grepl("[+]", lhs)) stop("(x1 + x2|g) form of random terms are not allowed yet, please split it")
-    if (grepl("@", grp, fixed = TRUE)) { # nested term, e.g. 1|sp__@site
+  for (rt in re.terms) {
+    lhs <- rt$lhs
+    g <- rt$group
+    phy <- rt$phy
+    if (rt$nested) { # nested term, e.g. 1|sp__@site
       if (lhs != "1") stop("Nested random term for slope is not allowed yet")
-      gp <- strsplit(grp, "@", fixed = TRUE)[[1]]
-      phy <- grepl("__$", gp)
-      g <- gsub("__$", "", gp)
-      repul <- phy
-      repul[phy] <- as.logical(repulsion[i.rep + seq_len(sum(phy))])
-      i.rep <- i.rep + sum(phy)
+      repul <- rt$repulsion
       v1 <- nested_var(g[1], phy[1], repul[1])
       v2 <- nested_var(g[2], phy[2], repul[2])
       n1 <- nrow(v1$A)
@@ -419,7 +404,7 @@ pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
                            stringsAsFactors = FALSE)
       names(labels) <- g
       terms[[length(terms) + 1]] <- list(
-        name = paste0(lhs, "|", grp), group = g, lhs = lhs, phy = phy, nested = TRUE,
+        name = rt$name, group = g, lhs = lhs, phy = phy, nested = TRUE,
         repulsion = repul,
         Z = Matrix::sparseMatrix(i = seq_len(n), j = col, x = 1, dims = c(n, nrow(Q))),
         Q = Q, logdetQ = logdetQ, aux = aux,
@@ -441,11 +426,9 @@ pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
       }
       next
     }
-    phy <- grepl("__$", grp)
-    g <- gsub("__$", "", grp)
     f <- as_group(g)
     covariate <- if (lhs == "1") rep(1, n) else as.numeric(data[[lhs]])
-    if (phy && phylo_only) {
+    if (rt$phylo_only) {
       # phylogenetic term without its non-phylogenetic partner (pglmm_compare()),
       # reported as the default code does: a term with one value per
       # observation (s2n), with the estimates of the species in the data
@@ -456,7 +439,7 @@ pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
       labels <- data.frame(as.character(f)[first], stringsAsFactors = FALSE)
       names(labels) <- g
       terms[[length(terms) + 1]] <- list(
-        name = paste0(lhs, "|", grp), group = g, lhs = lhs, phy = TRUE, nested = TRUE,
+        name = rt$name, group = g, lhs = lhs, phy = TRUE, nested = TRUE,
         repulsion = FALSE,
         Z = Matrix::sparseMatrix(i = seq_len(n), j = col, x = 1, dims = c(n, nrow(tp$Q))),
         Q = tp$Q, logdetQ = tp$logdetQ, aux = list(),
@@ -469,19 +452,19 @@ pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
       }
       next
     }
-    z.plain <- list(
-      name = paste0(lhs, "|", g), group = g, lhs = lhs, phy = FALSE, nested = FALSE,
-      Z = Matrix::sparseMatrix(i = seq_len(n), j = as.integer(f), x = covariate,
-                               dims = c(n, nlevels(f))),
-      Q = Matrix::Diagonal(nlevels(f)), logdetQ = 0, labels = levels(f),
-      n.levels = nlevels(f), mean.diag = 1
-    )
-    terms[[length(terms) + 1]] <- z.plain
-    if (phy) {
+    if (!phy) {
+      terms[[length(terms) + 1]] <- list(
+        name = rt$name, group = g, lhs = lhs, phy = FALSE, nested = FALSE,
+        Z = Matrix::sparseMatrix(i = seq_len(n), j = as.integer(f), x = covariate,
+                                 dims = c(n, nlevels(f))),
+        Q = Matrix::Diagonal(nlevels(f)), logdetQ = 0, labels = levels(f),
+        n.levels = nlevels(f), mean.diag = 1
+      )
+    } else {
       tp <- get_tree(g, f)
       nn <- nrow(tp$Q)
       terms[[length(terms) + 1]] <- list(
-        name = paste0(lhs, "|", grp), group = g, lhs = lhs, phy = TRUE, nested = FALSE,
+        name = rt$name, group = g, lhs = lhs, phy = TRUE, nested = FALSE,
         Z = Matrix::sparseMatrix(i = seq_len(n), j = match(as.character(f), tp$tip.label),
                                  x = covariate, dims = c(n, nn)),
         Q = tp$Q, logdetQ = tp$logdetQ,
@@ -929,42 +912,11 @@ pglmm_sparse_glmm_LL_grad <- function(ev, pre, XH, REML, has.obs) {
 # in the response, predictors, or random terms are dropped.
 pglmm_glmm_data <- function(formula, data, family, add.obs.re = TRUE) {
   formula.nobars <- reformulas::nobars(formula)
-  bars <- unique(reformulas::findbars(formula))
-  # observation-level term, as in prep_dat_pglmm(): for poisson models and
-  # binomial models with more than one trial, unless a nested term without
-  # phylogeny already has one level per observation
-  resp <- model.response(model.frame(formula.nobars, data = data, na.action = NULL))
-  no_obs_re <- TRUE
-  if (family == "poisson" || is.array(resp)) {
-    for (x in bars) {
-      grp <- as.character(x)[3]
-      if (grepl("@", grp, fixed = TRUE) && !pglmm_has_phy(grp)) {
-        g <- strsplit(grp, "@", fixed = TRUE)[[1]]
-        if (add.obs.re && pglmm_one_obs_per_cell(data, g)) {
-          message("It seems that you specified an observation-level random term already e.g. (1|sp@site);
-                       we will set 'add.obs.re' to FALSE.")
-          add.obs.re <- FALSE
-          no_obs_re <- FALSE
-        }
-      }
-    }
-    if (add.obs.re) {
-      message("We add an observation-level random term '1|obs' for poisson and binomial data.")
-    } else if (no_obs_re) {
-      message("For poisson and binomial data, it would be a good idea to add an observation-level random term (add.obs.re = TRUE).")
-    }
-  } else {
-    add.obs.re <- FALSE
-  }
-  has.obs <- add.obs.re
-
+  re <- pglmm_parse_re(formula, data)
+  # observation-level term (as prep_dat_pglmm())
+  has.obs <- pglmm_re_obs(re$terms, data, formula.nobars, family, add.obs.re)
   # rows with missing values in the response, predictors, or random terms are dropped
-  re.vars <- unique(unlist(lapply(bars, function(x) gsub("__$", "", all.vars(x)))))
-  ok <- stats::complete.cases(
-    model.frame(formula.nobars, data, na.action = NULL),
-    data[, intersect(re.vars, names(data)), drop = FALSE]
-  )
-  data <- data[ok, , drop = FALSE]
+  data <- data[pglmm_complete_rows(formula, data, re$vars), , drop = FALSE]
   mf <- model.frame(formula.nobars, data = data, na.action = NULL)
   X <- model.matrix(attr(mf, "terms"), data = mf)
   Y <- model.response(mf)
@@ -1258,13 +1210,8 @@ communityPGLMM.gaussian.sparse <- function(formula, data, cov_ranef = NULL, REML
                                            phylo_only = FALSE) {
   formula.nobars <- reformulas::nobars(formula)
   # rows with missing values in the response, predictors, or random terms are dropped
-  bars <- unique(reformulas::findbars(formula))
-  re.vars <- unique(unlist(lapply(bars, function(x) gsub("__$", "", all.vars(x)))))
-  ok <- stats::complete.cases(
-    model.frame(formula.nobars, data, na.action = NULL),
-    data[, intersect(re.vars, names(data)), drop = FALSE]
-  )
-  data <- data[ok, , drop = FALSE]
+  re <- pglmm_parse_re(formula, data, phylo_only = phylo_only)
+  data <- data[pglmm_complete_rows(formula, data, re$vars), , drop = FALSE]
   mf <- model.frame(formula.nobars, data = data, na.action = NULL)
   X <- model.matrix(attr(mf, "terms"), data = mf)
   Y <- as.numeric(model.response(mf))

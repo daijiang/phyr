@@ -238,14 +238,8 @@ pglmm_plot_ranef <- function(
     # tree_site <- x$tree_site
   } else {
     if (is.null(random.effects)) {
-      if(is.null(cov_ranef) & any(grepl("__", all.vars(formula)))){ # model not fitted yet
-        if(!is.null(tree) | !is.null(tree_site))
-          warning("arguments tree and tree_site are deprecated; please use cov_ranef instead.", 
-                  call. = FALSE)
-        if(!is.null(tree) & is.null(tree_site)) cov_ranef = list(sp = tree)
-        if(is.null(tree) & !is.null(tree_site)) cov_ranef = list(site = tree_site)
-        if(!is.null(tree) & !is.null(tree_site)) cov_ranef = list(sp = tree, site = tree_site)
-      }
+      # model not fitted yet: the deprecated arguments tree and tree_site
+      cov_ranef <- pglmm_tree_cov_ranef(cov_ranef, tree, tree_site)
       pd <- prep_dat_pglmm(formula = formula, data = data, cov_ranef,
                            repulsion = repulsion, family = family)
       random.effects <- pd$random.effects
