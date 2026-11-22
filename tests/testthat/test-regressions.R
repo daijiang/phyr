@@ -249,3 +249,22 @@ test_that("pglmm_plot_ranef() works with models fitted with the sparse code", {
   expect_named(v, c("1|sp", "1|sp__", "1|sp__@site", "1|obs"))
   expect_equal(v, vcv_of(f, family = "poisson", sparse = FALSE, method = "PQL"))
 })
+
+test_that("plot_bayes() works when the posterior of a precision has a long right tail", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("INLA")
+  testthat::skip_if_not_installed("ggridges")
+  # the posteriors of the precisions of 1|site and disturbance|sp__ reach about
+  # 3e5; inla.tmarginal(sqrt(1 / x)) of them gave NaN and plot_bayes() failed
+  m <- quiet(pglmm(pres ~ disturbance + (1 | sp__) + (1 | site) + (disturbance | sp__) + (1 | sp__@site),
+                   data = oldfield$data, cov_ranef = list(sp = oldfield$phy), family = "binomial",
+                   bayes = TRUE, prior = "pc.prior.auto"))
+  set.seed(1)
+  p <- plot_bayes(m, n_samp = 2000)
+  expect_s3_class(p, "ggplot")
+  sds <- p$data[p$data$effect_type == "Random Effects", ]
+  expect_true(all(is.finite(sds$val) & sds$val > 0))
+  # posterior medians of the standard deviations are those of INLA
+  med <- tapply(sds$val, as.character(sds$var), median)[names(m$random.effects)]
+  expect_equal(as.vector(med), as.vector(1 / sqrt(m$inla.model$summary.hyperpar[, "0.5quant"])), tolerance = 0.1)
+})

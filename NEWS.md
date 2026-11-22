@@ -63,6 +63,7 @@ phyr 1.4.0 fits phylogenetic generalized linear mixed models with large phylogen
 * With `sparse = TRUE`, phylogenies with internal branches of length zero are collapsed to polytomies as documented (they gave an error).
 * With `bayes = TRUE` and `bayes_nested_matrix_as_list = TRUE`, `repulsion = TRUE` was ignored.
 * `pglmm_compare(bayes = TRUE)` returns the INLA model (`inla.model`).
+* `plot_bayes()` failed when the posterior of the precision of a random term has a long right tail (e.g. a variance near zero); the standard deviations are now sampled from the posteriors of the log precisions. It also no longer uses functions deprecated in ggplot2 4.0.
 
 ## Other changes
 

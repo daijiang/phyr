@@ -92,8 +92,11 @@ plot_bayes.communityPGLMM <- function(x, n_samp = 1000, sort = TRUE, ...) {
   
   re.names <- names(x$random.effects)
   if (x$family == "gaussian") re.names <- c("residual", re.names)
-  random_samps <- lapply(x$inla.model$marginals.hyperpar, 
-                         function(x) INLA::inla.rmarginal(n_samp, INLA::inla.tmarginal(function(x) sqrt(1 / x), x))) |>
+  # standard deviations sampled from the marginals of the log precisions: the
+  # marginals of the precisions can have long right tails, which
+  # inla.tmarginal() interpolates to negative precisions (NaN standard deviations)
+  random_samps <- lapply(x$inla.model$internal.marginals.hyperpar,
+                         function(m) exp(-INLA::inla.rmarginal(n_samp, m) / 2)) |>
     setNames(re.names) |>
     dplyr::as_tibble() |>
     tidyr::pivot_longer(cols = dplyr::everything(),
@@ -143,12 +146,12 @@ plot_bayes.communityPGLMM <- function(x, n_samp = 1000, sort = TRUE, ...) {
     dplyr::ungroup()
   
   pal <- c("#fc8d62", "#8da0cb")
-  p <- ggplot2::ggplot(samps, ggplot2::aes(val, var, height = ..density..)) +
+  p <- ggplot2::ggplot(samps, ggplot2::aes(val, var, height = ggplot2::after_stat(density))) +
     ggridges::geom_density_ridges(ggplot2::aes(alpha = sig, fill = sig), 
                                   stat = "density", adjust = 2, color = "gray70") +
     ggplot2::geom_point(ggplot2::aes(x = mean, y = var), data = ci, inherit.aes = FALSE) +
-    ggplot2::geom_errorbarh(ggplot2::aes(xmin = lower, xmax = upper, y = var), data = ci,
-                   inherit.aes = FALSE, height = 0.1) +
+    ggplot2::geom_errorbar(ggplot2::aes(xmin = lower, xmax = upper, y = var), data = ci,
+                           inherit.aes = FALSE, width = 0.1, orientation = "y") +
     ggplot2::geom_vline(xintercept = 0, linetype = 2, colour = "grey40") +
     ggplot2::scale_alpha_manual(values = c(0.8, 0.2)) +
     ggplot2::scale_fill_manual(values = rev(pal)) +
