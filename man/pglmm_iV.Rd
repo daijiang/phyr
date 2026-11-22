@@ -22,7 +22,7 @@ fit (with the Woodbury identity).
 }
 \description{
 Calculate the inverse of the marginal covariance matrix (\code{iV}) of the data
-for a model fitted with \code{bayes = FALSE}. Since version 1.3.0, this n by n
+for a model fitted with \code{bayes = FALSE}. Since version 1.4.0, this n by n
 matrix is no longer returned by \code{\link[=pglmm]{pglmm()}}, because it needs a lot of memory
 and time for large data sets, and no function of the package needs it.
 }

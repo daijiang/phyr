@@ -366,7 +366,7 @@
 #'   (class \code{phylo}, not covariance matrices) in \code{cov_ranef}, and, with
 #'   \code{bayes = TRUE}, \code{ML.init = FALSE} and \code{repulsion = FALSE}; \code{FALSE}
 #'   otherwise (it was
-#'   \code{FALSE} before phyr 1.3.0). Both give the same model; the estimates can differ
+#'   \code{FALSE} before phyr 1.4.0). Both give the same model; the estimates can differ
 #'   slightly, as the optimizers differ (for binomial and poisson models fitted by PQL, the
 #'   log-likelihood also depends on the path of the iterations). With \code{TRUE}, the model is
 #'   fitted with the sparse
@@ -467,7 +467,7 @@
 #' @param method For binomial and poisson models with \code{bayes = FALSE}, the
 #'   approximation of the likelihood (negative binomial and Gamma models, \code{family =
 #'   "nbinomial"} and \code{"Gamma"}, are always fitted with \code{"Laplace"}):
-#'   \code{"Laplace"} (default since phyr 1.3.0) for the Laplace approximation of the
+#'   \code{"Laplace"} (default since phyr 1.4.0) for the Laplace approximation of the
 #'   marginal likelihood, as in \code{lme4::glmer()} (with \code{nAGQ = 1}) and
 #'   \code{glmmTMB}, or \code{"PQL"} for penalized quasi-likelihood (the default of earlier
 #'   versions, and with \code{random.effects}, which the Laplace code does not support). PQL is known to underestimate the variances of
@@ -609,7 +609,7 @@
 #' \item{logLik}{the log-likelihood, restricted (\code{REML = TRUE}) or not (\code{REML = FALSE}).
 #'   For gaussian models with \code{REML = TRUE}, it is the restricted log-likelihood of
 #'   \code{lmer()}, \code{glmmTMB()} and \code{nlme::lme()} (the likelihood integrated over the
-#'   fixed effects); versions of phyr before 1.3.0 added \eqn{\log|X'X|/2}{log|X'X| / 2}
+#'   fixed effects); versions of phyr before 1.4.0 added \eqn{\log|X'X|/2}{log|X'X| / 2}
 #'   to it. For binomial and poisson models fitted with \code{method = "PQL"}, it is an approximation
 #'   from the gaussian model of the working response; with \code{method = "Laplace"}, it is the
 #'   Laplace approximation of the (restricted) marginal log-likelihood, the same as that of

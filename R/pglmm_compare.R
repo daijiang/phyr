@@ -132,10 +132,10 @@
 #' @param sparse Whether to fit the model with the sparse precision matrix of the
 #'   phylogeny, which is much faster for large phylogenies (see Details and
 #'   [pglmm()]). The default, \code{NULL}, is \code{TRUE} (with \code{bayes = TRUE},
-#'   unless \code{ML.init = TRUE}; \code{FALSE} before phyr 1.3.0); use \code{sparse = FALSE} for the dense
+#'   unless \code{ML.init = TRUE}; \code{FALSE} before phyr 1.4.0); use \code{sparse = FALSE} for the dense
 #'   covariance matrix (then also returned in \code{vcv.phy}).
 #' @param method For binomial and poisson data, \code{"Laplace"} (default since
-#'   phyr 1.3.0) or \code{"PQL"} (the default of earlier versions): see Details and
+#'   phyr 1.4.0) or \code{"PQL"} (the default of earlier versions): see Details and
 #'   [pglmm()]. Negative binomial and Gamma data are always fitted with
 #'   \code{"Laplace"}.
 #' @inheritParams pglmm

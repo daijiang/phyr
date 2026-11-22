@@ -757,7 +757,7 @@ sim_cor_phylo_variates <- function(n, Rs, d, M, X_means, X_sds, U_means, U_sds, 
 #'   \item{`logLik`}{The log likelihood for either the restricted likelihood
 #'     (\code{REML = TRUE}) or the overall likelihood (\code{REML = FALSE}), of the
 #'     standardized variates. The restricted likelihood is the likelihood integrated over
-#'     the coefficients, as in [pglmm()], `lme4` and `nlme`; versions of phyr before 1.3.0
+#'     the coefficients, as in [pglmm()], `lme4` and `nlme`; versions of phyr before 1.4.0
 #'     (and `ape::corphylo()`) added \eqn{\log(p(n-1))/2}{log(p (n - 1)) / 2} to it.}
 #'   \item{`AIC`}{AIC for either the restricted likelihood (\code{REML = TRUE}) or the
 #'     overall likelihood (\code{REML = FALSE}).}

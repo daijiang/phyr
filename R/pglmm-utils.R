@@ -1478,7 +1478,7 @@ pglmm_iV_diag <- function(object) {
 #' Inverse of the covariance matrix of a fitted PGLMM
 #'
 #' Calculate the inverse of the marginal covariance matrix (`iV`) of the data
-#' for a model fitted with `bayes = FALSE`. Since version 1.3.0, this n by n
+#' for a model fitted with `bayes = FALSE`. Since version 1.4.0, this n by n
 #' matrix is no longer returned by [pglmm()], because it needs a lot of memory
 #' and time for large data sets, and no function of the package needs it.
 #'
@@ -1974,7 +1974,7 @@ re_term_names <- function(object) {
 # "__"), covariate (lhs, "1" for intercepts) and whether each grouping variable
 # has a phylogeny (phy), from the terms of pglmm_parse_re() stored in the model
 # (re_terms); from the name of the term for models without them (fitted
-# before phyr 1.3.0). NULL if unknown (e.g. random.effects given by the user).
+# before phyr 1.4.0). NULL if unknown (e.g. random.effects given by the user).
 pglmm_term_info <- function(object, term_name) {
   t <- object$re_terms[[term_name]]
   if (!is.null(t)) return(t[c("group", "lhs", "phy", "nested")])
@@ -2229,7 +2229,7 @@ pglmm_ranef_bayes <- function(object) {
 #' the variances are also returned. Use [ranef()] to get the estimates for each
 #' level of the random terms.
 #'
-#' Before version 1.3.0, this table was returned by `ranef()`.
+#' Before version 1.4.0, this table was returned by `ranef()`.
 #'
 #' The variances are the elements `s2r`, `s2n` and `s2resid` of the fitted
 #' model. The variance of a term with a covariance matrix (e.g. a phylogenetic
