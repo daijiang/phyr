@@ -356,6 +356,7 @@ pglmm_compare <- function(formula, family = "gaussian",
       NULL
     })
   }
+  z$call <- pglmm_store_call(match.call(), environment())
   class(z) <- c("pglmm_compare", "communityPGLMM", "pglmm")
   z
 }
@@ -405,9 +406,8 @@ summary.pglmm_compare <- function(object, digits = max(3, getOption("digits") - 
   
   cat(if (x$bayes) pglmm_bayes_title(x) else pglmm_fit_title(x))
   
-  cat("\n\nCall:")
-  print(x$formula)
-  cat("\n")
+  # the formula with the random terms, without its environment
+  cat("\n\nFormula: ", deparse1(formula(x)), "\n\n", sep = "")
   
   if(x$bayes) {
     logLik <- c("marginal logLik" = unname(x$logLik), "DIC" = unname(x$DIC),

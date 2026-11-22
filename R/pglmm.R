@@ -533,6 +533,7 @@
 #' @return An object (list) of class \code{communityPGLMM} with the following elements:
 #' \item{formula}{the formula for fixed effects}
 #' \item{formula_original}{the formula for both fixed effects and random effects}
+#' \item{call}{the call of \code{pglmm()}, used by \code{update()} (and \code{anova()}, to refit REML fits by maximum likelihood)}
 #' \item{re_terms}{the random terms of the formula, as a named list (one element per term,
 #'   e.g. \code{"1|sp"} and \code{"1|sp__"} for \code{(1 | sp__)}) with the covariate
 #'   (\code{lhs}, \code{"1"} for intercepts), the grouping variables (\code{group}),
@@ -944,7 +945,7 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
                   return.fitted.marginals = TRUE,
                   sparse = NULL, standardize_cov = TRUE, method = c("Laplace", "PQL"),
                   sparse_method = c("precision", "flow")) {
-  pglmm_fit(
+  z <- pglmm_fit(
     formula = formula, data = data, family = family, cov_ranef = cov_ranef,
     random.effects = random.effects, REML = REML, optimizer = optimizer,
     repulsion = repulsion, add.obs.re = add.obs.re, verbose = verbose,
@@ -959,6 +960,21 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
     sparse = sparse, standardize_cov = standardize_cov, method = method,
     reltol.given = !missing(reltol), sparse_method = sparse_method
   )
+  z$call <- pglmm_store_call(match.call(), environment())
+  z
+}
+
+# The call of pglmm() (or pglmm_compare()) to keep in the fitted model, for
+# update(): arguments passed through the ... of another function (..1, ..2,
+# which cannot be evaluated later) are replaced by their values (env: the
+# frame of the function, where they are its arguments)
+pglmm_store_call <- function(cl, env) {
+  for (a in setdiff(names(cl), "")) {
+    if (is.symbol(cl[[a]]) && grepl("^\\.\\.[0-9]+$", as.character(cl[[a]]))) {
+      cl[[a]] <- get(a, envir = env)
+    }
+  }
+  cl
 }
 
 # The function that fits pglmm() models. `phylo_only = TRUE` (used by

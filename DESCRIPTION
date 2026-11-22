@@ -29,7 +29,8 @@ Imports:
     nlme,
     MASS,
     reformulas,
-    nloptr
+    nloptr,
+    generics
 Roxygen: list(markdown = TRUE)
 LinkingTo:
     Rcpp, RcppArmadillo, nloptr
@@ -55,7 +56,8 @@ Suggests:
     dplyr,
     tidyr,
     gridExtra,
-    latticeExtra
+    latticeExtra,
+    mice
 VignetteBuilder: knitr
 URL: https://daijiang.github.io/phyr/, https://github.com/daijiang/phyr/
 BugReports: https://github.com/daijiang/phyr/issues

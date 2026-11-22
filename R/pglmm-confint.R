@@ -124,7 +124,7 @@ confint.communityPGLMM <- function(object, parm, level = 0.95, ...) {
 # (gaussian) or method = "Laplace": a list with the estimates v of the
 # variances (named as the rows of VarCorr()), the log-likelihood ll0 at the
 # estimates, and the function prof(k, value), the log-likelihood maximized over
-# the other parameters with the variance k at value (NULL if not available).
+# the other parameters with the variance(s) k at value (NULL if not available).
 # The other parameters are optimized with pglmm_laplace_optim(), on the scales
 # of the fits: variances multiplied by the scale factors of their terms, and
 # for ML Laplace fits, the fixed effects divided by their standard errors.
@@ -240,12 +240,19 @@ pglmm_profile_fun <- function(object) {
   env <- new.env(parent = emptyenv())
   env$better <- 0
   env$start <- list()
+  # k can be several variances (all at value), e.g. for pglmm_profile_LRT()
   prof <- function(k, value) {
-    j <- ivar[[k]]
+    j <- unname(ivar[k])
+    key <- paste(k, collapse = "\r")
     free <- setdiff(seq_along(y0), j)
     y <- y0
     y[j] <- value
-    x0 <- env$start[[k]]
+    if (!length(free)) { # no other parameter (e.g. REML with one term)
+      r <- unname(ll(y))
+      if (is.finite(r)) env$better <- max(env$better, r - ll0)
+      return(r)
+    }
+    x0 <- env$start[[key]]
     if (is.null(x0)) x0 <- y0[free] / sc[free]
     f <- function(x) {
       y[free] <- x * sc[free]
@@ -260,7 +267,7 @@ pglmm_profile_fun <- function(object) {
     }
     o <- pglmm_laplace_optim(f, pmax(x0, lower[free] / sc[free]), lower[free] / sc[free],
                              list(rel.tol = 1e-10, eval.max = 500, iter.max = 500), grad = g)
-    env$start[[k]] <- o$par
+    env$start[[key]] <- o$par
     r <- -unname(o$objective)
     if (is.finite(r)) env$better <- max(env$better, r - ll0)
     r

@@ -101,7 +101,13 @@ test_that("methods work for models fitted with sparse = TRUE", {
   nd <- s$d[1:10, ]
   nd$x <- 0
   expect_equal(predict(m2, nd), predict(m1, nd), tolerance = 1e-3)
-  expect_equal(pglmm_profile_LRT(m2, 2)$LR, pglmm_profile_LRT(m1, 2)$LR, tolerance = 1e-3)
+  # a likelihood ratio test (the other parameters estimated again), which is at
+  # most the conditional test of the dense fit (the other parameters at their
+  # estimates)
+  expect_identical(names(m2$ss)[2], "1|sp__")
+  m0 <- pglmm(y ~ x + (1 | sp) + (1 | site), s$d, sparse = TRUE, reltol = 1e-10)
+  expect_equal(pglmm_profile_LRT(m2, 2)$LR, m2$logLik - m0$logLik, tolerance = 1e-5)
+  expect_lte(pglmm_profile_LRT(m2, 2)$LR, pglmm_profile_LRT(m1, 2)$LR + 1e-6)
   expect_equal(dim(simulate(m2, nsim = 2)), c(nrow(s$d), 2L))
   # estimates of the internal nodes
   rn <- phyr:::pglmm_cond_modes_sparse(m2, nodes = TRUE)[["1|sp__"]]
@@ -291,8 +297,9 @@ test_that("methods work for models with nested terms fitted with sparse = TRUE",
                predict(m1, nd2, allow.new.levels = TRUE), tolerance = 1e-3)
   # profile likelihood ratio test of the nested terms (last in ss)
   i.nested <- length(m2$s2r) + seq_along(m2$s2n)
-  expect_equal(pglmm_profile_LRT(m2, i.nested[1])$LR, pglmm_profile_LRT(m1, i.nested[1])$LR,
-               tolerance = 1e-3)
+  lr <- pglmm_profile_LRT(m2, i.nested[1])$LR
+  expect_gte(lr, 0)
+  expect_lte(lr, pglmm_profile_LRT(m1, i.nested[1])$LR + 1e-6)
 })
 
 test_that("sparse and dense likelihoods are the same for nested terms with repulsion", {

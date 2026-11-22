@@ -869,9 +869,16 @@ pglmm.V <- function(par, Zt, St, mu, nested, family, size) {
 #'
 #' \code{pglmm_profile_LRT} tests statistical significance of the
 #' phylogenetic random effect using profile likelihoods when bayes = F.
-#' The resulting p-values are conditional on the fixed
-#' estimates of the other parameters, in contrast to a standard
-#' likelihood ratio test.
+#'
+#' For models fitted with \code{sparse = TRUE} (gaussian) or
+#' \code{method = "Laplace"}, it is a likelihood ratio test: the variances of
+#' the terms \code{re.number} are set to zero and the other parameters are
+#' estimated again (as for the profile likelihood intervals of
+#' [confint.communityPGLMM()]). For the other models, the p-values are
+#' conditional on the estimates of the other parameters (which are not
+#' estimated again), in contrast to a standard likelihood ratio test. As a
+#' variance of zero is at the boundary of its range, the p-value of the
+#' chi-square test is halved.
 #'
 #' For binomial and poisson models fitted with `method = "Laplace"`, the
 #' log-likelihoods are the Laplace approximations of the (restricted) marginal
@@ -880,7 +887,8 @@ pglmm.V <- function(par, Zt, St, mu, nested, family, size) {
 #'
 #' @rdname pglmm-profile-LRT
 #' @param x A fitted model with class communityPGLMM with `bayes = FALSE`.
-#' @param re.number Which random term to test? Can be a vector with length >1.
+#' @param re.number Which random term to test: positions in `x$ss` (the standard deviations
+#'   of the random terms, in the order of the fit). Can be a vector with length >1.
 #' @inheritParams pglmm
 #' @return A list of likelihood, df, and p-value.
 #' @export
@@ -892,6 +900,21 @@ pglmm_profile_LRT <- function(x, re.number = 0, cpp = TRUE) {
   par <- x$ss
   par[re.number] <- 0
   df <- length(re.number)
+
+  # sparse gaussian and Laplace fits: the profile likelihood, with the other
+  # parameters optimized with the variances re.number at zero (as
+  # confint.communityPGLMM())
+  prof <- if (!is.null(x$sparse) && !identical(x$method, "PQL")) pglmm_profile_fun(x)
+  if (!is.null(prof)) {
+    k <- names(x$ss)[re.number]
+    if (anyNA(k) || "residual" %in% k) {
+      stop("re.number must give random terms (positions in x$ss, without the residual).",
+           call. = FALSE)
+    }
+    LR <- max(prof$ll0 - prof$prof(k, pglmm_var_lb), 0)
+    Pr <- pchisq(2 * LR, df = df, lower.tail = FALSE) / 2
+    return(list(LR = LR, df = df, Pr = if (Pr > 0.499) 1 else Pr))
+  }
 
   if (identical(x$method, "Laplace")) {
     # Laplace approximation of the log-likelihood with the variances of the
@@ -1062,9 +1085,8 @@ summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") -
 
   cat(if (x$bayes) pglmm_bayes_title(x) else pglmm_fit_title(x))
 
-  cat("\n\nCall:")
-  print(x$formula)
-  cat("\n")
+  # the formula with the random terms, without its environment
+  cat("\n\nFormula: ", deparse1(formula(x)), "\n\n", sep = "")
 
   if (x$bayes) {
     logLik <- c(
@@ -2606,6 +2628,19 @@ pglmm_predict_ranef <- function(object, newdata, allow.new.levels = FALSE) {
 #' which is the default). This method is much slower but is often more stable, and is
 #' technically more accurate.
 #'
+#' @section Residual diagnostics with DHARMa:
+#' The DHARMa package calculates scaled (quantile) residuals from simulations
+#' of a fitted model, to check the distribution, dispersion and other
+#' assumptions of the model. `DHARMa::simulateResiduals()` works with models
+#' fitted by [pglmm()] with `bayes = FALSE` (all families), through
+#' `simulate()`, `model.frame()`, `family()` and `predict()`; the simulations
+#' are conditional on the estimated random effects (`re.form = NULL`). DHARMa
+#' warns that the class of the model is not among those it supports (a fixed
+#' list in DHARMa); the residuals are nevertheless correct (we checked the
+#' observed responses, the simulations, and the tests of uniformity and
+#' dispersion with simulated data of each family, including the detection of
+#' overdispersion of counts fitted by a poisson model).
+#'
 #' @examples
 #' # community data: abundance of each species at each site
 #' dat <- data.frame(
@@ -2627,6 +2662,16 @@ pglmm_predict_ranef <- function(object, newdata, allow.new.levels = FALSE) {
 #' # with new values of random effects, drawn with their estimated variances
 #' sim <- simulate(fit, nsim = 3, seed = 1, re.form = NA)
 #' head(sim)
+#'
+#' # residual diagnostics with DHARMa (which warns that the class of the model
+#' # is not among those it lists)
+#' \donttest{
+#' if (requireNamespace("DHARMa", quietly = TRUE)) {
+#'   res <- suppressWarnings(DHARMa::simulateResiduals(fit, n = 250))
+#'   plot(res)
+#'   DHARMa::testDispersion(res)
+#' }
+#' }
 #'
 #' @export
 #'
