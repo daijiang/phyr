@@ -62,8 +62,7 @@
 #' with `condVar = TRUE` for their standard deviations), [VarCorr()],
 #' [fitted()], [residuals()], [predict()] (with `newdata`, the species are
 #' the row names of `newdata`), [simulate()], [logLik()] and [AIC()]
-#' (`bayes = FALSE`), and [pglmm_profile_LRT()]. With `sparse = TRUE`,
-#' [pglmm_iV()] is not available (nor with `method = "Laplace"`).
+#' (`bayes = FALSE`), [pglmm_profile_LRT()] and [pglmm_iV()].
 #'
 #' **Test of phylogenetic signal.** For models fitted with `bayes = FALSE`,
 #' the element `LRT` is `pglmm_profile_LRT(fit, re.number = 1)`: a likelihood
@@ -73,11 +72,11 @@
 #' parameters). As `s2 = 0` is on the boundary of the parameter space, the
 #' p-value `Pr` is half of the p-value of a chi-square distribution with one
 #' degree of freedom. For binomial and poisson data, the log-likelihood is
-#' the approximate log-likelihood of the penalized quasi-likelihood fit (with
-#' `method = "PQL"`, the default) or the Laplace approximation of the
-#' log-likelihood (with `method = "Laplace"`). It is printed by [summary()].
+#' the Laplace approximation of the log-likelihood (with `method = "Laplace"`,
+#' the default) or the approximate log-likelihood of the penalized
+#' quasi-likelihood fit (with `method = "PQL"`). It is printed by [summary()].
 #'
-#' **Binary and count data.** With `method = "Laplace"`, binomial and
+#' **Binary and count data.** With `method = "Laplace"` (the default), binomial and
 #' poisson models are fitted with the Laplace approximation of the likelihood
 #' instead of penalized quasi-likelihood (PQL), which underestimates the
 #' phylogenetic variance (and with it the phylogenetic signal) for binary data;
@@ -97,17 +96,21 @@
 #'   fixed-effects of the model; for example, Y ~ X. Binomial data can be either 
 #'   presence/absence, or a two-column array of 'successes' and 'failures'. 
 #'   The phylogenetic random term is added automatically; the formula must not
-#'   have random terms.
+#'   have random terms. Offsets (e.g. \code{+ offset(log(area))}) are supported with
+#'   \code{method = "Laplace"} and \code{bayes = TRUE}.
 #' @param data A data frame containing the variables named in formula. It must has
 #' the tip labels of the phylogeny as row names; if they are not in the same order,
 #' the data frame will be arranged so that row names match the order of tip labels.
-#' @param family Either "gaussian" for a Linear Mixed Model, or 
-#'   "binomial" or "poisson" for Generalized Linear Mixed Models.
-#'   \code{family} should be specified as a character string (i.e., quoted). For binomial and 
-#'   Poisson data, we use the canonical logit and log link functions, respectively. 
-#'   Binomial data can be either presence/absence, or a two-column array of 'successes' and 'failures'. 
+#' @param family Either "gaussian" for a Linear Mixed Model, or
+#'   "binomial", "poisson", "nbinomial" (negative binomial) or "Gamma" for Generalized Linear
+#'   Mixed Models.
+#'   \code{family} should be specified as a character string (i.e., quoted). For binomial and
+#'   Poisson data, we use the canonical logit and log link functions, respectively; negative
+#'   binomial and Gamma data use the log link (see [pglmm()]).
+#'   Binomial data can be either presence/absence, or a two-column array of 'successes' and 'failures'.
 #'   If \code{bayes = TRUE} there are
-#'   two additional families available: "zeroinflated.binomial", and "zeroinflated.poisson",
+#'   three additional families available: "zeroinflated.binomial", "zeroinflated.poisson" and
+#'   "zeroinflated.nbinomial",
 #'   which add a zero inflation parameter; this parameter gives the probability that the response is
 #'   a zero. The rest of the parameters of the model then reflect the "non-zero" part 
 #'   of the model. Note that "zeroinflated.binomial" only makes sense for success/failure
@@ -126,11 +129,15 @@
 #' the phylogenetic variance tends to get trapped near zero.
 #' @param s2.init Initial estimate of s2 (default 1; \code{NULL} uses the
 #'   defaults of [pglmm()]).
-#' @param sparse Logical (default \code{FALSE}). If \code{TRUE}, fit the model
-#'   with the sparse precision matrix of the phylogeny, which is much faster for
-#'   large phylogenies (see Details and [pglmm()]). Only with \code{bayes = FALSE}.
-#' @param method For binomial and poisson data, \code{"PQL"} (default) or
-#'   \code{"Laplace"}: see Details and [pglmm()].
+#' @param sparse Whether to fit the model with the sparse precision matrix of the
+#'   phylogeny, which is much faster for large phylogenies (see Details and
+#'   [pglmm()]). The default, \code{NULL}, is \code{TRUE} (with \code{bayes = TRUE},
+#'   unless \code{ML.init = TRUE}; \code{FALSE} before phyr 1.4.0); use \code{sparse = FALSE} for the dense
+#'   covariance matrix (then also returned in \code{vcv.phy}).
+#' @param method For binomial and poisson data, \code{"Laplace"} (default since
+#'   phyr 1.4.0) or \code{"PQL"} (the default of earlier versions): see Details and
+#'   [pglmm()]. Negative binomial and Gamma data are always fitted with
+#'   \code{"Laplace"}.
 #' @inheritParams pglmm
 #' @return An object of class \code{c("pglmm_compare", "communityPGLMM")}: all
 #'   the elements returned by [pglmm()] (see its Value section), and:
@@ -212,7 +219,7 @@
 #' # much faster for large phylogenies
 #' fit_sparse <- pglmm_compare(Y ~ X1, family = "binomial", phy = phy, data = sim.dat,
 #'                             sparse = TRUE)
-#' cbind(dense = fit$B, sparse = fit_sparse$B)
+#' cbind(dense = fit$B[, 1], sparse = fit_sparse$B[, 1])
 #'
 #' # the Laplace approximation of the likelihood (less biased than PQL for
 #' # binary data), with maximum likelihood estimates
@@ -224,14 +231,18 @@
 #' ape::binaryPGLMM(Y ~ X1, phy = phy, data = sim.dat)
 #' 
 #' # Compare with `phyloglm`
-#' summary(phylolm::phyloglm(Y ~ X1, phy = phy, data = sim.dat))
-#' 
+#' if (requireNamespace("phylolm", quietly = TRUE)) {
+#'   summary(phylolm::phyloglm(Y ~ X1, phy = phy, data = sim.dat))
+#' }
+#'
 #' # Compare with `glm` that does not account for phylogeny
 #' summary(glm(Y ~ X1, data = sim.dat, family = "binomial"))
-#' 
+#'
 #' # Compare with logistf() that does not account
 #' # for phylogeny but is less biased than glm()
-#' logistf::logistf(Y ~ X1, data = sim.dat)
+#' if (requireNamespace("logistf", quietly = TRUE)) {
+#'   logistf::logistf(Y ~ X1, data = sim.dat)
+#' }
 #' 
 #' ## Fit model with bayes = TRUE
 #' # pglmm_compare(Y ~ X1, family = "binomial", phy = phy, data = sim.dat, 
@@ -273,9 +284,9 @@ pglmm_compare <- function(formula, family = "gaussian",
                           prior_alpha = 0.1, prior_mu = 1, ML.init = FALSE, s2.init = 1, B.init = NULL,
                           calc.WAIC = TRUE, bayes_options = NULL, posterior.sample = TRUE,
                           return.fitted.marginals = TRUE,
-                          sparse = FALSE, standardize_cov = TRUE,
-                          method = c("PQL", "Laplace")) {
-  method <- match.arg(method)
+                          sparse = NULL, standardize_cov = TRUE,
+                          method = c("Laplace", "PQL")) {
+  # method is matched by pglmm_fit() (the default is "Laplace" for nbinomial and Gamma)
   if (!inherits(phy, "phylo")) stop("phy must be a phylogeny with class 'phylo'.", call. = FALSE)
   if (!is.null(reformulas::findbars(formula))) {
     stop("The formula of pglmm_compare() has fixed effects only: the phylogenetic random term ",
@@ -345,6 +356,7 @@ pglmm_compare <- function(formula, family = "gaussian",
       NULL
     })
   }
+  z$call <- pglmm_store_call(match.call(), environment())
   class(z) <- c("pglmm_compare", "communityPGLMM", "pglmm")
   z
 }
@@ -392,29 +404,10 @@ summary.pglmm_compare <- function(object, digits = max(3, getOption("digits") - 
   x <- object # summary generic function first argument is object, not x.
   if(is.null(x$bayes)) x$bayes = FALSE # to be compatible with models fitting by pez
   
-  if(x$bayes) {
-    if (x$family == "gaussian") {
-      cat("Linear mixed model fit by Bayesian INLA")
-    }
-    if (x$family == "binomial") {
-      cat("Generalized linear mixed model for binomial data fit by Bayesian INLA")
-    }
-    if (x$family == "poisson") {
-      cat("Generalized linear mixed model for poisson data fit by Bayesian INLA")
-    }
-    if (x$family == "zeroinflated.binomial") {
-      cat("Generalized linear mixed model for binomial data with zero inflation fit by Bayesian INLA")
-    }
-    if (x$family == "zeroinflated.poisson") {
-      cat("Generalized linear mixed model for poisson data with zero inflation fit by Bayesian INLA")
-    }
-  } else {
-    cat(pglmm_fit_title(x))
-  }
+  cat(if (x$bayes) pglmm_bayes_title(x) else pglmm_fit_title(x))
   
-  cat("\n\nCall:")
-  print(x$formula)
-  cat("\n")
+  # the formula with the random terms, without its environment
+  cat("\n\nFormula: ", deparse1(formula(x)), "\n\n", sep = "")
   
   if(x$bayes) {
     logLik <- c("marginal logLik" = unname(x$logLik), "DIC" = unname(x$DIC),
@@ -435,7 +428,8 @@ summary.pglmm_compare <- function(object, digits = max(3, getOption("digits") - 
     cat("\nZero Inflation Parameter:\n")
     print(data.frame(Estimate = x$zi, lower.CI = x$zi.ci[1, 1], upper.CI = x$zi.ci[1, 2]), digits = digits)
   }
-  
+  pglmm_print_disp(x, digits)
+
   cat("\nPhylogenetic random effects variance (s2):\n")
   w <- data.frame(Variance = c(x$s2n, x$s2resid))
   w$Std.Dev = sqrt(w$Variance)

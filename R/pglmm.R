@@ -128,20 +128,64 @@
 #'
 #'   Note that correlated random terms are not allowed. For example,
 #'   \code{(x|g)} will be the same as \code{(0 + x|g)} in the \code{lme4::lmer} syntax. However,
-#'   \code{(x1 + x2|g)} won't work, so instead use  \code{(x1|g) + (x2|g)}.
+#'   \code{(x1 + x2|g)} won't work, so instead use  \code{(x1|g) + (x2|g)}, or
+#'   \code{(x1 + x2||g)}. As the random intercept and slope of \code{(1|g) + (x|g)} are
+#'   independent, the model depends on where \code{x} is zero: the variance among the levels
+#'   of \code{g} is that of the intercept plus \eqn{x^2} times that of the slope. With a 0/1
+#'   covariate (e.g. a control and a treatment), the levels then vary more in the treatment
+#'   than in the control by construction. Center continuous covariates of random slopes
+#'   (e.g. \code{x - mean(x)}) and code two-level factors as -1/+1 (equal variance in both
+#'   groups) unless zero is a meaningful reference. Covariates of random slopes must be
+#'   numeric columns of \code{data}.
+#'
+#'   Grouping factors are columns of \code{data}. Their interactions as in \code{lme4},
+#'   e.g. \code{(1|sp:site)}, are fitted as the nested terms \code{(1|sp@site)}, and
+#'   \code{(1|site/sp)} as \code{(1|site) + (1|sp@site)}.
+#'
+#'   The formula can have offsets, e.g. \code{+ offset(log(effort))} for counts with
+#'   different sampling efforts or areas: terms of the linear predictor with a known
+#'   coefficient of one. They are supported with \code{method = "Laplace"} (binomial,
+#'   poisson and negative binomial models) and \code{bayes = TRUE}, and are included in the
+#'   predicted values (\code{predict()}, \code{fitted()}, \code{simulate()}; with
+#'   \code{newdata}, the offset is calculated from it).
 #' @param data A \code{\link{data.frame}} containing the variables named in formula.
-#'   Rows where the response variable is \code{NA} are dropped before fitting; this
-#'   is equivalent to removing those rows from \code{data} manually before calling
-#'   \code{pglmm}. As a result, \code{pglmm(data_with_NAs)} and
-#'   \code{pglmm(data[!is.na(data$y), ])} produce identical estimates.
+#'   Rows with missing values in the response, the fixed effects, the grouping variables
+#'   or the covariates of random slopes are dropped before fitting; this is equivalent to
+#'   removing those rows from \code{data} manually before calling \code{pglmm}. As a
+#'   result, \code{pglmm(data_with_NAs)} and \code{pglmm(na.omit(data[, vars]))} (with
+#'   \code{vars} the variables of the model) produce identical estimates. With
+#'   \code{random.effects}, only the rows with missing values in the response are dropped.
 #' @param family Either "gaussian" for a Linear Mixed Model, or
-#'   "binomial" or "poisson" for Generalized Linear Mixed Models.
+#'   "binomial", "poisson", "nbinomial" or "Gamma" for Generalized Linear Mixed Models.
 #'   "family" should be specified as a character string (i.e., quoted). For binomial and
 #'   Poisson data, we use the canonical logit and log link functions, respectively.
 #'   Binomial data can be either presence/absence, or a two-column array of 'successes' and 'failures'.
 #'   For both binomial  and Poisson data, we add an observation-level
-#'   random term by default via \code{add.obs.re = TRUE}. If \code{bayes = TRUE} there are
-#'   two additional families available: "zeroinflated.binomial", and "zeroinflated.poisson",
+#'   random term by default via \code{add.obs.re = TRUE}.
+#'
+#'   "nbinomial" is the negative binomial distribution for overdispersed counts, with the log
+#'   link and the variance \eqn{\mu + \mu^2 / \theta}{mu + mu^2 / theta} given the random
+#'   effects (as \code{lme4::glmer.nb()}, \code{glmmTMB(family = nbinom2)} and
+#'   \code{MASS::glm.nb()}). Its dispersion parameter \eqn{\theta}{theta} is estimated with the
+#'   other parameters (element \code{theta} of the fitted model); \eqn{\theta = \infty}{theta = Inf}
+#'   is the poisson distribution. As \eqn{\theta}{theta} accounts for overdispersion, no
+#'   observation-level random term is added. With \code{bayes = FALSE}, negative binomial models
+#'   are always fitted with \code{method = "Laplace"}, with starting values from
+#'   \code{MASS::glm.nb()}.
+#'
+#'   "Gamma" (or "gamma") is the Gamma distribution for positive continuous responses (e.g.
+#'   biomass, body size, durations), with the log link and the variance
+#'   \eqn{\mu^2 / \nu}{mu^2 / shape} given the random effects (as \code{glm()},
+#'   \code{lme4::glmer()} and \code{glmmTMB()} with \code{family = Gamma(link = "log")}). Its shape
+#'   parameter \eqn{\nu}{shape} is estimated with the other parameters (element \code{shape} of the
+#'   fitted model; \code{sigma()} of \code{glmmTMB} is \eqn{1/\sqrt{\nu}}{1 / sqrt(shape)}, the
+#'   coefficient of variation). No observation-level random term is added. Gamma models are only
+#'   available with \code{bayes = FALSE}, and are always fitted with \code{method = "Laplace"},
+#'   with starting values from \code{glm()} and \code{MASS::gamma.shape()}.
+#'
+#'   If \code{bayes = TRUE} there are
+#'   three additional families available: "zeroinflated.binomial", "zeroinflated.poisson" and
+#'   "zeroinflated.nbinomial",
 #'   which add a zero inflation parameter; this parameter gives the probability that the response is
 #'   a zero. The rest of the parameters of the model then reflect the "non-zero" part part
 #'   of the model. Note that "zeroinflated.binomial" only makes sense for success/failure
@@ -176,12 +220,13 @@
 #'   default for Gaussian, also available for binomial/Poisson), \code{"nelder-mead-nlopt"}
 #'   (default for binomial/Poisson), \code{"bobyqa"}, \code{"Nelder-Mead"}, or \code{"subplex"}.
 #'   \code{"Nelder-Mead"} is from the stats package; all others are from the nloptr package.
-#'   With \code{sparse = TRUE}, the default (and \code{"lbfgs"}, as there is no gradient) is
-#'   \code{"subplex"}, \code{"nelder-mead-nlopt"} and \code{"Nelder-Mead"} both use the
-#'   Nelder-Mead algorithm of nloptr, and the optimizer is restarted from its solution until the
-#'   likelihood does not improve (for gaussian models; for binomial and poisson models, each
-#'   PQL iteration already starts the optimizer from the previous solution). Ignored if
-#'   \code{bayes = TRUE} or \code{method = "Laplace"}.
+#'   With \code{sparse = TRUE}, the default (and \code{"lbfgs"}) is \code{nlminb()} with the
+#'   analytic gradient of the likelihood (see \code{sparse}); \code{"subplex"},
+#'   \code{"nelder-mead-nlopt"}, \code{"Nelder-Mead"} (both the Nelder-Mead algorithm of nloptr)
+#'   and \code{"bobyqa"} are derivative-free, and the optimizer is restarted from its solution
+#'   until the likelihood does not improve (for gaussian models; for binomial and poisson
+#'   models, each PQL iteration already starts the optimizer from the previous solution). Ignored
+#'   if \code{bayes = TRUE} or \code{method = "Laplace"}.
 #' @param repulsion When there are nested random terms specified, \code{repulsion = FALSE} tests
 #'   for phylogenetic underdispersion while \code{repulsion = TRUE} tests for overdispersion.
 #'   This argument is a logical vector of length either 1 or >1.
@@ -204,14 +249,20 @@
 #' @param verbose If \code{TRUE}, the model deviance and running
 #'   estimates of \code{s2} and \code{B} are plotted each iteration
 #'   during optimization.
-#' @param cpp Whether to use C++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE}.
+#' @param cpp Whether to use C++ function for optim. Default is TRUE. Only used by the dense
+#'   code (\code{sparse = FALSE}, which is the default only for models that the sparse code does
+#'   not support, see \code{sparse}); ignored if \code{bayes = TRUE}, \code{sparse = TRUE} or
+#'   \code{method = "Laplace"} (and thus for \code{family = "nbinomial"} and \code{"Gamma"}):
+#'   these models are fitted with R code, with the sparse Cholesky factorizations of the Matrix
+#'   package (CHOLMOD).
 #' @param bayes Whether to fit a Bayesian version of the PGLMM using \code{r-inla}.
 #' @param s2.init An array of initial estimates of s2 for each random
 #'   effect that scales the variance. If s2.init is not provided for
 #'   \code{family="gaussian"}, these are estimated using \code{\link{lm}} assuming
 #'   no phylogenetic signal. A better approach might be to run \code{link[lme4:lmer]{lmer}}
 #'   and use the output random effects for \code{s2.init}. If \code{s2.init} is not
-#'   provided for \code{family = "binomial"}, these are set to 0.25.
+#'   provided for \code{family = "binomial"}, these are set to 0.25 (with
+#'   \code{method = "Laplace"}, 0.25 for the variances multiplied by \code{scale_factors}).
 #'   For \code{family = "gaussian"} and \code{bayes = FALSE}, the model is parameterized with the
 #'   variances of random terms relative to the residual variance (see \code{ss} in the Value
 #'   section), and \code{s2.init} gives the starting values of these ratios.
@@ -308,7 +359,17 @@
 #'   up fitting when simulation is not needed. If both \code{posterior.sample} and
 #'   \code{return.fitted.marginals} are \code{FALSE}, INLA runs at maximum speed but \code{simulate()} will
 #'   not work on the fitted model.
-#' @param sparse Logical (default \code{FALSE}). If \code{TRUE}, fit the model with the sparse
+#' @param sparse Whether to fit the model with the sparse precision matrix of the phylogeny
+#'   (\code{TRUE}) or with the dense covariance matrices (\code{FALSE}). The default,
+#'   \code{NULL}, is \code{TRUE} whenever the sparse code supports the model, i.e. with
+#'   random terms in the formula (not \code{random.effects}), phylogenies
+#'   (class \code{phylo}, not covariance matrices) in \code{cov_ranef}, and, with
+#'   \code{bayes = TRUE}, \code{ML.init = FALSE} and \code{repulsion = FALSE}; \code{FALSE}
+#'   otherwise (it was
+#'   \code{FALSE} before phyr 1.4.0). Both give the same model; the estimates can differ
+#'   slightly, as the optimizers differ (for binomial and poisson models fitted by PQL, the
+#'   log-likelihood also depends on the path of the iterations). With \code{TRUE}, the model is
+#'   fitted with the sparse
 #'   precision matrix of the phylogeny (which includes its internal nodes) and a sparse Cholesky
 #'   decomposition, instead of the dense phylogenetic covariance matrix. This gives the same
 #'   likelihood, but the time and memory needed grow about linearly with the number of species,
@@ -323,9 +384,30 @@
 #'   quasi-likelihood (PQL) iterations as with \code{sparse = FALSE} (same updates and
 #'   convergence rules, \code{tol.pql} and \code{maxit.pql}); at each iteration, the working
 #'   weights change only the values of the sparse matrix, and the observation-level term
-#'   \code{1|obs} is folded into the weights. Only available with \code{bayes = FALSE},
-#'   and phylogenies (class \code{phylo}) in \code{cov_ranef}. The default optimizer is then
-#'   \code{"subplex"} (see \code{optimizer}), with \code{reltol = 1e-8}.
+#'   \code{1|obs} is folded into the weights. Only available with phylogenies (class
+#'   \code{phylo}) in \code{cov_ranef}. With \code{bayes = TRUE}, the model is given to INLA
+#'   with one of the sparse representations of \code{sparse_method}; use \code{sparse = FALSE}
+#'   for the dense INLA model of earlier versions (needed for \code{ranef()},
+#'   \code{predict()} with \code{newdata} and \code{simulate()} with \code{re.form = NA},
+#'   see \code{sparse_method}).
+#'
+#'   With \code{bayes = FALSE}, the variances (for gaussian models, relative to the residual variance; for binomial and
+#'   poisson models, at each PQL iteration) are estimated with \code{nlminb()} and the analytic
+#'   gradient of the likelihood, with a relative tolerance \code{reltol = 1e-10} by default.
+#'   The gradient needs the entries of the inverse of the sparse matrix on its pattern (its
+#'   selected inverse, from the Cholesky factor, in C++), which cost about as much as a
+#'   factorization. As for \code{method = "Laplace"}, the variances are optimized multiplied by
+#'   their \code{scale_factors}, with a lower bound of zero (in practice \eqn{10^{-12}},
+#'   reported as zero). As a phylogenetic term such as \code{1|sp__} and its non-phylogenetic
+#'   partner \code{1|sp} are nearly confounded, the likelihood can have a local optimum where both
+#'   variances are positive, and a better one where one of them is zero; the optimization is thus
+#'   also started from the two "corners" where one of these variances has their sum and the other
+#'   is zero, and the best solution is kept (each corner is first tried with a few iterations, and
+#'   the optimization goes on only if it is then already better). The derivative-free
+#'   optimizers of earlier versions can still be used with \code{optimizer = "subplex"},
+#'   \code{"nelder-mead-nlopt"} or \code{"bobyqa"} (with \code{reltol = 1e-8} by default);
+#'   \code{"lbfgs"} also uses \code{nlminb()} and the gradient. \code{ranef(condVar = TRUE)}
+#'   uses the selected inverse too.
 #'
 #'   The sparse precision matrix exists because the trait evolves along the branches as a
 #'   Markov process (the value at a node depends only on its parent). This is not limited to
@@ -342,6 +424,34 @@
 #'   is exact for ultrametric trees; for non-ultrametric trees, check that it matches the
 #'   assumption about the root. Covariance matrices that cannot be written as a tree with
 #'   non-negative branch lengths (e.g. an arbitrary similarity matrix) need \code{sparse = FALSE}.
+#' @param sparse_method With \code{sparse = TRUE} and \code{bayes = TRUE}, how the
+#'   phylogenetic terms are given to INLA. \code{"precision"} (default): as a latent field
+#'   over all nodes of the phylogeny (tips and internal nodes, without the root), with the
+#'   sparse precision matrix of \code{sparse = TRUE}; the posterior of the internal nodes
+#'   (ancestral states) comes with the fit. \code{"flow"}: in the phylogenetic flow
+#'   representation of the phyf and fibre packages, as independent rates of evolution
+#'   \eqn{r_b} on the branches, \eqn{u_i = \sum_b \ell_b r_b} for the branches \eqn{b} from
+#'   the root to tip \eqn{i}, with \eqn{r_b \sim N(0, \sigma^2 / \ell_b)} and \eqn{\ell_b}
+#'   the (standardized) branch lengths. The trait then changes by \eqn{\ell_b r_b} along
+#'   each branch, with variance \eqn{\sigma^2 \ell_b}, so that the covariance matrix of the
+#'   tips is the same as with \code{"precision"} (Brownian motion), and the two give the
+#'   same model; \code{"flow"} gives the posterior of the rates, on the scale of the trait
+#'   per unit of branch length of the phylogenies in \code{cov_ranef}. For nested terms with
+#'   phylogenies (e.g. \code{(1 | sp__@site)}, \code{(1 | sp__@site__)}), the rates are those
+#'   of the pairs of branches (or of a branch and a level), from the row-wise Kronecker
+#'   product of the two flow matrices, with \eqn{r \sim N(0, \sigma^2 / (\ell_1 \ell_2))},
+#'   which gives the covariance matrix of the Kronecker product of the two covariance
+#'   matrices. Terms without phylogeny are the same with both methods. The estimates of the
+#'   rates (\code{"flow"}) or of the nodes of non-nested phylogenetic terms
+#'   (\code{"precision"}) are in \code{bayes_sparse$latent} of the fitted model. Both methods
+#'   report the marginal log-likelihood of the model (\code{logLik}; with \code{"flow"}, INLA's
+#'   value with the matrix \code{A} can differ from that of \code{"precision"} by about one
+#'   unit); \code{"flow"} is only available with \code{bayes = TRUE} for now. \code{repulsion}, \code{ML.init},
+#'   \code{ranef()}, \code{predict()} with \code{newdata} and \code{simulate()} with
+#'   \code{re.form = NA} (any \code{simulate()} for \code{"flow"}) are not available yet for
+#'   these models. With \code{"flow"}, the rates are linked to the observations by the matrix
+#'   \code{A} of \code{control.predictor} of INLA (as in fibre), so \code{inla.model} has more
+#'   fitted values than observations (the first ones are those of the observations).
 #' @param standardize_cov Logical (default \code{TRUE}). Whether to standardize the covariance
 #'   matrices of \code{cov_ranef} to have a determinant of one (a phylogeny is first converted to
 #'   its covariance matrix, which is divided by its largest element). If \code{FALSE}, the matrices
@@ -355,10 +465,12 @@
 #'   choice; only the scale of the variances (and of \code{s2.init}) does. Not used when
 #'   \code{random.effects} is given.
 #' @param method For binomial and poisson models with \code{bayes = FALSE}, the
-#'   approximation of the likelihood: \code{"PQL"} (default) for penalized
-#'   quasi-likelihood, as in earlier versions, or \code{"Laplace"} for the Laplace
-#'   approximation of the marginal likelihood, as in \code{lme4::glmer()} (with
-#'   \code{nAGQ = 1}) and \code{glmmTMB}. PQL is known to underestimate the variances of
+#'   approximation of the likelihood (negative binomial and Gamma models, \code{family =
+#'   "nbinomial"} and \code{"Gamma"}, are always fitted with \code{"Laplace"}):
+#'   \code{"Laplace"} (default since phyr 1.4.0) for the Laplace approximation of the
+#'   marginal likelihood, as in \code{lme4::glmer()} (with \code{nAGQ = 1}) and
+#'   \code{glmmTMB}, or \code{"PQL"} for penalized quasi-likelihood (the default of earlier
+#'   versions, and with \code{random.effects}, which the Laplace code does not support). PQL is known to underestimate the variances of
 #'   random terms, and to shrink the fixed effects towards zero, for binary data and counts
 #'   with small means; the Laplace approximation is much less biased, and its
 #'   log-likelihood approximates the marginal likelihood of the model, so that it can be
@@ -371,7 +483,8 @@
 #'   precision matrix of all its nodes, and a covariance matrix in \code{cov_ranef} its (dense)
 #'   inverse. The time to fit a model thus grows about linearly with the number of species,
 #'   and nested terms and \code{repulsion} are supported. The random terms must be given in
-#'   the formula (\code{random.effects} is not supported). The mode of the random effects
+#'   the formula (\code{random.effects} is not supported: models with it are fitted with PQL
+#'   by default). The mode of the random effects
 #'   (including the observation-level term \code{1|obs}) is found by Newton iterations. The
 #'   variances of the random terms are estimated first with the fixed effects at the mode
 #'   (as \code{glmer(nAGQ = 0)}); this is the final fit with \code{REML = TRUE}, where the
@@ -381,25 +494,31 @@
 #'   \code{glmmTMB}), and the covariance matrix of the fixed effects is from the inverse of
 #'   the (numerical) Hessian of the log-likelihood over the fixed effects and the standard
 #'   deviations of the random terms, as in these packages. The optimizer is
-#'   \code{nlminb()}, on the scale of the variances (with a lower bound of zero), with
-#'   gradients by finite differences; \code{optimizer}, \code{tol.pql} and
+#'   \code{nlminb()}, on the scale of the variances multiplied by their \code{scale_factors}
+#'   (the variances of an average level, with a lower bound of zero; the default starting
+#'   values are 0.25 on this scale), and of the dispersion of negative binomial and Gamma
+#'   models (\eqn{1/\theta}{1/theta}, 1/shape), with analytic gradients, restarted from the
+#'   corners of the
+#'   variances of phylogenetic terms and their partners (see \code{sparse});
+#'   \code{optimizer}, \code{tol.pql} and
 #'   \code{maxit.pql} are not used. [ranef()] gives the conditional modes of the random
 #'   effects, and \code{condVar = TRUE} their conditional standard deviations from the
 #'   Hessian of the Laplace approximation (conditional on the estimates of the parameters).
-#'   [pglmm_iV()] is not available for these models.
+#'   [pglmm_iV()] gives the inverse of the covariance matrix of the working response at
+#'   the mode.
 #'
 #'   Choosing between them:
 #'   \itemize{
-#'     \item \code{"PQL"} (default): fastest (about 3--4 times faster than \code{"Laplace"}),
-#'       supports every model of \code{pglmm()} (including \code{random.effects} and
-#'       [pglmm_iV()]), and gives the same estimates as earlier versions of phyr. But its
+#'     \item \code{"PQL"} (the default of earlier versions): often faster (about 1--3 times
+#'       with \code{sparse = TRUE}), supports every model of \code{pglmm()} (including
+#'       \code{random.effects}), and gives the same estimates as earlier versions of phyr. But its
 #'       estimates are biased for binary data: compared with \code{"Laplace"} (and
 #'       \code{glmer()}/\code{glmmTMB}), the fixed effects were about 5--10% closer to zero
 #'       and the variances of random terms about 10--30% smaller in our comparisons. For counts,
 #'       the differences were small (variances a few percent smaller). Its log-likelihood is not that
 #'       of the model, so AIC and likelihood ratio tests (including tests for phylogenetic
 #'       signal with [pglmm_profile_LRT()]) are only rough approximations.
-#'     \item \code{"Laplace"}: gives the same estimates and log-likelihood as
+#'     \item \code{"Laplace"} (default): gives the same estimates and log-likelihood as
 #'       \code{lme4::glmer()} and \code{glmmTMB} (to optimizer tolerance), much less biased
 #'       estimates (about unbiased fixed effects with \code{REML = FALSE}, and the least biased
 #'       phylogenetic variance with \code{REML = TRUE}), and a log-likelihood that can be used
@@ -414,8 +533,24 @@
 #' @return An object (list) of class \code{communityPGLMM} with the following elements:
 #' \item{formula}{the formula for fixed effects}
 #' \item{formula_original}{the formula for both fixed effects and random effects}
+#' \item{call}{the call of \code{pglmm()}, used by \code{update()} (and \code{anova()}, to refit REML fits by maximum likelihood)}
+#' \item{re_terms}{the random terms of the formula, as a named list (one element per term,
+#'   e.g. \code{"1|sp"} and \code{"1|sp__"} for \code{(1 | sp__)}) with the covariate
+#'   (\code{lhs}, \code{"1"} for intercepts), the grouping variables (\code{group}),
+#'   whether each has a phylogeny or covariance matrix (\code{phy}), and whether the term is
+#'   nested (\code{nested}) and, for nested terms, whether each covariance matrix is inverted
+#'   (\code{repulsion}); \code{NULL} with \code{random.effects}}
 #' \item{data}{the dataset}
-#' \item{family}{\code{gaussian}, \code{binomial}, or \code{poisson} depending on the model fit}
+#' \item{family}{\code{gaussian}, \code{binomial}, \code{poisson}, \code{nbinomial} or
+#'   \code{Gamma} depending on the model fit}
+#' \item{theta}{for negative binomial models, the estimate of the dispersion parameter
+#'   \eqn{\theta}{theta} (\code{Inf} if the data are not overdispersed: the poisson model); for
+#'   \code{bayes = TRUE}, its posterior summary, with the credible interval in \code{theta.ci}.
+#'   It is \code{sigma()} of \code{glmmTMB(family = nbinom2)} models and
+#'   \code{getME(, "glmer.nb.theta")} of \code{lme4::glmer.nb()} models.}
+#' \item{shape}{for Gamma models, the estimate of the shape parameter \eqn{\nu}{shape} (the
+#'   variance is \eqn{\mu^2 / \nu}{mu^2 / shape}); \code{1 / sigma()^2} of \code{glmmTMB()} models
+#'   with \code{family = Gamma(link = "log")}.}
 #' \item{random.effects}{the list of random effects}
 #' \item{B}{estimates of the regression coefficients}
 #' \item{B.se}{approximate standard errors of the fixed effects regression coefficients.
@@ -473,7 +608,10 @@
 #' \item{s2resid.ci}{Bayesian credible interval for linear mixed models, the residual variance.
 #' This is set to NULL if \code{bayes = FALSE}}
 #' \item{logLik}{the log-likelihood, restricted (\code{REML = TRUE}) or not (\code{REML = FALSE}).
-#'   For binomial and poisson models fitted with \code{method = "PQL"}, it is an approximation
+#'   For gaussian models with \code{REML = TRUE}, it is the restricted log-likelihood of
+#'   \code{lmer()}, \code{glmmTMB()} and \code{nlme::lme()} (the likelihood integrated over the
+#'   fixed effects); versions of phyr before 1.4.0 added \eqn{\log|X'X|/2}{log|X'X| / 2}
+#'   to it. For binomial and poisson models fitted with \code{method = "PQL"}, it is an approximation
 #'   from the gaussian model of the working response; with \code{method = "Laplace"}, it is the
 #'   Laplace approximation of the (restricted) marginal log-likelihood, the same as that of
 #'   \code{glmer()} and \code{glmmTMB()}. If \code{bayes = TRUE}, this is the marginal
@@ -537,6 +675,39 @@
 #' session when a model with at least 1000 observations is fitted on a Mac
 #' with the reference BLAS; use `options(phyr.blas.hint = FALSE)` to turn it
 #' off. `extSoftVersion()["BLAS"]` shows the BLAS library that R uses.
+#'
+#' For large models with a phylogeny (at least 2000 observations or 300 tips)
+#' fitted with `sparse = FALSE`, `pglmm()` shows a message once per session
+#' suggesting `sparse = TRUE`; use `options(phyr.sparse.hint = FALSE)` to turn it
+#' off.
+#'
+#' @section Phylogenetic and non-phylogenetic terms:
+#' A phylogenetic term such as `(1 | sp__)` fits two terms, `1|sp__`, with the
+#' phylogenetic covariance matrix, and `1|sp`, independent among species; a
+#' random slope `(x | sp__)` likewise fits `x|sp__` and `x|sp`. The variation
+#' among species is thus split between a part that follows the phylogeny
+#' (Brownian motion) and a part specific to each species (e.g. local adaptation,
+#' plasticity or measurement differences), and the data decide which is more
+#' important: either variance can be estimated as zero. Fitting the
+#' phylogenetic term alone (as with a single `propto()` term in glmmTMB)
+#' assumes that all the differences among species follow the phylogeny: the
+#' species-specific variation is then forced into the phylogenetic variance (or
+#' the residuals), which can distort it and the standard errors of the fixed
+#' effects. The ratio of the phylogenetic variance (multiplied by its
+#' `scale_factors`) to the sum of the two is a measure of phylogenetic signal,
+#' as Pagel's lambda (see the examples of [VarCorr()]).
+#'
+#' The two terms are nearly confounded, and with few species or few rows per
+#' species, the data may not separate them well, even when their sum is well
+#' estimated. [confint()] gives profile likelihood intervals of the two
+#' variances, which are then both wide, and [pglmm_profile_LRT()] tests whether
+#' a term is needed (its p-value is halved, as a variance of zero is at the
+#' boundary of its range). The likelihood can also have a local
+#' optimum with both variances positive and a better one with one of them at
+#' zero, which the default optimizer of `sparse = TRUE` and
+#' `method = "Laplace"` checks (see `sparse`). The one case where the
+#' non-phylogenetic term cannot be estimated is comparative data, with one row
+#' per species (next section).
 #'
 #' @section Comparative data:
 #' A phylogenetic term such as `(1 | sp__)` also adds the non-phylogenetic
@@ -604,7 +775,6 @@
 #' # and phylogenetic models: a conceptual introduction to correlated data.
 #'
 #' library(ape)
-#' library(mvtnorm)
 #'
 #' # Investigating covariance matrices for different types of model structure
 #' nspp <- 6
@@ -638,7 +808,9 @@
 #' # Construct the overall covariance matrix for phylogenetic attraction.
 #' # (For an explanation of Kronecker products, see subsection 4.3.1 in the book)
 #' V <- kronecker(diag(nrow = nsite, ncol = nsite), Vphy)
-#' Y.attract <- array(t(rmvnorm(n = 1, sigma = sd.attract^2 * V)))
+#' # (a draw from the multivariate normal distribution with covariance matrix
+#' # sd.attract^2 * V, from its Cholesky decomposition)
+#' Y.attract <- array(t(chol(sd.attract^2 * V)) %*% rnorm(nrow(V)))
 #'
 #' # Simulate residual errors
 #' sd.e <- 1
@@ -694,19 +866,19 @@
 #' Vphy.sp <- vcv(phy.sp)
 #' Vphy.sp <- Vphy.sp / (det(Vphy.sp)^(1 / nspp))
 #' V.sp <- kronecker(diag(nrow = nsite, ncol = nsite), Vphy.sp)
-#' Y.sp.attract <- array(t(rmvnorm(n = 1, sigma = sd.sp.attract^2 * V.sp)))
+#' Y.sp.attract <- array(t(chol(sd.sp.attract^2 * V.sp)) %*% rnorm(nrow(V.sp)))
 #'
 #' # Generate covariance matrix for phylogenetic attraction among sites
 #' sd.site.attract <- 1
 #' Vphy.site <- vcv(phy.site)
 #' Vphy.site <- Vphy.site/(det(Vphy.site)^(1/nsite))
 #' V.site <- kronecker(Vphy.site, diag(nrow = nspp, ncol = nspp))
-#' Y.site.attract <- array(t(rmvnorm(n = 1, sigma = sd.site.attract^2*V.site)))
+#' Y.site.attract <- array(t(chol(sd.site.attract^2 * V.site)) %*% rnorm(nrow(V.site)))
 #'
 #' # Generate covariance matrix for phylogenetic attraction of species:site interaction
 #' sd.sp.site.attract <- 1
 #' V.sp.site <- kronecker(Vphy.site, Vphy.sp)
-#' Y.sp.site.attract <- array(t(rmvnorm(n = 1, sigma = sd.sp.site.attract^2*V.sp.site)))
+#' Y.sp.site.attract <- array(t(chol(sd.sp.site.attract^2 * V.sp.site)) %*% rnorm(nrow(V.sp.site)))
 #'
 #' # Simulate residual error
 #' sd.e <- 0.5
@@ -771,8 +943,9 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
                   bayes_nested_matrix_as_list = FALSE,
                   posterior.sample = TRUE,
                   return.fitted.marginals = TRUE,
-                  sparse = FALSE, standardize_cov = TRUE, method = c("PQL", "Laplace")) {
-  pglmm_fit(
+                  sparse = NULL, standardize_cov = TRUE, method = c("Laplace", "PQL"),
+                  sparse_method = c("precision", "flow")) {
+  z <- pglmm_fit(
     formula = formula, data = data, family = family, cov_ranef = cov_ranef,
     random.effects = random.effects, REML = REML, optimizer = optimizer,
     repulsion = repulsion, add.obs.re = add.obs.re, verbose = verbose,
@@ -785,8 +958,23 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
     posterior.sample = posterior.sample,
     return.fitted.marginals = return.fitted.marginals,
     sparse = sparse, standardize_cov = standardize_cov, method = method,
-    reltol.given = !missing(reltol)
+    reltol.given = !missing(reltol), sparse_method = sparse_method
   )
+  z$call <- pglmm_store_call(match.call(), environment())
+  z
+}
+
+# The call of pglmm() (or pglmm_compare()) to keep in the fitted model, for
+# update(): arguments passed through the ... of another function (..1, ..2,
+# which cannot be evaluated later) are replaced by their values (env: the
+# frame of the function, where they are its arguments)
+pglmm_store_call <- function(cl, env) {
+  for (a in setdiff(names(cl), "")) {
+    if (is.symbol(cl[[a]]) && grepl("^\\.\\.[0-9]+$", as.character(cl[[a]]))) {
+      cl[[a]] <- get(a, envir = env)
+    }
+  }
+  cl
 }
 
 # The function that fits pglmm() models. `phylo_only = TRUE` (used by
@@ -810,10 +998,38 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
                       bayes_nested_matrix_as_list = FALSE,
                       posterior.sample = TRUE,
                       return.fitted.marginals = TRUE,
-                      sparse = FALSE, standardize_cov = TRUE, phylo_only = FALSE,
-                      method = c("PQL", "Laplace"), reltol.given = !missing(reltol)) {
+                      sparse = NULL, standardize_cov = TRUE, phylo_only = FALSE,
+                      method = c("Laplace", "PQL"), reltol.given = !missing(reltol),
+                      sparse_method = c("precision", "flow")) {
+  family <- pglmm_family_name(family) # "gamma" for "Gamma"
+  method.given <- length(method) == 1 # (the default is c("Laplace", "PQL"))
+  if (family %in% pglmm_laplace_only_families && !bayes) {
+    # negative binomial and Gamma models are only fitted with the Laplace
+    # approximation (PQL has no likelihood to estimate their dispersion with)
+    if (length(method) == 1 && identical(match.arg(method, c("PQL", "Laplace")), "PQL")) {
+      stop('family = "', family, '" is only available with method = "Laplace".', call. = FALSE)
+    }
+    method <- "Laplace"
+  }
+  # binomial and poisson models with random.effects (not supported by the
+  # Laplace code): PQL by default
+  if (!method.given && !is.null(random.effects)) method <- "PQL"
   method <- match.arg(method)
-  laplace <- method == "Laplace" && !bayes && family %in% c("binomial", "poisson")
+  sparse_method <- match.arg(sparse_method)
+  if (sparse_method == "flow" && !bayes) {
+    stop("sparse_method = \"flow\" is only available with bayes = TRUE for now.", call. = FALSE)
+  }
+  laplace <- method == "Laplace" && !bayes && family %in% pglmm_laplace_families
+  # sparse = NULL (default): the sparse code whenever it supports the model;
+  # TRUE or FALSE as given
+  if (!is.null(sparse) && !isTRUE(sparse) && !isFALSE(sparse)) {
+    stop("sparse must be TRUE, FALSE or NULL (the default: the sparse code whenever it supports ",
+         "the model).", call. = FALSE)
+  }
+  if (is.null(sparse)) {
+    sparse <- pglmm_sparse_default(formula, cov_ranef, tree, tree_site, random.effects, bayes,
+                                   ML.init = ML.init, repulsion = repulsion)
+  }
   valid_optimizers <- c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex", "lbfgs")
   optimizer.given <- !is.null(optimizer)
   if (is.null(optimizer)) {
@@ -822,57 +1038,75 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
     optimizer <- match.arg(optimizer, valid_optimizers)
   }
 
-  if ((family %nin% c("gaussian", "binomial", "poisson")) & (bayes == FALSE)) {
-    stop("\nSorry, but only binomial, poisson and gaussian options are available for
+  if ((family %nin% c("gaussian", pglmm_laplace_families)) & (bayes == FALSE)) {
+    stop("\nSorry, but only gaussian, binomial, poisson, nbinomial and Gamma options are available for
          pglmm at this time")
   }
 
+  if (bayes && family == "Gamma") {
+    stop('family = "Gamma" is only available with bayes = FALSE.', call. = FALSE)
+  }
   if (bayes) {
     if (!requireNamespace("INLA", quietly = TRUE)) {
       stop("To run pglmm with bayes = TRUE, you need to install the packages 'INLA'. \
            Please run in your R terminal:\
            install.packages('INLA', repos='https://inla.r-inla-download.org/R/stable')")
     }
-    if ((family %nin% c("gaussian", "binomial", "poisson", "zeroinflated.binomial", "zeroinflated.poisson"))) {
-      stop("\nSorry, but only binomial (binary or success/failure), poisson (count), and gaussian options
-           are available for Bayesian pglmm at this time")
+    if ((family %nin% c("gaussian", "binomial", "poisson", "nbinomial", "zeroinflated.binomial",
+                        "zeroinflated.poisson", "zeroinflated.nbinomial"))) {
+      stop("\nSorry, but only binomial (binary or success/failure), poisson and nbinomial (count),
+           and gaussian options are available for Bayesian pglmm at this time")
     }
   }
 
-  if (family %in% c("binomial", "poisson") & !is.null(tree)) {
+  if (family != "gaussian" & !is.null(tree)) {
     if (("phylo" %in% class(tree)) & !ape::is.ultrametric(tree)) {
-      warning("The tree is not ultrametric, which will likely give misleading results for family=binomial and poisson models.")
+      warning("The tree is not ultrametric, which will likely give misleading results for family=",
+              family, " models.")
     }
   }
 
   data <- as.data.frame(data) # in case of tibbles
+  prep_re <- if (is.null(random.effects)) TRUE else FALSE
+  if (prep_re) {
+    # random terms of the formula, parsed and checked once for all the code
+    # paths (pglmm_parse_re()): the formula is then in its standard form
+    re.parsed <- pglmm_parse_re(formula, data, phylo_only = phylo_only)
+    formula <- re.parsed$formula
+    # Drop the rows with missing values in the response, the fixed effects or
+    # the random terms (grouping variables and covariates of random slopes)
+    # before building the random effects, so that factor levels (and thus
+    # covariance matrices) are built only from the rows that are used:
+    # fit(data_with_NAs) == fit(data_NAs_removed), with all code paths.
+    data <- data[pglmm_complete_rows(formula, data, re.parsed$vars), , drop = FALSE]
+  }
+  # the terms of the model, stored in the fitted model (named by term), so
+  # that methods (ranef(), predict()) do not need to parse the term names
+  # (with the repulsion of nested terms)
+  re.store <- if (prep_re) {
+    stats::setNames(pglmm_re_repulsion(re.parsed$terms, repulsion),
+                    vapply(re.parsed$terms, `[[`, "", "name"))
+  }
   fm_original <- formula
   if (!bayes && !isTRUE(sparse) && !laplace) pglmm_blas_hint(nrow(data))
-  # offsets are not used by the maximum likelihood code; stop instead of
+  # offsets are only used by the Laplace code (and INLA); stop instead of
   # silently fitting the model without them
-  if (!bayes && !is.null(attr(terms(reformulas::nobars(formula)), "offset"))) {
-    stop("offset() in the formula is not supported yet when bayes = FALSE.", call. = FALSE)
-  }
-  prep_re <- if (is.null(random.effects)) TRUE else FALSE
-
-  # Drop rows with NA in the response before building random effects structures.
-  # This ensures factor levels (and thus covariance matrices) are built only from
-  # rows that will actually be used, making fit(data_with_NAs) == fit(data_NAs_removed).
-  resp_vec <- tryCatch(
-    model.response(model.frame(reformulas::nobars(formula), data, na.action = NULL)),
-    error = function(e) NULL
-  )
-  if (!is.null(resp_vec) && any(is.na(resp_vec))) {
-    data <- data[!is.na(resp_vec), , drop = FALSE]
+  if (!bayes && !laplace && !is.null(attr(terms(reformulas::nobars(formula)), "offset"))) {
+    stop("offset() in the formula is only supported with method = \"Laplace\" (binomial, poisson ",
+         "and negative binomial models) or bayes = TRUE.", call. = FALSE)
   }
 
-  if (!isTRUE(sparse) && !bayes && !laplace && prep_re &&
-      grepl("__", paste(deparse(formula), collapse = ""))) {
+  if (!isTRUE(sparse) && !bayes && !laplace && prep_re && length(pglmm_re_phy_vars(re.parsed$terms))) {
     pglmm_sparse_hint(nrow(data), if (is.null(cov_ranef)) list(tree, tree_site) else cov_ranef)
   }
-  if (!phylo_only && prep_re) pglmm_compare_hint(formula, data)
+  if (!phylo_only && prep_re) pglmm_compare_hint(re.parsed$specs, data)
   if (phylo_only && (!prep_re || !is.null(tree) || !is.null(tree_site))) {
     stop("phylo_only = TRUE needs random terms in the formula and cov_ranef.", call. = FALSE)
+  }
+  # the deprecated arguments tree and tree_site (phylogenies of the variables
+  # sp and site), for all the code paths
+  if (prep_re && length(pglmm_re_phy_vars(re.parsed$terms))) {
+    cov_ranef <- pglmm_tree_cov_ranef(cov_ranef, tree, tree_site)
   }
 
   if (laplace) {
@@ -883,45 +1117,73 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
       stop("method = \"Laplace\" needs the random terms in the formula; ",
            "random.effects is not supported.", call. = FALSE)
     }
-    if (is.null(cov_ranef) && (!is.null(tree) || !is.null(tree_site))) {
-      cov_ranef <- c(if (!is.null(tree)) list(sp = tree), if (!is.null(tree_site)) list(site = tree_site))
-    }
     z <- communityPGLMM.glmm.laplace(
       formula = formula, data = data, family = family, cov_ranef = cov_ranef, REML = REML,
-      s2.init = if (is.null(s2.init)) 0.25 else s2.init, B.init = B.init,
+      s2.init = s2.init, B.init = B.init,
       reltol = if (reltol.given) reltol else 1e-10, maxit = maxit, verbose = verbose,
       standardize_cov = standardize_cov, repulsion = repulsion, add.obs.re = add.obs.re,
       phylo_only = phylo_only
     )
     z$standardize_cov <- standardize_cov
     z$formula_original <- fm_original
+    z$re_terms <- re.store
     z$cov_ranef <- if (length(z$cov_ranef_updated)) z$cov_ranef_updated else NA
     z$cov_ranef_updated <- NULL
     return(z)
   }
 
   if (isTRUE(sparse)) {
-    if (bayes) {
-      stop("sparse = TRUE is only available with bayes = FALSE.", call. = FALSE)
-    }
     if (!prep_re) stop("sparse = TRUE needs random terms specified in the formula.", call. = FALSE)
-    if (is.null(cov_ranef) && (!is.null(tree) || !is.null(tree_site))) {
-      cov_ranef <- c(if (!is.null(tree)) list(sp = tree), if (!is.null(tree_site)) list(site = tree_site))
+    if (bayes) {
+      if (ML.init) stop("ML.init = TRUE is not available yet with bayes = TRUE and sparse = TRUE.", call. = FALSE)
+      if (any(as.logical(repulsion))) {
+        stop("repulsion = TRUE is not available yet with bayes = TRUE and sparse = TRUE.", call. = FALSE)
+      }
+      # rows with missing values are dropped, and 1|obs is added, as for
+      # sparse = TRUE with bayes = FALSE
+      gd <- pglmm_glmm_data(formula, data, family, add.obs.re = add.obs.re)
+      data <- gd$data
+      tm <- pglmm_sparse_terms(formula, data, cov_ranef, standardize_cov = standardize_cov,
+                               phylo_only = phylo_only, flow = sparse_method == "flow")
+      z <- communityPGLMM.bayes(
+        formula = gd$formula.nobars, data = data, family = family,
+        s2.init = s2.init, B.init = B.init,
+        verbose = verbose,
+        marginal.summ = marginal.summ, calc.DIC = calc.DIC, calc.WAIC = calc.WAIC,
+        prior = prior,
+        prior_alpha = prior_alpha,
+        prior_mu = prior_mu,
+        bayes_options = bayes_options,
+        posterior.sample = posterior.sample,
+        return.fitted.marginals = return.fitted.marginals,
+        sparse_terms = pglmm_bayes_sparse_terms(tm, nrow(data), sparse_method, has.obs = gd$has.obs)
+      )
+      z$bayes_sparse$method <- sparse_method
+      z$standardize_cov <- standardize_cov
+      z$formula_original <- fm_original
+      z$re_terms <- re.store
+      z$cov_ranef <- if (length(tm$cov_ranef_updated)) tm$cov_ranef_updated else NA
+      return(z)
     }
+    # nlminb() with analytic gradients by default (also for "lbfgs"), with a
+    # relative tolerance of 1e-10; the derivative-free optimizers of nloptr
+    # when given, with a tolerance of 1e-8
+    sparse.optimizer <- if (optimizer.given) optimizer else "nlminb"
+    sparse.reltol <- if (reltol.given) reltol else if (sparse.optimizer %in% c("nlminb", "lbfgs")) 1e-10 else 1e-8
     if (family == "gaussian") {
       z <- communityPGLMM.gaussian.sparse(
         formula = formula, data = data, cov_ranef = cov_ranef, REML = REML,
-        s2.init = s2.init, reltol = if (reltol.given) reltol else 1e-8, maxit = maxit,
-        verbose = verbose, optimizer = if (optimizer.given) optimizer else "subplex",
+        s2.init = s2.init, reltol = sparse.reltol, maxit = maxit,
+        verbose = verbose, optimizer = sparse.optimizer,
         standardize_cov = standardize_cov, repulsion = repulsion, phylo_only = phylo_only
       )
     } else {
       z <- communityPGLMM.glmm.sparse(
         formula = formula, data = data, family = family, cov_ranef = cov_ranef, REML = REML,
-        s2.init = if (is.null(s2.init)) 0.25 else s2.init, B.init = B.init,
-        reltol = if (reltol.given) reltol else 1e-8, maxit = maxit,
+        s2.init = s2.init, B.init = B.init,
+        reltol = sparse.reltol, maxit = maxit,
         tol.pql = tol.pql, maxit.pql = maxit.pql, verbose = verbose,
-        optimizer = if (optimizer.given) optimizer else "subplex",
+        optimizer = sparse.optimizer,
         standardize_cov = standardize_cov, repulsion = repulsion, add.obs.re = add.obs.re,
         phylo_only = phylo_only
       )
@@ -929,28 +1191,18 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
     if (family != "gaussian") z$method <- "PQL"
     z$standardize_cov <- standardize_cov
     z$formula_original <- fm_original
+    z$re_terms <- re.store
     z$cov_ranef <- if (length(z$cov_ranef_updated)) z$cov_ranef_updated else NA
     z$cov_ranef_updated <- NULL
     return(z)
   }
 
   if (prep_re) {
-    # to make old code work ...
-    if (is.null(cov_ranef) & any(grepl("__", all.vars(formula)))) {
-      if (!is.null(tree) | !is.null(tree_site)) {
-        warning("arguments `tree` and `tree_site` are deprecated; please use `cov_ranef` instead.",
-          call. = FALSE
-        )
-      }
-      if (!is.null(tree) & is.null(tree_site)) cov_ranef <- list(sp = tree) # column name must be sp
-      if (is.null(tree) & !is.null(tree_site)) cov_ranef <- list(site = tree_site) # column name must be site
-      if (!is.null(tree) & !is.null(tree_site)) cov_ranef <- list(sp = tree, site = tree_site)
-    }
     dat_prepared <- prep_dat_pglmm(formula, data, cov_ranef, repulsion, prep_re, family, add.obs.re, bayes, bayes_nested_matrix_as_list,
                                    standardize_cov = standardize_cov)
     formula <- dat_prepared$formula
     random.effects <- dat_prepared$random.effects
-    if (phylo_only) random.effects <- pglmm_phylo_only_re(random.effects)
+    if (phylo_only) random.effects <- pglmm_phylo_only_re(random.effects, re.parsed$terms)
     cov_ranef_updated <- dat_prepared$cov_ranef_updated
   } else {
     formula <- reformulas::nobars(formula)
@@ -1066,6 +1318,7 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
 
   if (!bayes && family != "gaussian") z$method <- "PQL"
   z$formula_original <- fm_original
+  z$re_terms <- re.store
   z$cov_ranef <- if (is.null(cov_ranef)) NA else cov_ranef_updated
   z$standardize_cov <- standardize_cov
 
@@ -1087,6 +1340,15 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
 # terms it is the inflation factor from det=1 standardization. Multiplying s2r[i]
 # by scale_factors[i] gives the average per-observation variance on a scale
 # comparable across all terms (including non-phylogenetic ones).
+# Log determinant of the Cmatrix of a 'generic0' term, which INLA leaves out of
+# the marginal likelihood. With bayes_options$diagonal, the matrix used is
+# Cmatrix + diagonal * I; with replicate, it is used once per replicate.
+inla_logdet_cmatrix <- function(C, diagonal = NULL, n.rep = 1) {
+  if (!is.null(diagonal)) C <- C + Matrix::Diagonal(nrow(C), diagonal)
+  C <- Matrix::forceSymmetric(Matrix::Matrix(C))
+  n.rep * as.numeric(Matrix::determinant(C, logarithm = TRUE)$modulus)
+}
+
 compute_scale_factors <- function(random.effects) {
   vapply(random.effects, function(re_i) {
     len <- length(re_i)
@@ -1198,7 +1460,7 @@ communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian",
     out$B.cov <- as.matrix(out$B.cov)
 
     if (REML == TRUE) {
-      logLik <- as.numeric(-0.5 * (n - p) * log(2 * pi) + 0.5 * determinant(t(X) %*% X)$modulus[1] - LL)
+      logLik <- as.numeric(-0.5 * (n - p) * log(2 * pi) - LL)
     } else {
       logLik <- as.numeric(-0.5 * n * log(2 * pi) - LL)
     }
@@ -1533,13 +1795,17 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
                                  prior = "inla.default",
                                  prior_alpha = 0.1, prior_mu = 1, bayes_options = NULL,
                                  posterior.sample = TRUE,
-                                 return.fitted.marginals = TRUE) {
+                                 return.fitted.marginals = TRUE,
+                                 sparse_terms = NULL) {
   mf <- model.frame(formula = formula, data = data, na.action = NULL)
   X <- model.matrix(attr(mf, "terms"), data = mf)
   Y <- model.response(mf)
   p <- ncol(X)
   n <- nrow(X)
-  q <- length(random.effects)
+  # sparse_terms: random terms of pglmm_bayes_sparse_terms() (sparse = TRUE),
+  # used instead of random.effects
+  sparse <- !is.null(sparse_terms)
+  q <- if (sparse) length(sparse_terms) else length(random.effects)
 
   if (is.matrix(Y) && ncol(Y) == 2) { # success, fails for binomial data
     Ntrials <- rowSums(Y) # total trials
@@ -1563,6 +1829,9 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   if (family == "zeroinflated.poisson") {
     family <- "zeroinflatedpoisson1"
   }
+  if (family == "zeroinflated.nbinomial") {
+    family <- "zeroinflatednbinomial1"
+  }
 
   if (family == "gaussian") q <- q + 1
 
@@ -1585,7 +1854,8 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     if (!is.null(B.init) & length(B.init) != p) {
       warning("B.init not correct length, so computed B.init using glm()")
     }
-    glm_bayes <- glm(formula = formula, data = data, family = base_family, na.action = na.omit)
+    glm_bayes <- glm(formula = formula, data = data, na.action = na.omit,
+                     family = if (base_family == "nbinomial") "poisson" else base_family)
     if ((is.null(B.init) | (!is.null(B.init) & length(B.init) != p))) {
       B.init <- t(matrix(glm_bayes$coefficients, ncol = p))
     } else {
@@ -1631,39 +1901,6 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     ## very flat prior, generally not recommended!
   }
 
-  # contruct INLA formula
-  inla_formula <- Reduce(paste, deparse(formula_bayes))
-  inla_effects <- vector("list", length = length(random.effects))
-  if (is.null(names(random.effects))) {
-    names(inla_effects) <- as.character(1:length(inla_effects))
-  } else { # assign names so that the inla.model has names in random terms
-    names(inla_effects) <- names(random.effects)
-  }
-  inla_Cmat <- inla_weights <- inla_reps <- inla_effects
-
-  for (i in seq_along(random.effects)) {
-    if (length(random.effects[[i]]) == 1) {
-      # nested term: 1|sp@site, 1|sp__@site, 1|sp@site__, 1|sp__@site__
-      inla_effects[[i]] <- 1:nrow(data)
-      inla_Cmat[[i]] <- solve(random.effects[[i]][[1]])
-    } else if (length(random.effects[[i]]) == 2) {
-      # nested term: x|sp@site, x|sp__@site, x|sp@site__, x|sp__@site__
-      inla_effects[[i]] <- 1:nrow(data)
-      inla_weights[[i]] <- random.effects[[i]][[1]]
-      inla_Cmat[[i]] <- solve(random.effects[[i]][[2]])
-    } else if (length(random.effects[[i]]) == 3) {
-      # non-nested term: e.g. 1|sp__, x|sp__
-      inla_effects[[i]] <- as.numeric(random.effects[[i]][[2]])
-      inla_Cmat[[i]] <- solve(random.effects[[i]][[3]])
-      inla_weights[[i]] <- random.effects[[i]][[1]]
-    } else { # nested term: 1|sp@site, 1|sp__@site, 1|sp@site__, 1|sp__@site__
-      inla_effects[[i]] <- as.numeric(random.effects[[i]][[2]])
-      inla_Cmat[[i]] <- solve(random.effects[[i]][[3]])
-      inla_weights[[i]] <- random.effects[[i]][[1]]
-      inla_reps[[i]] <- as.numeric(random.effects[[i]][[4]])
-    }
-  }
-
   if (!is.null(bayes_options$diagonal)) {
     diagonal <- bayes_options$diagonal
     bayes_options <- bayes_options[-which(names(bayes_options) == "diagonal")]
@@ -1674,29 +1911,99 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     diagonal <- NULL
   }
 
-  f_form <- vector(mode = "character", length = length(random.effects))
-  for (i in seq_along(random.effects)) {
-    if (length(random.effects[[i]]) == 3) { # non-nested term
-      if (length(random.effects[[i]][[1]]) == 1) { # 1 | sp, 1 | sp__, 1 | site, 1 | site__
-        f_form[i] <- paste0("f(inla_effects[['", names(inla_effects)[i], "']], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
-      } else { # x | sp, x | sp__, x | site, x | site__
-        f_form[i] <- paste0("f(inla_effects[['", names(inla_effects)[i], "']], inla_weights[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
-      }
-    } else { # nested term 1 | sp__@site, etc.
-      if (length(random.effects[[i]]) == 4) {
-        if (length(random.effects[[i]][[1]]) == 1) {
-          f_form[i] <- paste0("f(inla_effects[['", names(inla_effects)[i], "']], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
+  # contruct INLA formula
+  inla_formula <- Reduce(paste, deparse(formula_bayes))
+  if (sparse) {
+    inla_effects <- lapply(sparse_terms, function(z) z$idx)
+    inla_weights <- lapply(sparse_terms, function(z) z$w)
+    inla_Cmat <- lapply(sparse_terms, function(z) z$C)
+    inla_values <- lapply(sparse_terms, function(z) z$values)
+    # phylogenetic flow: the rates of the branches are linked to the
+    # observations by the matrix A of control.predictor, A = [I, D_1, D_2, ...]
+    # (see pglmm_bayes_sparse_terms()); the other terms and the fixed effects
+    # are on the first n rows of the latent predictor
+    is.flow <- vapply(sparse_terms, function(z) z$type == "flow", TRUE)
+    inla_A <- NULL
+    if (any(is.flow)) {
+      m <- vapply(sparse_terms[is.flow], function(z) ncol(z$D), 1)
+      nA <- n + sum(m)
+      start <- n + cumsum(c(0, m))[seq_along(m)]
+      for (i in seq_along(sparse_terms)) {
+        if (is.flow[i]) {
+          k <- which(which(is.flow) == i)
+          inla_effects[[i]] <- rep(NA, nA)
+          inla_effects[[i]][start[k] + seq_len(m[k])] <- seq_len(m[k])
         } else {
-          f_form[i] <- paste0("f(inla_effects[['", names(inla_effects)[i], "']], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
+          inla_effects[[i]] <- c(inla_effects[[i]], rep(NA, nA - n))
+          if (!is.null(inla_weights[[i]])) inla_weights[[i]] <- c(inla_weights[[i]], rep(0, nA - n))
         }
-      } else { # length of 1 or 2: specified as a matrix (1|sp__@site) or list of 2 (x|sp__@site)
-        if (length(random.effects[[i]]) == 1) { # (1|sp__@site) etc.
+      }
+      inla_A <- do.call(cbind, c(list(Matrix::Diagonal(n)), lapply(sparse_terms[is.flow], function(z) z$D)))
+    }
+    f_form <- vapply(seq_along(sparse_terms), function(i) {
+      # all levels of the term (for phylogenies: all nodes but the root, or all
+      # branches for the flow)
+      paste0("f(inla_effects[['", names(sparse_terms)[i], "']]",
+             if (!is.null(sparse_terms[[i]]$w)) paste0(", inla_weights[[", i, "]]"),
+             ", model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i,
+             "]], values = inla_values[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
+    }, "")
+  } else {
+    inla_effects <- vector("list", length = length(random.effects))
+    if (is.null(names(random.effects))) {
+      names(inla_effects) <- as.character(1:length(inla_effects))
+    } else { # assign names so that the inla.model has names in random terms
+      names(inla_effects) <- names(random.effects)
+    }
+    inla_Cmat <- inla_weights <- inla_reps <- inla_effects
+
+    for (i in seq_along(random.effects)) {
+      if (length(random.effects[[i]]) == 1) {
+        # nested term: 1|sp@site, 1|sp__@site, 1|sp@site__, 1|sp__@site__
+        inla_effects[[i]] <- 1:nrow(data)
+        inla_Cmat[[i]] <- solve(random.effects[[i]][[1]])
+      } else if (length(random.effects[[i]]) == 2) {
+        # nested term: x|sp@site, x|sp__@site, x|sp@site__, x|sp__@site__
+        inla_effects[[i]] <- 1:nrow(data)
+        inla_weights[[i]] <- random.effects[[i]][[1]]
+        inla_Cmat[[i]] <- solve(random.effects[[i]][[2]])
+      } else if (length(random.effects[[i]]) == 3) {
+        # non-nested term: e.g. 1|sp__, x|sp__
+        inla_effects[[i]] <- as.numeric(random.effects[[i]][[2]])
+        inla_Cmat[[i]] <- solve(random.effects[[i]][[3]])
+        inla_weights[[i]] <- random.effects[[i]][[1]]
+      } else { # nested term: 1|sp@site, 1|sp__@site, 1|sp@site__, 1|sp__@site__
+        inla_effects[[i]] <- as.numeric(random.effects[[i]][[2]])
+        inla_Cmat[[i]] <- solve(random.effects[[i]][[3]])
+        inla_weights[[i]] <- random.effects[[i]][[1]]
+        inla_reps[[i]] <- as.numeric(random.effects[[i]][[4]])
+      }
+    }
+
+    f_form <- vector(mode = "character", length = length(random.effects))
+    for (i in seq_along(random.effects)) {
+      if (length(random.effects[[i]]) == 3) { # non-nested term
+        if (length(random.effects[[i]][[1]]) == 1) { # 1 | sp, 1 | sp__, 1 | site, 1 | site__
           f_form[i] <- paste0("f(inla_effects[['", names(inla_effects)[i], "']], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
-        } else {
-          if (length(random.effects[[i]]) == 2) { # (x|sp__@site) etc.
-            f_form[i] <- paste0("f(inla_effects[['", names(inla_effects)[i], "']], inla_weights[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
-          } else { # other lengths? just in case ...
+        } else { # x | sp, x | sp__, x | site, x | site__
+          f_form[i] <- paste0("f(inla_effects[['", names(inla_effects)[i], "']], inla_weights[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
+        }
+      } else { # nested term 1 | sp__@site, etc.
+        if (length(random.effects[[i]]) == 4) {
+          if (length(random.effects[[i]][[1]]) == 1) {
+            f_form[i] <- paste0("f(inla_effects[['", names(inla_effects)[i], "']], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
+          } else {
+            f_form[i] <- paste0("f(inla_effects[['", names(inla_effects)[i], "']], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], replicate = inla_reps[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
+          }
+        } else { # length of 1 or 2: specified as a matrix (1|sp__@site) or list of 2 (x|sp__@site)
+          if (length(random.effects[[i]]) == 1) { # (1|sp__@site) etc.
             f_form[i] <- paste0("f(inla_effects[['", names(inla_effects)[i], "']], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
+          } else {
+            if (length(random.effects[[i]]) == 2) { # (x|sp__@site) etc.
+              f_form[i] <- paste0("f(inla_effects[['", names(inla_effects)[i], "']], inla_weights[[", i, "]], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
+            } else { # other lengths? just in case ...
+              f_form[i] <- paste0("f(inla_effects[['", names(inla_effects)[i], "']], model = 'generic0', constr = FALSE, Cmatrix = inla_Cmat[[", i, "]], initial = s2.init[", i, "], diagonal = diagonal)")
+            }
           }
         }
       }
@@ -1772,6 +2079,22 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     }
   }
 
+  if (sparse && !is.null(inla_A)) {
+    if (!is.null(attr(terms(formula_bayes), "offset"))) {
+      stop("offset() is not available yet with sparse_method = \"flow\".", call. = FALSE)
+    }
+    # the fixed effects (columns of X, intercept included) only on the first n
+    # rows of the latent predictor, zero for the rates of the branches; the
+    # response stays of length n
+    X.names <- paste0("inla_X", seq_len(p))
+    data_A <- stats::setNames(lapply(seq_len(p), function(j) c(X[, j], rep(0, ncol(inla_A) - n))), X.names)
+    for (v in all.vars(formula_bayes[[2]])) data_A[[v]] <- data[[v]]
+    argus$formula <- as.formula(paste(deparse(formula_bayes[[2]]), "~ -1 +", paste(X.names, collapse = " + "),
+                                      "+", f_form))
+    argus$data <- data_A
+    argus$control.predictor$A <- inla_A
+  }
+
   if (family == "gaussian") {
     if (is.null(argus$control.family)) {
       argus$control.family <- list(hyper = list(prec = list(initial = resid.init)))
@@ -1792,6 +2115,10 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   }
 
   out <- do.call(INLA::inla, argus)
+  if (sparse && !is.null(inla_A)) { # names of the fixed effects, as with the formula
+    rownames(out$summary.fixed) <- colnames(X)
+    names(out$marginals.fixed) <- colnames(X)
+  }
 
   # out <- INLA::inla(as.formula(inla_formula), data = data,
   #                       verbose = verbose,
@@ -1817,7 +2144,12 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
 
   if (marginal.summ == "median") marginal.summ <- "0.5quant"
 
-  nested <- sapply(random.effects, length) %in% c(1, 2, 4)
+  if (sparse) {
+    nested <- vapply(sparse_terms, function(z) z$nested, TRUE)
+    random.effects <- stats::setNames(vector("list", length(sparse_terms)), names(sparse_terms)) # names only
+  } else {
+    nested <- sapply(random.effects, length) %in% c(1, 2, 4)
+  }
 
   variances <- 1 / out$summary.hyperpar[, marginal.summ]
   # names(variances) <- gsub("Precision for ", "", rownames(out$summary.hyperpar))
@@ -1832,6 +2164,17 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   } else {
     resid_var <- NULL
     resid_var.ci <- NULL
+  }
+
+  # negative binomial: the first hyperparameter is the size theta (not a precision)
+  if (base_family == "nbinomial") {
+    nb_theta <- unname(1 / variances[1])
+    nb_theta.ci <- rev(1 / variances.ci[1, ])
+    variances <- variances[-1]
+    variances.ci <- variances.ci[-1, ]
+  } else {
+    nb_theta <- NULL
+    nb_theta.ci <- NULL
   }
 
   if (grepl("zeroinflated", family)) {
@@ -1855,11 +2198,26 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   if (marginal.summ == "median") marginal.summ <- "0.5quant"
 
   B <- out$summary.fixed[, marginal.summ]
-  H <- Y - out$summary.fitted.values[, marginal.summ, drop = TRUE]
-  mu <- out$summary.fitted.values[, marginal.summ, drop = FALSE]
+  # with the matrix A (sparse_method = "flow"), the first n fitted values are
+  # those of the observations
+  H <- Y - out$summary.fitted.values[seq_len(n), marginal.summ, drop = TRUE]
+  mu <- out$summary.fitted.values[seq_len(n), marginal.summ, drop = FALSE]
   # H <- NULL
 
-  scale_factors <- compute_scale_factors(random.effects)
+  if (sparse) {
+    scale_factors <- vapply(sparse_terms, function(z) z$mean.diag, 1)
+    # INLA leaves out log|Cmatrix| / 2 of 'generic0' models from the marginal
+    # likelihood (see pglmm_bayes_sparse_terms())
+    logLik <- out$mlik[1, 1] + sum(vapply(sparse_terms, function(z) {
+      if (is.null(diagonal)) z$logdetC / 2 else inla_logdet_cmatrix(z$C, diagonal) / 2
+    }, 1))
+  } else {
+    scale_factors <- compute_scale_factors(random.effects)
+    logLik <- out$mlik[1, 1] + sum(vapply(seq_along(inla_Cmat), function(i) {
+      n.rep <- if (is.null(inla_reps[[i]])) 1 else length(unique(inla_reps[[i]]))
+      inla_logdet_cmatrix(inla_Cmat[[i]], diagonal, n.rep) / 2
+    }, 1))
+  }
 
   results <- list(
     formula = formula, data = data, family = family, random.effects = random.effects,
@@ -1870,13 +2228,19 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     s2resid = resid_var, scale_factors = scale_factors,
     zi = zeroinlated_param, s2n.ci = variances.ci[nested, ],
     s2r.ci = variances.ci[!nested, ], s2resid.ci = resid_var.ci,
-    zi.ci = zeroinflated_param.ci,
-    logLik = out$mlik[1, 1], AIC = NULL, BIC = NULL, DIC = DIC, WAIC = WAIC,
+    zi.ci = zeroinflated_param.ci, theta = nb_theta, theta.ci = nb_theta.ci,
+    logLik = logLik, AIC = NULL, BIC = NULL, DIC = DIC, WAIC = WAIC,
     REML = NULL, bayes = TRUE, marginal.summ = marginal.summ,
     s2.init = s2.init, B.init = B.init, Y = Y, size = Ntrials, X = X, H = H,
     mu = mu, nested = nested, Zt = NULL, St = NULL,
     convcode = NULL, niter = NULL, inla.model = out
   )
+  if (sparse) {
+    results$bayes_sparse <- list(
+      method = if (any(vapply(sparse_terms, function(z) z$type == "flow", TRUE))) "flow" else "precision",
+      latent = pglmm_bayes_sparse_latent(out, sparse_terms, n)
+    )
+  }
   class(results) <- c("communityPGLMM", "pglmm")
   results
 }

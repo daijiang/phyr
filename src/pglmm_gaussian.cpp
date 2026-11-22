@@ -1206,10 +1206,12 @@ Rcpp::List pglmm_gaussian_internal_cpp(NumericVector par,
   // calculate coef
   List out = use_q ? gauss_q_calc(par_opt0, pre_q)
                    : pglmm_gaussian_LL_calc_cpp(par_opt, X, Y, Zt, St, nested, REML);
-  double logLik, detx, signx;
+  // restricted log-likelihood as in lme4, glmmTMB and nlme (the likelihood
+  // integrated over the fixed effects, without the term 0.5 log|X'X| of the
+  // density of orthonormal error contrasts)
+  double logLik;
   if (REML) {
-    log_det(detx, signx, trans(X) * X);
-    logLik = -0.5 * (n - p) * log(2 * Pi) + 0.5 * detx - LL;
+    logLik = -0.5 * (n - p) * log(2 * Pi) - LL;
   } else {
     logLik = -0.5 * n * log(2 * Pi) - LL;
   }

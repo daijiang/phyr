@@ -74,7 +74,7 @@ sd.attract <- 1
 Vphy <- vcv(phy)
 Vphy <- Vphy / (det(Vphy) ^ (1 / nspp))
 V.attract <- kronecker(diag(nrow = nsite, ncol = nsite), Vphy)
-Y.attract <- array(t(mvtnorm::rmvnorm(n = 1, sigma = sd.attract ^ 2 * V.attract)))
+Y.attract <- array(t(chol(sd.attract ^ 2 * V.attract)) %*% rnorm(nrow(V.attract)))
 # Residual errors
 sd.e <- 1
 Y.e <- rnorm(nspp * nsite, sd = sd.e)

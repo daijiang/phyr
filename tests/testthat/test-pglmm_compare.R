@@ -27,11 +27,13 @@ qfit <- function(...) suppressMessages(pglmm_compare(...))
 
 test_that("pglmm_compare gives the same estimates as the earlier implementation", {
   # reference values from pglmm_compare() of phyr before it used the formula
-  # interface of pglmm() (it passed the covariance matrix via random.effects)
+  # interface of pglmm() (it passed the covariance matrix via random.effects);
+  # the REML log-likelihood of gaussian models no longer includes log|X'X| / 2
+  # (it was -46.09842325)
   ref <- list(
     g_reml = list(f = yg ~ x, fam = "gaussian", REML = TRUE,
                   B = c(2.447160104, 0.390783412), se = c(1.104582086, 0.2338868775),
-                  s2n = 0.1798785595, s2resid = 0.3050963025, logLik = -46.09842325),
+                  s2n = 0.1798785595, s2resid = 0.3050963025, logLik = -49.77464380),
     g_ml = list(f = yg ~ x, fam = "gaussian", REML = FALSE,
                 B = c(2.445720561, 0.393827475), se = c(1.031931946, 0.2239864306),
                 s2n = 0.1567282812, s2resid = 0.3059584062, logLik = -50.20198991),
@@ -53,7 +55,8 @@ test_that("pglmm_compare gives the same estimates as the earlier implementation"
   )
   for (r in ref) {
     # add.obs.re = FALSE: the model of earlier versions (which ignored the argument)
-    z <- qfit(r$f, family = r$fam, data = cmp$d, phy = cmp$phy, REML = r$REML, add.obs.re = FALSE)
+    z <- qfit(r$f, family = r$fam, data = cmp$d, phy = cmp$phy, REML = r$REML, add.obs.re = FALSE,
+              sparse = FALSE, method = "PQL")
     expect_equal(as.vector(z$B), r$B, tolerance = 1e-5)
     expect_equal(as.vector(z$B.se), r$se, tolerance = 1e-5)
     expect_equal(unname(z$s2n), r$s2n, tolerance = 1e-5)
@@ -64,7 +67,7 @@ test_that("pglmm_compare gives the same estimates as the earlier implementation"
   # rows not in the order of the tips, and a tip without data
   d2 <- cmp$d[c(5:40, 1:4), ][-3, ]
   expect_warning(expect_warning(
-    z <- pglmm_compare(yg ~ x, data = d2, phy = cmp$phy),
+    z <- pglmm_compare(yg ~ x, data = d2, phy = cmp$phy, sparse = FALSE),
     "resorted"), "drop these species")
   expect_equal(as.vector(z$B), c(2.443433677, 0.4058866027), tolerance = 1e-5)
   expect_equal(unname(z$s2n), 0.1910847419, tolerance = 1e-5)
@@ -80,7 +83,9 @@ test_that("pglmm_compare with bayes = TRUE gives the same estimates as before", 
   expect_equal(unname(z$s2resid), 0.2753523645, tolerance = 1e-3)
   expect_s3_class(z, "communityPGLMM")
   expect_true(all(c("DIC", "WAIC") %in% names(z)))
-  r <- ranef(z)[["1|sp__"]]
+  expect_false(is.null(z$bayes_sparse)) # the sparse code by default
+  # ranef() needs the dense INLA model for now
+  r <- ranef(qfit(yg ~ x, data = cmp$d, phy = cmp$phy, bayes = TRUE, sparse = FALSE))[["1|sp__"]]
   expect_equal(r$sp, rownames(cmp$d))
 })
 
@@ -100,9 +105,9 @@ test_that("pglmm_compare with sparse = TRUE gives the same estimates", {
     f <- switch(fam, gaussian = yg ~ x, binomial = yb ~ x, poisson = yp ~ x)
     # tight tolerances, so that both fits reach the same optimum
     a <- qfit(f, family = fam, data = cmp$d, phy = cmp$phy, optimizer = "subplex",
-              reltol = 1e-12, maxit = 5000, tol.pql = 1e-8)
+              reltol = 1e-12, maxit = 5000, tol.pql = 1e-8, sparse = FALSE, method = "PQL")
     b <- qfit(f, family = fam, data = cmp$d, phy = cmp$phy, sparse = TRUE,
-              optimizer = "subplex", reltol = 1e-12, maxit = 5000, tol.pql = 1e-8)
+              optimizer = "subplex", reltol = 1e-12, maxit = 5000, tol.pql = 1e-8, method = "PQL")
     expect_equal(as.vector(b$B), as.vector(a$B), tolerance = 1e-4)
     expect_equal(as.vector(b$B.se), as.vector(a$B.se), tolerance = 1e-4)
     expect_equal(unname(b$s2n), unname(a$s2n), tolerance = 1e-3)
@@ -115,21 +120,21 @@ test_that("pglmm_compare with sparse = TRUE gives the same estimates", {
     expect_equal(rb$estimate, ra$estimate, tolerance = 1e-3)
   }
   # default settings give close estimates
-  a <- qfit(yg ~ x, data = cmp$d, phy = cmp$phy)
-  b <- qfit(yg ~ x, data = cmp$d, phy = cmp$phy, sparse = TRUE)
+  a <- qfit(yg ~ x, data = cmp$d, phy = cmp$phy, sparse = FALSE)
+  b <- qfit(yg ~ x, data = cmp$d, phy = cmp$phy)
   expect_equal(as.vector(b$B), as.vector(a$B), tolerance = 1e-4)
   # standardize_cov = FALSE
-  a <- qfit(yg ~ x, data = cmp$d, phy = cmp$phy, standardize_cov = FALSE)
-  b <- qfit(yg ~ x, data = cmp$d, phy = cmp$phy, standardize_cov = FALSE, sparse = TRUE)
+  a <- qfit(yg ~ x, data = cmp$d, phy = cmp$phy, standardize_cov = FALSE, sparse = FALSE)
+  b <- qfit(yg ~ x, data = cmp$d, phy = cmp$phy, standardize_cov = FALSE)
   expect_equal(unname(b$s2n), unname(a$s2n), tolerance = 1e-3)
-  expect_equal(a$logLik, qfit(yg ~ x, data = cmp$d, phy = cmp$phy)$logLik, tolerance = 1e-6)
+  expect_equal(a$logLik, qfit(yg ~ x, data = cmp$d, phy = cmp$phy, sparse = FALSE)$logLik, tolerance = 1e-6)
 })
 
 test_that("methods of pglmm() work with pglmm_compare models", {
   for (sparse in c(FALSE, TRUE)) {
     for (fam in c("gaussian", "binomial")) {
       f <- if (fam == "gaussian") yg ~ x else yb ~ x
-      z <- qfit(f, family = fam, data = cmp$d, phy = cmp$phy, sparse = sparse)
+      z <- qfit(f, family = fam, data = cmp$d, phy = cmp$phy, sparse = sparse, method = "PQL")
       expect_s3_class(z, c("pglmm_compare", "communityPGLMM"))
       expect_output(print(z), "Test of phylogenetic signal")
       expect_equal(fixef(z)$Value, as.vector(z$B))
@@ -155,7 +160,7 @@ test_that("methods of pglmm() work with pglmm_compare models", {
       expect_true(lrt$LR > 0 && lrt$Pr < 0.05)
       if (sparse) {
         expect_equal(dim(simulate(z, nsim = 2, re.form = NA)), c(nrow(cmp$d), 2L))
-        expect_error(pglmm_iV(z), "not available yet")
+        expect_equal(dim(pglmm_iV(z)), c(nrow(cmp$d), nrow(cmp$d)))
       } else {
         expect_equal(dim(simulate(z, nsim = 2, re.form = NA)), c(nrow(cmp$d), 2L))
         expect_equal(dim(pglmm_iV(z)), c(nrow(cmp$d), nrow(cmp$d)))

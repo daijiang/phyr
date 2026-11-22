@@ -169,7 +169,10 @@ Defaults to \code{NULL}.}
 respectively. Rownames indicate which coefficient it refers to.}
 \item{\code{B_cov}}{Covariance matrix for regression coefficients.}
 \item{\code{logLik}}{The log likelihood for either the restricted likelihood
-(\code{REML = TRUE}) or the overall likelihood (\code{REML = FALSE}).}
+(\code{REML = TRUE}) or the overall likelihood (\code{REML = FALSE}), of the
+standardized variates. The restricted likelihood is the likelihood integrated over
+the coefficients, as in \code{\link[=pglmm]{pglmm()}}, \code{lme4} and \code{nlme}; versions of phyr before 1.4.0
+(and \code{ape::corphylo()}) added \eqn{\log(p(n-1))/2}{log(p (n - 1)) / 2} to it.}
 \item{\code{AIC}}{AIC for either the restricted likelihood (\code{REML = TRUE}) or the
 overall likelihood (\code{REML = FALSE}).}
 \item{\code{BIC}}{BIC for either the restricted likelihood (\code{REML = TRUE}) or the

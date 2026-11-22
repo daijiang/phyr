@@ -43,7 +43,7 @@ parse_conv_ranef <- function(x, df, standardize = TRUE) {
     if (inherits(xx, c("matrix", "Matrix"))) {
       # already a cov matrix
       if (length(setdiff(spl, row.names(xx)))) {
-        stop(paste0("Some levels of variable ", names(x)[i], " not in the martix,
+        stop(paste0("Some levels of variable ", names(x)[i], " not in the matrix,
                     please either drop these levels or update the matrix"))
       }
       # keep the levels in the data only, in the same order as the levels
@@ -54,10 +54,10 @@ parse_conv_ranef <- function(x, df, standardize = TRUE) {
       }
       xx <- xx[spl, spl, drop = FALSE]
       if (standardize && abs(det(xx) - 1) > 0.0001) {
-        warning("The cov matrix is not standarized, we will do this now...", call. = FALSE, immediate. = TRUE)
+        warning("The cov matrix is not standardized, we will do this now...", call. = FALSE, immediate. = TRUE)
         xx <- xx / max(xx)
         xx <- xx / exp(determinant(xx)$modulus[1] / nrow(xx))
-        if (abs(det(xx) - 1) > 0.0001) warning("Failed to standarized the cov matrix", call. = FALSE, immediate. = TRUE)
+        if (abs(det(xx) - 1) > 0.0001) warning("Failed to standardize the cov matrix", call. = FALSE, immediate. = TRUE)
       }
       Vphy <- xx
     }
@@ -66,6 +66,234 @@ parse_conv_ranef <- function(x, df, standardize = TRUE) {
   })
   names(out_list) <- names(x)
   list(updated_orgi_list = x2, cleaned_list = out_list)
+}
+
+# ---- Random terms of the formula ----
+#
+# pglmm_parse_re() is the only function that reads the random terms of the
+# formula: pglmm(), pglmm_compare(), prep_dat_pglmm(), the sparse and Laplace
+# code (pglmm_sparse_terms(), pglmm_glmm_data()) and the Bayesian code all use
+# its output. It checks the terms (with the same rules and messages for all
+# code paths), writes them in a standard form, and returns:
+# - formula: the formula with the terms in their standard form;
+# - specs: one element per random term of the formula (after the changes
+#   below), with lhs ("1" or the covariate of a slope), group (the grouping
+#   variables, without "__"), phy (whether each grouping variable has a
+#   phylogeny or covariance matrix, i.e. ends with "__"), nested (two grouping
+#   variables, e.g. sp@site), grp (e.g. "sp__@site") and name ("1|sp__@site");
+# - terms: the terms of the model in the order of the formula, as fitted by
+#   all code paths: a non-nested phylogenetic term such as 1|sp__ gives two
+#   terms, 1|sp (phy = FALSE) and 1|sp__ (phy = TRUE), unless phylo_only = TRUE
+#   (pglmm_compare(): the phylogenetic term only, with phylo_only = TRUE);
+# - vars: the variables of the random terms (grouping variables and covariates
+#   of slopes).
+# Changes to the formula:
+# - (0 + x | sp) is written (x | sp) (a slope without intercept in phyr);
+# - interactions of grouping factors (lme4), e.g. 1|sp:site (also from
+#   1|site/sp), are written as nested terms, 1|sp@site;
+# - a term that a phylogenetic term already includes as its non-phylogenetic
+#   partner (1|sp with 1|sp__) is dropped, with a message (fitting it twice
+#   gives two variances that cannot be told apart), and so is the same term
+#   twice.
+# The checks: grouping variables and covariates of slopes are columns of data,
+# covariates are numeric, nested terms have two grouping variables, and terms
+# have one covariate (no x1 + x2 | g). Parsing a formula already in its
+# standard form gives the same formula (no messages).
+pglmm_parse_re <- function(formula, data, phylo_only = FALSE) {
+  bars <- unique(reformulas::findbars(formula))
+  if (!length(bars)) {
+    return(list(formula = formula, specs = list(), terms = list(), vars = character(0)))
+  }
+  rewritten <- FALSE
+  specs <- vector("list", length(bars))
+  for (k in seq_along(bars)) {
+    x2 <- as.character(bars[[k]])
+    lhs <- gsub("^0 ?[+] ?", "", x2[2])
+    grp <- x2[3]
+    term <- paste0("(", x2[2], " | ", grp, ")")
+    if (grepl("+", lhs, fixed = TRUE)) {
+      stop("Random terms with several covariates, such as ", term, ", are not allowed yet. ",
+           "Split them into terms with one covariate each (e.g. (1 | sp) + (x | sp), or ",
+           "(x || sp)); the terms are independent.", call. = FALSE)
+    }
+    if (lhs != x2[2]) {
+      bars[[k]][[2]] <- str2lang(lhs)
+      rewritten <- TRUE
+    }
+    if (grepl(":", grp, fixed = TRUE)) {
+      # the interaction of two grouping factors (lme4), e.g. 1|sp:site, also
+      # from 1|site/sp, is the nested term 1|sp@site: one level per
+      # combination, independent
+      grp <- gsub(" ?: ?", "@", grp)
+      bars[[k]][[3]] <- str2lang(grp)
+      rewritten <- TRUE
+    }
+    gp <- strsplit(grp, "@", fixed = TRUE)[[1]]
+    if (length(gp) > 2) {
+      stop("Nested terms have two grouping variables (e.g. 1 | sp@site), not ", length(gp),
+           " as in ", term, ".", call. = FALSE)
+    }
+    g <- sub("__$", "", gp)
+    miss <- setdiff(g, names(data))
+    if (length(miss)) {
+      stop("The grouping variable", if (length(miss) > 1) "s", " ", paste(miss, collapse = " and "),
+           " of the random term ", term, if (length(miss) > 1) " are" else " is",
+           " not in the data.", call. = FALSE)
+    }
+    if (lhs != "1") {
+      if (lhs %nin% names(data)) {
+        stop("The covariate ", lhs, " of the random slope ", term, " must be a column of data",
+             if (make.names(lhs) != lhs) " (e.g. compute it as a new column first)", ".",
+             call. = FALSE)
+      }
+      v <- data[[lhs]]
+      if (!is.numeric(v) && !is.logical(v)) {
+        stop("The covariate ", lhs, " of the random slope ", term, " is not numeric (class ",
+             class(v)[1], "). Random slopes need numeric covariates; for a factor, use numeric ",
+             "(0/1) columns for its levels, each in its own random term.", call. = FALSE)
+      }
+    }
+    specs[[k]] <- list(lhs = lhs, group = g, phy = grepl("__$", gp), nested = length(gp) == 2,
+                       grp = grp, name = paste0(lhs, "|", grp))
+  }
+  nm <- vapply(specs, `[[`, "", "name")
+  partners <- unlist(lapply(specs, function(s) {
+    if (!s$nested && s$phy && !phylo_only) paste0(s$lhs, "|", s$group)
+  }))
+  dup <- nm %in% partners
+  if (any(dup)) {
+    message("The random term", if (sum(dup) > 1) "s", " ",
+            paste0("(", sub("|", " | ", nm[dup], fixed = TRUE), ")", collapse = " and "),
+            " ", if (sum(dup) > 1) "are" else "is", " dropped: ",
+            "a phylogenetic term such as (1 | sp__) already includes its non-phylogenetic ",
+            "term (1 | sp).")
+  }
+  # the same term twice (e.g. 1|sp:site and 1|sp@site): kept once
+  dup <- dup | duplicated(nm)
+  if (any(dup) || rewritten) {
+    rhs <- reformulas::nobars(formula)
+    rhs <- rhs[[length(rhs)]]
+    for (b in bars[!dup]) rhs <- call("+", rhs, call("(", b))
+    formula[[length(formula)]] <- rhs
+  }
+  specs <- specs[!dup]
+
+  # the terms of the model
+  terms <- list()
+  for (s in specs) {
+    if (!s$nested && s$phy) {
+      if (!phylo_only) {
+        terms[[length(terms) + 1]] <- c(s[c("lhs", "group")], list(
+          phy = FALSE, nested = FALSE, phylo_only = FALSE, name = paste0(s$lhs, "|", s$group)))
+      }
+      terms[[length(terms) + 1]] <- c(s[c("lhs", "group", "phy", "nested", "name")],
+                                      list(phylo_only = phylo_only))
+    } else {
+      terms[[length(terms) + 1]] <- c(s[c("lhs", "group", "phy", "nested", "name")],
+                                      list(phylo_only = FALSE))
+    }
+  }
+  vars <- unique(unlist(lapply(specs, function(s) c(s$group, if (s$lhs != "1") s$lhs))))
+  list(formula = formula, specs = specs, terms = terms, vars = vars)
+}
+
+# Rows of data without missing values in the response, the fixed effects
+# (offsets included) and the variables of the random terms (vars)
+pglmm_complete_rows <- function(formula, data, vars) {
+  mf <- tryCatch(model.frame(reformulas::nobars(formula), data, na.action = NULL),
+                 error = function(e) NULL)
+  ok <- stats::complete.cases(data[, intersect(vars, names(data)), drop = FALSE])
+  if (!is.null(mf)) ok <- ok & stats::complete.cases(mf)
+  ok
+}
+
+# The phylogenetic variables of the terms of pglmm_parse_re() (those with a
+# phylogeny or covariance matrix in cov_ranef)
+pglmm_re_phy_vars <- function(terms) {
+  unique(unlist(lapply(terms, function(t) t$group[t$phy])))
+}
+
+# repulsion of each term of pglmm_parse_re(): one value for each phylogenetic
+# variable of nested terms, in the order of the formula. A single value
+# applies to the phylogenies of species only, i.e. the first variable of
+# nested terms (e.g. sp in 1|sp__@site__); phylogenies of the second variable
+# (sites) are not inverted. As in Ives & Helmus (2011, Appendix A), repulsion
+# comes from competition among related species. Returns the terms, with
+# `repulsion` (one logical per grouping variable) for nested terms.
+pglmm_re_repulsion <- function(terms, repulsion) {
+  nested <- which(vapply(terms, function(t) t$nested, TRUE))
+  n.rep <- sum(vapply(terms[nested], function(t) sum(t$phy), 1L))
+  if (length(repulsion) == 1) {
+    repulsion <- unlist(lapply(terms[nested], function(t) (repulsion & c(TRUE, FALSE))[t$phy]))
+  }
+  if (length(repulsion) != n.rep) {
+    stop("The number of repulsion terms specified is not correct: please double check")
+  }
+  i <- 0
+  for (k in nested) {
+    phy <- terms[[k]]$phy
+    r <- c(FALSE, FALSE)
+    r[phy] <- as.logical(repulsion[i + seq_len(sum(phy))])
+    i <- i + sum(phy)
+    terms[[k]]$repulsion <- r
+  }
+  terms
+}
+
+# Whether a nested term without phylogeny (e.g. 1|sp@site) has one level per
+# observation, i.e. each combination of its two variables appears once: it is
+# then an observation-level term
+pglmm_one_obs_per_cell <- function(data, g) {
+  !anyDuplicated(data.frame(data[[g[1]]], data[[g[2]]]))
+}
+
+# Whether the model has the observation-level term 1|obs (terms of
+# pglmm_parse_re()): poisson models and binomial models with more than one
+# trial (cbind(successes, failures)), with add.obs.re = TRUE, unless a nested
+# intercept without phylogeny (e.g. 1|sp@site) already has one level per
+# observation. Shows the messages of earlier versions.
+pglmm_re_obs <- function(terms, data, formula, family, add.obs.re = TRUE) {
+  resp <- tryCatch(model.response(model.frame(reformulas::nobars(formula), data, na.action = NULL)),
+                   error = function(e) NULL)
+  if (!(family == "poisson" || (family == "binomial" && is.array(resp)))) return(FALSE)
+  obs.term <- any(vapply(terms, function(t) {
+    t$nested && !any(t$phy) && t$lhs == "1" && pglmm_one_obs_per_cell(data, t$group)
+  }, TRUE))
+  if (obs.term) {
+    if (add.obs.re) {
+      message("It seems that you specified an observation-level random term already e.g. (1|sp@site);
+                       we will set 'add.obs.re' to FALSE.")
+    }
+    return(FALSE)
+  }
+  if (add.obs.re) {
+    message("We add an observation-level random term '1|obs' for poisson and binomial data.")
+  } else {
+    message("For poisson and binomial data, it would be a good idea to add an observation-level random term (add.obs.re = TRUE).")
+  }
+  add.obs.re
+}
+
+# Stop if the suggested packages pkgs (needed by the function fun) are not
+# installed
+pglmm_need_pkgs <- function(pkgs, fun) {
+  miss <- pkgs[!vapply(pkgs, requireNamespace, TRUE, quietly = TRUE)]
+  if (length(miss)) {
+    stop(fun, "() needs the package", if (length(miss) > 1) "s", " ",
+         paste(miss, collapse = ", "), ". Install ", if (length(miss) > 1) "them" else "it",
+         " with install.packages(", paste0("c(", paste0('"', miss, '"', collapse = ", "), ")"),
+         ").", call. = FALSE)
+  }
+  invisible(TRUE)
+}
+
+# The deprecated arguments tree and tree_site of pglmm(): the phylogenies of
+# the variables sp and site, given in cov_ranef instead
+pglmm_tree_cov_ranef <- function(cov_ranef, tree, tree_site) {
+  if (!is.null(cov_ranef) || (is.null(tree) && is.null(tree_site))) return(cov_ranef)
+  warning("arguments `tree` and `tree_site` are deprecated; please use `cov_ranef` instead.",
+          call. = FALSE)
+  c(if (!is.null(tree)) list(sp = tree), if (!is.null(tree_site)) list(site = tree_site))
 }
 
 #' Prepare data for \code{pglmm}
@@ -81,371 +309,49 @@ prep_dat_pglmm <- function(formula, data, cov_ranef = NULL, repulsion = FALSE,
                            prep.re.effects = TRUE, family = "gaussian",
                            add.obs.re = TRUE, bayes = FALSE, bayes_nested_matrix_as_list = FALSE,
                            standardize_cov = TRUE) {
-  fm <- unique(reformulas::findbars(formula))
-  formula.nobars <- reformulas::nobars(formula) # fixed terms
+  data <- as.data.frame(data) # in case of tibbles
+  re <- pglmm_parse_re(formula, data)
+  formula.nobars <- reformulas::nobars(re$formula) # fixed terms
+  terms <- re$terms
 
-  # make sure group variables are factors
-  if (!is.null(fm)) {
-    grp_vars <- unique(unlist(lapply(fm, function(x) {
-      xx <- gsub(pattern = "__", replacement = "", x = as.character(x)[3])
-      strsplit(xx, "[@]")
-    })))
-    # cat("reorder alphabatically ")
-    # data = dplyr::mutate_at(data, grp_vars, as.factor)
-    ### should we use unique(as.character()) as levels?
-    ### otherwise, it will be alphebatic
-    for (ig in grp_vars) {
-      # cat("reorder by appearance ")
-      data[, ig] <- factor(data[, ig], levels = unique(as.character(data[, ig])))
+  # grouping variables as factors, with the levels in the order of appearance
+  for (ig in unique(unlist(lapply(terms, `[[`, "group")))) {
+    data[, ig] <- factor(data[, ig], levels = unique(as.character(data[, ig])))
+  }
+  if (!prep.re.effects) {
+    return(list(formula = formula.nobars, random.effects = NULL, cov_ranef_updated = NULL))
+  }
+  if (!length(terms)) stop("No random terms specified, use lm or glm instead")
+
+  # covariance matrices of the variables with __
+  phy.vars <- pglmm_re_phy_vars(terms)
+  if (length(phy.vars)) {
+    if (is.null(cov_ranef)) stop("cov_ranef, the list of cov matrices, is not specified")
+    names(cov_ranef) <- gsub("__$", "", names(cov_ranef)) # remove potential trailing __
+    if (!all(phy.vars %in% names(cov_ranef))) {
+      stop(paste0(
+        "Some group variables (",
+        paste(setdiff(phy.vars, names(cov_ranef)), collapse = ", "),
+        ") assigned to have specific cov matrix are not in cov_ranef"
+      ))
     }
+    cov_list <- parse_conv_ranef(cov_ranef, data, standardize = standardize_cov)
+    cov_ranef_list <- cov_list$cleaned_list
+    cov_ranef_updated <- cov_list$updated_orgi_list
+  } else {
+    cov_ranef_list <- NULL # no cov matrix needed, e.g. (1|sp@site)
+    cov_ranef_updated <- NULL
   }
 
-  if (prep.re.effects) {
-    # @ for nested; __ at the end for phylogenetic cov
-    if (is.null(fm)) stop("No random terms specified, use lm or glm instead")
+  terms <- pglmm_re_repulsion(terms, repulsion)
+  has.obs <- pglmm_re_obs(terms, data, formula.nobars, family, add.obs.re)
+  random.effects <- lapply(terms, pglmm_dense_re_term, data = data, covs = cov_ranef_list,
+                           bayes = bayes, as_list = bayes_nested_matrix_as_list)
+  names(random.effects) <- vapply(terms, `[[`, "", "name")
 
-    if (any(grepl("__", fm))) { # has specified cov
-      grp_vars2 <- unique(unlist(lapply(fm, function(x) {
-        strsplit(as.character(x)[3], "[@]")
-      })))
-      grp_vars2 <- gsub("__$", "", grp_vars2[grepl("__$", grp_vars2)])
-
-      if (is.null(cov_ranef)) stop("cov_ranef, the list of cov matrices, is not specified")
-      names(cov_ranef) <- gsub("__$", "", names(cov_ranef)) # remove potential trailing __
-      if (!all(grp_vars2 %in% names(cov_ranef))) {
-        stop(paste0(
-          "Some group variables (",
-          paste(setdiff(grp_vars2, names(cov_ranef)), collapse = ", "),
-          ") assigned to have specific cov matrix are not in cov_ranef"
-        ))
-      }
-      cov_list <- parse_conv_ranef(cov_ranef, data, standardize = standardize_cov)
-      cov_ranef_list <- cov_list$cleaned_list
-      cov_ranef_updated <- cov_list$updated_orgi_list
-    } else {
-      cov_ranef_list <- NULL # no cov matrix needed, e.g. (1|sp@site)
-      cov_ranef_updated <- NULL
-    }
-
-    # number of potential repulsions (both __ and @)
-    if (all(grepl("@", fm) == FALSE)) { # no nested term
-      n_repulsion <- 1
-    } else {
-      n_repulsion <- sum(sapply(fm[grepl("@", fm)], function(x) {
-        xx <- strsplit(as.character(x)[3], "@")[[1]]
-        sum(grepl("__", xx))
-      }))
-    }
-    if (length(repulsion) == 1 && any(grepl("@", fm))) repulsion <- pglmm_expand_repulsion(fm, repulsion)
-    if (length(repulsion) == 1) repulsion <- rep(repulsion, n_repulsion)
-    if (length(repulsion) != n_repulsion) {
-      stop("The number of repulsion terms specified is not correct: please double check")
-    }
-    nested_repul_i <- 1
-    no_obs_re <- TRUE # flag for message later
-
-    random.effects <- lapply(fm, function(x) {
-      x2 <- as.character(x)
-      x2 <- gsub(pattern = "^0 ?[+] ?", replacement = "", x2) # replace 0 + x with x
-      if (grepl("[+]", x2[2])) stop("(x1 + x2|g) form of random terms are not allowed yet, pleast split it")
-      if (x2[2] == "1") { # intercept
-        if (!grepl("[@]", x2[3])) { # single column; non-nested; 1|sp or 1|sp__
-          if (grepl("__$", x2[3])) {
-            # also want phylogenetic version,
-            # it makes sense if the phylogenetic version is in, the non-phy part should be there too
-            coln <- gsub("__$", "", x2[3])
-            d <- data[, coln] # extract the column
-            xout_nonphy <- list(1, d, covar = diag(nlevels(d)))
-            names(xout_nonphy)[2] <- coln
-            if (coln %nin% names(cov_ranef_list)) {
-              stop(paste0("Cov matrix of variable ", coln, " not specified in cov_ranef."))
-            }
-            xout_phy <- list(1, d, covar = cov_ranef_list[[coln]])
-            names(xout_phy)[2] <- x2[3]
-            xout <- list(xout_nonphy, xout_phy)
-          } else { # non phylogenetic random term
-            d <- data[, x2[3]] # extract the column
-            xout <- list(1, d, covar = diag(nlevels(d)))
-            names(xout)[2] <- x2[3]
-            xout <- list(xout)
-          }
-        } else { # nested term, e.g. sp@site, sp__@site, sp@site__, sp__@site__
-          sp_or_site <- strsplit(x2[3], split = "@")[[1]]
-          colns <- gsub("__$", "", sp_or_site)
-          site_sp_c <- paste(as.character(data[, colns[2]]), as.character(data[, colns[1]]), sep = "___")
-
-          if (any(colns[grepl("__", sp_or_site)] %nin% names(cov_ranef_list))) {
-            stop(paste0(
-              "Cov matrix of variable ",
-              paste(colns[grepl("__", sp_or_site)], collapse = " and "),
-              " not specified in cov_ranef."
-            ))
-          }
-
-          if (!grepl("__", x2[3])) { # no phylogenetic term; e.g. sp@site
-            if (family == "poisson" |
-              (family == "binomial" & # formula such as cbind(success, fail) ~ x
-                is.array(model.response(model.frame(formula.nobars, data = data, na.action = NULL))))) {
-              if (add.obs.re &
-                nlevels(data[, colns[2]]) * nlevels(data[, colns[1]]) == nrow(data)
-              # only wroks for full balanced design though...
-              ) {
-                message("It seems that you specified an observation-level random term already e.g. (1|sp@site);
-                       we will set 'add.obs.re' to FALSE.")
-                add.obs.re <<- FALSE
-                no_obs_re <<- FALSE
-              }
-            }
-
-            # # message("Nested term without specify phylogeny, use identity matrix instead")
-            # xout = list(Matrix::Diagonal(nrow(data)))
-            # xout = list(xout)
-
-            n_dim <- length(unique(data[, colns[1]]))
-            n_dim2 <- length(unique(data[, colns[2]]))
-            xout <- as(as(kronecker(diag(n_dim2), diag(n_dim)), "generalMatrix"), "CsparseMatrix")
-            # put names back
-            rownames(xout) <- colnames(xout) <- paste(
-              rep(unique(as.character(data[, colns[2]])), each = n_dim),
-              rep(unique(as.character(data[, colns[1]])), n_dim2),
-              sep = "___"
-            )
-            # select the actual combination in the data; e.g. not all sp observed in every site.
-            xout <- xout[site_sp_c, site_sp_c]
-            xout <- list(list(xout))
-          } else { # has phylogenetic term; sp__@site; sp__@site__; sp@site__
-            if (grepl("__", sp_or_site[1]) & !grepl("__", sp_or_site[2])) { # sp__@site
-              n_dim <- nlevels(data[, colns[2]])
-              if (repulsion[nested_repul_i]) {
-                xout <- as(as(kronecker(diag(n_dim), solve(cov_ranef_list[[colns[1]]])), "generalMatrix"), "CsparseMatrix")
-              } else {
-                xout <- as(as(kronecker(diag(n_dim), cov_ranef_list[[colns[1]]]), "generalMatrix"), "CsparseMatrix")
-              }
-              # put names back
-              rownames(xout) <- colnames(xout) <- paste(
-                rep(levels(data[, colns[2]]), each = nrow(cov_ranef_list[[colns[1]]])),
-                rep(rownames(cov_ranef_list[[colns[1]]]), nlevels(data[, colns[2]])),
-                sep = "___"
-              )
-              # select the actual combination in the data; e.g. not all sp observed in every site.
-              xout <- xout[site_sp_c, site_sp_c]
-              xout <- list(xout)
-              nested_repul_i <<- nested_repul_i + 1 # update repulsion index
-            }
-
-            if (!grepl("__", sp_or_site[1]) & grepl("__", sp_or_site[2])) { # sp@site__
-              n_dim <- length(unique(data[, colns[1]]))
-              if (repulsion[nested_repul_i]) {
-                xout <- as(as(kronecker(solve(cov_ranef_list[[colns[2]]]), diag(n_dim)), "generalMatrix"), "CsparseMatrix")
-              } else {
-                xout <- as(as(kronecker(cov_ranef_list[[colns[2]]], diag(n_dim)), "generalMatrix"), "CsparseMatrix")
-              }
-
-              # put names back
-              rownames(xout) <- colnames(xout) <- paste(
-                rep(rownames(cov_ranef_list[[colns[2]]]), each = nlevels(data[, colns[1]])),
-                rep(levels(data[, colns[1]]), nrow(cov_ranef_list[[colns[2]]])),
-                sep = "___"
-              )
-              # select the actual combination in the data; e.g. not all sp observed in every site.
-              xout <- xout[site_sp_c, site_sp_c]
-
-              xout <- list(xout)
-              nested_repul_i <<- nested_repul_i + 1
-            }
-
-            if (grepl("__", sp_or_site[1]) & grepl("__", sp_or_site[2])) { # sp__@site__
-              if (repulsion[nested_repul_i]) {
-                Vphy2 <- solve(cov_ranef_list[[colns[1]]])
-              } else {
-                Vphy2 <- cov_ranef_list[[colns[1]]]
-              }
-              nested_repul_i <<- nested_repul_i + 1
-
-              if (repulsion[nested_repul_i]) {
-                Vphy_site2 <- solve(cov_ranef_list[[colns[2]]])
-              } else {
-                Vphy_site2 <- cov_ranef_list[[colns[2]]]
-              }
-              nested_repul_i <<- nested_repul_i + 1
-
-              xout <- as(as(kronecker(Vphy_site2, Vphy2), "generalMatrix"), "CsparseMatrix")
-              # put names back
-              rownames(xout) <- colnames(xout) <- paste(
-                rep(rownames(cov_ranef_list[[colns[2]]]), each = nrow(cov_ranef_list[[colns[1]]])),
-                rep(rownames(cov_ranef_list[[colns[1]]]), nrow(cov_ranef_list[[colns[2]]])),
-                sep = "___"
-              )
-              # select the actual combination in the data; e.g. not all sp observed in every site.
-              xout <- xout[site_sp_c, site_sp_c]
-              xout <- list(xout)
-            }
-
-            xout <- list(xout) # to put the matrix in a list
-          }
-
-          if (bayes_nested_matrix_as_list | (bayes & # invertible nested matrix for bayes version will cause error
-            inherits(try(solve(xout[[1]][[1]]), silent = TRUE), "try-error"))) {
-            message("nested matrix as a list")
-            if (!grepl("__", x2[3])) { # 1|sp@site
-              vm <- diag(length(unique(data[, colns[1]])))
-              xout <- list(list(1, data[, colns[1]], covar = vm, data[, colns[2]]))
-            } else {
-              # 1 | sp__@site
-              if (grepl("__", sp_or_site[1]) & !grepl("__", sp_or_site[2])) {
-                vm <- cov_ranef_list[[colns[1]]]
-                # the repulsion index was already moved past this term above
-                if (repulsion[nested_repul_i - 1]) vm <- solve(vm)
-                xout <- list(list(1, data[, colns[1]], covar = vm, data[, colns[2]]))
-              }
-              # 1 | sp@site__
-              if (!grepl("__", sp_or_site[1]) & grepl("__", sp_or_site[2])) {
-                vm <- cov_ranef_list[[colns[2]]]
-                if (repulsion[nested_repul_i - 1]) vm <- solve(vm)
-                xout <- list(list(1, data[, colns[2]], covar = vm, data[, colns[1]]))
-              }
-              # 1 | sp__@site__ ?? how do in the old way?
-            }
-          }
-        }
-      } else { # slope
-        if (grepl("@", x2[3])) {
-          if (!bayes) stop("Nested random term for slope is not allowed yet")
-          ############## Working on this #########################
-
-          d <- data[, x2[2]] # extract the column
-          sp_or_site <- strsplit(x2[3], split = "@")[[1]]
-          colns <- gsub("__$", "", sp_or_site)
-          site_sp_c <- paste(as.character(data[, colns[2]]), as.character(data[, colns[1]]), sep = "___")
-
-          if (any(colns[grepl("__", sp_or_site)] %nin% names(cov_ranef_list))) {
-            stop(paste0(
-              "Cov matrix of variable ",
-              paste(colns[grepl("__", sp_or_site)], collapse = " and "),
-              " not specified in cov_ranef."
-            ))
-          }
-
-          if (!grepl("__", x2[3])) { # no phylogenetic term; e.g. x|sp@site
-            # message("Nested term without specify phylogeny, use identity matrix instead")
-            xout <- list(d, Matrix::Diagonal(nrow(data)))
-            xout <- list(xout)
-          } else { # has phylogenetic term; x|sp__@site; x|sp__@site__; x|sp@site__
-            if (grepl("__", sp_or_site[1]) & !grepl("__", sp_or_site[2])) { # x|sp__@site
-              n_dim <- nlevels(data[, colns[2]])
-              if (repulsion[nested_repul_i]) {
-                xout <- as(as(kronecker(diag(n_dim), solve(cov_ranef_list[[colns[1]]])), "generalMatrix"), "CsparseMatrix")
-              } else {
-                xout <- as(as(kronecker(diag(n_dim), cov_ranef_list[[colns[1]]]), "generalMatrix"), "CsparseMatrix")
-              }
-              # put names back
-              rownames(xout) <- colnames(xout) <- paste(
-                rep(levels(data[, colns[2]]), each = nrow(cov_ranef_list[[colns[1]]])),
-                rep(rownames(cov_ranef_list[[colns[1]]]), nlevels(data[, colns[2]])),
-                sep = "___"
-              )
-              # select the actual combination in the data; e.g. not all sp observed in every site.
-              xout <- xout[site_sp_c, site_sp_c]
-              xout <- list(d, xout)
-              nested_repul_i <<- nested_repul_i + 1 # update repulsion index
-            }
-
-            if (!grepl("__", sp_or_site[1]) & grepl("__", sp_or_site[2])) { # x|sp@site__
-              n_dim <- length(unique(data[, colns[1]]))
-              if (repulsion[nested_repul_i]) {
-                xout <- as(as(kronecker(solve(cov_ranef_list[[colns[2]]]), diag(n_dim)), "generalMatrix"), "CsparseMatrix")
-              } else {
-                xout <- as(as(kronecker(cov_ranef_list[[colns[2]]], diag(n_dim)), "generalMatrix"), "CsparseMatrix")
-              }
-
-              # put names back
-              rownames(xout) <- colnames(xout) <- paste(
-                rep(rownames(cov_ranef_list[[colns[2]]]), each = nlevels(data[, colns[1]])),
-                rep(levels(data[, colns[1]]), nrow(cov_ranef_list[[colns[2]]])),
-                sep = "___"
-              )
-              # select the actual combination in the data; e.g. not all sp observed in every site.
-              xout <- xout[site_sp_c, site_sp_c]
-
-              xout <- list(d, xout)
-              nested_repul_i <<- nested_repul_i + 1
-            }
-
-            if (grepl("__", sp_or_site[1]) & grepl("__", sp_or_site[2])) { # x|sp__@site__
-              if (repulsion[nested_repul_i]) {
-                Vphy2 <- solve(cov_ranef_list[[colns[1]]])
-              } else {
-                Vphy2 <- cov_ranef_list[[colns[1]]]
-              }
-              nested_repul_i <<- nested_repul_i + 1
-
-              if (repulsion[nested_repul_i]) {
-                Vphy_site2 <- solve(cov_ranef_list[[colns[2]]])
-              } else {
-                Vphy_site2 <- cov_ranef_list[[colns[2]]]
-              }
-              nested_repul_i <<- nested_repul_i + 1
-
-              xout <- as(as(kronecker(Vphy_site2, Vphy2), "generalMatrix"), "CsparseMatrix")
-              # put names back
-              rownames(xout) <- colnames(xout) <- paste(
-                rep(rownames(cov_ranef_list[[colns[2]]]), each = nrow(cov_ranef_list[[colns[1]]])),
-                rep(rownames(cov_ranef_list[[colns[1]]]), nrow(cov_ranef_list[[colns[2]]])),
-                sep = "___"
-              )
-              # select the actual combination in the data; e.g. not all sp observed in every site.
-              xout <- xout[site_sp_c, site_sp_c]
-              xout <- list(d, xout)
-            }
-
-            xout <- list(xout) # to put the matrix in a list
-          }
-
-          ###########################################################
-        } else {
-          if (grepl("__$", x2[3])) { # x|sp__
-            # also want phylogenetic version,
-            # it makes sense if the phylogenetic version is in, the non-phy part should be there too
-            coln <- gsub("__$", "", x2[3])
-            d <- data[, coln] # extract the column
-            xout_nonphy <- list(data[, x2[2]], d, covar = diag(nlevels(d)))
-            names(xout_nonphy)[2] <- coln
-            xout_phy <- list(data[, x2[2]], d, covar = cov_ranef_list[[coln]])
-            names(xout_phy)[2] <- x2[3]
-            xout <- list(xout_nonphy, xout_phy)
-          } else { # non phylogenetic random term; x|sp
-            d <- data[, x2[3]] # extract the column
-            xout <- list(data[, x2[2]], d, covar = diag(nlevels(d)))
-            names(xout)[2] <- x2[3]
-            xout <- list(xout)
-          }
-        }
-      }
-      xout
-    })
-    random.effects <- unlist(random.effects, recursive = FALSE)
-    names(random.effects) <- unlist(sapply(fm, function(x) {
-      x2 <- as.character(x)
-      x3 <- paste0(x2[2], x2[1], x2[3])
-      if (grepl("__$", x2[3]) & !grepl("@", x2[3])) { # 1|sp__
-        x4 <- gsub("__$", "", x3)
-        return(c(x4, x3)) # 1|sp  1|sp__
-      }
-      x3
-    }), recursive = TRUE)
-
-    # Add observation-level variances for families binomial (size > 1) and poisson
-    if (family == "poisson" |
-      (family == "binomial" &
-        is.array(model.response(model.frame(formula.nobars, data = data, na.action = NULL))))) {
-      if (add.obs.re) {
-        message("We add an observation-level random term '1|obs' for poisson and binomial data.")
-        random.effects[[length(random.effects) + 1]] <- list(Matrix::Diagonal(nrow(data)))
-        names(random.effects)[length(random.effects)] <- "1|obs"
-      } else {
-        if (no_obs_re) message("For poisson and binomial data, it would be a good idea to add an observation-level random term (add.obs.re = TRUE).")
-      }
-    }
+  # observation-level variances for poisson and binomial (size > 1) data
+  if (has.obs) {
+    random.effects[["1|obs"]] <- list(Matrix::Diagonal(nrow(data)))
   }
 
   return(list(
@@ -453,6 +359,100 @@ prep_dat_pglmm <- function(formula, data, cov_ranef = NULL, repulsion = FALSE,
     random.effects = random.effects,
     cov_ranef_updated = cov_ranef_updated
   ))
+}
+
+# The random effects of a fitted model in the format of the dense code
+# (random.effects of prep_dat_pglmm(), with the covariance matrices), for
+# models fitted with sparse = TRUE or method = "Laplace", which do not keep
+# them: rebuilt from the formula, data, cov_ranef, repulsion (from re_terms)
+# and family of the model.
+pglmm_dense_random_effects <- function(object) {
+  if (is.null(object$formula_original)) {
+    stop("The covariance matrices of the random terms of this model are not available.",
+         call. = FALSE)
+  }
+  rep <- unlist(lapply(object$re_terms, function(t) if (isTRUE(t$nested)) t$repulsion[t$phy]))
+  if (is.null(rep)) rep <- FALSE
+  cr <- object$cov_ranef
+  if (!is.list(cr)) cr <- NULL # NA without covariance matrices
+  std <- if (is.null(object$standardize_cov)) TRUE else object$standardize_cov
+  suppressMessages(prep_dat_pglmm(
+    object$formula_original, object$data, cr, repulsion = rep, family = object$family,
+    add.obs.re = "1|obs" %in% names(object$random.effects), standardize_cov = std
+  ))
+}
+
+# One term of pglmm_parse_re() (with the repulsion of pglmm_re_repulsion())
+# for the dense code, in the format of random.effects of pglmm():
+# - non-nested terms: list(covariate, grouping factor, covar = covariance
+#   matrix of its levels), the factor named after the variable (with __ for
+#   phylogenetic terms);
+# - nested intercepts: list(covariance matrix of the observations), from the
+#   Kronecker product of the matrices of the two variables (identity matrix
+#   without phylogeny), or, with bayes_nested_matrix_as_list (as_list = TRUE)
+#   or a matrix that cannot be inverted with bayes = TRUE, list(1, factor,
+#   covar, factor of the other variable);
+# - nested slopes (bayes = TRUE only): list(covariate, covariance matrix of
+#   the observations).
+# data has the grouping variables as factors; covs are the covariance matrices
+# of parse_conv_ranef(), with rows in the order of the levels.
+pglmm_dense_re_term <- function(t, data, covs, bayes = FALSE, as_list = FALSE) {
+  covariate <- if (t$lhs == "1") 1 else data[, t$lhs]
+  g <- t$group
+  if (!t$nested) {
+    d <- data[, g]
+    if (t$phy) {
+      if (g %nin% names(covs)) stop(paste0("Cov matrix of variable ", g, " not specified in cov_ranef."))
+      out <- list(covariate, d, covar = covs[[g]])
+      names(out)[2] <- paste0(g, "__")
+    } else {
+      out <- list(covariate, d, covar = diag(nlevels(d)))
+      names(out)[2] <- g
+    }
+    return(out)
+  }
+  if (t$lhs != "1" && !bayes) stop("Nested random term for slope is not allowed yet")
+  phy <- t$phy
+  if (any(g[phy] %nin% names(covs))) {
+    stop(paste0("Cov matrix of variable ", paste(g[phy], collapse = " and "),
+                " not specified in cov_ranef."))
+  }
+  if (!any(phy) && t$lhs != "1") {
+    # x|sp@site without phylogeny
+    return(list(covariate, Matrix::Diagonal(nrow(data))))
+  }
+  # matrix of each variable: its (inverted with repulsion) covariance matrix,
+  # or the identity matrix; rows in the order of the levels
+  var_matrix <- function(i) {
+    if (!phy[i]) {
+      lv <- levels(data[, g[i]])
+      return(matrix(diag(length(lv)), length(lv), dimnames = list(lv, lv)))
+    }
+    if (t$repulsion[i]) solve(covs[[g[i]]]) else covs[[g[i]]]
+  }
+  m1 <- var_matrix(1)
+  m2 <- var_matrix(2)
+  xout <- as(as(kronecker(m2, m1), "generalMatrix"), "CsparseMatrix")
+  rownames(xout) <- colnames(xout) <- paste(
+    rep(rownames(m2), each = nrow(m1)), rep(rownames(m1), nrow(m2)), sep = "___"
+  )
+  # the combinations in the data, e.g. not all species observed at every site
+  site_sp_c <- paste(as.character(data[, g[2]]), as.character(data[, g[1]]), sep = "___")
+  xout <- xout[site_sp_c, site_sp_c]
+  if (t$lhs != "1") return(list(covariate, xout))
+
+  # invertible nested matrix for the bayesian version would cause an error
+  if (as_list || (bayes && inherits(try(solve(xout), silent = TRUE), "try-error"))) {
+    message("nested matrix as a list")
+    if (!any(phy) || (phy[1] && !phy[2])) { # 1|sp@site, 1|sp__@site
+      return(list(1, data[, g[1]], covar = m1, data[, g[2]]))
+    }
+    if (!phy[1] && phy[2]) { # 1|sp@site__
+      return(list(1, data[, g[2]], covar = m2, data[, g[1]]))
+    }
+    # 1|sp__@site__: as a matrix
+  }
+  list(xout)
 }
 
 #' \code{get_design_matrix} gets design matrix for gaussian, binomial, and poisson models
@@ -869,9 +869,16 @@ pglmm.V <- function(par, Zt, St, mu, nested, family, size) {
 #'
 #' \code{pglmm_profile_LRT} tests statistical significance of the
 #' phylogenetic random effect using profile likelihoods when bayes = F.
-#' The resulting p-values are conditional on the fixed
-#' estimates of the other parameters, in contrast to a standard
-#' likelihood ratio test.
+#'
+#' For models fitted with \code{sparse = TRUE} (gaussian) or
+#' \code{method = "Laplace"}, it is a likelihood ratio test: the variances of
+#' the terms \code{re.number} are set to zero and the other parameters are
+#' estimated again (as for the profile likelihood intervals of
+#' [confint.communityPGLMM()]). For the other models, the p-values are
+#' conditional on the estimates of the other parameters (which are not
+#' estimated again), in contrast to a standard likelihood ratio test. As a
+#' variance of zero is at the boundary of its range, the p-value of the
+#' chi-square test is halved.
 #'
 #' For binomial and poisson models fitted with `method = "Laplace"`, the
 #' log-likelihoods are the Laplace approximations of the (restricted) marginal
@@ -880,7 +887,8 @@ pglmm.V <- function(par, Zt, St, mu, nested, family, size) {
 #'
 #' @rdname pglmm-profile-LRT
 #' @param x A fitted model with class communityPGLMM with `bayes = FALSE`.
-#' @param re.number Which random term to test? Can be a vector with length >1.
+#' @param re.number Which random term to test: positions in `x$ss` (the standard deviations
+#'   of the random terms, in the order of the fit). Can be a vector with length >1.
 #' @inheritParams pglmm
 #' @return A list of likelihood, df, and p-value.
 #' @export
@@ -892,6 +900,21 @@ pglmm_profile_LRT <- function(x, re.number = 0, cpp = TRUE) {
   par <- x$ss
   par[re.number] <- 0
   df <- length(re.number)
+
+  # sparse gaussian and Laplace fits: the profile likelihood, with the other
+  # parameters optimized with the variances re.number at zero (as
+  # confint.communityPGLMM())
+  prof <- if (!is.null(x$sparse) && !identical(x$method, "PQL")) pglmm_profile_fun(x)
+  if (!is.null(prof)) {
+    k <- names(x$ss)[re.number]
+    if (anyNA(k) || "residual" %in% k) {
+      stop("re.number must give random terms (positions in x$ss, without the residual).",
+           call. = FALSE)
+    }
+    LR <- max(prof$ll0 - prof$prof(k, pglmm_var_lb), 0)
+    Pr <- pchisq(2 * LR, df = df, lower.tail = FALSE) / 2
+    return(list(LR = LR, df = df, Pr = if (Pr > 0.499) 1 else Pr))
+  }
 
   if (identical(x$method, "Laplace")) {
     # Laplace approximation of the log-likelihood with the variances of the
@@ -943,7 +966,7 @@ pglmm_profile_LRT <- function(x, re.number = 0, cpp = TRUE) {
   }
 
   if (x$REML) {
-    logLik <- -0.5 * (n - p - 1) * log(2 * pi) + 0.5 * determinant(t(x$X) %*% x$X)$modulus[1] - LL
+    logLik <- -0.5 * (n - p) * log(2 * pi) - LL
   } else {
     logLik <- -0.5 * n * log(2 * pi) - LL
   }
@@ -970,7 +993,7 @@ pglmm_profile_LRT <- function(x, re.number = 0, cpp = TRUE) {
   }
 
   if (x$REML) {
-    logLik0 <- -0.5 * (n - p - 1) * log(2 * pi) + 0.5 * determinant(t(x$X) %*% x$X)$modulus[1] - LL0
+    logLik0 <- -0.5 * (n - p) * log(2 * pi) - LL0
   } else {
     logLik0 <- -0.5 * n * log(2 * pi) - LL0
   }
@@ -1060,29 +1083,10 @@ summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") -
   x <- object # summary generic function first argument is object, not x.
   if (is.null(x$bayes)) x$bayes <- FALSE # to be compatible with models fitting by pez
 
-  if (x$bayes) {
-    if (x$family == "gaussian") {
-      cat("Linear mixed model fit by Bayesian INLA")
-    }
-    if (x$family == "binomial") {
-      cat("Generalized linear mixed model for binomial data fit by Bayesian INLA")
-    }
-    if (x$family == "poisson") {
-      cat("Generalized linear mixed model for poisson data fit by Bayesian INLA")
-    }
-    if (x$family == "zeroinflated.binomial") {
-      cat("Generalized linear mixed model for binomial data with zero inflation fit by Bayesian INLA")
-    }
-    if (x$family == "zeroinflated.poisson") {
-      cat("Generalized linear mixed model for poisson data with zero inflation fit by Bayesian INLA")
-    }
-  } else {
-    cat(pglmm_fit_title(x))
-  }
+  cat(if (x$bayes) pglmm_bayes_title(x) else pglmm_fit_title(x))
 
-  cat("\n\nCall:")
-  print(x$formula)
-  cat("\n")
+  # the formula with the random terms, without its environment
+  cat("\n\nFormula: ", deparse1(formula(x)), "\n\n", sep = "")
 
   if (x$bayes) {
     logLik <- c(
@@ -1109,6 +1113,7 @@ summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") -
       upper.CI = x$zi.ci[1, 2]
     ), digits = digits)
   }
+  pglmm_print_disp(x, digits)
 
   cat("\nRandom effects:\n")
   w <- data.frame(Variance = c(x$s2r, x$s2n, x$s2resid))
@@ -1164,11 +1169,49 @@ print.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ..
 }
 
 
+# name of the distribution of a family for printing; family can be the name
+# used by INLA for zero-inflated models (e.g. zeroinflatedpoisson1)
+pglmm_family_label <- function(family) {
+  spec <- pglmm_family_spec(family)
+  if (!is.null(spec)) return(spec$label)
+  if (grepl("nbinomial", family)) return("negative binomial")
+  if (grepl("binomial", family)) return("binomial")
+  if (grepl("poisson", family)) return("poisson")
+  family
+}
+
+# title of the summary of a model fitted with bayes = TRUE
+pglmm_bayes_title <- function(x) {
+  if (x$family == "gaussian") return("Linear mixed model fit by Bayesian INLA")
+  paste0("Generalized linear mixed model for ", pglmm_family_label(x$family), " data",
+         if (grepl("zeroinflated", x$family)) " with zero inflation", " fit by Bayesian INLA")
+}
+
+# the dispersion parameter of the family (if any; e.g. theta of negative
+# binomial models, the shape of Gamma models), for summary(); with
+# bayes = TRUE, with its credible interval (element <name>.ci)
+pglmm_print_disp <- function(x, digits) {
+  spec <- pglmm_family_spec(x$family)
+  if (is.null(spec) || is.null(spec$disp)) return(invisible(NULL))
+  nm <- spec$disp$name
+  value <- x[[nm]]
+  if (is.null(value)) return(invisible(NULL))
+  cat("\n", spec$disp$label, ":\n", sep = "")
+  ci <- x[[paste0(nm, ".ci")]]
+  if (isTRUE(x$bayes) && !is.null(ci)) {
+    print(data.frame(Estimate = value, lower.CI = ci[1, 1], upper.CI = ci[1, 2], row.names = nm),
+          digits = digits)
+  } else {
+    print(setNames(value, nm), digits = digits)
+  }
+  invisible(NULL)
+}
+
 # title of the summary of a model fitted with bayes = FALSE
 pglmm_fit_title <- function(x) {
   lik <- if (isTRUE(x$REML)) "restricted maximum likelihood" else "maximum likelihood"
   if (x$family == "gaussian") return(paste("Linear mixed model fit by", lik))
-  out <- paste("Generalized linear mixed model for", x$family, "data fit by")
+  out <- paste("Generalized linear mixed model for", pglmm_family_label(x$family), "data fit by")
   if (identical(x$method, "Laplace")) {
     paste0(out, " Laplace approximation (", lik, ")")
   } else if (identical(x$method, "PQL")) {
@@ -1247,18 +1290,15 @@ pglmm_sparse_hint <- function(n, covs, min.n = 2000, min.sp = 300) {
 # non-phylogenetic term (1 | sp) that pglmm() adds automatically is then
 # confounded with the residual (or observation-level) variance. Shown once per
 # session; options(phyr.compare.hint = FALSE) turns it off.
-pglmm_compare_hint <- function(formula, data) {
+pglmm_compare_hint <- function(specs, data) {
   if (!isTRUE(getOption("phyr.compare.hint", TRUE)) || isTRUE(.phyr_state$compare.hint.shown)) {
     return(invisible(FALSE))
   }
-  fm <- reformulas::findbars(formula)
-  if (!length(fm)) {
+  # variables of phylogenetic intercepts such as (1 | sp__) (specs of pglmm_parse_re())
+  vars <- unique(unlist(lapply(specs, function(s) if (s$lhs == "1" && !s$nested && s$phy) s$group)))
+  if (!length(vars)) {
     return(invisible(FALSE))
   }
-  lhs <- vapply(fm, function(x) paste(deparse(x[[2]]), collapse = ""), "")
-  grp <- vapply(fm, function(x) paste(deparse(x[[3]]), collapse = ""), "")
-  grp <- grp[lhs == "1" & grepl("__$", grp) & !grepl("@", grp, fixed = TRUE)]
-  vars <- intersect(unique(sub("__$", "", grp)), names(data))
   one.row <- vapply(vars, function(v) {
     x <- as.character(data[[v]])
     x <- x[!is.na(x)]
@@ -1279,43 +1319,28 @@ pglmm_compare_hint <- function(formula, data) {
   invisible(TRUE)
 }
 
-# Random terms for phylo_only = TRUE (pglmm_compare()): drop the
-# non-phylogenetic partner (1 | sp) of each non-nested phylogenetic term
-# (1 | sp__), and give the phylogenetic term as a term with one value per
-# observation (a matrix, as nested terms), with the covariance matrix of the
-# species of the observations. With one row per species, this is the
-# covariance matrix of the phylogeny in the order of the rows.
-pglmm_phylo_only_re <- function(random.effects) {
-  nm <- names(random.effects)
-  drop <- integer(0)
-  for (i in which(grepl("__$", nm) & !grepl("@", nm, fixed = TRUE))) {
-    re.i <- random.effects[[i]]
-    if (length(re.i) != 3 || !identical(as.numeric(re.i[[1]]), 1)) {
+# Random terms for phylo_only = TRUE (pglmm_compare()): keep the terms of
+# pglmm_parse_re(phylo_only = TRUE) (terms, without the non-phylogenetic
+# partner (1 | sp) of each non-nested phylogenetic term (1 | sp__)), and give
+# the phylogenetic term as a term with one value per observation (a matrix, as
+# nested terms), with the covariance matrix of the species of the
+# observations. With one row per species, this is the covariance matrix of the
+# phylogeny in the order of the rows.
+pglmm_phylo_only_re <- function(random.effects, terms) {
+  random.effects <- random.effects[names(random.effects) %in%
+                                     c(vapply(terms, `[[`, "", "name"), "1|obs")]
+  for (t in terms) {
+    if (!isTRUE(t$phylo_only)) next
+    re.i <- random.effects[[t$name]]
+    if (t$lhs != "1") {
       stop("Only intercepts of phylogenetic terms, e.g. (1 | sp__), are allowed here.", call. = FALSE)
     }
-    partner <- match(sub("__$", "", nm[i]), nm)
-    if (!is.na(partner)) drop <- c(drop, partner)
     f <- re.i[[2]]
     V <- as.matrix(re.i[[3]])[as.integer(f), as.integer(f), drop = FALSE]
     dimnames(V) <- list(as.character(f), as.character(f))
-    random.effects[[i]] <- list(V)
+    random.effects[[t$name]] <- list(V)
   }
-  if (length(drop)) random.effects <- random.effects[-drop]
   random.effects
-}
-
-# A single repulsion value applies to the phylogenies of species only, i.e. the
-# first variable of nested terms (e.g. sp in 1|sp__@site__); phylogenies of the
-# second variable (sites) are not inverted. As in Ives & Helmus (2011, Appendix
-# A), repulsion comes from competition among related species. Returns one value
-# per phylogenetic variable of nested terms, in the order of the formula.
-pglmm_expand_repulsion <- function(fm, repulsion) {
-  unlist(lapply(fm, function(x) {
-    gp <- strsplit(as.character(x)[3], "@", fixed = TRUE)[[1]]
-    if (length(gp) < 2) return(logical(0))
-    phy <- grepl("__$", gp)
-    (repulsion & c(TRUE, FALSE))[phy]
-  }))
 }
 
 # ---- Inverse of the marginal covariance matrix V, without storing it ----
@@ -1423,6 +1448,9 @@ pglmm_iV_mult <- function(object, M, fac = NULL) {
   if (!is.null(object$iV)) {
     return(as.matrix(object$iV %*% as.matrix(M)))
   }
+  if (!is.null(object$sparse)) { # sparse = TRUE or method = "Laplace"
+    return(pglmm_sparse_iV_mult(pglmm_sparse_iV_pieces(object), M))
+  }
   if (is.null(fac)) fac <- pglmm_iV_object_factors(object)
   pglmm_iV_mult_factors(fac, M)
 }
@@ -1447,6 +1475,9 @@ pglmm_iV_diag <- function(object) {
   if (!is.null(object$iV)) {
     return(diag(as.matrix(object$iV)))
   }
+  if (!is.null(object$sparse)) { # sparse = TRUE or method = "Laplace"
+    return(pglmm_sparse_iV_diag(pglmm_sparse_iV_pieces(object)))
+  }
   fac <- pglmm_iV_object_factors(object)
   n <- length(fac$d)
   if (fac$has.nested) {
@@ -1469,7 +1500,7 @@ pglmm_iV_diag <- function(object) {
 #' Inverse of the covariance matrix of a fitted PGLMM
 #'
 #' Calculate the inverse of the marginal covariance matrix (`iV`) of the data
-#' for a model fitted with `bayes = FALSE`. Since version 1.3.0, this n by n
+#' for a model fitted with `bayes = FALSE`. Since version 1.4.0, this n by n
 #' matrix is no longer returned by [pglmm()], because it needs a lot of memory
 #' and time for large data sets, and no function of the package needs it.
 #'
@@ -1478,7 +1509,11 @@ pglmm_iV_diag <- function(object) {
 #'   observations used to fit the model. For gaussian models, it includes the
 #'   residual variance. For binomial and poisson models, it is the inverse of
 #'   the covariance matrix of the working response of the penalized
-#'   quasi-likelihood fit.
+#'   quasi-likelihood fit; for models fitted with `method = "Laplace"`, the same
+#'   with the weights at the mode of the random effects (the observed
+#'   information). For models fitted with `sparse = TRUE` or
+#'   `method = "Laplace"`, it is calculated from the sparse factorization of the
+#'   fit (with the Woodbury identity).
 #' @export
 #' @examples
 #' dat <- data.frame(
@@ -1561,26 +1596,34 @@ pglmm_predicted_values <- function(x, cpp = TRUE,
   type <- match.arg(type)
   linkinv <- pglmm_linkinv(x$family)
 
-  if (!is.null(re.form)) { # re.form = NA or ~0: no random effects, Xb
-    predicted.values <- as.vector(x$X %*% x$B)
+  if (!is.null(re.form)) { # re.form = NA or ~0: no random effects, Xb (+ offset)
+    predicted.values <- as.vector(x$X %*% x$B) + pglmm_offset(x)
     if (type == "response") predicted.values <- linkinv(predicted.values)
   } else if (isTRUE(x$bayes)) {
     marginal.summ <- x$marginal.summ
     if (marginal.summ == "median") marginal.summ <- "0.5quant"
+    # the first rows are those of the observations (more rows with the matrix
+    # A of sparse_method = "flow")
     if (type == "link") {
-      predicted.values <- x$inla.model$summary.linear.predictor[, marginal.summ, drop = TRUE]
+      predicted.values <- x$inla.model$summary.linear.predictor[seq_len(nrow(x$X)), marginal.summ, drop = TRUE]
     } else {
-      predicted.values <- x$inla.model$summary.fitted.values[, marginal.summ, drop = TRUE]
+      predicted.values <- x$inla.model$summary.fitted.values[seq_len(nrow(x$X)), marginal.summ, drop = TRUE]
     }
   } else {
     if (x$family == "gaussian") {
       H <- as.vector(x$H) # H is Y - X %*% B
-      if (!is.null(x$sparse)) {
-        if (ptype == "tip_rm") pglmm_sparse_stop(x, "gaussian.pred = 'tip_rm'")
+      if (!is.null(x$sparse) && ptype == "nearest_node") {
         # Xb + Zu
         return(data.frame(Y_hat = as.vector(x$X %*% x$B) + as.vector(x$sparse$pre$Z %*% x$sparse$u)))
       }
-      iVH <- as.vector(pglmm_iV_mult(x, H))
+      if (!is.null(x$sparse)) { # tip_rm, with the sparse factorization
+        pc <- pglmm_sparse_iV_pieces(x)
+        iVH <- as.vector(pglmm_sparse_iV_mult(pc, H))
+        iVd <- pglmm_sparse_iV_diag(pc)
+      } else {
+        iVH <- as.vector(pglmm_iV_mult(x, H))
+        iVd <- if (ptype == "tip_rm") pglmm_iV_diag(x)
+      }
       if (ptype == "nearest_node") {
         # Xb + Zu: the random effects are (V - s2resid * I) %*% iV %*% H
         predicted.values <- as.vector(x$Y) - as.numeric(x$s2resid) * iVH
@@ -1588,16 +1631,14 @@ pglmm_predicted_values <- function(x, cpp = TRUE,
       if (ptype == "tip_rm") {
         # prediction of H[i] given H[-i], V[i, -i] %*% solve(V[-i, -i]) %*% H[-i],
         # which is H[i] - (iV %*% H)[i] / iV[i, i]
-        h <- H - iVH / pglmm_iV_diag(x)
+        h <- H - iVH / iVd
         predicted.values <- as.vector(x$X %*% x$B) + h
       }
-    } else if (x$family == "binomial") {
-      # mu is linkinv(X %*% B + b), with b the random effects estimated by PQL
-      predicted.values <- logit(as.vector(x$mu))
-    } else if (x$family == "poisson") {
-      predicted.values <- log(as.vector(x$mu))
+    } else if (!is.null(spec <- pglmm_family_spec(x$family))) {
+      # mu is linkinv(X %*% B + b), with b the estimates of the random effects
+      predicted.values <- spec$linkfun(as.vector(x$mu))
     } else {
-      stop("no predicted values for family other than gaussian, binomial and poisson, yet", call. = FALSE)
+      stop("no predicted values for family ", x$family, " yet", call. = FALSE)
     }
     if (type == "response") predicted.values <- linkinv(predicted.values)
   }
@@ -1605,16 +1646,38 @@ pglmm_predicted_values <- function(x, cpp = TRUE,
   data.frame(Y_hat = predicted.values)
 }
 
+# offset of the linear predictor for the observations of a fitted model (zero
+# if none): stored by the Laplace code; for bayes = TRUE (INLA uses the offset()
+# terms of the formula), calculated from the formula and the data
+pglmm_offset <- function(object) {
+  if (!is.null(object$offset)) return(as.numeric(object$offset))
+  fm <- object$formula
+  if (!inherits(fm, "formula") || is.null(attr(terms(fm), "offset"))) return(0)
+  mf <- tryCatch(model.frame(fm, data = object$data, na.action = NULL), error = function(e) NULL)
+  off <- if (!is.null(mf)) model.offset(mf)
+  if (is.null(off) || length(off) != nrow(object$X)) return(0)
+  as.numeric(off)
+}
+
 # inverse link function of a fitted model; family is a string, which can be the
 # name used by INLA for zero-inflated models (e.g. zeroinflatedbinomial1)
 pglmm_linkinv <- function(family) {
+  spec <- pglmm_family_spec(family)
+  if (!is.null(spec)) return(spec$linkinv)
+  if (grepl("poisson", family) || grepl("nbinomial", family)) {
+    return(make.link("log")$linkinv)
+  }
   if (grepl("binomial", family)) {
     return(make.link("logit")$linkinv)
   }
-  if (grepl("poisson", family)) {
-    return(make.link("log")$linkinv)
-  }
   identity
+}
+
+# family object of negative binomial models with the dispersion theta (the
+# poisson family for theta = Inf)
+pglmm_nb_family <- function(theta) {
+  if (is.null(theta) || !is.finite(theta)) return(stats::poisson())
+  MASS::negative.binomial(theta)
 }
 
 # number of trials of binomial models
@@ -1641,9 +1704,9 @@ communityPGLMM.predicted.values <- function(x, cpp = TRUE,
 #'
 #' @param object A fitted model with class communityPGLMM.
 #' @param type Type of residuals, currently only "response" for gaussian pglmm;
-#'   "deviance" (default) and "response" for binomial and poisson pglmm. For
-#'   binomial models with more than one trial, the response is the proportion
-#'   of successes.
+#'   "deviance" (default) and "response" for binomial, poisson, negative
+#'   binomial and Gamma pglmm. For binomial models with more than one trial, the
+#'   response is the proportion of successes.
 #' @param scaled Scale residuals by residual standard deviation for gaussian pglmm.
 #' @param \dots Additional arguments, ignored for method compatibility.
 #' @method residuals communityPGLMM
@@ -1677,11 +1740,12 @@ communityPGLMM.predicted.values <- function(x, cpp = TRUE,
 #' @export
 residuals.communityPGLMM <- function(
   object,
-  type = if (object$family %in% c("binomial", "poisson")) "deviance" else "response",
+  type = if (object$family == "gaussian") "response" else "deviance",
   scaled = FALSE, ...
 ) {
-  if (object$family %nin% c("gaussian", "binomial", "poisson")) {
-    stop("no residual methods for family other than gaussian, binomial and poisson, yet", call. = FALSE)
+  spec <- pglmm_family_spec(object$family)
+  if (object$family != "gaussian" && is.null(spec)) {
+    stop("no residual methods for family ", object$family, " yet", call. = FALSE)
   }
   type <- match.arg(type, c("deviance", "response"))
 
@@ -1692,13 +1756,15 @@ residuals.communityPGLMM <- function(
   } else {
     y <- as.numeric(object$Y)
     mu <- as.numeric(object$mu[, 1])
+    wt <- rep(1, length(y))
     if (object$family == "binomial") {
-      size <- pglmm_binomial_size(object)
-      y <- y / size # proportion of successes
-      dres <- sqrt(binomial()$dev.resids(y, mu, rep_len(size, length(y))))
-    } else {
-      dres <- sqrt(poisson()$dev.resids(y, mu, rep(1, length(y))))
+      wt <- rep_len(pglmm_binomial_size(object), length(y))
+      y <- y / wt # proportion of successes
     }
+    # deviance residuals of the stats family object of the family (with the
+    # estimated dispersion parameter, e.g. theta of negative binomial models)
+    dev <- spec$glm.family(pglmm_disp_value(object, spec))$dev.resids(y, mu, wt)
+    dres <- sqrt(pmax(dev, 0))
     res <- switch(type,
       deviance = ifelse(y > mu, dres, -dres),
       response = y - mu
@@ -1745,7 +1811,7 @@ fitted.communityPGLMM <- function(object, ...) {
   if (isTRUE(object$bayes)) {
     ft <- pglmm_predicted_values(object, type = "response")$Y_hat
   } else {
-    if (object$family %in% c("binomial", "poisson")) {
+    if (!is.null(pglmm_family_spec(object$family))) {
       ft <- object$mu[, 1]
     } else {
       ft <- pglmm_predicted_values(object, ...)$Y_hat
@@ -1768,7 +1834,7 @@ fitted.communityPGLMM <- function(object, ...) {
 #' @param object A fitted model with class communityPGLMM.
 #' @param ... Ignored.
 #' @return A dataframe of fixed-effects estimates.
-#' @importFrom lme4 fixef
+#' @importFrom nlme fixef
 #' @export fixef
 #' @method fixef communityPGLMM
 #' @export
@@ -1807,7 +1873,7 @@ fixef.communityPGLMM <- function(object, ...) {
 #' For models fitted by maximum likelihood (`bayes = FALSE`), the estimates are
 #' the conditional modes (BLUPs) of the random effects given the data and the
 #' estimated parameters, \eqn{\hat{u}_k = \sigma_k^2 C_k Z_k' V^{-1} (y - X\beta)}.
-#' For binomial and poisson models fitted with `method = "PQL"` (the default),
+#' For binomial and poisson models fitted with `method = "PQL"`,
 #' they are the conditional modes of the penalized quasi-likelihood (PQL) fit,
 #' calculated with the working response; they will be close to, but not the
 #' same as, the estimates from models fitted with a Laplace approximation (e.g.
@@ -1839,9 +1905,11 @@ fixef.communityPGLMM <- function(object, ...) {
 #' @param object A fitted model with class communityPGLMM.
 #' @param condVar Whether to also return the conditional standard deviations of
 #'   the estimates (column `se`), calculated conditional on the estimated fixed
-#'   effects and variances of random terms, as in `lme4`. Only used when
-#'   `bayes = FALSE`. This needs more computation than the estimates themselves
-#'   for large data sets. Default is `FALSE`.
+#'   effects and variances of random terms, as in `lme4`. They are therefore
+#'   smaller than those of `glmmTMB::ranef(condVar = TRUE)`, which also include
+#'   the uncertainty of these estimates. Only used when `bayes = FALSE`. This
+#'   needs more computation than the estimates themselves for large data sets.
+#'   Default is `FALSE`.
 #' @param ... Ignored.
 #' @return A named list with one data frame for each random term, in the same
 #'   order as the random terms of the model. Each data frame has one row per
@@ -1881,7 +1949,7 @@ fixef.communityPGLMM <- function(object, ...) {
 #'
 #' # variances of the random terms
 #' VarCorr(fit)
-#' @importFrom lme4 ranef
+#' @importFrom nlme ranef
 #' @export ranef
 #' @method ranef communityPGLMM
 #' @export
@@ -1922,6 +1990,39 @@ re_term_names <- function(object) {
   out[nn] <- paste("non-nested", seq_len(sum(nn)))
   out[!nn] <- paste("nested", seq_len(sum(!nn)))
   out
+}
+
+# A random term of a fitted model: its grouping variables (group, without
+# "__"), covariate (lhs, "1" for intercepts) and whether each grouping variable
+# has a phylogeny (phy), from the terms of pglmm_parse_re() stored in the model
+# (re_terms); from the name of the term for models without them (fitted
+# before phyr 1.4.0). NULL if unknown (e.g. random.effects given by the user).
+pglmm_term_info <- function(object, term_name) {
+  t <- object$re_terms[[term_name]]
+  if (!is.null(t)) return(t[c("group", "lhs", "phy", "nested")])
+  gv <- re_group_vars(term_name)
+  if (is.null(gv)) return(NULL)
+  g <- strsplit(sub("^[^|]*[|]", "", term_name), "@", fixed = TRUE)[[1]]
+  list(group = gv, lhs = trimws(sub("[|].*$", "", term_name)),
+       phy = grepl("__$", trimws(g)), nested = length(gv) == 2)
+}
+
+# Labels of the rows of a random term with one value per observation (nested
+# terms of the dense code, or (1 | sp__) of pglmm_compare()): the grouping
+# variables of the term in the rows of the data used for the fit, from the
+# terms stored in the model; otherwise from the row names of its matrix
+# (labels, see re_obs_labels()). obs: the names of the observations.
+pglmm_obs_labels <- function(object, term_name, labels, obs) {
+  t <- object$re_terms[[term_name]]
+  keep <- pglmm_kept_rows(object)
+  if (!is.null(t) && !is.null(keep) && length(keep) == length(obs) && !anyDuplicated(t$group) &&
+      all(t$group %in% names(object$data))) {
+    d <- as.data.frame(lapply(t$group, function(g) as.character(object$data[[g]][keep])),
+                       stringsAsFactors = FALSE)
+    names(d) <- t$group
+    return(d)
+  }
+  re_obs_labels(labels, term_name, obs)
 }
 
 # names of the grouping variables of a random term, from its name,
@@ -2065,7 +2166,7 @@ pglmm_cond_modes <- function(object, condVar = FALSE) {
         names(d) <- gsub("__$", "", gv)
       }
     } else {
-      d <- re_obs_labels(rownames(N), term.names[i], obs)
+      d <- pglmm_obs_labels(object, term.names[i], rownames(N), obs)
     }
     n.lab <- ncol(d)
     d$estimate <- s2n[j] * as.vector(N %*% iVH)
@@ -2083,6 +2184,7 @@ pglmm_cond_modes <- function(object, condVar = FALSE) {
 
 # Posterior summaries of the latent random effects of a model fitted by INLA.
 pglmm_ranef_bayes <- function(object) {
+  pglmm_bayes_sparse_stop(object, "ranef() (see object$bayes_sparse$latent)")
   re <- object$random.effects
   sr <- object$inla.model$summary.random
   if (is.null(sr) || length(sr) != length(re)) {
@@ -2128,7 +2230,7 @@ pglmm_ranef_bayes <- function(object) {
       mat <- re.i[[length(re.i)]]
       obs <- rownames(object$data)
       if (is.null(obs) || length(obs) != n.i) obs <- seq_len(n.i)
-      d <- re_obs_labels(rownames(mat), term.names[i], obs)
+      d <- pglmm_obs_labels(object, term.names[i], rownames(mat), obs)
     }
     d$estimate <- s[[ms]]
     d$sd <- s[["sd"]]
@@ -2149,7 +2251,7 @@ pglmm_ranef_bayes <- function(object) {
 #' the variances are also returned. Use [ranef()] to get the estimates for each
 #' level of the random terms.
 #'
-#' Before version 1.3.0, this table was returned by `ranef()`.
+#' Before version 1.4.0, this table was returned by `ranef()`.
 #'
 #' The variances are the elements `s2r`, `s2n` and `s2resid` of the fitted
 #' model. The variance of a term with a covariance matrix (e.g. a phylogenetic
@@ -2194,7 +2296,7 @@ pglmm_ranef_bayes <- function(object) {
 #' # proportion of the variance among species that is phylogenetic
 #' v_sp <- v[c("1|sp", "1|sp__"), "Variance"] * fit$scale_factors[c("1|sp", "1|sp__")]
 #' v_sp[2] / sum(v_sp)
-#' @importFrom lme4 VarCorr
+#' @importFrom nlme VarCorr
 #' @export VarCorr
 #' @method VarCorr communityPGLMM
 #' @export
@@ -2239,6 +2341,9 @@ VarCorr.communityPGLMM <- function(x, sigma = 1, ...) {
 #'
 #' @export
 family.communityPGLMM <- function(object, ...) {
+  spec <- pglmm_family_spec(object$family)
+  if (!is.null(spec)) return(spec$glm.family(pglmm_disp_value(object, spec)))
+  if (grepl("nbinomial", object$family)) return(pglmm_nb_family(object[["theta"]]))
   fam <- match.fun(object$family)
   fam()
 }
@@ -2399,6 +2504,7 @@ predict.communityPGLMM <- function(object, newdata = NULL, re.form = NULL,
   if (is.null(newdata)) {
     return(as.matrix(pglmm_predicted_values(object, re.form = re.form, type = type, ...)))
   }
+  pglmm_bayes_sparse_stop(object, "predict() with newdata")
 
   newdata <- as.data.frame(newdata) # in case of tibbles
   eta <- pglmm_predict_fixed(object, newdata)
@@ -2435,7 +2541,10 @@ pglmm_predict_fixed <- function(object, newdata) {
       call. = FALSE
     )
   }
-  as.vector(X %*% B)
+  out <- as.vector(X %*% B)
+  off <- model.offset(mf) # offset() terms of the formula, from newdata
+  if (!is.null(off)) out <- out + as.numeric(off)
+  out
 }
 
 # Random part (Zu) of the predictions for new data: sum of the estimates of the
@@ -2452,7 +2561,8 @@ pglmm_predict_ranef <- function(object, newdata, allow.new.levels = FALSE) {
   term.vars <- vector("list", length(r))
   for (i in which(use)) {
     term <- names(r)[i]
-    gv <- re_group_vars(term)
+    info <- pglmm_term_info(object, term)
+    gv <- info$group
     if (is.null(gv) || !all(gv %in% names(r[[i]]))) {
       stop("Predictions with newdata are not available for the random term '", term,
         "'; they need random terms specified in the formula. Use re.form = NA for ",
@@ -2460,8 +2570,7 @@ pglmm_predict_ranef <- function(object, newdata, allow.new.levels = FALSE) {
         call. = FALSE
       )
     }
-    lhs <- trimws(sub("[|].*$", "", term)) # 1 for intercepts
-    term.vars[[i]] <- list(group = gv, slope = if (lhs != "1") lhs)
+    term.vars[[i]] <- list(group = gv, slope = if (info$lhs != "1") info$lhs)
   }
   vars.missing <- setdiff(unlist(term.vars), names(newdata))
   if (length(vars.missing)) {
@@ -2519,6 +2628,19 @@ pglmm_predict_ranef <- function(object, newdata, allow.new.levels = FALSE) {
 #' which is the default). This method is much slower but is often more stable, and is
 #' technically more accurate.
 #'
+#' @section Residual diagnostics with DHARMa:
+#' The DHARMa package calculates scaled (quantile) residuals from simulations
+#' of a fitted model, to check the distribution, dispersion and other
+#' assumptions of the model. `DHARMa::simulateResiduals()` works with models
+#' fitted by [pglmm()] with `bayes = FALSE` (all families), through
+#' `simulate()`, `model.frame()`, `family()` and `predict()`; the simulations
+#' are conditional on the estimated random effects (`re.form = NULL`). DHARMa
+#' warns that the class of the model is not among those it supports (a fixed
+#' list in DHARMa); the residuals are nevertheless correct (we checked the
+#' observed responses, the simulations, and the tests of uniformity and
+#' dispersion with simulated data of each family, including the detection of
+#' overdispersion of counts fitted by a poisson model).
+#'
 #' @examples
 #' # community data: abundance of each species at each site
 #' dat <- data.frame(
@@ -2541,6 +2663,16 @@ pglmm_predict_ranef <- function(object, newdata, allow.new.levels = FALSE) {
 #' sim <- simulate(fit, nsim = 3, seed = 1, re.form = NA)
 #' head(sim)
 #'
+#' # residual diagnostics with DHARMa (which warns that the class of the model
+#' # is not among those it lists)
+#' \donttest{
+#' if (requireNamespace("DHARMa", quietly = TRUE)) {
+#'   res <- suppressWarnings(DHARMa::simulateResiduals(fit, n = 250))
+#'   plot(res)
+#'   DHARMa::testDispersion(res)
+#' }
+#' }
+#'
 #' @export
 #'
 simulate.communityPGLMM <- function(object, nsim = 1, seed = NULL,
@@ -2558,24 +2690,23 @@ simulate.communityPGLMM <- function(object, nsim = 1, seed = NULL,
       sim <- sim %*% matrix(1, 1, nsim)
     } else if (identical(re.form, NA) ||
       (inherits(re.form, "formula") && identical(deparse(re.form), "~0"))) {
-      # condition on none of the random effects: Xb + Zu, with new values of u
-      # drawn with the estimated variances of random terms
-      sim <- as.vector(object$X %*% object$B) %*% matrix(1, 1, nsim)
+      # condition on none of the random effects: Xb + Zu (+ offset), with new
+      # values of u drawn with the estimated variances of random terms
+      sim <- (as.vector(object$X %*% object$B) + pglmm_offset(object)) %*% matrix(1, 1, nsim)
       sim <- sim + pglmm_sim_ranef(object, nsim)
     } else {
       stop("Formula for random effects to condition on currently is not supported yet")
     }
     if (object$family == "gaussian") {
       sim <- sim + sqrt(as.numeric(object$s2resid)) * matrix(rnorm(nsim * nn), nrow = nn)
-    }
-    if (object$family == "poisson") {
-      mu_sim <- make.link("log")$linkinv(sim) # exp(sim)
-      sim <- apply(mu_sim, MARGIN = 2, FUN = function(x) rpois(length(x), x))
-    }
-    if (object$family == "binomial") {
-      mu_sim <- make.link("logit")$linkinv(sim) # 1/(1 + exp(-sim))
-      Ntrials <- pglmm_binomial_size(object)
-      sim <- apply(mu_sim, MARGIN = 2, FUN = function(x) rbinom(length(x), Ntrials, x))
+    } else {
+      # responses drawn from the family (see pglmm_family_spec()), with the
+      # means given by the inverse link of the linear predictor
+      spec <- pglmm_family_spec(object$family)
+      mu_sim <- spec$linkinv(sim)
+      value <- pglmm_disp_value(object, spec)
+      size <- if (object$family == "binomial") pglmm_binomial_size(object) else 1
+      sim <- apply(mu_sim, MARGIN = 2, FUN = function(x) spec$simulate(x, value, size))
     }
   } else { # beyes version
 
@@ -2648,6 +2779,10 @@ rmvnorm_cov <- function(S, nsim) {
 }
 
 bayes_simulate <- function(object, nsim = 250, re.form, ntry = 5, full = FALSE) {
+  if (!is.null(re.form)) pglmm_bayes_sparse_stop(object, "simulate() with re.form = NA")
+  if (identical(object$bayes_sparse$method, "flow")) {
+    stop("simulate() is not available yet for models fitted with sparse_method = \"flow\".", call. = FALSE)
+  }
   Ntrials <- if (object$family == "binomial") pglmm_binomial_size(object) else 1
 
   if (is.null(re.form)) {
@@ -2662,6 +2797,7 @@ bayes_simulate <- function(object, nsim = 250, re.form, ntry = 5, full = FALSE) 
       sim <- switch(object$family,
         binomial = lapply(mu_sim, function(x) rbinom(length(x), Ntrials, x)),
         poisson = lapply(mu_sim, function(x) rpois(length(x), x)),
+        nbinomial = lapply(mu_sim, function(x) rnbinom(length(x), mu = x, size = object$theta)),
         mu_sim
       )
 
@@ -2670,12 +2806,13 @@ bayes_simulate <- function(object, nsim = 250, re.form, ntry = 5, full = FALSE) 
       mu_sim <- do.call(rbind, lapply(object$inla.model$marginals.fitted.values,
         INLA::inla.rmarginal,
         n = nsim
-      )) %>%
+      )) |>
         as.data.frame()
 
       sim <- switch(object$family,
         binomial = lapply(mu_sim, function(x) rbinom(length(x), Ntrials, x)),
         poisson = lapply(mu_sim, function(x) rpois(length(x), x)),
+        nbinomial = lapply(mu_sim, function(x) rnbinom(length(x), mu = x, size = object$theta)),
         mu_sim
       )
 
@@ -2686,11 +2823,12 @@ bayes_simulate <- function(object, nsim = 250, re.form, ntry = 5, full = FALSE) 
           mu_sim[missing] <- do.call(rbind, lapply(object$inla.model$marginals.fitted.values,
             INLA::inla.rmarginal,
             n = sum(missing)
-          )) %>%
+          )) |>
             as.data.frame()
           sim[missing] <- switch(object$family,
             binomial = lapply(mu_sim[missing], function(x) rbinom(length(x), Ntrials, x)),
             poisson = lapply(mu_sim[missing], function(x) rpois(length(x), x)),
+            nbinomial = lapply(mu_sim[missing], function(x) rnbinom(length(x), mu = x, size = object$theta)),
             mu_sim
           )
           missing <- sapply(sim, function(x) any(is.na(x)))
@@ -2721,7 +2859,7 @@ bayes_simulate <- function(object, nsim = 250, re.form, ntry = 5, full = FALSE) 
 
         beta_sim <- sapply(beta_sim, function(x) fam$linkinv(x$latent))
 
-        mu_sim <- (object$X %*% beta_sim) %>%
+        mu_sim <- (object$X %*% beta_sim) |>
           as.data.frame()
 
         mu_sim <- lapply(mu_sim, fam$linkinv)
@@ -2729,6 +2867,7 @@ bayes_simulate <- function(object, nsim = 250, re.form, ntry = 5, full = FALSE) 
         sim <- switch(object$family,
           binomial = lapply(mu_sim, function(x) rbinom(length(x), Ntrials, x)),
           poisson = lapply(mu_sim, function(x) rpois(length(x), x)),
+          nbinomial = lapply(mu_sim, function(x) rnbinom(length(x), mu = x, size = object$theta)),
           mu_sim
         )
 
@@ -2741,7 +2880,7 @@ bayes_simulate <- function(object, nsim = 250, re.form, ntry = 5, full = FALSE) 
           n = nsim
         ))
 
-        mu_sim <- (object$X %*% t(beta_sim)) %>%
+        mu_sim <- (object$X %*% t(beta_sim)) |>
           as.data.frame()
 
         mu_sim <- lapply(mu_sim, fam$linkinv)
@@ -2749,6 +2888,7 @@ bayes_simulate <- function(object, nsim = 250, re.form, ntry = 5, full = FALSE) 
         sim <- switch(object$family,
           binomial = lapply(mu_sim, function(x) rbinom(length(x), Ntrials, x)),
           poisson = lapply(mu_sim, function(x) rpois(length(x), x)),
+          nbinomial = lapply(mu_sim, function(x) rnbinom(length(x), mu = x, size = object$theta)),
           mu_sim
         )
 
@@ -2760,13 +2900,14 @@ bayes_simulate <- function(object, nsim = 250, re.form, ntry = 5, full = FALSE) 
               INLA::inla.rmarginal,
               n = sum(missing)
             ))
-            mu_sim[missing] <- (object$X %*% t(beta_sim[missing, , drop = FALSE])) %>%
-              as.data.frame() %>%
+            mu_sim[missing] <- (object$X %*% t(beta_sim[missing, , drop = FALSE])) |>
+              as.data.frame() |>
               lapply(fam$linkinv)
 
             sim[missing] <- switch(object$family,
               binomial = lapply(mu_sim[missing], function(x) rbinom(length(x), Ntrials, x)),
               poisson = lapply(mu_sim[missing], function(x) rpois(length(x), x)),
+              nbinomial = lapply(mu_sim[missing], function(x) rnbinom(length(x), mu = x, size = object$theta)),
               mu_sim
             )
             missing <- sapply(sim, function(x) any(is.na(x)))

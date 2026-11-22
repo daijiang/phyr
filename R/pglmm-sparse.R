@@ -54,7 +54,12 @@
 #'   the tips, in the order of `tree$tip.label`), `logdetQ` (its log
 #'   determinant), `tip.label`, `node.label` (labels of all rows of `Q`),
 #'   `tip.var` (variances of the tips, i.e. the diagonal of the covariance
-#'   matrix of the tips), and `mean.diag` (mean of `tip.var`).
+#'   matrix of the tips), `mean.diag` (mean of `tip.var`), and, for the
+#'   phylogenetic flow of `phylo_flow()`, `edge.len` (the length of the branch
+#'   leading to each row of `Q`, after the standardization: `Q` is the
+#'   precision matrix of Brownian motion on these lengths), `parent` (the row of
+#'   `Q` of the parent of each row, 0 for the children of the root), and
+#'   `len.scale` (`edge.len` divided by the branch lengths of `tree`).
 #' @noRd
 phylo_precision <- function(tree, standardize = TRUE) {
   if (is.null(tree$edge.length)) stop("The phylogeny has no branch lengths.", call. = FALSE)
@@ -62,9 +67,10 @@ phylo_precision <- function(tree, standardize = TRUE) {
     stop("The phylogeny has negative or missing branch lengths.", call. = FALSE)
   }
   ntip <- ape::Ntip(tree)
-  # internal branches with length zero: collapse to polytomies
+  # internal branches with length zero: collapse to polytomies (di2multi()
+  # collapses the branches shorter than tol, so tol = 0 would keep them)
   if (any(tree$edge.length[tree$edge[, 2] > ntip] == 0)) {
-    tree <- ape::di2multi(tree, tol = 0)
+    tree <- ape::di2multi(tree, tol = .Machine$double.eps)
   }
   if (any(tree$edge.length == 0)) {
     stop("The phylogeny has terminal branches with length zero, ",
@@ -76,7 +82,8 @@ phylo_precision <- function(tree, standardize = TRUE) {
   ch <- tree$edge[, 2]
   # same as Vphy / max(Vphy): the maximum is the largest root to tip distance
   len <- tree$edge.length
-  if (standardize) len <- len / max(ape::node.depth.edgelength(tree)[seq_len(ntip)])
+  len.max <- if (standardize) max(ape::node.depth.edgelength(tree)[seq_len(ntip)]) else 1
+  len <- len / len.max
   idx <- function(node) node - (node > root) # index without the root
 
   build <- function(len) {
@@ -109,11 +116,65 @@ phylo_precision <- function(tree, standardize = TRUE) {
       tree$node.label[-1]
     }
   })
+  # Q / s is the precision matrix of Brownian motion on the branch lengths
+  # len * s; each row of Q is the node at the end of one branch
+  edge.len <- parent <- numeric(nn)
+  edge.len[idx(ch)] <- len * s
+  parent[idx(ch)] <- ifelse(pa == root, 0, idx(pa))
   list(
     Q = Matrix::forceSymmetric(Q / s), logdetQ = logdetQ - nn * log(s),
     tip.label = tree$tip.label, node.label = node.label,
-    tip.var = tip.var, mean.diag = mean(tip.var)
+    tip.var = tip.var, mean.diag = mean(tip.var),
+    edge.len = edge.len, parent = parent, len.scale = s / len.max
   )
+}
+
+#' Phylogenetic flow matrix of a phylogeny
+#'
+#' The tips by branches matrix with, for each tip, the lengths of the branches
+#' on its path from the root, and zero elsewhere (the root-to-tip matrix of the
+#' phylogenetic flow representation, as in the phyf package). Each column is
+#' the branch leading to one row of the precision matrix of
+#' `phylo_precision()`, in the same order, so that the branches are labelled
+#' by `pp$node.label`. With independent rates `r` on the branches, with
+#' variances proportional to the inverse of their lengths
+#' (\code{r ~ N(0, s2 diag(1 / edge.len))}), the values of the tips `F r` have the
+#' covariance matrix `s2 F diag(1 / edge.len) F'`, which is `s2` times the
+#' covariance matrix of the tips used by [pglmm()] (Brownian motion on the
+#' branch lengths `edge.len`): the trait changes by `edge.len * r` along each
+#' branch, with variance `s2 * edge.len`. The rates are thus on the scale of
+#' the trait per unit of branch length.
+#'
+#' @param pp Output of `phylo_precision()`.
+#' @return A sparse matrix with one row per tip (in the order of
+#'   `pp$tip.label`) and one column per row of `pp$Q`.
+#' @noRd
+phylo_flow <- function(pp) {
+  nt <- length(pp$tip.label)
+  nn <- length(pp$parent)
+  i <- j <- vector("list", nn)
+  tip <- seq_len(nt)
+  node <- seq_len(nt)
+  k <- 0
+  # walk from the tips to the root, one level at a time
+  while (length(node)) {
+    k <- k + 1
+    i[[k]] <- tip
+    j[[k]] <- node
+    node <- pp$parent[node]
+    keep <- node > 0
+    tip <- tip[keep]
+    node <- node[keep]
+  }
+  i <- unlist(i[seq_len(k)])
+  j <- unlist(j[seq_len(k)])
+  Matrix::sparseMatrix(i = i, j = j, x = pp$edge.len[j], dims = c(nt, nn))
+}
+
+# Row-wise Kronecker product: row i is kronecker(A2[i, ], A1[i, ]), in the
+# order of kronecker(F2, F1) of nested terms (see pglmm_sparse_terms())
+row_kronecker <- function(A1, A2) {
+  Matrix::t(Matrix::KhatriRao(Matrix::t(A2), Matrix::t(A1)))
 }
 
 # Pieces of a phylogeny for repulsion, where the covariance matrix of the tips
@@ -187,11 +248,18 @@ cov_precision <- function(V) {
 # With allow.matrix = TRUE (method = "Laplace"), cov_ranef can also have
 # covariance matrices, whose (dense) inverse is used as precision matrix, and
 # phylogenies with terminal branches of length zero (used as their covariance
-# matrix).
+# matrix). With flow = TRUE (bayes = TRUE, sparse_method = "flow"), each
+# phylogenetic term also has `flow`: the design matrix D of the rates of its
+# branches (or pairs of branches for nested terms, from the row-wise Kronecker
+# product of the flow matrices, see phylo_flow()), the vector C of the
+# precisions of these rates relative to the variance of the term (the branch
+# lengths), their labels, and `len.scale` to put the rates on the scale of
+# the branch lengths of the phylogenies in cov_ranef.
 pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
-                               repulsion = FALSE, phylo_only = FALSE, allow.matrix = FALSE) {
-  fm <- unique(reformulas::findbars(formula))
-  if (is.null(fm)) stop("No random terms specified, use lm or glm instead")
+                               repulsion = FALSE, phylo_only = FALSE, allow.matrix = FALSE,
+                               flow = FALSE) {
+  re.terms <- pglmm_parse_re(formula, data, phylo_only = phylo_only)$terms
+  if (!length(re.terms)) stop("No random terms specified, use lm or glm instead")
   if (!is.null(cov_ranef)) names(cov_ranef) <- gsub("__$", "", names(cov_ranef))
   n <- nrow(data)
   trees <- list() # pruned phylogenies and their precision matrices, by group variable
@@ -230,8 +298,25 @@ pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
         tree <- ape::keep.tip(tree, levels(f))
       }
       trees[[g]] <<- c(phylo_precision(tree, standardize = standardize_cov), list(tree = tree))
+      if (flow) trees[[g]]$F <<- phylo_flow(trees[[g]])
     }
     trees[[g]]
+  }
+  # rows of the flow matrix (phylogeny) or of the identity matrix (no
+  # phylogeny) for the observations, the precisions of the columns, their
+  # labels, and the scale of the rates
+  flow_var <- function(g, phy) {
+    f <- as_group(g)
+    if (!phy) {
+      return(list(D = Matrix::Diagonal(nlevels(f))[as.integer(f), , drop = FALSE],
+                  C = rep(1, nlevels(f)), labels = levels(f), len.scale = 1))
+    }
+    tp <- get_tree(g, f)
+    if (isTRUE(tp$is.matrix)) {
+      stop("sparse_method = \"flow\" needs phylogenies (class phylo) in cov_ranef.", call. = FALSE)
+    }
+    list(D = tp$F[match(as.character(f), tp$tip.label), , drop = FALSE], C = tp$edge.len,
+         labels = tp$node.label, len.scale = tp$len.scale)
   }
   # one variable of a nested term: its precision matrix F = A + U B^-1 U' (U
   # and B only with repulsion), H with H H' = A, the column of each observation,
@@ -263,32 +348,17 @@ pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
          var = tp$tip.var[i])
   }
   get_H <- function(v) if (is.function(v$H)) v$H() else v$H
-  # repulsion: one value for each phylogenetic variable of nested terms, in
-  # the order of the formula, as in prep_dat_pglmm()
-  n.rep <- sum(vapply(fm, function(x) {
-    gp <- strsplit(as.character(x)[3], "@", fixed = TRUE)[[1]]
-    if (length(gp) > 1) sum(grepl("__$", gp)) else 0L
-  }, 1L))
-  if (length(repulsion) == 1) repulsion <- pglmm_expand_repulsion(fm, repulsion) # species only
-  if (length(repulsion) != n.rep) {
-    stop("The number of repulsion terms specified is not correct: please double check")
-  }
-  i.rep <- 0
+  # repulsion: one value for each phylogenetic variable of nested terms
+  re.terms <- pglmm_re_repulsion(re.terms, repulsion)
 
   terms <- list()
-  for (x in fm) {
-    x2 <- as.character(x)
-    lhs <- gsub("^0 ?[+] ?", "", x2[2])
-    grp <- x2[3]
-    if (grepl("[+]", lhs)) stop("(x1 + x2|g) form of random terms are not allowed yet, pleast split it")
-    if (grepl("@", grp, fixed = TRUE)) { # nested term, e.g. 1|sp__@site
+  for (rt in re.terms) {
+    lhs <- rt$lhs
+    g <- rt$group
+    phy <- rt$phy
+    if (rt$nested) { # nested term, e.g. 1|sp__@site
       if (lhs != "1") stop("Nested random term for slope is not allowed yet")
-      gp <- strsplit(grp, "@", fixed = TRUE)[[1]]
-      phy <- grepl("__$", gp)
-      g <- gsub("__$", "", gp)
-      repul <- phy
-      repul[phy] <- as.logical(repulsion[i.rep + seq_len(sum(phy))])
-      i.rep <- i.rep + sum(phy)
+      repul <- rt$repulsion
       v1 <- nested_var(g[1], phy[1], repul[1])
       v2 <- nested_var(g[2], phy[2], repul[2])
       n1 <- nrow(v1$A)
@@ -334,20 +404,31 @@ pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
                            stringsAsFactors = FALSE)
       names(labels) <- g
       terms[[length(terms) + 1]] <- list(
-        name = paste0(lhs, "|", grp), group = g, lhs = lhs, phy = phy, nested = TRUE,
+        name = rt$name, group = g, lhs = lhs, phy = phy, nested = TRUE,
         repulsion = repul,
         Z = Matrix::sparseMatrix(i = seq_len(n), j = col, x = 1, dims = c(n, nrow(Q))),
         Q = Q, logdetQ = logdetQ, aux = aux,
         # the estimates are reported for the combinations in the data
         labels = labels, pick = col[first], mean.diag = mean(v1$var * v2$var)
       )
+      if (flow && any(phy)) {
+        if (any(repul)) {
+          stop("repulsion = TRUE is not available yet with sparse_method = \"flow\".", call. = FALSE)
+        }
+        f1 <- flow_var(g[1], phy[1])
+        f2 <- flow_var(g[2], phy[2])
+        # pairs of branches (or of a branch and a level), as in kronecker(F2, F1)
+        terms[[length(terms)]]$flow <- list(
+          D = row_kronecker(f1$D, f2$D), C = as.vector(outer(f1$C, f2$C)),
+          labels = stats::setNames(expand.grid(f1$labels, f2$labels, stringsAsFactors = FALSE), g),
+          len.scale = f1$len.scale * f2$len.scale
+        )
+      }
       next
     }
-    phy <- grepl("__$", grp)
-    g <- gsub("__$", "", grp)
     f <- as_group(g)
     covariate <- if (lhs == "1") rep(1, n) else as.numeric(data[[lhs]])
-    if (phy && phylo_only) {
+    if (rt$phylo_only) {
       # phylogenetic term without its non-phylogenetic partner (pglmm_compare()),
       # reported as the default code does: a term with one value per
       # observation (s2n), with the estimates of the species in the data
@@ -358,27 +439,32 @@ pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
       labels <- data.frame(as.character(f)[first], stringsAsFactors = FALSE)
       names(labels) <- g
       terms[[length(terms) + 1]] <- list(
-        name = paste0(lhs, "|", grp), group = g, lhs = lhs, phy = TRUE, nested = TRUE,
+        name = rt$name, group = g, lhs = lhs, phy = TRUE, nested = TRUE,
         repulsion = FALSE,
         Z = Matrix::sparseMatrix(i = seq_len(n), j = col, x = 1, dims = c(n, nrow(tp$Q))),
         Q = tp$Q, logdetQ = tp$logdetQ, aux = list(),
         labels = labels, pick = col[first], mean.diag = mean(tp$tip.var[col])
       )
+      if (flow) {
+        fv <- flow_var(g, TRUE)
+        terms[[length(terms)]]$flow <- list(D = fv$D, C = fv$C, labels = fv$labels,
+                                            len.scale = fv$len.scale)
+      }
       next
     }
-    z.plain <- list(
-      name = paste0(lhs, "|", g), group = g, lhs = lhs, phy = FALSE, nested = FALSE,
-      Z = Matrix::sparseMatrix(i = seq_len(n), j = as.integer(f), x = covariate,
-                               dims = c(n, nlevels(f))),
-      Q = Matrix::Diagonal(nlevels(f)), logdetQ = 0, labels = levels(f),
-      n.levels = nlevels(f), mean.diag = 1
-    )
-    terms[[length(terms) + 1]] <- z.plain
-    if (phy) {
+    if (!phy) {
+      terms[[length(terms) + 1]] <- list(
+        name = rt$name, group = g, lhs = lhs, phy = FALSE, nested = FALSE,
+        Z = Matrix::sparseMatrix(i = seq_len(n), j = as.integer(f), x = covariate,
+                                 dims = c(n, nlevels(f))),
+        Q = Matrix::Diagonal(nlevels(f)), logdetQ = 0, labels = levels(f),
+        n.levels = nlevels(f), mean.diag = 1
+      )
+    } else {
       tp <- get_tree(g, f)
       nn <- nrow(tp$Q)
       terms[[length(terms) + 1]] <- list(
-        name = paste0(lhs, "|", grp), group = g, lhs = lhs, phy = TRUE, nested = FALSE,
+        name = rt$name, group = g, lhs = lhs, phy = TRUE, nested = FALSE,
         Z = Matrix::sparseMatrix(i = seq_len(n), j = match(as.character(f), tp$tip.label),
                                  x = covariate, dims = c(n, nn)),
         Q = tp$Q, logdetQ = tp$logdetQ,
@@ -386,6 +472,11 @@ pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
         labels = tp$node.label, n.levels = nlevels(f),
         level.order = match(levels(f), tp$tip.label), mean.diag = tp$mean.diag
       )
+      if (flow) {
+        fv <- flow_var(g, TRUE)
+        terms[[length(terms)]]$flow <- list(D = Matrix::Diagonal(x = covariate) %*% fv$D, C = fv$C,
+                                            labels = fv$labels, len.scale = fv$len.scale)
+      }
     }
   }
   names(terms) <- vapply(terms, function(z) z$name, "")
@@ -485,20 +576,66 @@ pglmm_sparse_setup <- function(X, Y, terms, weights = FALSE) {
   M <- Matrix::sparseMatrix(i = mi, j = mj, x = qx + ax, dims = c(qa, qa),
                             symmetric = TRUE, index1 = FALSE)
   stopifnot(length(M@x) == length(keys), identical(M@i, mi))
+  # for the gradients: the entries of the pattern with values of A (ia), A
+  # as a symmetric matrix (its values are replaced by those of Z' W Z for
+  # weights), the multiplicity of the entries of the upper triangle in a sum
+  # over all entries (amult), and the columns of each term
+  ia <- sort(unique(match(c(key(ta), if (weights) key(pr)), keys)))
+  Asym <- Matrix::sparseMatrix(i = mi[ia], j = mj[ia], x = ax[ia], dims = c(q, q),
+                               symmetric = TRUE, index1 = FALSE)
+  stopifnot(identical(Asym@i, mi[ia]))
   XY <- cbind(X, Y)
   ldl <- qa > q
+  # supernodal LL' factorizations (several times faster than simplicial
+  # ones for large models), simplicial LDL' ones for auxiliary variables
+  # (K is indefinite)
+  L <- Matrix::Cholesky(M, perm = TRUE, LDL = ldl, super = !ldl)
+  M@factors <- list() # Cholesky() caches the factorization in M
   list(
     n = n, p = p, q = q, qa = qa, Z = Z, term.of.col = term.of.col,
     M = M, qx = qx, ax = ax, wmap = wmap, ti = toc[mi + 1L], tj = toc[mj + 1L], ldl = ldl,
-    L = if (ldl) {
-      Matrix::Cholesky(M, perm = TRUE, LDL = TRUE, super = FALSE)
-    } else {
-      Matrix::Cholesky(M, perm = TRUE, LDL = FALSE, super = NA)
-    },
+    mi = mi, mj = mj, ia = ia, Asym = Asym, amult = ifelse(mi[ia] == mj[ia], 1, 2),
+    wmap.ia = if (weights) wmap[ia, , drop = FALSE],
+    cols = split(seq_len(q), factor(term.of.col, levels = seq_along(terms))),
+    L = L,
     logdetQ = sum(vapply(terms, function(z) z$logdetQ, 1)) + logdetB,
-    ZtXY = as.matrix(Matrix::crossprod(Z, XY)), XYtXY = crossprod(XY),
-    logdetXtX = as.numeric(determinant(crossprod(X))$modulus)
+    ZtXY = as.matrix(Matrix::crossprod(Z, XY)), XYtXY = crossprod(XY)
   )
+}
+
+# Entries of M^-1 (or of K^-1 with auxiliary variables) at the positions
+# (i, j) (0-based) of M, from the factorization L of M (supernodal or
+# simplicial): the selected inverse on the pattern of the factor (see
+# src/sparse_inverse.cpp), which includes the pattern of M. It costs about as
+# much as the factorization.
+pglmm_sparse_inv_at <- function(L, i, j) {
+  ip <- integer(length(L@perm))
+  ip[L@perm + 1L] <- seq_along(L@perm) - 1L # position of each row of M in the factor
+  if (methods::is(L, "dCHMsuper")) {
+    sparse_inv_subset_super(L@super, L@pi, L@px, L@s, L@x, ip[i + 1L], ip[j + 1L])
+  } else {
+    sparse_inv_subset(L@p, L@i, L@x, L@nz, L@type[2] == 1L, ip[i + 1L], ip[j + 1L])
+  }
+}
+
+# Factorization of M (with the values of pre$M replaced), from the symbolic
+# factorization pre$L, which fitted models do not keep (pglmm_sparse_keep())
+pglmm_sparse_factor <- function(pre, M) {
+  if (is.null(pre$L)) {
+    ldl <- isTRUE(pre$ldl)
+    # not the factorization cached in M for other values of M@x
+    M@factors <- list()
+    Matrix::Cholesky(M, perm = TRUE, LDL = ldl, super = !ldl)
+  } else {
+    Matrix::update(pre$L, M)
+  }
+}
+
+# pre (pglmm_sparse_setup()) as kept in fitted models: without the
+# factorization, as large as the rest of pre for large models
+pglmm_sparse_keep <- function(pre) {
+  pre$L <- NULL
+  pre
 }
 
 # M^-1 R, with the factorization L of M (or of K, with auxiliary variables)
@@ -513,7 +650,7 @@ pglmm_sparse_solve <- function(L, pre, R) {
 pglmm_sparse_eval <- function(theta, pre) {
   M <- pre$M
   M@x <- pre$qx + theta[pre$ti] * theta[pre$tj] * pre$ax
-  L <- Matrix::update(pre$L, M)
+  L <- pglmm_sparse_factor(pre, M)
   R <- theta[pre$term.of.col] * pre$ZtXY
   MiR <- pglmm_sparse_solve(L, pre, R)
   # G = [X Y]' V^-1 [X Y]
@@ -532,26 +669,160 @@ pglmm_sparse_eval <- function(theta, pre) {
   list(
     L = L, B = B, XiVX = XiVX,
     rss = G[p + 1L, p + 1L] - sum(XiVY * B), # H' V^-1 H
-    logdetV = logdetM - pre$logdetQ
+    logdetV = logdetM - pre$logdetQ,
+    U = MiR # M^-1 R, for the gradient
   )
 }
 
-# The same function to minimize as pglmm_gaussian_LL_calc()
-pglmm_sparse_LL <- function(theta, pre, REML, verbose = FALSE) {
-  ev <- tryCatch(pglmm_sparse_eval(theta, pre), error = function(e) NULL)
-  if (is.null(ev) || !is.finite(ev$rss) || ev$rss <= 0) {
-    return(1e10)
-  }
+# The same function to minimize as pglmm_gaussian_LL_calc(), from the pieces
+# ev of pglmm_sparse_eval() (NULL if the evaluation failed)
+pglmm_sparse_LL_value <- function(ev, pre, REML) {
+  if (is.null(ev) || !is.finite(ev$rss) || ev$rss <= 0) return(1e10)
   n <- pre$n
   p <- pre$p
   if (REML) {
-    LL <- 0.5 * ((n - p) * log(ev$rss / (n - p)) + ev$logdetV + (n - p) +
+    0.5 * ((n - p) * log(ev$rss / (n - p)) + ev$logdetV + (n - p) +
       as.numeric(determinant(ev$XiVX)$modulus))
   } else {
-    LL <- 0.5 * (n * log(ev$rss / n) + ev$logdetV + n)
+    0.5 * (n * log(ev$rss / n) + ev$logdetV + n)
   }
+}
+
+pglmm_sparse_LL <- function(theta, pre, REML, verbose = FALSE) {
+  ev <- tryCatch(pglmm_sparse_eval(theta, pre), error = function(e) NULL)
+  LL <- pglmm_sparse_LL_value(ev, pre, REML)
   if (verbose) show(c(LL, theta))
   LL
+}
+
+# sums of x by group g (integers 1 to k)
+pglmm_sum_by <- function(x, g, k) {
+  out <- numeric(k)
+  s <- rowsum(x, g)
+  out[as.integer(rownames(s))] <- s[, 1]
+  out
+}
+
+# Gradient of pglmm_sparse_LL() over theta (the standard deviations of the
+# terms relative to the residual one), from ev = pglmm_sparse_eval(theta).
+# With M = Q + Theta A Theta (A = Z'Z), d M / d theta_k = D_k A Theta +
+# Theta A D_k (D_k: the indicator of the columns of term k), so that
+#   d log|V| / d theta_k = tr(M^-1 dM_k),
+# from the entries of M^-1 on the pattern of A (pglmm_sparse_inv_at()), and
+# with G = [X Y]' V^-1 [X Y] = [X Y]'[X Y] - R' M^-1 R, R = Theta Z'[X Y],
+# U = M^-1 R,
+#   dG_k = - dR_k' U - U' dR_k + U' dM_k U,  dR_k = D_k Z'[X Y],
+# from which the derivatives of the residual sum of squares and of
+# log|X' V^-1 X| (REML). With s2, the gradient of minus the log-likelihood
+# (up to a constant) at the residual variance s2 instead of its estimate
+# (with the residual variance profiled out), for confint().
+pglmm_sparse_LL_grad <- function(theta, pre, ev, REML, s2 = NULL) {
+  n <- pre$n
+  p <- pre$p
+  nt <- length(theta)
+  ip <- seq_len(p)
+  iy <- p + 1L
+  ia <- pre$ia
+  ti <- pre$ti[ia]
+  tj <- pre$tj[ia]
+  ce <- pre$amult * pglmm_sparse_inv_at(ev$L, pre$mi[ia], pre$mj[ia]) * pre$ax[ia]
+  dlogdetM <- pglmm_sum_by(ce * theta[tj], ti, nt) + pglmm_sum_by(ce * theta[ti], tj, nt)
+  U <- ev$U
+  ATU <- as.matrix(pre$Asym %*% (theta[pre$term.of.col] * U))
+  B <- ev$B
+  iXX <- if (REML) solve(ev$XiVX)
+  vapply(seq_len(nt), function(k) {
+    rk <- pre$cols[[k]]
+    S <- crossprod(U[rk, , drop = FALSE], ATU[rk, , drop = FALSE])
+    E <- crossprod(pre$ZtXY[rk, , drop = FALSE], U[rk, , drop = FALSE])
+    dG <- S + t(S) - E - t(E)
+    dGx <- dG[ip, ip, drop = FALSE]
+    drss <- dG[iy, iy] - 2 * sum(dG[iy, ip] * B) + sum(B * (dGx %*% B))
+    w <- if (is.null(s2)) (if (REML) n - p else n) / ev$rss else 1 / s2
+    if (REML) {
+      0.5 * (w * drss + dlogdetM[k] + sum(iXX * dGx))
+    } else {
+      0.5 * (w * drss + dlogdetM[k])
+    }
+  }, 1)
+}
+
+# Lower bound of the scaled variances optimized with analytic gradients:
+# d/dv = d/dtheta / (2 theta) cannot be computed at theta = 0, but it is
+# accurate for tiny theta (the limit at zero, to 1e-7 relative or better in
+# our checks). Variances at this bound are reported as zero
+# (pglmm_var_snap()).
+pglmm_var_lb <- 1e-12
+
+pglmm_var_snap <- function(v) {
+  v[v <= pglmm_var_lb * (1 + 1e-8)] <- 0
+  v
+}
+
+# Minimize the function fn of the scaled variances x with nlminb() and the
+# analytic gradient gr(x) (pglmm_laplace_optim(); gr gives NA for the
+# coordinates whose derivative is computed by finite differences). fn and gr
+# share the evaluation at x through an environment, so that the gradient does
+# not refactorize.
+pglmm_grad_optim <- function(fn, gr, x0, lower, control) {
+  pglmm_laplace_optim(fn, x0, lower, control, grad = gr)
+}
+
+# Pairs of positions (in terms) of a phylogenetic term and its
+# non-phylogenetic partner, e.g. 1|sp and 1|sp__ (non-nested terms)
+pglmm_sparse_pairs <- function(terms) {
+  nm <- names(terms)
+  out <- list()
+  for (k in seq_along(terms)) {
+    z <- terms[[k]]
+    if (isTRUE(z$phy) && !isTRUE(z$nested)) {
+      l <- match(paste0(z$lhs, "|", z$group), nm)
+      if (!is.na(l)) out[[length(out) + 1]] <- c(l, k)
+    }
+  }
+  out
+}
+
+# Local optimization run(x0) (a function returning the result of nlminb()),
+# restarted from the "corners" of each pair of positions in pairs (the
+# variances of a phylogenetic term and its non-phylogenetic partner, on the
+# same scale, see pglmm_sparse_pairs()). These two terms are nearly
+# confounded (one value per species, with or without phylogenetic
+# covariance), and the likelihood can have a local optimum with both
+# variances, and a better one with one of them at zero (or the reverse),
+# separated by a barrier. The corners give the sum of the two variances to
+# one of them; the corner the solution is already at is skipped. Each corner
+# is first screened with a few iterations (run(x, iter.max)): the optimization
+# goes on only if it is then already better than the best solution (in our
+# checks, two iterations from the right corner were enough to get below a
+# local optimum, while the runs from the other corners went back to it in 15
+# to 20 iterations; with 120 simulated data sets of 200 species and
+# gaussian, binomial and poisson models, REML, ML and PQL, screening with 2
+# iterations gave the same fits as with 4, and one iteration missed an
+# optimum better by 0.38). The best solution is returned, with the total
+# number of evaluations of the function.
+pglmm_optim_corners <- function(run, x0, pairs, lb = pglmm_var_lb, screen = 2) {
+  best <- run(x0)
+  n.eval <- best$evaluations[["function"]]
+  for (pr in pairs) {
+    for (side in 1:2) {
+      x <- best$par
+      s <- x[pr[1]] + x[pr[2]]
+      zero <- pr[3 - side]
+      if (s <= 1e-8 || x[zero] <= lb * (1 + 1e-8)) next
+      x[pr[side]] <- s
+      x[zero] <- lb
+      o <- run(x, screen)
+      n.eval <- n.eval + o$evaluations[["function"]]
+      if (o$objective < best$objective) {
+        o <- run(o$par)
+        n.eval <- n.eval + o$evaluations[["function"]]
+        if (o$objective < best$objective) best <- o
+      }
+    }
+  }
+  best$evaluations[["function"]] <- n.eval
+  best
 }
 
 # Binomial and poisson models (PQL) ----
@@ -577,10 +848,12 @@ pglmm_sparse_weval <- function(ss, pre, w, XR, has.obs, full = FALSE) {
   th <- abs(ss[seq_len(nt)])
   wt <- if (has.obs) w / (1 + ss[nt + 1]^2 * w) else w
   M <- pre$M
-  M@x <- pre$qx + th[pre$ti] * th[pre$tj] * as.vector(pre$wmap %*% wt)
-  L <- Matrix::update(pre$L, M)
+  aw <- as.vector(pre$wmap %*% wt) # values of Z' Wt Z on the pattern of M
+  M@x <- pre$qx + th[pre$ti] * th[pre$tj] * aw
+  L <- pglmm_sparse_factor(pre, M)
   WXR <- wt * XR
-  R <- th[pre$term.of.col] * as.matrix(Matrix::crossprod(pre$Z, WXR))
+  ZW <- as.matrix(Matrix::crossprod(pre$Z, WXR))
+  R <- th[pre$term.of.col] * ZW
   MiR <- pglmm_sparse_solve(L, pre, R)
   G <- crossprod(XR, WXR) - crossprod(R, MiR)
   logdetM <- if (isTRUE(pre$ldl)) {
@@ -593,22 +866,77 @@ pglmm_sparse_weval <- function(ss, pre, w, XR, has.obs, full = FALSE) {
     out$MiR <- MiR
     out$wt <- wt
     out$th <- th
+    out$aw <- aw
+    out$ZW <- ZW
   }
   out
 }
 
 # The same function to minimize as pglmm_LL_cpp() (the variance step of PQL):
-# 0.5 * (log|V| + H' V^-1 H + log|X' V^-1 X| (REML))
-pglmm_sparse_glmm_LL <- function(ss, pre, w, XH, REML, has.obs, verbose = FALSE) {
-  ev <- tryCatch(pglmm_sparse_weval(ss, pre, w, XH, has.obs), error = function(e) NULL)
+# 0.5 * (log|V| + H' V^-1 H + log|X' V^-1 X| (REML)), from the pieces ev of
+# pglmm_sparse_weval() (NULL if the evaluation failed)
+pglmm_sparse_glmm_LL_value <- function(ev, REML) {
   if (is.null(ev)) return(1e10)
-  p <- ncol(XH) - 1L
+  p <- ncol(ev$G) - 1L
   ip <- seq_len(p)
   LL <- 0.5 * (ev$logdetV + ev$G[p + 1L, p + 1L])
   if (REML) LL <- LL + 0.5 * as.numeric(determinant(ev$G[ip, ip, drop = FALSE])$modulus)
   if (!is.finite(LL)) LL <- 1e10
+  LL
+}
+
+pglmm_sparse_glmm_LL <- function(ss, pre, w, XH, REML, has.obs, verbose = FALSE) {
+  ev <- tryCatch(pglmm_sparse_weval(ss, pre, w, XH, has.obs), error = function(e) NULL)
+  LL <- pglmm_sparse_glmm_LL_value(ev, REML)
   if (verbose) show(c(LL, ss))
   LL
+}
+
+# Gradient of pglmm_sparse_glmm_LL() over the standard deviations of the terms
+# and the variance s2 of 1|obs (if any), from ev = pglmm_sparse_weval(full =
+# TRUE), as pglmm_sparse_LL_grad() with A = Z' Wt Z and R = Theta Z' Wt [X H]
+# (H is not profiled out here). For s2, with d wt / d s2 = -wt^2:
+#   d log|V| / d s2 = tr(M^-1 Theta Z' diag(-wt^2) Z Theta) + sum(wt),
+#   dG = -[X H]' diag(wt^2) [X H] - dR' U - U' dR + U' dM U,
+#   dR = Theta Z' diag(-wt^2) [X H].
+pglmm_sparse_glmm_LL_grad <- function(ev, pre, XH, REML, has.obs) {
+  th <- ev$th
+  nt <- length(th)
+  p <- ncol(XH) - 1L
+  ip <- seq_len(p)
+  iy <- p + 1L
+  ia <- pre$ia
+  ti <- pre$ti[ia]
+  tj <- pre$tj[ia]
+  z <- pre$amult * pglmm_sparse_inv_at(ev$L, pre$mi[ia], pre$mj[ia])
+  ce <- z * ev$aw[ia]
+  dlogdetM <- pglmm_sum_by(ce * th[tj], ti, nt) + pglmm_sum_by(ce * th[ti], tj, nt)
+  U <- ev$MiR
+  TU <- th[pre$term.of.col] * U
+  Aw <- pre$Asym
+  Aw@x <- ev$aw[ia]
+  ATU <- as.matrix(Aw %*% TU)
+  iXX <- if (REML) solve(ev$G[ip, ip, drop = FALSE])
+  dfun <- function(dG, dlogdet) {
+    0.5 * (dlogdet + dG[iy, iy] + (if (REML) sum(iXX * dG[ip, ip, drop = FALSE]) else 0))
+  }
+  g <- vapply(seq_len(nt), function(k) {
+    rk <- pre$cols[[k]]
+    S <- crossprod(U[rk, , drop = FALSE], ATU[rk, , drop = FALSE])
+    E <- crossprod(ev$ZW[rk, , drop = FALSE], U[rk, , drop = FALSE])
+    dfun(S + t(S) - E - t(E), dlogdetM[k])
+  }, 1)
+  if (has.obs) {
+    wt2 <- ev$wt^2
+    ad <- -as.vector(pre$wmap.ia %*% wt2) # values of Z' diag(-wt^2) Z
+    Ad <- pre$Asym
+    Ad@x <- ad
+    dR <- th[pre$term.of.col] * as.matrix(Matrix::crossprod(pre$Z, -wt2 * XH))
+    E <- crossprod(dR, U)
+    dG <- -crossprod(XH, wt2 * XH) - E - t(E) + crossprod(TU, as.matrix(Ad %*% TU))
+    g <- c(g, dfun(dG, sum(z * th[ti] * th[tj] * ad) + sum(ev$wt)))
+  }
+  g
 }
 
 # Data of a binomial or poisson model for the sparse and Laplace code: the
@@ -618,42 +946,11 @@ pglmm_sparse_glmm_LL <- function(ss, pre, w, XH, REML, has.obs, verbose = FALSE)
 # in the response, predictors, or random terms are dropped.
 pglmm_glmm_data <- function(formula, data, family, add.obs.re = TRUE) {
   formula.nobars <- reformulas::nobars(formula)
-  bars <- unique(reformulas::findbars(formula))
-  # observation-level term, as in prep_dat_pglmm(): for poisson models and
-  # binomial models with more than one trial, unless a nested term without
-  # phylogeny already has one level per observation
-  resp <- model.response(model.frame(formula.nobars, data = data, na.action = NULL))
-  no_obs_re <- TRUE
-  if (family == "poisson" || is.array(resp)) {
-    for (x in bars) {
-      grp <- as.character(x)[3]
-      if (grepl("@", grp, fixed = TRUE) && !grepl("__", grp, fixed = TRUE)) {
-        g <- strsplit(grp, "@", fixed = TRUE)[[1]]
-        if (add.obs.re && length(unique(data[[g[1]]])) * length(unique(data[[g[2]]])) == nrow(data)) {
-          message("It seems that you specified an observation-level random term already e.g. (1|sp@site);
-                       we will set 'add.obs.re' to FALSE.")
-          add.obs.re <- FALSE
-          no_obs_re <- FALSE
-        }
-      }
-    }
-    if (add.obs.re) {
-      message("We add an observation-level random term '1|obs' for poisson and binomial data.")
-    } else if (no_obs_re) {
-      message("For poisson and binomial data, it would be a good idea to add an observation-level random term (add.obs.re = TRUE).")
-    }
-  } else {
-    add.obs.re <- FALSE
-  }
-  has.obs <- add.obs.re
-
+  re <- pglmm_parse_re(formula, data)
+  # observation-level term (as prep_dat_pglmm())
+  has.obs <- pglmm_re_obs(re$terms, data, formula.nobars, family, add.obs.re)
   # rows with missing values in the response, predictors, or random terms are dropped
-  re.vars <- unique(unlist(lapply(bars, function(x) gsub("__$", "", all.vars(x)))))
-  ok <- stats::complete.cases(
-    model.frame(formula.nobars, data, na.action = NULL),
-    data[, intersect(re.vars, names(data)), drop = FALSE]
-  )
-  data <- data[ok, , drop = FALSE]
+  data <- data[pglmm_complete_rows(formula, data, re$vars), , drop = FALSE]
   mf <- model.frame(formula.nobars, data = data, na.action = NULL)
   X <- model.matrix(attr(mf, "terms"), data = mf)
   Y <- model.response(mf)
@@ -664,17 +961,20 @@ pglmm_glmm_data <- function(formula, data, family, add.obs.re = TRUE) {
     size <- rep(1, length(Y))
   }
   Y <- as.numeric(Y)
+  # offset() terms of the formula (NULL if none), used with method = "Laplace"
+  offset <- model.offset(mf)
+  if (!is.null(offset)) offset <- as.numeric(offset)
   list(formula.nobars = formula.nobars, data = data, X = X, Y = Y, size = size,
-       has.obs = has.obs)
+       has.obs = has.obs, offset = offset)
 }
 
 # Fit a binomial or poisson pglmm (PQL) with the sparse precision matrix of the
 # phylogeny. The PQL loop is the same as in communityPGLMM.glmm() (and
 # pglmm_internal_cpp()): the same updates, convergence rules and tolerances.
 communityPGLMM.glmm.sparse <- function(formula, data, family = "binomial", cov_ranef = NULL,
-                                       REML = TRUE, s2.init = 0.25, B.init = NULL,
-                                       reltol = 10^-8, maxit = 500, tol.pql = 10^-6,
-                                       maxit.pql = 200, verbose = FALSE, optimizer = "subplex",
+                                       REML = TRUE, s2.init = NULL, B.init = NULL,
+                                       reltol = 10^-10, maxit = 500, tol.pql = 10^-6,
+                                       maxit.pql = 200, verbose = FALSE, optimizer = "nlminb",
                                        standardize_cov = TRUE, repulsion = FALSE,
                                        add.obs.re = TRUE, phylo_only = FALSE) {
   dd <- pglmm_glmm_data(formula, data, family, add.obs.re)
@@ -703,7 +1003,18 @@ communityPGLMM.glmm.sparse <- function(formula, data, family = "binomial", cov_r
   }
   B <- matrix(as.numeric(B.init), ncol = 1)
   B.init <- B
-  ss <- rep_len(sqrt(s2.init), q)
+  # scale factors of the variances (terms, then 1|obs), for nlminb()
+  sf <- c(vapply(terms, function(z) z$mean.diag, 1), if (has.obs) 1)
+  sf[!is.finite(sf) | sf <= 0] <- 1
+  use.grad <- optimizer %in% c("nlminb", "lbfgs")
+  # starting values: 0.25 (by default) for the variances, or with nlminb()
+  # for the variances multiplied by the scale factors
+  ss <- if (is.null(s2.init)) {
+    if (use.grad) sqrt(0.25 / sf) else rep(sqrt(0.25), q)
+  } else {
+    rep_len(sqrt(s2.init), q)
+  }
+  s2.init <- ss^2
 
   linkinv <- if (family == "binomial") stats::plogis else exp
   workW <- function(mu) if (family == "binomial") size * mu * (1 - mu) else mu
@@ -768,14 +1079,55 @@ communityPGLMM.glmm.sparse <- function(formula, data, family = "binomial", cov_r
     w <- workW(mu)
     H <- workZ(B, b, mu) - as.vector(X %*% B)
     XH <- cbind(X, H)
-    S0 <- nloptr::nloptr(
-      x0 = ss, eval_f = pglmm_sparse_glmm_LL, lb = lb, opts = opts, pre = pre, w = w, XH = XH,
-      REML = REML, has.obs = has.obs, verbose = verbose
-    )
-    n.eval <- n.eval + S0$iterations
-    ss <- abs(S0$solution)
-    LL <- S0$objective
-    convcode <- S0$status
+    if (use.grad) {
+      # nlminb() with the analytic gradient (pglmm_sparse_glmm_LL_grad()), on
+      # the scale of the variances multiplied by their scale factors, as for
+      # gaussian models (communityPGLMM.gaussian.sparse())
+      cache <- new.env(parent = emptyenv())
+      fn <- function(v) {
+        s <- sqrt(pmax(v, 0) / sf)
+        ev <- tryCatch(pglmm_sparse_weval(s, pre, w, XH, has.obs, full = TRUE), error = function(e) NULL)
+        cache$v <- v
+        cache$ev <- ev
+        LL <- pglmm_sparse_glmm_LL_value(ev, REML)
+        if (verbose) show(c(LL, s))
+        LL
+      }
+      gr <- function(v) {
+        if (!identical(cache$v, v)) fn(v)
+        if (is.null(cache$ev)) return(rep(NA_real_, q))
+        g <- pglmm_sparse_glmm_LL_grad(cache$ev, pre, XH, REML, has.obs)
+        it <- seq_len(nt)
+        # d / dv = d / d theta / (2 theta sf) for the terms; d / d s2 for 1|obs
+        g[it] <- g[it] / (2 * cache$ev$th * sf[it])
+        g[!is.finite(g)] <- NA
+        g
+      }
+      # lower bound: pglmm_var_lb for the terms, zero for 1|obs (its
+      # derivative is defined at zero)
+      lower <- c(rep(pglmm_var_lb, nt), if (has.obs) 0)
+      run <- function(x, iter.max = maxit) {
+        pglmm_grad_optim(fn, gr, pmax(x, lower), lower,
+                         list(rel.tol = reltol, eval.max = maxit, iter.max = iter.max))
+      }
+      # the corners of phylogenetic terms and their partners (see
+      # pglmm_optim_corners()) at the first iteration only: the next ones start
+      # from the solution of the previous one
+      S0 <- pglmm_optim_corners(run, ss^2 * sf, if (iteration == 0) pglmm_sparse_pairs(terms) else list())
+      n.eval <- n.eval + S0$evaluations[["function"]]
+      ss <- sqrt(c(pglmm_var_snap(S0$par[seq_len(nt)]), S0$par[-seq_len(nt)]) / sf)
+      LL <- S0$objective
+      convcode <- S0$convergence
+    } else {
+      S0 <- nloptr::nloptr(
+        x0 = ss, eval_f = pglmm_sparse_glmm_LL, lb = lb, opts = opts, pre = pre, w = w, XH = XH,
+        REML = REML, has.obs = has.obs, verbose = verbose
+      )
+      n.eval <- n.eval + S0$iterations
+      ss <- abs(S0$solution)
+      LL <- S0$objective
+      convcode <- S0$status
+    }
     if (verbose) cat("var part:", iteration, LL, ss, "\n")
     est.ss <- ss
     est.B <- B
@@ -824,8 +1176,9 @@ communityPGLMM.glmm.sparse <- function(formula, data, family = "binomial", cov_r
   }
   logLik <- logLik.glm + as.numeric(-LL + LL_null)
   k <- p + q + 1
-  if (convcode >= 5 || convcode < 0) {
-    warning("Optimizer (", optimizer, ") did not converge (nloptr status = ", convcode,
+  if (if (use.grad) convcode != 0 else (convcode >= 5 || convcode < 0)) {
+    warning("Optimizer (", optimizer, ") did not converge (",
+            if (use.grad) paste("nlminb:", S0$message) else paste("nloptr status =", convcode),
             "). Estimates may be unreliable. Consider increasing maxit.")
   }
   if (iteration > maxit.pql) {
@@ -848,7 +1201,7 @@ communityPGLMM.glmm.sparse <- function(formula, data, family = "binomial", cov_r
     nested = list(), Zt = NULL, St = NULL,
     convcode = convcode, niter = n.eval, iterations.pql = iteration,
     sparse = list(
-      pre = pre, u = u, u.obs = u.obs, theta = ev$th, has.obs = has.obs, w = w,
+      pre = pglmm_sparse_keep(pre), u = u, u.obs = u.obs, theta = ev$th, has.obs = has.obs, w = w,
       formula.order = tm$formula.order,
       terms = lapply(terms, function(z) {
         z[intersect(c("name", "group", "phy", "nested", "labels", "n.levels", "level.order", "pick"),
@@ -886,18 +1239,13 @@ pglmm_sparse_random_effects <- function(terms, data) {
 # Fit a gaussian pglmm with the sparse precision matrix of the phylogeny
 communityPGLMM.gaussian.sparse <- function(formula, data, cov_ranef = NULL, REML = TRUE,
                                            s2.init = NULL, reltol = 10^-8, maxit = 500,
-                                           verbose = FALSE, optimizer = "subplex",
+                                           verbose = FALSE, optimizer = "nlminb",
                                            standardize_cov = TRUE, repulsion = FALSE,
                                            phylo_only = FALSE) {
   formula.nobars <- reformulas::nobars(formula)
   # rows with missing values in the response, predictors, or random terms are dropped
-  bars <- unique(reformulas::findbars(formula))
-  re.vars <- unique(unlist(lapply(bars, function(x) gsub("__$", "", all.vars(x)))))
-  ok <- stats::complete.cases(
-    model.frame(formula.nobars, data, na.action = NULL),
-    data[, intersect(re.vars, names(data)), drop = FALSE]
-  )
-  data <- data[ok, , drop = FALSE]
+  re <- pglmm_parse_re(formula, data, phylo_only = phylo_only)
+  data <- data[pglmm_complete_rows(formula, data, re$vars), , drop = FALSE]
   mf <- model.frame(formula.nobars, data = data, na.action = NULL)
   X <- model.matrix(attr(mf, "terms"), data = mf)
   Y <- as.numeric(model.response(mf))
@@ -910,39 +1258,83 @@ communityPGLMM.gaussian.sparse <- function(formula, data, cov_ranef = NULL, REML
   nested <- vapply(terms, function(z) z$nested, TRUE)
   pre <- pglmm_sparse_setup(X, Y, terms)
 
-  theta0 <- if (is.null(s2.init)) rep(1, nt) else rep_len(sqrt(s2.init), nt)
-  # Optimizers from nloptr: Subplex (default; also used for "lbfgs", as there
-  # is no gradient here), Nelder-Mead and BOBYQA. The likelihood depends on
-  # theta^2 only, so there are no bounds and abs(theta) is used (with a lower
-  # bound of zero, Nelder-Mead often stops at theta = 0); BOBYQA keeps the
-  # bound of zero, as in lme4. Derivative-free optimizers can stop too early
-  # on a flat likelihood surface, so the optimizer is restarted from the
-  # solution until there is no improvement. In a comparison with 72 simulated
-  # data sets (nested and non-nested terms, small to large), Subplex with a
-  # tolerance of 1e-8 and restarts reached the best likelihood found by any
-  # method (to 1e-4) in all of them; Nelder-Mead and BOBYQA did not in about
-  # half of them (shortfalls up to 0.2 log-likelihood units).
-  nlopt_algor <- switch(optimizer,
-    "bobyqa" = "NLOPT_LN_BOBYQA", "nelder-mead-nlopt" = , "Nelder-Mead" = "NLOPT_LN_NELDERMEAD",
-    "NLOPT_LN_SBPLX"
-  )
-  lb <- if (nlopt_algor == "NLOPT_LN_BOBYQA") rep(0, nt)
-  opts <- list(algorithm = nlopt_algor, ftol_rel = reltol, ftol_abs = reltol,
-               xtol_rel = 1e-6, maxeval = maxit)
-  n.eval <- 0
-  S0 <- NULL
-  for (i.start in 1:10) {
-    S1 <- nloptr::nloptr(
-      x0 = if (is.null(S0)) theta0 else S0$solution, eval_f = pglmm_sparse_LL, lb = lb,
-      opts = opts, pre = pre, REML = REML, verbose = verbose
+  if (optimizer %in% c("nlminb", "lbfgs")) {
+    # Default: nlminb() with the analytic gradient (pglmm_sparse_LL_grad()),
+    # on the scale of the variances (relative to the residual variance)
+    # multiplied by the scale factors of their terms (as method = "Laplace"),
+    # with a lower bound of zero: the likelihood is a smooth function of the
+    # variances, with a derivative at zero that tells whether a variance should
+    # be larger. The derivative of a variance at (nearly) zero is computed by
+    # finite differences (d/dv = d/dtheta / (2 theta) is not defined there).
+    sf <- vapply(terms, function(z) z$mean.diag, 1)
+    sf[!is.finite(sf) | sf <= 0] <- 1
+    v0 <- if (is.null(s2.init)) rep(1, nt) else rep_len(s2.init, nt) * sf
+    cache <- new.env(parent = emptyenv())
+    fn <- function(v) {
+      theta <- sqrt(pmax(v, 0) / sf)
+      ev <- tryCatch(pglmm_sparse_eval(theta, pre), error = function(e) NULL)
+      cache$v <- v
+      cache$theta <- theta
+      cache$ev <- ev
+      LL <- pglmm_sparse_LL_value(ev, pre, REML)
+      if (verbose) show(c(LL, theta))
+      LL
+    }
+    gr <- function(v) {
+      if (!identical(cache$v, v)) fn(v)
+      if (is.null(cache$ev)) return(rep(NA_real_, nt))
+      g <- pglmm_sparse_LL_grad(cache$theta, pre, cache$ev, REML) / (2 * cache$theta * sf)
+      g[!is.finite(g)] <- NA
+      g
+    }
+    ctrl <- list(rel.tol = reltol, eval.max = maxit, iter.max = maxit)
+    lower <- rep(pglmm_var_lb, nt)
+    run <- function(x, iter.max = maxit) {
+      pglmm_grad_optim(fn, gr, pmax(x, lower), lower, modifyList(ctrl, list(iter.max = iter.max)))
+    }
+    S0 <- pglmm_optim_corners(run, v0, pglmm_sparse_pairs(terms))
+    n.eval <- S0$evaluations[["function"]]
+    theta <- sqrt(pglmm_var_snap(S0$par) / sf)
+    LL <- pglmm_sparse_LL(theta, pre, REML)
+    convcode <- S0$convergence
+    conv.msg <- if (convcode != 0) paste0("nlminb: ", S0$message)
+  } else {
+    theta0 <- if (is.null(s2.init)) rep(1, nt) else rep_len(sqrt(s2.init), nt)
+    # Derivative-free optimizers from nloptr: Subplex, Nelder-Mead and BOBYQA.
+    # The likelihood depends on theta^2 only, so there are no bounds and
+    # abs(theta) is used (with a lower bound of zero, Nelder-Mead often stops at
+    # theta = 0); BOBYQA keeps the bound of zero, as in lme4. Derivative-free
+    # optimizers can stop too early on a flat likelihood surface, so the
+    # optimizer is restarted from the solution until there is no improvement.
+    # In a comparison with 72 simulated data sets (nested and non-nested
+    # terms, small to large), Subplex with a tolerance of 1e-8 and restarts
+    # reached the best likelihood found by any method (to 1e-4) in all of them;
+    # Nelder-Mead and BOBYQA did not in about half of them (shortfalls up to
+    # 0.2 log-likelihood units).
+    nlopt_algor <- switch(optimizer,
+      "bobyqa" = "NLOPT_LN_BOBYQA", "nelder-mead-nlopt" = , "Nelder-Mead" = "NLOPT_LN_NELDERMEAD",
+      "NLOPT_LN_SBPLX"
     )
-    n.eval <- n.eval + S1$iterations
-    done <- !is.null(S0) && S0$objective - S1$objective < 1e-7 * (abs(S0$objective) + 1)
-    if (is.null(S0) || S1$objective < S0$objective) S0 <- S1
-    if (done) break
+    lb <- if (nlopt_algor == "NLOPT_LN_BOBYQA") rep(0, nt)
+    opts <- list(algorithm = nlopt_algor, ftol_rel = reltol, ftol_abs = reltol,
+                 xtol_rel = 1e-6, maxeval = maxit)
+    n.eval <- 0
+    S0 <- NULL
+    for (i.start in 1:10) {
+      S1 <- nloptr::nloptr(
+        x0 = if (is.null(S0)) theta0 else S0$solution, eval_f = pglmm_sparse_LL, lb = lb,
+        opts = opts, pre = pre, REML = REML, verbose = verbose
+      )
+      n.eval <- n.eval + S1$iterations
+      done <- !is.null(S0) && S0$objective - S1$objective < 1e-7 * (abs(S0$objective) + 1)
+      if (is.null(S0) || S1$objective < S0$objective) S0 <- S1
+      if (done) break
+    }
+    theta <- abs(S0$solution)
+    LL <- S0$objective
+    convcode <- S0$status
+    conv.msg <- if (convcode >= 5 || convcode < 0) paste0(optimizer, ", nloptr status = ", convcode)
   }
-  theta <- abs(S0$solution)
-  LL <- S0$objective
   ev <- pglmm_sparse_eval(theta, pre)
 
   s2resid <- ev$rss / (if (REML) n - p else n)
@@ -956,7 +1348,7 @@ communityPGLMM.gaussian.sparse <- function(formula, data, cov_ranef = NULL, REML
   u <- th.col * as.vector(pglmm_sparse_solve(ev$L, pre, th.col * as.vector(Matrix::crossprod(pre$Z, H))))
 
   if (REML) {
-    logLik <- -0.5 * (n - p) * log(2 * pi) + 0.5 * pre$logdetXtX - LL
+    logLik <- -0.5 * (n - p) * log(2 * pi) - LL
   } else {
     logLik <- -0.5 * n * log(2 * pi) - LL
   }
@@ -966,8 +1358,8 @@ communityPGLMM.gaussian.sparse <- function(formula, data, cov_ranef = NULL, REML
   ss <- c(theta, sqrt(s2resid))
   B.zscore <- B / B.se
   k <- p + nt + 1
-  if (S0$status >= 5 || S0$status < 0) {
-    warning("Optimizer (", optimizer, ") did not converge (nloptr status = ", S0$status,
+  if (!is.null(conv.msg)) {
+    warning("The optimizer did not converge (", conv.msg,
             "). Estimates may be unreliable. Consider increasing maxit.")
   }
 
@@ -988,9 +1380,9 @@ communityPGLMM.gaussian.sparse <- function(formula, data, cov_ranef = NULL, REML
     BIC = -2 * logLik + k * (log(n) - log(pi)),
     REML = REML, bayes = FALSE, s2.init = s2.init, B.init = NULL, Y = Y, X = X,
     H = matrix(H, ncol = 1), mu = NULL, nested = list(), Zt = NULL, St = NULL,
-    convcode = S0$status, niter = n.eval,
+    convcode = convcode, niter = n.eval,
     sparse = list(
-      pre = pre, u = u, theta = theta, formula.order = tm$formula.order,
+      pre = pglmm_sparse_keep(pre), u = u, theta = theta, formula.order = tm$formula.order,
       terms = lapply(terms, function(z) {
         z[intersect(c("name", "group", "phy", "nested", "labels", "n.levels", "level.order", "pick"),
                     names(z))]
@@ -1002,6 +1394,20 @@ communityPGLMM.gaussian.sparse <- function(formula, data, cov_ranef = NULL, REML
   results
 }
 
+# The value of sparse = NULL (the default of pglmm()): TRUE when the sparse
+# code supports the model, i.e. with bayes = FALSE, random terms in the formula
+# (not random.effects), and phylogenies (not covariance matrices) in cov_ranef
+# (and tree, tree_site); FALSE otherwise
+pglmm_sparse_default <- function(formula, cov_ranef, tree, tree_site, random.effects, bayes,
+                                 ML.init = FALSE, repulsion = FALSE) {
+  if (!is.null(random.effects)) return(FALSE)
+  # not available yet with bayes = TRUE and sparse = TRUE
+  if (bayes && (isTRUE(ML.init) || any(as.logical(repulsion)))) return(FALSE)
+  if (!length(reformulas::findbars(formula))) return(FALSE)
+  covs <- Filter(Negate(is.null), c(if (is.list(cov_ranef)) cov_ranef, list(tree, tree_site)))
+  all(vapply(covs, inherits, logical(1), "phylo"))
+}
+
 # Stop for the methods that are not available yet for the sparse path
 pglmm_sparse_stop <- function(object, what) {
   if (!is.null(object$sparse)) {
@@ -1009,6 +1415,68 @@ pglmm_sparse_stop <- function(object, what) {
          call. = FALSE)
   }
   invisible(NULL)
+}
+
+# The inverse V^-1 of the marginal covariance matrix of a model fitted with
+# sparse = TRUE or method = "Laplace", from the Woodbury identity: with
+# V = D + Z Theta Q^-1 Theta Z' (gaussian models: V = s2resid (I + Z Theta
+# Q^-1 Theta Z'), Theta relative to the residual standard deviation; binomial
+# and poisson models: D = diag(1 / wt), wt = w / (1 + s2_obs w), with the
+# working weights w of PQL or the observed information at the mode for the
+# Laplace approximation, and the variance s2_obs of 1|obs, if any),
+#   V^-1 = c (Dw - Dw Z Theta M^-1 Theta Z' Dw),
+# with the matrix M = Q + Theta Z' Dw Z Theta of the fit (c = 1 / s2resid and
+# Dw = I for gaussian models; c = 1 and Dw = diag(wt) otherwise). Returns the
+# pieces of pglmm_sparse_iV_mult() and pglmm_sparse_iV_diag().
+pglmm_sparse_iV_pieces <- function(object) {
+  sp <- object$sparse
+  pre <- sp$pre
+  if (object$family == "gaussian") {
+    ev <- pglmm_sparse_eval(sp$theta, pre)
+    list(pre = pre, L = ev$L, thc = sp$theta[pre$term.of.col], dw = rep(1, nrow(object$X)),
+         c = 1 / as.numeric(object$s2resid))
+  } else {
+    ev <- pglmm_sparse_weval(object$ss, pre, sp$w, object$X, sp$has.obs, full = TRUE)
+    list(pre = pre, L = ev$L, thc = ev$th[pre$term.of.col], dw = ev$wt, c = 1)
+  }
+}
+
+# V^-1 R (pieces pc of pglmm_sparse_iV_pieces())
+pglmm_sparse_iV_mult <- function(pc, R) {
+  DR <- pc$dw * as.matrix(R)
+  S <- pglmm_sparse_solve(pc$L, pc$pre, pc$thc * as.matrix(Matrix::crossprod(pc$pre$Z, DR)))
+  pc$c * (DR - pc$dw * as.matrix(pc$pre$Z %*% (pc$thc * S)))
+}
+
+# diag(V^-1) = c (dw - dw^2 diag(Z Theta M^-1 Theta Z'))
+pglmm_sparse_iV_diag <- function(pc) {
+  pc$c * (pc$dw - pc$dw^2 * pglmm_sparse_diag_ZMiZ(pc$pre, pc$L, pc$thc))
+}
+
+# diag(Z Theta M^-1 Theta Z'): for each row of Z, the sum over the pairs of
+# its nonzero columns (j, k) of Z_ij thc_j (M^-1)_jk thc_k Z_ik, with the
+# entries of M^-1 from the selected inverse (the pairs are on the pattern of
+# Z'Z, and thus of the factor of M)
+pglmm_sparse_diag_ZMiZ <- function(pre, L, thc) {
+  ZT <- as(Matrix::t(pre$Z), "CsparseMatrix") # column i: row i of Z
+  n <- ncol(ZT)
+  nr <- diff(ZT@p)
+  row <- rep.int(seq_len(n), nr)
+  col <- ZT@i # 0-based
+  x <- ZT@x * thc[col + 1L]
+  nn <- length(x)
+  a <- b <- vector("list", max(nr))
+  for (k in seq_len(max(nr)) - 1L) { # pairs of the nonzeros k apart in the same row
+    t1 <- seq_len(nn - k)
+    t1 <- t1[row[t1] == row[t1 + k]]
+    a[[k + 1L]] <- t1
+    b[[k + 1L]] <- t1 + k
+  }
+  mult <- rep(c(1, rep(2, length(a) - 1L)), lengths(a))
+  a <- unlist(a)
+  b <- unlist(b)
+  z <- pglmm_sparse_inv_at(L, col[a], col[b])
+  pglmm_sum_by(mult * x[a] * x[b] * z, row[a], n)
 }
 
 # Conditional modes of the random effects of a model fitted with sparse = TRUE,
@@ -1054,13 +1522,21 @@ pglmm_cond_modes_sparse <- function(object, condVar = FALSE, nodes = FALSE) {
     W <- Matrix::solve(ev$L, Matrix::solve(ev$L, E, system = "P"), system = "L")
     Matrix::colSums(W * Matrix::solve(ev$L, W, system = "D"))
   }
+  # selected inverse of M; the solves of quad_Mi() for models fitted with
+  # earlier versions (without the pattern of A)
+  selinv <- condVar && !is.null(pre$ia)
   if (condVar) {
-    # diagonal of M^-1 for these columns, in chunks of columns to limit memory
+    # diagonal of M^-1 for these columns (in chunks of columns to limit memory
+    # without the selected inverse)
     need <- sort(unique(unlist(Map(`+`, offset, pick))))
     dMi <- numeric(pre$q)
-    for (idx in split(need, ceiling(seq_along(need) / 500))) {
-      dMi[idx] <- quad_Mi(Matrix::sparseMatrix(i = idx, j = seq_along(idx), x = 1,
-                                               dims = c(qa, length(idx))))
+    if (selinv) {
+      dMi[need] <- pglmm_sparse_inv_at(ev$L, need - 1L, need - 1L)
+    } else {
+      for (idx in split(need, ceiling(seq_along(need) / 500))) {
+        dMi[idx] <- quad_Mi(Matrix::sparseMatrix(i = idx, j = seq_along(idx), x = 1,
+                                                 dims = c(qa, length(idx))))
+      }
     }
     s2 <- if (glmm) 1 else as.numeric(object$s2resid)
     se <- sp$theta[pre$term.of.col] * sqrt(s2 * pmax(dMi, 0))
@@ -1087,14 +1563,24 @@ pglmm_cond_modes_sparse <- function(object, condVar = FALSE, nodes = FALSE) {
     d <- data.frame(obs = obs, stringsAsFactors = FALSE)
     d$estimate <- sp$u.obs
     if (condVar) {
-      # diag(V^-1) = wt - wt^2 diag(Z Theta M^-1 Theta Z'), in chunks of rows
+      # diag(V^-1) = wt - wt^2 diag(Z Theta M^-1 Theta Z'): for each row, the
+      # sum over the pairs of its columns, from the entries of M^-1 on the
+      # pattern of Z'Z (wmap gives the products of the values of Z of these
+      # pairs), or solves in chunks of rows
       s2o <- object$ss[[length(object$ss)]]^2
-      Et <- Matrix::t(pre$Z) * sp$theta[pre$term.of.col]
-      if (qa > pre$q) Et <- rbind(Et, Matrix::Matrix(0, qa - pre$q, ncol(Et), sparse = TRUE))
-      n <- ncol(Et)
-      dZ <- numeric(n)
-      for (idx in split(seq_len(n), ceiling(seq_len(n) / 500))) {
-        dZ[idx] <- quad_Mi(Et[, idx, drop = FALSE])
+      if (selinv) {
+        ia <- pre$ia
+        th <- sp$theta
+        z <- pglmm_sparse_inv_at(ev$L, pre$mi[ia], pre$mj[ia])
+        dZ <- as.vector(Matrix::crossprod(pre$wmap.ia, pre$amult * z * th[pre$ti[ia]] * th[pre$tj[ia]]))
+      } else {
+        Et <- Matrix::t(pre$Z) * sp$theta[pre$term.of.col]
+        if (qa > pre$q) Et <- rbind(Et, Matrix::Matrix(0, qa - pre$q, ncol(Et), sparse = TRUE))
+        n <- ncol(Et)
+        dZ <- numeric(n)
+        for (idx in split(seq_len(n), ceiling(seq_len(n) / 500))) {
+          dZ[idx] <- quad_Mi(Et[, idx, drop = FALSE])
+        }
       }
       dV <- ev$wt - ev$wt^2 * dZ
       d$se <- sqrt(pmax(s2o - s2o^2 * dV, 0))
@@ -1102,4 +1588,99 @@ pglmm_cond_modes_sparse <- function(object, condVar = FALSE, nodes = FALSE) {
     out[["1|obs"]] <- d
   }
   out
+}
+
+# Sparse representations for bayes = TRUE ----
+#
+# With bayes = TRUE and sparse = TRUE, the random terms of pglmm_sparse_terms()
+# are given to INLA in one of two ways (sparse_method):
+#
+# "precision": each term is a 'generic0' model on all levels of the term, with
+#   the precision matrix Q of pglmm_sparse_terms() (for a phylogeny: all nodes
+#   but the root), and each observation linked to one level (its tip). This is
+#   the representation of sparse = TRUE with bayes = FALSE, and gives the
+#   values of the internal nodes (ancestral states) directly.
+# "flow": each phylogenetic term is u = D r, with r the rates of evolution on
+#   the branches (pairs of branches for nested terms with two phylogenies), D
+#   the phylogenetic flow matrix of the observations (see phylo_flow()), and
+#   r ~ N(0, s2 diag(1 / C)), C the branch lengths: a 'generic0' model on the
+#   rates with Cmatrix diag(C), linked to the observations by the matrix A of
+#   control.predictor (A = [I, D_1, D_2, ...]: the identity for the other
+#   terms and the fixed effects), as in the fibre package. This gives the same
+#   covariance matrix of u as "precision", and the rates on the scale of the
+#   trait per unit of branch length. Terms without phylogeny are as for
+#   "precision". (INLA's 'z' model, u = D r + a small noise, gives the same
+#   model, but often failed to find the mode for more than a few hundred
+#   species.)
+#
+# INLA leaves out the log determinant of Cmatrix from the marginal likelihood
+# of 'generic0' models, so it is added back (logdetC).
+
+# One element per random term (in the order of the formula, as random.effects
+# of the default code), with the observation-level term 1|obs last if has.obs
+pglmm_bayes_sparse_terms <- function(tm, n, sparse_method = c("precision", "flow"),
+                                     has.obs = FALSE) {
+  sparse_method <- match.arg(sparse_method)
+  generic0 <- function(z) {
+    Zt <- as(z$Z, "TsparseMatrix")
+    if (anyDuplicated(Zt@i)) stop("Each observation must have one level in each random term.", call. = FALSE)
+    idx <- rep(1L, n)
+    w <- rep(0, n)
+    idx[Zt@i + 1L] <- Zt@j + 1L
+    w[Zt@i + 1L] <- Zt@x
+    list(name = z$name, nested = z$nested, type = "generic0", idx = idx,
+         w = if (all(w == 1)) NULL else w, C = z$Q, values = seq_len(nrow(z$Q)),
+         logdetC = z$logdetQ, phy = any(z$phy), labels = z$labels, mean.diag = z$mean.diag)
+  }
+  out <- lapply(tm$terms[tm$formula.order], function(z) {
+    if (sparse_method == "flow" && !is.null(z$flow)) {
+      m <- length(z$flow$C)
+      list(name = z$name, nested = z$nested, type = "flow", idx = seq_len(m),
+           D = as(z$flow$D, "CsparseMatrix"), C = Matrix::Diagonal(x = z$flow$C),
+           values = seq_len(m), logdetC = sum(log(z$flow$C)), phy = TRUE,
+           labels = z$flow$labels, len.scale = z$flow$len.scale, mean.diag = z$mean.diag)
+    } else {
+      generic0(z)
+    }
+  })
+  if (has.obs) {
+    out[[length(out) + 1]] <- list(name = "1|obs", nested = TRUE, type = "generic0", idx = seq_len(n),
+                                   w = NULL, C = Matrix::Diagonal(n), values = seq_len(n),
+                                   logdetC = 0, phy = FALSE, labels = seq_len(n), mean.diag = 1)
+  }
+  names(out) <- vapply(out, function(z) z$name, "")
+  out
+}
+
+# Estimates of the latent variables of the phylogenetic terms of a model fitted
+# with bayes = TRUE and sparse = TRUE: for "flow", the rates of the branches,
+# on the scale of the trait per unit of branch length of the phylogenies in
+# cov_ranef; for "precision", the values of all nodes of non-nested terms
+pglmm_bayes_sparse_latent <- function(out, sparse_terms, n) {
+  cols <- c("mean", "sd", "0.025quant", "0.5quant", "0.975quant", "mode")
+  res <- list()
+  for (i in seq_along(sparse_terms)) {
+    st <- sparse_terms[[i]]
+    if (!st$phy) next
+    sr <- out$summary.random[[i]]
+    if (st$type == "flow") {
+      s <- sr[, intersect(cols, names(sr)), drop = FALSE] * st$len.scale
+      lab <- if (is.data.frame(st$labels)) st$labels else data.frame(branch = st$labels)
+      res[[st$name]] <- cbind(lab, s, row.names = NULL)
+    } else if (!st$nested) {
+      s <- sr[, intersect(cols, names(sr)), drop = FALSE]
+      res[[st$name]] <- cbind(data.frame(node = st$labels), s, row.names = NULL)
+    }
+  }
+  res
+}
+
+# Stop for the methods that are not available yet for models fitted with
+# bayes = TRUE and sparse = TRUE
+pglmm_bayes_sparse_stop <- function(object, what) {
+  if (!is.null(object$bayes_sparse)) {
+    stop(what, " is not available yet for models fitted with bayes = TRUE and sparse = TRUE.",
+         call. = FALSE)
+  }
+  invisible(NULL)
 }

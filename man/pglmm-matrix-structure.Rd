@@ -46,22 +46,66 @@ correlations among species, while the form \code{(1|sp__@site)} excludes the cor
 
 Note that correlated random terms are not allowed. For example,
 \code{(x|g)} will be the same as \code{(0 + x|g)} in the \code{lme4::lmer} syntax. However,
-\code{(x1 + x2|g)} won't work, so instead use  \code{(x1|g) + (x2|g)}.}
+\code{(x1 + x2|g)} won't work, so instead use  \code{(x1|g) + (x2|g)}, or
+\code{(x1 + x2||g)}. As the random intercept and slope of \code{(1|g) + (x|g)} are
+independent, the model depends on where \code{x} is zero: the variance among the levels
+of \code{g} is that of the intercept plus \eqn{x^2} times that of the slope. With a 0/1
+covariate (e.g. a control and a treatment), the levels then vary more in the treatment
+than in the control by construction. Center continuous covariates of random slopes
+(e.g. \code{x - mean(x)}) and code two-level factors as -1/+1 (equal variance in both
+groups) unless zero is a meaningful reference. Covariates of random slopes must be
+numeric columns of \code{data}.
+
+Grouping factors are columns of \code{data}. Their interactions as in \code{lme4},
+e.g. \code{(1|sp:site)}, are fitted as the nested terms \code{(1|sp@site)}, and
+\code{(1|site/sp)} as \code{(1|site) + (1|sp@site)}.
+
+The formula can have offsets, e.g. \code{+ offset(log(effort))} for counts with
+different sampling efforts or areas: terms of the linear predictor with a known
+coefficient of one. They are supported with \code{method = "Laplace"} (binomial,
+poisson and negative binomial models) and \code{bayes = TRUE}, and are included in the
+predicted values (\code{predict()}, \code{fitted()}, \code{simulate()}; with
+\code{newdata}, the offset is calculated from it).}
 
 \item{data}{A \code{\link{data.frame}} containing the variables named in formula.
-Rows where the response variable is \code{NA} are dropped before fitting; this
-is equivalent to removing those rows from \code{data} manually before calling
-\code{pglmm}. As a result, \code{pglmm(data_with_NAs)} and
-\code{pglmm(data[!is.na(data$y), ])} produce identical estimates.}
+Rows with missing values in the response, the fixed effects, the grouping variables
+or the covariates of random slopes are dropped before fitting; this is equivalent to
+removing those rows from \code{data} manually before calling \code{pglmm}. As a
+result, \code{pglmm(data_with_NAs)} and \code{pglmm(na.omit(data[, vars]))} (with
+\code{vars} the variables of the model) produce identical estimates. With
+\code{random.effects}, only the rows with missing values in the response are dropped.}
 
 \item{family}{Either "gaussian" for a Linear Mixed Model, or
-"binomial" or "poisson" for Generalized Linear Mixed Models.
+"binomial", "poisson", "nbinomial" or "Gamma" for Generalized Linear Mixed Models.
 "family" should be specified as a character string (i.e., quoted). For binomial and
 Poisson data, we use the canonical logit and log link functions, respectively.
 Binomial data can be either presence/absence, or a two-column array of 'successes' and 'failures'.
 For both binomial  and Poisson data, we add an observation-level
-random term by default via \code{add.obs.re = TRUE}. If \code{bayes = TRUE} there are
-two additional families available: "zeroinflated.binomial", and "zeroinflated.poisson",
+random term by default via \code{add.obs.re = TRUE}.
+
+"nbinomial" is the negative binomial distribution for overdispersed counts, with the log
+link and the variance \eqn{\mu + \mu^2 / \theta}{mu + mu^2 / theta} given the random
+effects (as \code{lme4::glmer.nb()}, \code{glmmTMB(family = nbinom2)} and
+\code{MASS::glm.nb()}). Its dispersion parameter \eqn{\theta}{theta} is estimated with the
+other parameters (element \code{theta} of the fitted model); \eqn{\theta = \infty}{theta = Inf}
+is the poisson distribution. As \eqn{\theta}{theta} accounts for overdispersion, no
+observation-level random term is added. With \code{bayes = FALSE}, negative binomial models
+are always fitted with \code{method = "Laplace"}, with starting values from
+\code{MASS::glm.nb()}.
+
+"Gamma" (or "gamma") is the Gamma distribution for positive continuous responses (e.g.
+biomass, body size, durations), with the log link and the variance
+\eqn{\mu^2 / \nu}{mu^2 / shape} given the random effects (as \code{glm()},
+\code{lme4::glmer()} and \code{glmmTMB()} with \code{family = Gamma(link = "log")}). Its shape
+parameter \eqn{\nu}{shape} is estimated with the other parameters (element \code{shape} of the
+fitted model; \code{sigma()} of \code{glmmTMB} is \eqn{1/\sqrt{\nu}}{1 / sqrt(shape)}, the
+coefficient of variation). No observation-level random term is added. Gamma models are only
+available with \code{bayes = FALSE}, and are always fitted with \code{method = "Laplace"},
+with starting values from \code{glm()} and \code{MASS::gamma.shape()}.
+
+If \code{bayes = TRUE} there are
+three additional families available: "zeroinflated.binomial", "zeroinflated.poisson" and
+"zeroinflated.nbinomial",
 which add a zero inflation parameter; this parameter gives the probability that the response is
 a zero. The rest of the parameters of the model then reflect the "non-zero" part part
 of the model. Note that "zeroinflated.binomial" only makes sense for success/failure
@@ -99,7 +143,12 @@ repulsion to be something like \code{c(TRUE, FALSE, TRUE, TRUE)} (length of 4).}
 
 \item{ss}{Which of the \code{random.effects} to produce.}
 
-\item{cpp}{Whether to use C++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE}.}
+\item{cpp}{Whether to use C++ function for optim. Default is TRUE. Only used by the dense
+code (\code{sparse = FALSE}, which is the default only for models that the sparse code does
+not support, see \code{sparse}); ignored if \code{bayes = TRUE}, \code{sparse = TRUE} or
+\code{method = "Laplace"} (and thus for \code{family = "nbinomial"} and \code{"Gamma"}):
+these models are fitted with R code, with the sparse Cholesky factorizations of the Matrix
+package (CHOLMOD).}
 }
 \value{
 A design matrix.

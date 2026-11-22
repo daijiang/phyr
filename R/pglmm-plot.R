@@ -55,6 +55,7 @@ plot_data <- function(x, sp.var = "sp", site.var = "site",
       p2 = update(p2, scales = list(x = list(at = 1:length(colnames(y2)), labels = colnames(y2))))
     }
     p = update(p, main = "Observed value")
+    pglmm_need_pkgs("gridExtra", "plot_data")
     p = gridExtra::grid.arrange(p, p2, nrow = 1)
   }
   
@@ -87,57 +88,58 @@ plot_bayes.communityPGLMM <- function(x, n_samp = 1000, sort = TRUE, ...) {
   if(!requireNamespace("ggridges", quietly = TRUE)) {
     stop('plot_bayes requires the ggridges package but it is unavailable. Use install.packages("ggridges") to install it.')
   }
+  pglmm_need_pkgs(c("dplyr", "tidyr"), "plot_bayes")
   
   re.names <- names(x$random.effects)
   if (x$family == "gaussian") re.names <- c("residual", re.names)
   random_samps <- lapply(x$inla.model$marginals.hyperpar, 
-                         function(x) INLA::inla.rmarginal(n_samp, INLA::inla.tmarginal(function(x) sqrt(1 / x), x))) %>%
-    setNames(re.names) %>%
-    dplyr::as_tibble() %>%
+                         function(x) INLA::inla.rmarginal(n_samp, INLA::inla.tmarginal(function(x) sqrt(1 / x), x))) |>
+    setNames(re.names) |>
+    dplyr::as_tibble() |>
     tidyr::pivot_longer(cols = dplyr::everything(),
                         names_to = "var",
-                        values_to = "val") %>%
+                        values_to = "val") |>
     dplyr::mutate(effect_type = "Random Effects")
  
-  fixed_samps <- lapply(x$inla.model$marginals.fixed, function(x) INLA::inla.rmarginal(n_samp, x)) %>%
-    dplyr::as_tibble() %>%
+  fixed_samps <- lapply(x$inla.model$marginals.fixed, function(x) INLA::inla.rmarginal(n_samp, x)) |>
+    dplyr::as_tibble() |>
     tidyr::pivot_longer(cols = dplyr::everything(),
                         names_to = "var",
-                        values_to = "val") %>%
+                        values_to = "val") |>
     dplyr::mutate(effect_type = "Fixed Effects")
   
-  samps <- dplyr::bind_rows(random_samps, fixed_samps) %>%
+  samps <- dplyr::bind_rows(random_samps, fixed_samps) |>
     dplyr::mutate(effect_type = factor(effect_type, 
                                    levels = c("Random Effects", "Fixed Effects")))
   
-  ci <- samps %>%
-    dplyr::group_by(var, effect_type) %>%
+  ci <- samps |>
+    dplyr::group_by(var, effect_type) |>
     dplyr::summarise(lower = quantile(val, 0.025),
               upper = quantile(val, 0.975),
               mean = mean(val),
               .groups = "drop_last")
   
   if(sort){
-    ci <- dplyr::arrange(ci, mean) %>% dplyr::ungroup() %>% 
+    ci <- dplyr::arrange(ci, mean) |> dplyr::ungroup() |> 
       dplyr::mutate(var = factor(as.character(var), levels = as.character(var)))
   }
   
-  sig_vars <- ci %>%
+  sig_vars <- ci |>
     dplyr::mutate(sig = ifelse(effect_type == "Random Effects",
                                "CI no overlap with zero",
                                ifelse(sign(lower) == sign(upper),
                                       "CI no overlap with zero",
-                                      "CI overlaps zero"))) %>%
+                                      "CI overlaps zero"))) |>
     dplyr::select(var, sig)
   
   if(sort){
     samps <- dplyr::mutate(samps, var = factor(var, levels = levels(sig_vars$var)))
   }
   
-  samps <- samps %>%
-    dplyr::left_join(sig_vars, by = "var") %>%
-    dplyr::group_by(var) %>%
-    dplyr::filter(abs(val - mean(val)) < (10 * sd(val))) %>% 
+  samps <- samps |>
+    dplyr::left_join(sig_vars, by = "var") |>
+    dplyr::group_by(var) |>
+    dplyr::filter(abs(val - mean(val)) < (10 * sd(val))) |> 
     dplyr::ungroup()
   
   pal <- c("#fc8d62", "#8da0cb")
@@ -227,25 +229,28 @@ pglmm_plot_ranef <- function(
     stop("pglmm_plot_ranef() is for community data (species and sites); the covariance ",
          "matrix of a pglmm_compare() model is in its element vcv.phy.", call. = FALSE)
   }
+  pglmm_need_pkgs(c(if (show.image || show.sim.image) "gridExtra",
+                    if (add.tree.sp || add.tree.site) "latticeExtra"), "pglmm_plot_ranef")
   if(!is.null(x)){ # model input
     random.effects <- x$random.effects
     formula <- x$formula
     data <- x$data
     cov_ranef_update = x$cov_ranef
+    if (any(vapply(random.effects, function(r) length(r) >= 3 && is.null(r[[3]]), TRUE))) {
+      # models fitted with sparse = TRUE or method = "Laplace" do not keep the
+      # covariance matrices of their random terms: built as the dense code does
+      pd <- pglmm_dense_random_effects(x)
+      random.effects <- pd$random.effects
+      cov_ranef_update <- pd$cov_ranef_updated
+    }
     # sp <- as.factor(data[, sp.var])
     # site <- as.factor(data[, site.var])
     # tree <- x$tree
     # tree_site <- x$tree_site
   } else {
     if (is.null(random.effects)) {
-      if(is.null(cov_ranef) & any(grepl("__", all.vars(formula)))){ # model not fitted yet
-        if(!is.null(tree) | !is.null(tree_site))
-          warning("arguments tree and tree_site are deprecated; please use cov_ranef instead.", 
-                  call. = FALSE)
-        if(!is.null(tree) & is.null(tree_site)) cov_ranef = list(sp = tree)
-        if(is.null(tree) & !is.null(tree_site)) cov_ranef = list(site = tree_site)
-        if(!is.null(tree) & !is.null(tree_site)) cov_ranef = list(sp = tree, site = tree_site)
-      }
+      # model not fitted yet: the deprecated arguments tree and tree_site
+      cov_ranef <- pglmm_tree_cov_ranef(cov_ranef, tree, tree_site)
       pd <- prep_dat_pglmm(formula = formula, data = data, cov_ranef,
                            repulsion = repulsion, family = family)
       random.effects <- pd$random.effects
@@ -344,7 +349,7 @@ pglmm_plot_ranef <- function(
   # simulated data
   sim <- vector("list", length = nv)
   for(i in 1:nv){
-    Y <- array(mvtnorm::rmvnorm(n = 1, sigma = as.matrix(vcv[[i]])))
+    Y <- array(rmvnorm_cov(as.matrix(vcv[[i]]), 1))
     dat.sim = data.frame(site = dss$site, sp = dss$sp, Y = Y)
     Y.mat <- reshape(data = dat.sim, timevar = "sp", idvar = "site", direction = "wide", sep = "")
     row.names(Y.mat) = Y.mat$site

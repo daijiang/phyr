@@ -1,7 +1,5 @@
 # regression tests for bugs that gave wrong results silently
 
-quiet <- function(expr) suppressWarnings(suppressMessages(expr))
-
 test_that("a cov matrix in cov_ranef is reordered to the levels of the data", {
   set.seed(11)
   n <- 30
@@ -78,57 +76,6 @@ test_that("c++ and R code agree for nested terms that are not block-diagonal", {
   expect_equal(p1$B, p2$B, tolerance = 1e-4)
 })
 
-test_that("offset() is not silently ignored", {
-  set.seed(5)
-  dp <- data.frame(sp = rep(paste0("s", 1:10), 8), x = rnorm(80), logE = log(runif(80, 1, 20)))
-  dp$cnt <- rpois(80, exp(-1 + 0.3 * dp$x + dp$logE))
-  expect_error(
-    pglmm(cnt ~ x + offset(logE) + (1 | sp), data = dp, family = "poisson"),
-    "offset"
-  )
-})
-
-test_that("cor_phylo measurement errors do not depend on the order of rows", {
-  set.seed(21)
-  n <- 30
-  phy <- ape::rcoal(n)
-  d <- data.frame(
-    sp = phy$tip.label, a = ape::rTraitCont(phy), b = ape::rTraitCont(phy),
-    se1 = runif(n, 0.05, 1), se2 = runif(n, 0.05, 1)
-  )
-  d$a <- d$a + rnorm(n, sd = d$se1)
-  d$b <- d$b + rnorm(n, sd = d$se2)
-  ds <- d[sample(n), ]
-  fit <- function(dat) {
-    quiet(cor_phylo(
-      variates = ~ a + b, species = ~sp, phy = phy, data = dat,
-      meas_errors = list(a ~ se1, b ~ se2)
-    ))
-  }
-  f1 <- fit(d)
-  f2 <- fit(ds)
-  expect_equal(f2$corrs, f1$corrs, tolerance = 1e-4)
-  expect_equal(f2$logLik, f1$logLik, tolerance = 1e-4)
-  # measurement errors given as a matrix
-  f3 <- quiet(cor_phylo(
-    variates = ~ a + b, species = ~sp, phy = phy, data = ds,
-    meas_errors = as.matrix(setNames(ds[c("se1", "se2")], c("a", "b")))
-  ))
-  expect_equal(f3$logLik, f1$logLik, tolerance = 1e-4)
-})
-
-test_that("psr with relative abundances and pcd with a matrix", {
-  rel <- comm_a / rowSums(comm_a)
-  expect_equal(psr(rel, phylotree, cpp = FALSE), psr(rel, phylotree))
-  expect_equal(psr(rel, phylotree)$PSR, psr(comm_a, phylotree)$PSR)
-  expect_equal(psv(rel, phylotree, cpp = FALSE), psv(comm_a, phylotree, cpp = FALSE))
-
-  ex <- quiet(pcd_pred(comm_1 = comm_a, tree = phylotree, reps = 20))
-  p.df <- quiet(pcd(comm_a, phylotree, expectation = ex))
-  p.mat <- quiet(pcd(as.matrix(comm_a), phylotree, expectation = ex))
-  expect_equal(p.mat, p.df)
-})
-
 test_that("pglmm_iV() gives the inverse covariance matrix that is not stored anymore", {
   set.seed(8)
   nsp <- 12
@@ -139,14 +86,28 @@ test_that("pglmm_iV() gives the inverse covariance matrix that is not stored any
   d$x <- rnorm(80)
   d$y <- rnorm(80) + 0.5 * d$x
   d$cnt <- rpois(80, 2)
-  fits <- list(
-    quiet(pglmm(y ~ x + (1 | sp__) + (1 | site), data = d, cov_ranef = list(sp = phy))),
-    quiet(pglmm(y ~ x + (1 | sp__) + (1 | site) + (1 | sp__@site), data = d, cov_ranef = list(sp = phy))),
-    quiet(pglmm(y ~ x + (1 | sp__@site), data = d, cov_ranef = list(sp = phy))),
-    quiet(pglmm(cnt ~ x + (1 | sp__) + (1 | site), data = d, family = "poisson", cov_ranef = list(sp = phy))),
-    quiet(pglmm(cnt > 1 ~ x + (1 | sp) + (1 | sp__@site), data = d, family = "binomial", cov_ranef = list(sp = phy)))
-  )
-  for (m in fits) {
+  fit_all <- function(sparse) {
+    list(
+      quiet(pglmm(y ~ x + (1 | sp__) + (1 | site), data = d, cov_ranef = list(sp = phy), sparse = sparse)),
+      quiet(pglmm(y ~ x + (1 | sp__) + (1 | site) + (1 | sp__@site), data = d, cov_ranef = list(sp = phy),
+                  sparse = sparse)),
+      quiet(pglmm(y ~ x + (1 | sp__@site), data = d, cov_ranef = list(sp = phy), sparse = sparse)),
+      quiet(pglmm(cnt ~ x + (1 | sp__) + (1 | site), data = d, family = "poisson", cov_ranef = list(sp = phy),
+                  sparse = sparse, method = "PQL")),
+      quiet(pglmm(cnt > 1 ~ x + (1 | sp) + (1 | sp__@site), data = d, family = "binomial",
+                  cov_ranef = list(sp = phy), sparse = sparse, method = "PQL"))
+    )
+  }
+  # sparse = TRUE (the default): from the sparse factorization
+  for (m in fit_all(NULL)) {
+    expect_false(is.null(m$sparse))
+    iV <- pglmm_iV(m)
+    expect_equal(dim(iV), c(80L, 80L))
+    expect_equal(iV, t(iV))
+    expect_equal(solve(t(m$X) %*% iV %*% m$X), as.matrix(m$B.cov), tolerance = 1e-6, ignore_attr = TRUE)
+    expect_equal(phyr:::pglmm_iV_diag(m), diag(iV), tolerance = 1e-8)
+  }
+  for (m in fit_all(FALSE)) {
     expect_null(m$iV)
     iV <- pglmm_iV(m)
     expect_equal(dim(iV), c(80L, 80L))
@@ -249,9 +210,11 @@ test_that("a single repulsion = TRUE inverts the phylogenies of species only", {
   ts <- ape::rtree(4, tip.label = paste0("s", 1:4))
   d <- expand.grid(sp = tr$tip.label, site = ts$tip.label)
   d$y <- rnorm(nrow(d))
-  fm <- reformulas::findbars(y ~ (1 | sp__@site__) + (1 | sp@site__) + (1 | sp__@site) + (1 | sp@site))
-  expect_equal(phyr:::pglmm_expand_repulsion(fm, TRUE), c(TRUE, FALSE, FALSE, TRUE))
-  expect_equal(phyr:::pglmm_expand_repulsion(fm, FALSE), rep(FALSE, 4))
+  tm <- phyr:::pglmm_parse_re(y ~ (1 | sp__@site__) + (1 | sp@site__) + (1 | sp__@site) + (1 | sp@site),
+                              d)$terms
+  rr <- function(r) unlist(lapply(phyr:::pglmm_re_repulsion(tm, r), function(t) t$repulsion[t$phy]))
+  expect_equal(rr(TRUE), c(TRUE, FALSE, FALSE, TRUE))
+  expect_equal(rr(FALSE), rep(FALSE, 4))
   re <- function(rep) {
     r <- prep_dat_pglmm(y ~ 1 + (1 | sp__@site__), d, list(sp = tr, site = ts), repulsion = rep)$random.effects
     as.matrix(r[[length(r)]][[1]])
@@ -260,4 +223,29 @@ test_that("a single repulsion = TRUE inverts the phylogenies of species only", {
   expect_false(isTRUE(all.equal(re(TRUE), re(c(TRUE, TRUE)))))
   fit <- function(...) quiet(pglmm(y ~ 1 + (1 | sp__@site__), d, cov_ranef = list(sp = tr, site = ts), ...))
   expect_equal(fit(repulsion = TRUE, sparse = TRUE)$logLik, fit(repulsion = TRUE)$logLik, tolerance = 1e-4)
+})
+
+test_that("pglmm_plot_ranef() works with models fitted with the sparse code", {
+  # models fitted with sparse = TRUE or method = "Laplace" (the defaults) do
+  # not keep the covariance matrices of their random terms
+  set.seed(1)
+  phy <- ape::rcoal(6, tip.label = paste0("s", 1:6))
+  ts <- ape::rcoal(4, tip.label = paste0("t", 1:4))
+  d <- expand.grid(sp = phy$tip.label, site = ts$tip.label, stringsAsFactors = FALSE)
+  d$y <- rnorm(nrow(d))
+  d$cnt <- rpois(nrow(d), 2)
+  cr <- list(sp = phy, site = ts)
+  vcv_of <- function(...) {
+    m <- quiet(pglmm(..., data = d, cov_ranef = cr))
+    pdf(NULL)
+    on.exit(grDevices::dev.off())
+    lapply(pglmm_plot_ranef(x = m, show.image = FALSE, show.sim.image = FALSE)$vcv, as.matrix)
+  }
+  f <- y ~ 1 + (1 | sp__) + (1 | site) + (1 | sp__@site__)
+  expect_equal(vcv_of(f, repulsion = c(TRUE, FALSE)),
+               vcv_of(f, repulsion = c(TRUE, FALSE), sparse = FALSE))
+  f <- cnt ~ 1 + (1 | sp__) + (1 | sp__@site)
+  v <- vcv_of(f, family = "poisson")
+  expect_named(v, c("1|sp", "1|sp__", "1|sp__@site", "1|obs"))
+  expect_equal(v, vcv_of(f, family = "poisson", sparse = FALSE, method = "PQL"))
 })

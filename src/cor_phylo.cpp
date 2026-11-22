@@ -595,13 +595,13 @@ List cp_get_output(const arma::mat& X,
   arma::vec d;
   main_output(corrs, B, B_cov, d, ll_info, X, U);
   
+  // restricted log-likelihood: the likelihood integrated over the coefficients,
+  // as in pglmm(), lme4, glmmTMB and nlme (ape::corphylo() adds
+  // log(XX' XX) / 2, with XX the standardized variates)
   double logLik = -0.5 * std::log(2 * arma::datum::pi);
   if (ll_info.REML) {
     logLik *= (n * p - ll_info.UU.n_cols);
-    arma::mat to_det = ll_info.XX.t() * ll_info.XX;
-    double det_val, det_sign;
-    arma::log_det(det_val, det_sign, to_det);
-    logLik += 0.5 * det_val - ll_info.LL;
+    logLik -= ll_info.LL;
   } else {
     logLik *= (n * p);
     logLik -= ll_info.LL;

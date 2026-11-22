@@ -42,6 +42,21 @@ technically more accurate.}
 \description{
 Simulate from a communityPGLMM object
 }
+\section{Residual diagnostics with DHARMa}{
+
+The DHARMa package calculates scaled (quantile) residuals from simulations
+of a fitted model, to check the distribution, dispersion and other
+assumptions of the model. \code{DHARMa::simulateResiduals()} works with models
+fitted by \code{\link[=pglmm]{pglmm()}} with \code{bayes = FALSE} (all families), through
+\code{simulate()}, \code{model.frame()}, \code{family()} and \code{predict()}; the simulations
+are conditional on the estimated random effects (\code{re.form = NULL}). DHARMa
+warns that the class of the model is not among those it supports (a fixed
+list in DHARMa); the residuals are nevertheless correct (we checked the
+observed responses, the simulations, and the tests of uniformity and
+dispersion with simulated data of each family, including the detection of
+overdispersion of counts fitted by a poisson model).
+}
+
 \examples{
 # community data: abundance of each species at each site
 dat <- data.frame(
@@ -63,5 +78,15 @@ head(sim)
 # with new values of random effects, drawn with their estimated variances
 sim <- simulate(fit, nsim = 3, seed = 1, re.form = NA)
 head(sim)
+
+# residual diagnostics with DHARMa (which warns that the class of the model
+# is not among those it lists)
+\donttest{
+if (requireNamespace("DHARMa", quietly = TRUE)) {
+  res <- suppressWarnings(DHARMa::simulateResiduals(fit, n = 250))
+  plot(res)
+  DHARMa::testDispersion(res)
+}
+}
 
 }

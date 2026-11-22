@@ -86,11 +86,14 @@ test_that("cor_phylo produces proper output", {
     eval(bquote(expect_equal(phyr_cp[[.(cp_par)]], ape_cp[[.(ape_par)]], ignore_attr = TRUE)))
   }
   expect_par_equal("corrs", "cor.matrix")
-  expect_par_equal("logLik")
   expect_par_equal("d")
-  expect_par_equal("AIC")
-  expect_par_equal("BIC")
   expect_par_equal("convcode")
+  # the restricted log-likelihood of ape::corphylo() includes log(XX' XX) / 2,
+  # with XX the variates standardized to a standard deviation of one: log(p (n - 1)) / 2
+  c_reml <- 0.5 * log(p * (n - 1))
+  expect_equal(phyr_cp$logLik, ape_cp$logLik - c_reml)
+  expect_equal(phyr_cp$AIC, ape_cp$AIC + 2 * c_reml)
+  expect_equal(phyr_cp$BIC, ape_cp$BIC + 2 * c_reml)
   
   
   # Test that not converging produces proper warning:
@@ -346,4 +349,33 @@ test_that("cor_phylo produces proper output", {
   
   
   expect_output(print(phyr_cp), "Call to cor_phylo:")
+})
+
+test_that("cor_phylo measurement errors do not depend on the order of rows", {
+  set.seed(21)
+  n <- 30
+  phy <- ape::rcoal(n)
+  d <- data.frame(
+    sp = phy$tip.label, a = ape::rTraitCont(phy), b = ape::rTraitCont(phy),
+    se1 = runif(n, 0.05, 1), se2 = runif(n, 0.05, 1)
+  )
+  d$a <- d$a + rnorm(n, sd = d$se1)
+  d$b <- d$b + rnorm(n, sd = d$se2)
+  ds <- d[sample(n), ]
+  fit <- function(dat) {
+    quiet(cor_phylo(
+      variates = ~ a + b, species = ~sp, phy = phy, data = dat,
+      meas_errors = list(a ~ se1, b ~ se2)
+    ))
+  }
+  f1 <- fit(d)
+  f2 <- fit(ds)
+  expect_equal(f2$corrs, f1$corrs, tolerance = 1e-4)
+  expect_equal(f2$logLik, f1$logLik, tolerance = 1e-4)
+  # measurement errors given as a matrix
+  f3 <- quiet(cor_phylo(
+    variates = ~ a + b, species = ~sp, phy = phy, data = ds,
+    meas_errors = as.matrix(setNames(ds[c("se1", "se2")], c("a", "b")))
+  ))
+  expect_equal(f3$logLik, f1$logLik, tolerance = 1e-4)
 })

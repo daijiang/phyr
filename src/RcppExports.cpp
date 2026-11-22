@@ -394,6 +394,40 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// sparse_inv_subset
+NumericVector sparse_inv_subset(const IntegerVector& p, const IntegerVector& i, const NumericVector& x, const IntegerVector& nz, bool is_ll, const IntegerVector& qi, const IntegerVector& qj);
+RcppExport SEXP _phyr_sparse_inv_subset(SEXP pSEXP, SEXP iSEXP, SEXP xSEXP, SEXP nzSEXP, SEXP is_llSEXP, SEXP qiSEXP, SEXP qjSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const IntegerVector& >::type p(pSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type i(iSEXP);
+    Rcpp::traits::input_parameter< const NumericVector& >::type x(xSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type nz(nzSEXP);
+    Rcpp::traits::input_parameter< bool >::type is_ll(is_llSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type qi(qiSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type qj(qjSEXP);
+    rcpp_result_gen = Rcpp::wrap(sparse_inv_subset(p, i, x, nz, is_ll, qi, qj));
+    return rcpp_result_gen;
+END_RCPP
+}
+// sparse_inv_subset_super
+NumericVector sparse_inv_subset_super(const IntegerVector& super, const IntegerVector& pi, const IntegerVector& px, const IntegerVector& s, const NumericVector& x, const IntegerVector& qi, const IntegerVector& qj);
+RcppExport SEXP _phyr_sparse_inv_subset_super(SEXP superSEXP, SEXP piSEXP, SEXP pxSEXP, SEXP sSEXP, SEXP xSEXP, SEXP qiSEXP, SEXP qjSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const IntegerVector& >::type super(superSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type pi(piSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type px(pxSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type s(sSEXP);
+    Rcpp::traits::input_parameter< const NumericVector& >::type x(xSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type qi(qiSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type qj(qjSEXP);
+    rcpp_result_gen = Rcpp::wrap(sparse_inv_subset_super(super, pi, px, s, x, qi, qj));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_phyr_cor_phylo_LL", (DL_FUNC) &_phyr_cor_phylo_LL, 11},
@@ -418,6 +452,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_phyr_cov2cor_cpp", (DL_FUNC) &_phyr_cov2cor_cpp, 1},
     {"_phyr_pse_cpp", (DL_FUNC) &_phyr_pse_cpp, 2},
     {"_phyr_psv_cpp", (DL_FUNC) &_phyr_psv_cpp, 3},
+    {"_phyr_sparse_inv_subset", (DL_FUNC) &_phyr_sparse_inv_subset, 7},
+    {"_phyr_sparse_inv_subset_super", (DL_FUNC) &_phyr_sparse_inv_subset_super, 7},
     {NULL, NULL, 0}
 };
 

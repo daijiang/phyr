@@ -32,9 +32,9 @@ pglmm_compare(
   bayes_options = NULL,
   posterior.sample = TRUE,
   return.fitted.marginals = TRUE,
-  sparse = FALSE,
+  sparse = NULL,
   standardize_cov = TRUE,
-  method = c("PQL", "Laplace")
+  method = c("Laplace", "PQL")
 )
 
 \method{predict}{pglmm_compare}(object, newdata = NULL, ...)
@@ -44,15 +44,19 @@ pglmm_compare(
 fixed-effects of the model; for example, Y ~ X. Binomial data can be either
 presence/absence, or a two-column array of 'successes' and 'failures'.
 The phylogenetic random term is added automatically; the formula must not
-have random terms.}
+have random terms. Offsets (e.g. \code{+ offset(log(area))}) are supported with
+\code{method = "Laplace"} and \code{bayes = TRUE}.}
 
 \item{family}{Either "gaussian" for a Linear Mixed Model, or
-"binomial" or "poisson" for Generalized Linear Mixed Models.
+"binomial", "poisson", "nbinomial" (negative binomial) or "Gamma" for Generalized Linear
+Mixed Models.
 \code{family} should be specified as a character string (i.e., quoted). For binomial and
-Poisson data, we use the canonical logit and log link functions, respectively.
+Poisson data, we use the canonical logit and log link functions, respectively; negative
+binomial and Gamma data use the log link (see \code{\link[=pglmm]{pglmm()}}).
 Binomial data can be either presence/absence, or a two-column array of 'successes' and 'failures'.
 If \code{bayes = TRUE} there are
-two additional families available: "zeroinflated.binomial", and "zeroinflated.poisson",
+three additional families available: "zeroinflated.binomial", "zeroinflated.poisson" and
+"zeroinflated.nbinomial",
 which add a zero inflation parameter; this parameter gives the probability that the response is
 a zero. The rest of the parameters of the model then reflect the "non-zero" part
 of the model. Note that "zeroinflated.binomial" only makes sense for success/failure
@@ -74,12 +78,13 @@ likelihood estimates, comparable with \code{lme4::glmer()} and \code{glmmTMB()}.
 default for Gaussian, also available for binomial/Poisson), \code{"nelder-mead-nlopt"}
 (default for binomial/Poisson), \code{"bobyqa"}, \code{"Nelder-Mead"}, or \code{"subplex"}.
 \code{"Nelder-Mead"} is from the stats package; all others are from the nloptr package.
-With \code{sparse = TRUE}, the default (and \code{"lbfgs"}, as there is no gradient) is
-\code{"subplex"}, \code{"nelder-mead-nlopt"} and \code{"Nelder-Mead"} both use the
-Nelder-Mead algorithm of nloptr, and the optimizer is restarted from its solution until the
-likelihood does not improve (for gaussian models; for binomial and poisson models, each
-PQL iteration already starts the optimizer from the previous solution). Ignored if
-\code{bayes = TRUE} or \code{method = "Laplace"}.}
+With \code{sparse = TRUE}, the default (and \code{"lbfgs"}) is \code{nlminb()} with the
+analytic gradient of the likelihood (see \code{sparse}); \code{"subplex"},
+\code{"nelder-mead-nlopt"}, \code{"Nelder-Mead"} (both the Nelder-Mead algorithm of nloptr)
+and \code{"bobyqa"} are derivative-free, and the optimizer is restarted from its solution
+until the likelihood does not improve (for gaussian models; for binomial and poisson
+models, each PQL iteration already starts the optimizer from the previous solution). Ignored
+if \code{bayes = TRUE} or \code{method = "Laplace"}.}
 
 \item{add.obs.re}{Whether to add an observation-level random term \code{1|obs}
 for Poisson data and binomial data with more than one trial (a
@@ -94,7 +99,12 @@ role) or binary data. Earlier versions ignored this argument, so set
 estimates of \code{s2} and \code{B} are plotted each iteration
 during optimization.}
 
-\item{cpp}{Whether to use C++ function for optim. Default is TRUE. Ignored if \code{bayes = TRUE}.}
+\item{cpp}{Whether to use C++ function for optim. Default is TRUE. Only used by the dense
+code (\code{sparse = FALSE}, which is the default only for models that the sparse code does
+not support, see \code{sparse}); ignored if \code{bayes = TRUE}, \code{sparse = TRUE} or
+\code{method = "Laplace"} (and thus for \code{family = "nbinomial"} and \code{"Gamma"}):
+these models are fitted with R code, with the sparse Cholesky factorizations of the Matrix
+package (CHOLMOD).}
 
 \item{bayes}{Whether to fit a Bayesian version of the PGLMM using \code{r-inla}. We recommend
 against Bayesian fitting for non-Gaussian data unless sample sizes are large (>1000), because
@@ -198,9 +208,11 @@ up fitting when simulation is not needed. If both \code{posterior.sample} and
 \code{return.fitted.marginals} are \code{FALSE}, INLA runs at maximum speed but \code{simulate()} will
 not work on the fitted model.}
 
-\item{sparse}{Logical (default \code{FALSE}). If \code{TRUE}, fit the model
-with the sparse precision matrix of the phylogeny, which is much faster for
-large phylogenies (see Details and \code{\link[=pglmm]{pglmm()}}). Only with \code{bayes = FALSE}.}
+\item{sparse}{Whether to fit the model with the sparse precision matrix of the
+phylogeny, which is much faster for large phylogenies (see Details and
+\code{\link[=pglmm]{pglmm()}}). The default, \code{NULL}, is \code{TRUE} (with \code{bayes = TRUE},
+unless \code{ML.init = TRUE}; \code{FALSE} before phyr 1.4.0); use \code{sparse = FALSE} for the dense
+covariance matrix (then also returned in \code{vcv.phy}).}
 
 \item{standardize_cov}{Logical (default \code{TRUE}). Whether to standardize the covariance
 matrices of \code{cov_ranef} to have a determinant of one (a phylogeny is first converted to
@@ -215,8 +227,10 @@ matrices. The likelihood, the fixed effects and the predictions do not depend on
 choice; only the scale of the variances (and of \code{s2.init}) does. Not used when
 \code{random.effects} is given.}
 
-\item{method}{For binomial and poisson data, \code{"PQL"} (default) or
-\code{"Laplace"}: see Details and \code{\link[=pglmm]{pglmm()}}.}
+\item{method}{For binomial and poisson data, \code{"Laplace"} (default since
+phyr 1.4.0) or \code{"PQL"} (the default of earlier versions): see Details and
+\code{\link[=pglmm]{pglmm()}}. Negative binomial and Gamma data are always fitted with
+\code{"Laplace"}.}
 
 \item{object}{A fitted model with class pglmm_compare.}
 
@@ -317,8 +331,7 @@ the methods for models fitted by \code{\link[=pglmm]{pglmm()}} can be used: \cod
 with \code{condVar = TRUE} for their standard deviations), \code{\link[=VarCorr]{VarCorr()}},
 \code{\link[=fitted]{fitted()}}, \code{\link[=residuals]{residuals()}}, \code{\link[=predict]{predict()}} (with \code{newdata}, the species are
 the row names of \code{newdata}), \code{\link[=simulate]{simulate()}}, \code{\link[=logLik]{logLik()}} and \code{\link[=AIC]{AIC()}}
-(\code{bayes = FALSE}), and \code{\link[=pglmm_profile_LRT]{pglmm_profile_LRT()}}. With \code{sparse = TRUE},
-\code{\link[=pglmm_iV]{pglmm_iV()}} is not available (nor with \code{method = "Laplace"}).
+(\code{bayes = FALSE}), \code{\link[=pglmm_profile_LRT]{pglmm_profile_LRT()}} and \code{\link[=pglmm_iV]{pglmm_iV()}}.
 
 \strong{Test of phylogenetic signal.} For models fitted with \code{bayes = FALSE},
 the element \code{LRT} is \code{pglmm_profile_LRT(fit, re.number = 1)}: a likelihood
@@ -328,11 +341,11 @@ one obtained by setting \code{s2} to zero, without re-estimating the other
 parameters). As \code{s2 = 0} is on the boundary of the parameter space, the
 p-value \code{Pr} is half of the p-value of a chi-square distribution with one
 degree of freedom. For binomial and poisson data, the log-likelihood is
-the approximate log-likelihood of the penalized quasi-likelihood fit (with
-\code{method = "PQL"}, the default) or the Laplace approximation of the
-log-likelihood (with \code{method = "Laplace"}). It is printed by \code{\link[=summary]{summary()}}.
+the Laplace approximation of the log-likelihood (with \code{method = "Laplace"},
+the default) or the approximate log-likelihood of the penalized
+quasi-likelihood fit (with \code{method = "PQL"}). It is printed by \code{\link[=summary]{summary()}}.
 
-\strong{Binary and count data.} With \code{method = "Laplace"}, binomial and
+\strong{Binary and count data.} With \code{method = "Laplace"} (the default), binomial and
 poisson models are fitted with the Laplace approximation of the likelihood
 instead of penalized quasi-likelihood (PQL), which underestimates the
 phylogenetic variance (and with it the phylogenetic signal) for binary data;
@@ -385,7 +398,7 @@ predict(fit, newdata = sim.dat[1:3, ], type = "response")
 # much faster for large phylogenies
 fit_sparse <- pglmm_compare(Y ~ X1, family = "binomial", phy = phy, data = sim.dat,
                             sparse = TRUE)
-cbind(dense = fit$B, sparse = fit_sparse$B)
+cbind(dense = fit$B[, 1], sparse = fit_sparse$B[, 1])
 
 # the Laplace approximation of the likelihood (less biased than PQL for
 # binary data), with maximum likelihood estimates
@@ -397,14 +410,18 @@ fit_laplace
 ape::binaryPGLMM(Y ~ X1, phy = phy, data = sim.dat)
 
 # Compare with `phyloglm`
-summary(phylolm::phyloglm(Y ~ X1, phy = phy, data = sim.dat))
+if (requireNamespace("phylolm", quietly = TRUE)) {
+  summary(phylolm::phyloglm(Y ~ X1, phy = phy, data = sim.dat))
+}
 
 # Compare with `glm` that does not account for phylogeny
 summary(glm(Y ~ X1, data = sim.dat, family = "binomial"))
 
 # Compare with logistf() that does not account
 # for phylogeny but is less biased than glm()
-logistf::logistf(Y ~ X1, data = sim.dat)
+if (requireNamespace("logistf", quietly = TRUE)) {
+  logistf::logistf(Y ~ X1, data = sim.dat)
+}
 
 ## Fit model with bayes = TRUE
 # pglmm_compare(Y ~ X1, family = "binomial", phy = phy, data = sim.dat, 
