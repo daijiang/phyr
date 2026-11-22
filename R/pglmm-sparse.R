@@ -799,9 +799,21 @@ pglmm_sparse_pairs <- function(terms) {
 # to 20 iterations; with 120 simulated data sets of 200 species and
 # gaussian, binomial and poisson models, REML, ML and PQL, screening with 2
 # iterations gave the same fits as with 4, and one iteration missed an
-# optimum better by 0.38). The best solution is returned, with the total
-# number of evaluations of the function.
-pglmm_optim_corners <- function(run, x0, pairs, lb = pglmm_var_lb, screen = 2) {
+# optimum better by 0.38).
+#
+# With zeros = TRUE, each variance at zero is then checked for a better
+# optimum inside: the likelihood can have a small local optimum at zero,
+# separated by a low barrier from the global one, and a long first step of
+# nlminb() from the starting value can land in it (gaussian ML fits of
+# pglmm_compare(sparse = TRUE): 6 of 80 simulated data sets of 100 and 300
+# species, with log-likelihoods lower by 0.5 to 25 than those of
+# phylolm::phylolm()). The function is evaluated (run(x, 0), one evaluation)
+# with the variance at x0 / 10, ..., x0 / 10^4, and the optimization is
+# restarted from the best of them if it is better than the solution.
+#
+# The best solution is returned, with the total number of evaluations of the
+# function.
+pglmm_optim_corners <- function(run, x0, pairs, lb = pglmm_var_lb, screen = 2, zeros = TRUE) {
   best <- run(x0)
   n.eval <- best$evaluations[["function"]]
   for (pr in pairs) {
@@ -816,6 +828,24 @@ pglmm_optim_corners <- function(run, x0, pairs, lb = pglmm_var_lb, screen = 2) {
       n.eval <- n.eval + o$evaluations[["function"]]
       if (o$objective < best$objective) {
         o <- run(o$par)
+        n.eval <- n.eval + o$evaluations[["function"]]
+        if (o$objective < best$objective) best <- o
+      }
+    }
+  }
+  if (zeros) {
+    for (k in which(best$par <= lb * (1 + 1e-8) & x0 > 10 * lb)) {
+      cand <- lapply(x0[k] * 10^-(1:4), function(v) {
+        x <- best$par
+        x[k] <- v
+        x
+      })
+      ev <- lapply(cand, run, iter.max = 0)
+      n.eval <- n.eval + sum(vapply(ev, function(o) o$evaluations[["function"]], 1))
+      obj <- vapply(ev, function(o) o$objective, 1)
+      j <- which.min(obj)
+      if (length(j) && obj[j] < best$objective - 1e-8 * (abs(best$objective) + 1)) {
+        o <- run(cand[[j]])
         n.eval <- n.eval + o$evaluations[["function"]]
         if (o$objective < best$objective) best <- o
       }
@@ -1113,7 +1143,8 @@ communityPGLMM.glmm.sparse <- function(formula, data, family = "binomial", cov_r
       # the corners of phylogenetic terms and their partners (see
       # pglmm_optim_corners()) at the first iteration only: the next ones start
       # from the solution of the previous one
-      S0 <- pglmm_optim_corners(run, ss^2 * sf, if (iteration == 0) pglmm_sparse_pairs(terms) else list())
+      S0 <- pglmm_optim_corners(run, ss^2 * sf, if (iteration == 0) pglmm_sparse_pairs(terms) else list(),
+                                zeros = iteration == 0)
       n.eval <- n.eval + S0$evaluations[["function"]]
       ss <- sqrt(c(pglmm_var_snap(S0$par[seq_len(nt)]), S0$par[-seq_len(nt)]) / sf)
       LL <- S0$objective

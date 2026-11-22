@@ -100,6 +100,38 @@ test_that("pglmm_compare is pglmm with (1 | sp__) but without (1 | sp)", {
   expect_true(m$logLik >= z$logLik - 1e-6) # one more parameter
 })
 
+test_that("gaussian pglmm_compare agrees with phylolm", {
+  skip_if_not_installed("phylolm")
+  # phylolm(model = "BM", measurement_error = TRUE): V = s2 C + s2_error I, the
+  # model of pglmm_compare(), also for trees that are not ultrametric. With
+  # the coalescent tree, the ML likelihood has a local optimum with the
+  # phylogenetic variance at zero, where sparse fits stopped before phyr 1.4.0
+  # (a log-likelihood lower by 3.8)
+  set.seed(6)
+  n <- 100
+  for (tree in c("coal", "rtree")) {
+    phy <- if (tree == "coal") ape::rcoal(n) else ape::rtree(n)
+    phy$tip.label <- paste0("t", seq_len(n))
+    C <- ape::vcv(phy)
+    L <- t(chol(C / max(diag(C))))
+    x <- as.vector(L %*% rnorm(n))
+    d <- data.frame(x = (x - mean(x)) / sd(x), row.names = phy$tip.label)
+    d$y <- 1 + 0.5 * d$x + as.vector(L %*% rnorm(n)) + rnorm(n, sd = 0.5)
+    for (reml in c(FALSE, TRUE)) {
+      p <- phylolm::phylolm(y ~ x, data = d, phy = phy, model = "BM", measurement_error = TRUE,
+                            REML = reml)
+      # phylolm scales the covariance matrix of ML estimates by n / (n - p)
+      se <- sqrt(diag(vcov(p))) * if (reml) 1 else sqrt((n - 2) / n)
+      for (sparse in c(FALSE, TRUE)) {
+        z <- qfit(y ~ x, data = d, phy = phy, REML = reml, sparse = sparse)
+        expect_equal(z$logLik, p$logLik, tolerance = 1e-6)
+        expect_equal(as.vector(z$B), unname(coef(p)), tolerance = 1e-4)
+        expect_equal(as.vector(z$B.se), unname(se), tolerance = 1e-3)
+      }
+    }
+  }
+})
+
 test_that("pglmm_compare with sparse = TRUE gives the same estimates", {
   for (fam in c("gaussian", "binomial", "poisson")) {
     f <- switch(fam, gaussian = yg ~ x, binomial = yb ~ x, poisson = yp ~ x)
