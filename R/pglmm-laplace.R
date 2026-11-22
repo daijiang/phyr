@@ -606,11 +606,20 @@ communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_
     B.cov <- solve(md$G)
     LL <- pglmm_laplace_ll(c(ss, if (has.disp) phi), lp, st, REML = TRUE)
   } else {
-    pglmm_laplace_mode(NULL, sqrt(o1$par[iq] / sf), lp, st, fit.beta = TRUE,
-                       phi = if (has.disp) max(o1$par[q + 1], lp$disp.lower) else 0) # b at the mode
-    o2 <- pglmm_laplace_optim(function(par) objective(par, FALSE, FALSE), c(st$beta, o1$par),
+    md1 <- pglmm_laplace_mode(NULL, sqrt(o1$par[iq] / sf), lp, st, fit.beta = TRUE,
+                              phi = if (has.disp) max(o1$par[q + 1], lp$disp.lower) else 0) # b at the mode
+    # b is optimized divided by its standard errors at the variances of o1
+    # (sqrt(diag(G^-1))), i.e. with curvatures of about one: on badly scaled
+    # data (e.g. counts of up to 1e9, with standard errors of 1e-6 for the
+    # slopes), nlminb() otherwise stops early, at points where the gradient in
+    # b is far from zero
+    sb <- tryCatch(sqrt(diag(solve(md1$G))), error = function(e) NULL)
+    if (length(sb) != p || !all(is.finite(sb) & sb > 0)) sb <- rep(1, p)
+    sc <- c(sb, rep(1, np))
+    o2 <- pglmm_laplace_optim(function(par) objective(par * sc, FALSE, FALSE), c(st$beta, o1$par) / sc,
                               c(rep(-Inf, p), lower), ctrl,
-                              grad = function(par) gradient(par, FALSE, FALSE))
+                              grad = function(par) gradient(par * sc, FALSE, FALSE) * sc)
+    o2$par <- o2$par * sc
     convcode <- o2$convergence
     message.opt <- o2$message
     B <- o2$par[ip]
