@@ -261,10 +261,17 @@ test_that("pglmm(sparse = TRUE) gives the same fit as the default code for neste
   )
   for (f in fs) {
     for (REML in c(TRUE, FALSE)) {
-      # subplex: the other optimizers of the default code can stop short on these data
-      m1 <- pglmm(f, s$d, sparse = FALSE, cov_ranef = cr, REML = REML, optimizer = "subplex", reltol = 1e-10,
-                  maxit = 5000)
       m2 <- pglmm(f, s$d, cov_ranef = cr, REML = REML, sparse = TRUE, reltol = 1e-10)
+      # the optimizers of the default code can stop short on these data (for the
+      # first formula with REML, which one does depends on the platform), so the
+      # sparse fit must be at least as good as the default code from its own
+      # starting values ...
+      m0 <- pglmm(f, s$d, sparse = FALSE, cov_ranef = cr, REML = REML, optimizer = "subplex", reltol = 1e-10,
+                  maxit = 5000)
+      expect_gte(m2$logLik, m0$logLik - 1e-6)
+      # ... and the default code started at the sparse estimates must stay there
+      m1 <- pglmm(f, s$d, sparse = FALSE, cov_ranef = cr, REML = REML, optimizer = "subplex", reltol = 1e-10,
+                  maxit = 5000, s2.init = m2$ss^2)
       expect_same_fit(m2, m1)
       expect_identical(names(m2$ss), names(m1$ss))
       expect_identical(names(m2$random.effects), names(m1$random.effects))
