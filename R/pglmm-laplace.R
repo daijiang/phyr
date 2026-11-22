@@ -699,7 +699,7 @@ communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_
     ss = ss, s2n = s2n, s2r = s2r, s2resid = NULL,
     scale_factors = c(vapply(terms, function(z) z$mean.diag, 1)[tm$formula.order],
                       if (has.obs) c("1|obs" = 1)),
-    logLik = LL, AIC = -2 * LL + 2 * k, BIC = -2 * LL + k * (log(n) - log(pi)),
+    logLik = LL, AIC = -2 * LL + 2 * k, BIC = -2 * LL + k * log(n),
     REML = REML, bayes = FALSE, method = "Laplace", s2.init = unname(s20[iq] / sf), B.init = B.init,
     Y = Y, size = size, X = X, offset = offset,
     H = matrix(H, ncol = 1), mu = matrix(mu, ncol = 1, dimnames = list(seq_len(n), NULL)),

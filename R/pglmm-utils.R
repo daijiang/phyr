@@ -2367,8 +2367,8 @@ nobs.communityPGLMM <- function(object, use.fallback = FALSE, ...) {
 #' log-likelihood (the same as `lme4::glmer()` and `glmmTMB()` with
 #' `REML = FALSE`), and `df` is the number of fixed effects and variances; with
 #' `method = "PQL"`, the log-likelihood of the gaussian model of the working
-#' response, which is not comparable with that of other software. Note that
-#' [stats::BIC()] uses `log(nobs)` and thus differs from `x$BIC`.
+#' response, which is not comparable with that of other software. The number of
+#' observations is attribute `nobs`, so that [stats::BIC()] gives `x$BIC`.
 #'
 #' @param object A fitted model with class communityPGLMM.
 #' @param ... Additional arguments, currently ignored.

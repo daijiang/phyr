@@ -23,6 +23,6 @@ it is the approximate log-likelihood calculated by \code{\link[=pglmm]{pglmm()}}
 log-likelihood (the same as \code{lme4::glmer()} and \code{glmmTMB()} with
 \code{REML = FALSE}), and \code{df} is the number of fixed effects and variances; with
 \code{method = "PQL"}, the log-likelihood of the gaussian model of the working
-response, which is not comparable with that of other software. Note that
-\code{\link[stats:BIC]{stats::BIC()}} uses \code{log(nobs)} and thus differs from \code{x$BIC}.
+response, which is not comparable with that of other software. The number of
+observations is attribute \code{nobs}, so that \code{\link[stats:BIC]{stats::BIC()}} gives \code{x$BIC}.
 }

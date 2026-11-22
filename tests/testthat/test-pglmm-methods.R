@@ -25,6 +25,23 @@ test_that("vcov(), coef(), df.residual() and formula() of pglmm fits", {
   expect_equal(formula(m, fixed.only = TRUE), y ~ x, ignore_attr = TRUE)
 })
 
+test_that("the BIC of the fit is that of stats::BIC() for all code paths", {
+  dd <- methods_data()
+  cr <- list(sp = dd$phy)
+  fits <- list(
+    qpglmm(y ~ x + (1 | sp__) + (1 | site), dd$d, cov_ranef = cr),
+    qpglmm(y ~ x + (1 | sp__) + (1 | site), dd$d, cov_ranef = cr, sparse = FALSE),
+    qpglmm(pa ~ x + (1 | sp__) + (1 | site), dd$d, cov_ranef = cr, family = "binomial", REML = FALSE),
+    qpglmm(pa ~ x + (1 | sp__) + (1 | site), dd$d, cov_ranef = cr, family = "binomial", method = "PQL"),
+    qpglmm(pa ~ x + (1 | sp__) + (1 | site), dd$d, cov_ranef = cr, family = "binomial", method = "PQL",
+           sparse = FALSE)
+  )
+  for (m in fits) {
+    expect_equal(m$BIC, BIC(m))
+    expect_equal(m$BIC, -2 * m$logLik + attr(logLik(m), "df") * log(nrow(dd$d)))
+  }
+})
+
 test_that("update() refits from the call, with the random terms", {
   dd <- methods_data()
   d <- dd$d

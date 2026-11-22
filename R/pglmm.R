@@ -1479,7 +1479,7 @@ communityPGLMM.gaussian <- function(formula, data = list(), family = "gaussian",
   B.pvalue <- 2 * pnorm(abs(B.zscore), lower.tail = FALSE)
   k <- p + q + 1
   AIC <- -2 * logLik + 2 * k
-  BIC <- -2 * logLik + k * (log(n) - log(pi))
+  BIC <- -2 * logLik + k * log(n)
 
   # Convergence check: nloptr success = 1-4; optim success = 0
   if (optimizer == "Nelder-Mead") {
@@ -1743,7 +1743,7 @@ communityPGLMM.glmm <- function(formula, data = list(), family = "binomial",
   logLik <- logLik.glm + as.numeric(-LL + LL_null)
   k <- p + q + 1
   AIC <- -2 * logLik + 2 * k
-  BIC <- -2 * logLik + k * (log(n) - log(pi))
+  BIC <- -2 * logLik + k * log(n)
 
   # X' iV X without forming the n by n matrix iV
   d.V <- if (family == "binomial") 1 / as.vector(size * mu * (1 - mu)) else 1 / as.vector(mu)
