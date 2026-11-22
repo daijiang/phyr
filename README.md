@@ -10,7 +10,50 @@
 [![R-CMD-check](https://github.com/daijiang/phyr/workflows/R-CMD-check/badge.svg)](https://github.com/daijiang/phyr/actions)
 [![Codecov test
 coverage](https://codecov.io/gh/daijiang/phyr/branch/master/graph/badge.svg)](https://app.codecov.io/gh/daijiang/phyr?branch=master)
+[![CRAN
+status](https://www.r-pkg.org/badges/version/phyr)](https://CRAN.R-project.org/package=phyr)
+[![R-universe
+version](https://daijiang.r-universe.dev/phyr/badges/version)](https://daijiang.r-universe.dev/phyr)
 <!-- badges: end -->
+
+# What’s new in phyr 1.4.0
+
+phyr 1.4.0 is a major update of `pglmm()`:
+
+- **Large phylogenies.** Models are fitted with the sparse precision
+  matrix of the phylogeny (`sparse = TRUE`, the default when possible),
+  so time and memory grow about linearly with the number of species. A
+  binomial model with 5000 species at 20 sites (80,000 observations) is
+  fitted in about 5 seconds, versus about 11 minutes for `glmmTMB()`,
+  with the same estimates
+  ([benchmarks](https://daijiang.github.io/phyr/articles/benchmarks.html)).
+- **Laplace approximation by default.** Binomial and poisson models are
+  fitted with the Laplace approximation instead of PQL, with the same
+  estimates and log-likelihood as `lme4::glmer()` and `glmmTMB()`.
+- **More families.** Negative binomial (`"nbinomial"`) for overdispersed
+  counts and `"Gamma"` for positive continuous responses, and `offset()`
+  terms in the formula.
+- **Inference.** Profile likelihood confidence intervals of the
+  variances (`confint()`), likelihood ratio tests of nested models
+  (`anova()`), and a full profile likelihood ratio test of each random
+  term (`pglmm_profile_LRT()`).
+- **Standard model methods.** `VarCorr()`, `ranef()` (one estimate per
+  level, as lme4), `fixef()`, `coef()`, `vcov()`,
+  `logLik()`/`AIC()`/`BIC()`, `predict()` with `newdata`, `simulate()`
+  (residual diagnostics with DHARMa), `update()`, and
+  `tidy()`/`glance()` for broom.mixed and `mice::pool()`, e.g. to
+  combine fits with several candidate phylogenies.
+- **Bayesian models with large phylogenies.** `bayes = TRUE` also uses
+  the sparse precision matrix, either as a latent field over all nodes
+  of the phylogeny (giving the posterior of ancestral states) or as a
+  phylogenetic flow (giving the posterior of the rate of each branch).
+
+Some defaults and outputs changed (e.g. `ranef()` now returns per-level
+estimates; the variances are in `VarCorr()`). See the
+[NEWS](https://daijiang.github.io/phyr/news/index.html) for the breaking
+changes, and the vignette [“Usage of
+pglmm()”](https://daijiang.github.io/phyr/articles/pglmm.html) for
+examples.
 
 # Installation
 
@@ -115,7 +158,7 @@ test1
 ## Formula: freq ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site)
 ## 
 ## logLik    AIC    BIC 
-## -463.3  940.6  956.5 
+## -463.3  940.6  964.6 
 ## 
 ## Random effects:
 ##             Variance Std.Dev
@@ -151,7 +194,7 @@ test2
 ## Formula: pa ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site)
 ## 
 ## logLik    AIC    BIC 
-## -123.3  258.5  272.1 
+## -123.3  258.5  279.0 
 ## 
 ## Random effects:
 ##             Variance Std.Dev
@@ -190,7 +233,7 @@ z_bipartite
 ## Formula: freq ~ 1 + shade + (1 | sp__) + (1 | site__) + (1 | sp__@site) + (1 | sp@site__) + (1 | sp__@site__)
 ## 
 ## logLik    AIC    BIC 
-## -467.4  954.8  977.5 
+## -467.4  954.8  989.0 
 ## 
 ## Random effects:
 ##               Variance Std.Dev
