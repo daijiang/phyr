@@ -200,7 +200,10 @@ test_that("bayesian sparse fits agree for site phylogenies and poisson models", 
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("INLA")
   s <- sim_bayes_sparse_data()
-  s$d$count <- rpois(nrow(s$d), exp(0.3 * s$d$y))
+  # a signal strong enough that the posterior of the species variance is away from zero:
+  # with exp(0.3 * y), INLA put it on the boundary and the sparse fits could find another
+  # mode depending on the platform (failed on windows)
+  s$d$count <- rpois(nrow(s$d), exp(0.7 * s$d$y))
   cases <- list(
     list(f = y ~ x + (1 | sp) + (1 | site__) + (1 | sp@site__), family = "gaussian",
          cov = list(site = s$phy_site)),
