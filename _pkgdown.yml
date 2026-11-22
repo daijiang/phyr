@@ -1,3 +1,20 @@
+url: https://daijiang.github.io/phyr/
+
+template:
+  bootstrap: 5
+
+articles:
+  - title: "Phylogenetic generalized linear mixed models"
+    navbar: ~
+    contents:
+      - pglmm
+      - phyr_example_empirical
+      - plot-re
+  - title: "Performance"
+    navbar: ~
+    contents:
+      - benchmarks
+
 reference:
   - title: "Phylogenetic Diversity"
     desc: >

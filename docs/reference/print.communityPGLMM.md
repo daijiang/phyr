@@ -1,0 +1,25 @@
+# Print summary information of fitted model
+
+Print summary information of fitted model
+
+## Usage
+
+``` r
+# S3 method for class 'communityPGLMM'
+print(x, digits = max(3, getOption("digits") - 3), ...)
+```
+
+## Arguments
+
+- x:
+
+  A fitted communityPGLMM model.
+
+- digits:
+
+  Minimal number of significant digits for printing, as in
+  [`print.default`](https://rdrr.io/r/base/print.default.html).
+
+- ...:
+
+  Additional arguments, currently ignored.

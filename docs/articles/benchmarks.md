@@ -1,0 +1,325 @@
+# Performance benchmark
+
+## Benchmark for PSV family functions
+
+### `psv`
+
+``` r
+
+library(phyr)
+
+# simulate data
+nspp = 500
+nsite = 100
+tree_sim = ape::rtree(n = nspp)
+comm_sim = matrix(rbinom(nspp * nsite, size = 1, prob = 0.6), 
+                  nrow = nsite, ncol = nspp)
+row.names(comm_sim) = paste0("site_", 1:nsite)
+colnames(comm_sim) = paste0("t", 1:nspp)
+comm_sim = comm_sim[, tree_sim$tip.label]
+# about 40 times faster
+rbenchmark::benchmark(
+  "picante" = {picante::psv(comm_sim, tree_sim)},
+  "phyr R" = {phyr::psv(comm_sim, tree_sim, cpp = FALSE)},
+  "phyr c++" = {phyr::psv(comm_sim, tree_sim, cpp = TRUE)},
+  replications = 10,
+  columns = c("test", "replications", "elapsed",
+              "relative", "user.self", "sys.self"))
+#>       test replications elapsed relative user.self sys.self
+#> 3 phyr c++           10   0.339    1.000     0.298    0.030
+#> 2   phyr R           10   3.287    9.696     2.907    0.303
+#> 1  picante           10  16.265   47.979    14.824    0.795
+```
+
+### `pse`
+
+``` r
+
+comm_sim = matrix(rpois(nspp * nsite, 3), nrow = nsite, ncol = nspp)
+row.names(comm_sim) = paste0("site_", 1:nsite)
+colnames(comm_sim) = paste0("t", 1:nspp)
+comm_sim = comm_sim[, tree_sim$tip.label]
+# about 2-3 times faster
+rbenchmark::benchmark(
+  "picante" = {picante::pse(comm_sim, tree_sim)},
+  "phyr R" = {phyr::pse(comm_sim, tree_sim, cpp = FALSE)},
+  "phyr c++" = {phyr::pse(comm_sim, tree_sim, cpp = TRUE)},
+  replications = 20,
+  columns = c("test", "replications", "elapsed",
+              "relative", "user.self", "sys.self"))
+#>       test replications elapsed relative user.self sys.self
+#> 3 phyr c++           20   1.456    1.000     1.329    0.105
+#> 2   phyr R           20   4.233    2.907     3.453    0.555
+#> 1  picante           20   3.858    2.650     3.319    0.475
+```
+
+### `pcd`
+
+``` r
+
+# pcd is about 20 times faster
+rbenchmark::benchmark(
+  "phyr" = {phyr::pcd(comm = comm_a, tree = phylotree, reps = 1000, verbose = FALSE)},
+  "picante" = {picante::pcd(comm = comm_a, tree = phylotree, reps = 1000)},
+  replications = 10,
+  columns = c("test", "replications", "elapsed",
+              "relative", "user.self", "sys.self"))
+#>      test replications elapsed relative user.self sys.self
+#> 1    phyr           10   0.214    1.000     0.192    0.012
+#> 2 picante           10   4.516   21.103     4.043    0.074
+```
+
+## Benchmark for `pglmm()`
+
+The benchmarks below were run on a MacBook Pro (Apple M1 Pro, 32 GB of
+memory) with R 4.6.0 and Apple’s Accelerate BLAS library, with phyr
+1.4.0, lme4 2.0.1, glmmTMB 1.1.15.2 and Matrix 1.7.5. Each model was
+fitted once, in a new R session; times are elapsed seconds, and memory
+is the peak memory of the R session (which uses about 0.3 GB with the
+packages loaded).
+
+### Simulated data
+
+Community data: `nsp` species (with a coalescent tree) at 20 sites, with
+80% of the combinations of species and sites observed, a covariate `x`,
+and phylogenetic and non-phylogenetic variation among species, variation
+among sites, and phylogenetic variation of species within sites. The
+phylogenetic effects are simulated along the tree (Brownian motion), so
+that large trees do not need the covariance matrix of the species.
+
+``` r
+
+sim_data <- function(nsp, nsite = 20, seed = 1) {
+  set.seed(seed)
+  phy <- ape::rcoal(nsp, tip.label = paste0("sp", 1:nsp))
+  h <- max(ape::node.depth.edgelength(phy))
+  bm <- function(sd) ape::rTraitCont(phy, sigma = sd / sqrt(h))[phy$tip.label]
+  d <- expand.grid(sp = phy$tip.label, site = paste0("s", 1:nsite), stringsAsFactors = FALSE)
+  d <- d[sort(sample(nrow(d), round(0.8 * nrow(d)))), ]
+  i <- match(d$sp, phy$tip.label)
+  j <- match(d$site, paste0("s", 1:nsite))
+  u_phy <- bm(0.5)
+  u_sp <- rnorm(nsp, sd = 0.3)
+  u_site <- rnorm(nsite, sd = 0.5)
+  u_nested <- sapply(1:nsite, function(k) bm(0.3)) # one column per site
+  d$x <- rnorm(nrow(d))
+  eta <- 0.3 * d$x + u_phy[i] + u_sp[i] + u_site[j] + u_nested[cbind(i, j)]
+  d$y <- eta + rnorm(nrow(d))
+  d$pa <- rbinom(nrow(d), 1, plogis(eta - 0.5))
+  d$count <- rpois(nrow(d), exp(eta - 0.5))
+  list(d = d, phy = phy)
+}
+```
+
+### Comparison with lme4 and glmmTMB
+
+Models without phylogeny, `(1 | sp) + (1 | site)`, fitted by maximum
+likelihood with
+[`pglmm()`](https://daijiang.github.io/phyr/reference/pglmm.md),
+[`lme4::lmer()`](https://rdrr.io/pkg/lme4/man/lmer.html) and
+[`lme4::glmer()`](https://rdrr.io/pkg/lme4/man/glmer.html), and
+`glmmTMB()`:
+
+``` r
+
+s <- sim_data(5000)
+d <- s$d
+pglmm(pa ~ x + (1 | sp) + (1 | site), data = d, family = "binomial", REML = FALSE,
+      add.obs.re = FALSE)
+lme4::glmer(pa ~ x + (1 | sp) + (1 | site), data = d, family = "binomial")
+glmmTMB::glmmTMB(pa ~ x + (1 | sp) + (1 | site), data = d, family = "binomial")
+```
+
+| Species | Observations | Family   | phyr | lme4 | glmmTMB |
+|--------:|-------------:|----------|-----:|-----:|--------:|
+|    1000 |       16,000 | gaussian | 0.14 | 0.62 |    1.71 |
+|    1000 |       16,000 | binomial | 0.54 | 1.68 |    1.79 |
+|    1000 |       16,000 | poisson  | 0.42 | 1.60 |    1.63 |
+|    2000 |       32,000 | gaussian | 0.17 | 0.72 |    2.39 |
+|    2000 |       32,000 | binomial | 0.92 | 3.33 |    2.58 |
+|    2000 |       32,000 | poisson  | 0.84 | 2.77 |    2.22 |
+|    5000 |       80,000 | gaussian | 0.60 | 1.16 |    4.94 |
+|    5000 |       80,000 | binomial | 2.03 | 8.44 |    5.04 |
+|    5000 |       80,000 | poisson  | 2.36 | 9.43 |    5.04 |
+
+Time (seconds). With 5000 species, the R sessions used 0.6 to 0.7 GB of
+memory with phyr and lme4, and 1.0 to 1.2 GB with glmmTMB. The three
+packages give the same estimates: the log-likelihoods of phyr and
+glmmTMB agree to 1e-7, their slopes to 1e-6 and the standard errors of
+the slopes to 2e-5 (relative); lme4 stops slightly earlier for binomial
+and poisson models (log-likelihoods lower by up to 1e-3), and its
+standard errors of the slopes of these models are up to 1.6% smaller
+(they are computed differently).
+
+Models with a phylogenetic term, `(1 | sp__) + (1 | site)` in phyr,
+which is `(1 | sp) + propto(0 + sp | g, C) + (1 | site)` in glmmTMB
+(with `g` a factor with one level and `C` the phylogenetic covariance
+matrix); lme4 cannot fit phylogenetic terms:
+
+``` r
+
+s <- sim_data(5000)
+d <- s$d
+pglmm(pa ~ x + (1 | sp__) + (1 | site), data = d, family = "binomial",
+      cov_ranef = list(sp = s$phy), REML = FALSE, add.obs.re = FALSE)
+d$spf <- factor(d$sp, levels = s$phy$tip.label)
+d$g <- factor(1)
+C <- ape::vcv(s$phy)
+glmmTMB::glmmTMB(pa ~ x + (1 | spf) + propto(0 + spf | g, C) + (1 | site),
+                 data = d, family = "binomial")
+```
+
+| Species | Observations | Family | phyr | glmmTMB | phyr memory (GB) | glmmTMB memory (GB) |
+|---:|---:|----|---:|---:|---:|---:|
+| 300 | 4,800 | gaussian | 0.11 | 1.87 | 0.3 | 0.6 |
+| 300 | 4,800 | binomial | 0.30 | 2.06 | 0.3 | 0.5 |
+| 300 | 4,800 | poisson | 0.37 | 1.77 | 0.3 | 0.6 |
+| 1000 | 16,000 | gaussian | 0.33 | 12.2 | 0.3 | 2.1 |
+| 1000 | 16,000 | binomial | 1.44 | 11.3 | 0.4 | 2.1 |
+| 1000 | 16,000 | poisson | 1.26 | 12.0 | 0.4 | 2.1 |
+| 2000 | 32,000 | gaussian | 0.54 | 73.8 | 0.4 | 7.4 |
+| 2000 | 32,000 | binomial | 2.93 | 66.2 | 0.5 | 7.1 |
+| 2000 | 32,000 | poisson | 2.93 | 63.0 | 0.5 | 7.2 |
+| 5000 | 80,000 | gaussian | 1.52 | 703 | 0.7 | 13.0 |
+| 5000 | 80,000 | binomial | 7.13 | 671 | 0.8 | 12.5 |
+| 5000 | 80,000 | poisson | 7.07 | 708 | 0.8 | 11.7 |
+
+Time (seconds) and memory. glmmTMB works with the dense covariance
+matrix of the species, so its time and memory grow much faster than the
+number of species, while phyr uses the sparse precision matrix of the
+phylogeny (`sparse = TRUE`, the default): with 5000 species, phyr is 100
+to 460 times faster, with a sixth or less of the memory. The estimates
+are the same: log-likelihoods within 4e-7, slopes within 3e-6, and
+standard errors within 5e-5 (relative).
+
+### Large phylogenies
+
+The full model of the simulated data,
+`y ~ x + (1 | sp__) + (1 | site) + (1 | sp__@site)`, with the defaults
+of [`pglmm()`](https://daijiang.github.io/phyr/reference/pglmm.md)
+(REML, the Laplace approximation for binomial and poisson models, and
+the sparse code):
+
+``` r
+
+s <- sim_data(10000)
+pglmm(pa ~ x + (1 | sp__) + (1 | site) + (1 | sp__@site), data = s$d,
+      family = "binomial", cov_ranef = list(sp = s$phy))
+```
+
+| Species | Observations | gaussian | binomial | poisson | Memory (GB) |
+|--------:|-------------:|---------:|---------:|--------:|------------:|
+|    1000 |       16,000 |      5.9 |      7.7 |    10.4 |         0.6 |
+|    2000 |       32,000 |      5.9 |     15.7 |    25.6 |         0.9 |
+|    5000 |       80,000 |     14.8 |     49.1 |    62.7 |  1.5 to 1.9 |
+|   10000 |      160,000 |     31.8 |     75.7 |   145.9 |  2.7 to 3.8 |
+
+Time (seconds) and memory: time and memory grow about linearly with the
+number of species. The nested term `(1 | sp__@site)` (the phylogeny of
+the species within each site) is the most costly: without it, the models
+with 5000 species of the previous section took 1.5 to 7 seconds (fitted
+by maximum likelihood).
+
+### Dense and sparse code, and earlier versions of phyr
+
+The same full model, fitted with the sparse code (the default), with the
+dense code (`sparse = FALSE`, the covariance matrices of the species),
+and with phyr 1.1.3 (the dense code, and penalized quasi-likelihood for
+binomial models):
+
+| Species | Observations | gaussian, 1.1.3 | gaussian, dense | gaussian, sparse | binomial PQL, 1.1.3 | binomial PQL, sparse | binomial Laplace, sparse |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 50 | 800 | 16.6 | 0.36 | 0.13 | 30.2 | 0.17 | 0.20 |
+| 100 | 1,600 | 139 | 2.2 | 0.44 | 313 | 0.39 | 0.45 |
+| 200 | 3,200 | \> 900 | 16.3 | 0.68 | \> 900 | 1.2 | 1.4 |
+| 400 | 6,400 |  | 100 | 1.9 |  | 3.0 | 3.9 |
+| 1000 | 16,000 |  | 742 | 5.9 |  | 5.1 | 7.7 |
+
+Time (seconds; phyr 1.1.3 was stopped after 900 seconds). The dense code
+needed 3.3 GB of memory with 400 species and 9.3 GB with 1000 species,
+the sparse code 0.4 and 0.6 GB. With up to 400 species, the estimates of
+phyr 1.1.3 and 1.4.0, and of the dense and sparse code, are the same
+within the tolerances of the optimizers (variances within 0.006, slopes
+within 2e-4). With 1000 species, the optimizer of the dense code
+(L-BFGS) failed after one iteration, with a warning, and the dense fit
+is 668 units of log-likelihood below the sparse one: use the sparse code
+(the default) for large models.
+
+## Benchmark for `cor_phylo()`
+
+``` r
+
+library(ape)
+# Set up parameter values for simulating data
+n <- 50
+phy <- rcoal(n, tip.label = 1:n)
+trt_names <- paste0("par", 1:2)
+
+R <- matrix(c(1, 0.7, 0.7, 1), nrow = 2, ncol = 2)
+d <- c(0.3, 0.95)
+B2 <- 1
+
+Se <- c(0.2, 1)
+M <- matrix(Se, nrow = n, ncol = 2, byrow = TRUE)
+colnames(M) <- trt_names
+
+# Set up needed matrices for the simulations
+p <- length(d)
+
+star <- stree(n)
+star$edge.length <- array(1, dim = c(n, 1))
+star$tip.label <- phy$tip.label
+
+Vphy <- vcv(phy)
+Vphy <- Vphy/max(Vphy)
+Vphy <- Vphy/exp(determinant(Vphy)$modulus[1]/n)
+
+tau <- matrix(1, nrow = n, ncol = 1) %*% diag(Vphy) - Vphy
+C <- matrix(0, nrow = p * n, ncol = p * n)
+for (i in 1:p) for (j in 1:p) {
+  Cd <- (d[i]^tau * (d[j]^t(tau)) * (1 - (d[i] * d[j])^Vphy))/(1 - d[i] * d[j])
+  C[(n * (i - 1) + 1):(i * n), (n * (j - 1) + 1):(j * n)] <- R[i, j] * Cd
+}
+MM <- matrix(M^2, ncol = 1)
+V <- C + diag(as.numeric(MM))
+
+iD <- t(chol(V))
+
+XX <- iD %*% rnorm(2 * n)
+X <- matrix(XX, n, p)
+colnames(X) <- trt_names
+rownames(X) <- phy$tip.label
+rownames(M) <- phy$tip.label
+
+U <- list(cbind(rnorm(n, mean = 2, sd = 10)))
+names(U) <- trt_names[2]
+
+X[,2] <- X[,2] + B2[1] * U[[1]][,1] - B2[1] * mean(U[[1]][,1])
+
+z <- cor_phylo(variates = X,
+               covariates = U,
+               meas_errors = M,
+               phy = phy,
+               species = phy$tip.label)
+
+
+U2 <- list(NULL, matrix(rnorm(n, mean = 2, sd = 10), nrow = n, ncol = 1))
+rownames(U2[[2]]) <- phy$tip.label
+colnames(U2[[2]]) <- "par2"
+X2 = X
+X2[,2] <- X2[,2] + B2[1] * U2[[2]][,1] - B2[1] * mean(U2[[2]][,1])
+
+z_r <- corphylo(X = X2, SeM = M, U = U2, phy = phy, method = "Nelder-Mead")
+
+rbenchmark::benchmark(
+  "cor_phylo" = {cor_phylo(variates = X, covariates = U, meas_errors = M,
+                           phy = phy, species = phy$tip.label)},
+  "corphylo" = {corphylo(X = X2, SeM = M, U = U2, phy = phy, method = "Nelder-Mead")},
+  replications = 5,
+  columns = c("test", "replications", "elapsed",
+              "relative", "user.self", "sys.self")
+)
+#>        test replications elapsed relative user.self sys.self
+#> 1 cor_phylo            5   4.511    1.000     4.329    0.062
+#> 2  corphylo            5  16.190    3.589    13.863    1.369
+```

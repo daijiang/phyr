@@ -1,162 +1,66 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>/404.html</loc>
-  </url>
-  <url>
-    <loc>/articles/benchmarks.html</loc>
-  </url>
-  <url>
-    <loc>/articles/index.html</loc>
-  </url>
-  <url>
-    <loc>/articles/pglmm.html</loc>
-  </url>
-  <url>
-    <loc>/articles/phyr_example_empirical.html</loc>
-  </url>
-  <url>
-    <loc>/articles/plot-re.html</loc>
-  </url>
-  <url>
-    <loc>/authors.html</loc>
-  </url>
-  <url>
-    <loc>/CODE_OF_CONDUCT.html</loc>
-  </url>
-  <url>
-    <loc>/index.html</loc>
-  </url>
-  <url>
-    <loc>/LICENSE.html</loc>
-  </url>
-  <url>
-    <loc>/news/index.html</loc>
-  </url>
-  <url>
-    <loc>/reference/align_comm_V.html</loc>
-  </url>
-  <url>
-    <loc>/reference/boot_ci.html</loc>
-  </url>
-  <url>
-    <loc>/reference/comm_a.html</loc>
-  </url>
-  <url>
-    <loc>/reference/comm_b.html</loc>
-  </url>
-  <url>
-    <loc>/reference/cor_phylo.html</loc>
-  </url>
-  <url>
-    <loc>/reference/envi.html</loc>
-  </url>
-  <url>
-    <loc>/reference/family.communityPGLMM.html</loc>
-  </url>
-  <url>
-    <loc>/reference/fitted.communityPGLMM.html</loc>
-  </url>
-  <url>
-    <loc>/reference/fixef.html</loc>
-  </url>
-  <url>
-    <loc>/reference/get_design_matrix_pglmm.html</loc>
-  </url>
-  <url>
-    <loc>/reference/index.html</loc>
-  </url>
-  <url>
-    <loc>/reference/match_comm_tree.html</loc>
-  </url>
-  <url>
-    <loc>/reference/model.frame.communityPGLMM.html</loc>
-  </url>
-  <url>
-    <loc>/reference/nin.html</loc>
-  </url>
-  <url>
-    <loc>/reference/nobs.communityPGLMM.html</loc>
-  </url>
-  <url>
-    <loc>/reference/oldfield.html</loc>
-  </url>
-  <url>
-    <loc>/reference/pcd.html</loc>
-  </url>
-  <url>
-    <loc>/reference/pcd_pred.html</loc>
-  </url>
-  <url>
-    <loc>/reference/pglmm-matrix-structure.html</loc>
-  </url>
-  <url>
-    <loc>/reference/pglmm-plot-data.html</loc>
-  </url>
-  <url>
-    <loc>/reference/pglmm-plot-re.html</loc>
-  </url>
-  <url>
-    <loc>/reference/pglmm-predicted-values.html</loc>
-  </url>
-  <url>
-    <loc>/reference/pglmm-profile-LRT.html</loc>
-  </url>
-  <url>
-    <loc>/reference/pglmm.html</loc>
-  </url>
-  <url>
-    <loc>/reference/pglmm_compare.html</loc>
-  </url>
-  <url>
-    <loc>/reference/phylotree.html</loc>
-  </url>
-  <url>
-    <loc>/reference/plot_bayes.html</loc>
-  </url>
-  <url>
-    <loc>/reference/predict.communityPGLMM.html</loc>
-  </url>
-  <url>
-    <loc>/reference/prep_dat_pglmm.html</loc>
-  </url>
-  <url>
-    <loc>/reference/print.communityPGLMM.html</loc>
-  </url>
-  <url>
-    <loc>/reference/print.pglmm_compare.html</loc>
-  </url>
-  <url>
-    <loc>/reference/psd.html</loc>
-  </url>
-  <url>
-    <loc>/reference/ranef.html</loc>
-  </url>
-  <url>
-    <loc>/reference/refit_boots.html</loc>
-  </url>
-  <url>
-    <loc>/reference/residuals.communityPGLMM.html</loc>
-  </url>
-  <url>
-    <loc>/reference/rm_site_noobs.html</loc>
-  </url>
-  <url>
-    <loc>/reference/rm_sp_noobs.html</loc>
-  </url>
-  <url>
-    <loc>/reference/simulate.communityPGLMM.html</loc>
-  </url>
-  <url>
-    <loc>/reference/summary.communityPGLMM.html</loc>
-  </url>
-  <url>
-    <loc>/reference/summary.pglmm_compare.html</loc>
-  </url>
-  <url>
-    <loc>/reference/traits.html</loc>
-  </url>
-  <url>
-    <loc>/reference/vcv2.html</loc>
-  </url>
+<urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
+<url><loc>https://daijiang.github.io/phyr/404.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/CODE_OF_CONDUCT.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/LICENSE.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/articles/benchmarks.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/articles/index.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/articles/pglmm.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/articles/phyr_example_empirical.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/articles/plot-re.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/authors.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/index.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/news/index.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/VarCorr.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/align_comm_V.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/anova.communityPGLMM.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/boot_ci.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/coef.communityPGLMM.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/comm_a.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/comm_b.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/confint.communityPGLMM.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/cor_phylo.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/envi.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/family.communityPGLMM.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/fitted.communityPGLMM.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/fixef.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/formula.communityPGLMM.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/get_design_matrix_pglmm.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/index.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/logLik.communityPGLMM.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/match_comm_tree.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/model.frame.communityPGLMM.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/nin.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/nobs.communityPGLMM.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/oldfield.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/pcd.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/pcd_pred.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/pglmm-matrix-structure.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/pglmm-plot-data.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/pglmm-plot-re.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/pglmm-predicted-values.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/pglmm-profile-LRT.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/pglmm.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/pglmm_compare.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/pglmm_iV.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/phylotree.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/plot_bayes.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/predict.communityPGLMM.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/prep_dat_pglmm.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/print.communityPGLMM.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/print.pglmm_compare.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/psd.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/ranef.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/reexports.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/refit_boots.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/residuals.communityPGLMM.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/rm_site_noobs.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/rm_sp_noobs.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/simulate.communityPGLMM.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/summary.communityPGLMM.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/summary.pglmm_compare.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/tidy.communityPGLMM.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/traits.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/vcov.communityPGLMM.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/vcv2.html</loc></url>
 </urlset>
+
