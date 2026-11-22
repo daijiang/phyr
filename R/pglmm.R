@@ -680,6 +680,34 @@
 #' suggesting `sparse = TRUE`; use `options(phyr.sparse.hint = FALSE)` to turn it
 #' off.
 #'
+#' @section Phylogenetic and non-phylogenetic terms:
+#' A phylogenetic term such as `(1 | sp__)` fits two terms, `1|sp__`, with the
+#' phylogenetic covariance matrix, and `1|sp`, independent among species; a
+#' random slope `(x | sp__)` likewise fits `x|sp__` and `x|sp`. The variation
+#' among species is thus split between a part that follows the phylogeny
+#' (Brownian motion) and a part specific to each species (e.g. local adaptation,
+#' plasticity or measurement differences), and the data decide which is more
+#' important: either variance can be estimated as zero. Fitting the
+#' phylogenetic term alone (as with a single `propto()` term in glmmTMB)
+#' assumes that all the differences among species follow the phylogeny: the
+#' species-specific variation is then forced into the phylogenetic variance (or
+#' the residuals), which can distort it and the standard errors of the fixed
+#' effects. The ratio of the phylogenetic variance (multiplied by its
+#' `scale_factors`) to the sum of the two is a measure of phylogenetic signal,
+#' as Pagel's lambda (see the examples of [VarCorr()]).
+#'
+#' The two terms are nearly confounded, and with few species or few rows per
+#' species, the data may not separate them well, even when their sum is well
+#' estimated. [confint()] gives profile likelihood intervals of the two
+#' variances, which are then both wide, and [pglmm_profile_LRT()] tests whether
+#' a term is needed (its p-value is halved, as a variance of zero is at the
+#' boundary of its range). The likelihood can also have a local
+#' optimum with both variances positive and a better one with one of them at
+#' zero, which the default optimizer of `sparse = TRUE` and
+#' `method = "Laplace"` checks (see `sparse`). The one case where the
+#' non-phylogenetic term cannot be estimated is comparative data, with one row
+#' per species (next section).
+#'
 #' @section Comparative data:
 #' A phylogenetic term such as `(1 | sp__)` also adds the non-phylogenetic
 #' term `(1 | sp)`. With comparative data (one row per species), that term is

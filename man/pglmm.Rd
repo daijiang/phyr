@@ -791,6 +791,36 @@ suggesting \code{sparse = TRUE}; use \code{options(phyr.sparse.hint = FALSE)} to
 off.
 }
 
+\section{Phylogenetic and non-phylogenetic terms}{
+
+A phylogenetic term such as \code{(1 | sp__)} fits two terms, \code{1|sp__}, with the
+phylogenetic covariance matrix, and \code{1|sp}, independent among species; a
+random slope \code{(x | sp__)} likewise fits \code{x|sp__} and \code{x|sp}. The variation
+among species is thus split between a part that follows the phylogeny
+(Brownian motion) and a part specific to each species (e.g. local adaptation,
+plasticity or measurement differences), and the data decide which is more
+important: either variance can be estimated as zero. Fitting the
+phylogenetic term alone (as with a single \code{propto()} term in glmmTMB)
+assumes that all the differences among species follow the phylogeny: the
+species-specific variation is then forced into the phylogenetic variance (or
+the residuals), which can distort it and the standard errors of the fixed
+effects. The ratio of the phylogenetic variance (multiplied by its
+\code{scale_factors}) to the sum of the two is a measure of phylogenetic signal,
+as Pagel's lambda (see the examples of \code{\link[=VarCorr]{VarCorr()}}).
+
+The two terms are nearly confounded, and with few species or few rows per
+species, the data may not separate them well, even when their sum is well
+estimated. \code{\link[=confint]{confint()}} gives profile likelihood intervals of the two
+variances, which are then both wide, and \code{\link[=pglmm_profile_LRT]{pglmm_profile_LRT()}} tests whether
+a term is needed (its p-value is halved, as a variance of zero is at the
+boundary of its range). The likelihood can also have a local
+optimum with both variances positive and a better one with one of them at
+zero, which the default optimizer of \code{sparse = TRUE} and
+\code{method = "Laplace"} checks (see \code{sparse}). The one case where the
+non-phylogenetic term cannot be estimated is comparative data, with one row
+per species (next section).
+}
+
 \section{Comparative data}{
 
 A phylogenetic term such as \code{(1 | sp__)} also adds the non-phylogenetic

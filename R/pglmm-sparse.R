@@ -713,8 +713,10 @@ pglmm_sum_by <- function(x, g, k) {
 # U = M^-1 R,
 #   dG_k = - dR_k' U - U' dR_k + U' dM_k U,  dR_k = D_k Z'[X Y],
 # from which the derivatives of the residual sum of squares and of
-# log|X' V^-1 X| (REML).
-pglmm_sparse_LL_grad <- function(theta, pre, ev, REML) {
+# log|X' V^-1 X| (REML). With s2, the gradient of minus the log-likelihood
+# (up to a constant) at the residual variance s2 instead of its estimate
+# (with the residual variance profiled out), for confint().
+pglmm_sparse_LL_grad <- function(theta, pre, ev, REML, s2 = NULL) {
   n <- pre$n
   p <- pre$p
   nt <- length(theta)
@@ -736,10 +738,11 @@ pglmm_sparse_LL_grad <- function(theta, pre, ev, REML) {
     dG <- S + t(S) - E - t(E)
     dGx <- dG[ip, ip, drop = FALSE]
     drss <- dG[iy, iy] - 2 * sum(dG[iy, ip] * B) + sum(B * (dGx %*% B))
+    w <- if (is.null(s2)) (if (REML) n - p else n) / ev$rss else 1 / s2
     if (REML) {
-      0.5 * ((n - p) * drss / ev$rss + dlogdetM[k] + sum(iXX * dGx))
+      0.5 * (w * drss + dlogdetM[k] + sum(iXX * dGx))
     } else {
-      0.5 * (n * drss / ev$rss + dlogdetM[k])
+      0.5 * (w * drss + dlogdetM[k])
     }
   }, 1)
 }
