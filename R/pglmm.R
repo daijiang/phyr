@@ -672,6 +672,10 @@
 #' suggesting `sparse = TRUE`; use `options(phyr.sparse.hint = FALSE)` to turn it
 #' off.
 #'
+#' When the variance of a random term is estimated at (or very close to) zero,
+#' `pglmm()` shows a message, as `lme4::lmer()` does: see [pglmm_is_singular()];
+#' use `options(phyr.boundary.message = FALSE)` to turn it off.
+#'
 #' @section Phylogenetic and non-phylogenetic terms:
 #' A phylogenetic term such as `(1 | sp__)` fits two terms, `1|sp__`, with the
 #' phylogenetic covariance matrix, and `1|sp`, independent among species; a
@@ -953,6 +957,7 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
     reltol.given = !missing(reltol), sparse_method = sparse_method
   )
   z$call <- pglmm_store_call(match.call(), environment())
+  pglmm_boundary_message(z)
   z
 }
 

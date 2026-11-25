@@ -358,6 +358,7 @@ pglmm_compare <- function(formula, family = "gaussian",
   }
   z$call <- pglmm_store_call(match.call(), environment())
   class(z) <- c("pglmm_compare", "communityPGLMM", "pglmm")
+  pglmm_boundary_message(z)
   z
 }
 

@@ -735,6 +735,10 @@ For large models with a phylogeny (at least 2000 observations or 300 tips)
 fitted with \code{sparse = FALSE}, \code{pglmm()} shows a message once per session
 suggesting \code{sparse = TRUE}; use \code{options(phyr.sparse.hint = FALSE)} to turn it
 off.
+
+When the variance of a random term is estimated at (or very close to) zero,
+\code{pglmm()} shows a message, as \code{lme4::lmer()} does: see \code{\link[=pglmm_is_singular]{pglmm_is_singular()}};
+use \code{options(phyr.boundary.message = FALSE)} to turn it off.
 }
 
 \section{Phylogenetic and non-phylogenetic terms}{
