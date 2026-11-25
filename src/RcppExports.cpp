@@ -428,6 +428,23 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// three_point
+NumericVector three_point(const IntegerVector& parent, const IntegerVector& child, const NumericVector& len, const NumericVector& tip_extra, const NumericVector& y, const int ntip, const int nnode);
+RcppExport SEXP _phyr_three_point(SEXP parentSEXP, SEXP childSEXP, SEXP lenSEXP, SEXP tip_extraSEXP, SEXP ySEXP, SEXP ntipSEXP, SEXP nnodeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const IntegerVector& >::type parent(parentSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type child(childSEXP);
+    Rcpp::traits::input_parameter< const NumericVector& >::type len(lenSEXP);
+    Rcpp::traits::input_parameter< const NumericVector& >::type tip_extra(tip_extraSEXP);
+    Rcpp::traits::input_parameter< const NumericVector& >::type y(ySEXP);
+    Rcpp::traits::input_parameter< const int >::type ntip(ntipSEXP);
+    Rcpp::traits::input_parameter< const int >::type nnode(nnodeSEXP);
+    rcpp_result_gen = Rcpp::wrap(three_point(parent, child, len, tip_extra, y, ntip, nnode));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_phyr_cor_phylo_LL", (DL_FUNC) &_phyr_cor_phylo_LL, 11},
@@ -454,6 +471,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_phyr_psv_cpp", (DL_FUNC) &_phyr_psv_cpp, 3},
     {"_phyr_sparse_inv_subset", (DL_FUNC) &_phyr_sparse_inv_subset, 7},
     {"_phyr_sparse_inv_subset_super", (DL_FUNC) &_phyr_sparse_inv_subset_super, 7},
+    {"_phyr_three_point", (DL_FUNC) &_phyr_three_point, 7},
     {NULL, NULL, 0}
 };
 

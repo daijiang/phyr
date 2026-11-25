@@ -121,3 +121,7 @@ sparse_inv_subset_super <- function(super, pi, px, s, x, qi, qj) {
     .Call(`_phyr_sparse_inv_subset_super`, super, pi, px, s, x, qi, qj)
 }
 
+.three_point <- function(parent, child, len, tip_extra, y, ntip, nnode) {
+    .Call(`_phyr_three_point`, parent, child, len, tip_extra, y, ntip, nnode)
+}
+
