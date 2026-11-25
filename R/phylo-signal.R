@@ -142,13 +142,13 @@ ps_name <- function(x, se, species, data, phy) {
            " with `species =`.", call. = FALSE)
     }
     sp <- rownames(data)
-    from <- "the row names of data"
+    from <- "row names"
   }
   if (!is.null(sp)) {
     if (anyNA(sp)) stop("species names have NA values.")
-    if (!any(sp %in% phy$tip.label)) {
-      stop("none of the species in ", from, " are in phy$tip.label",
-           if (from != "species") "; give the column of species names with `species =`", ".",
+    if (from == "row names" && !any(sp %in% phy$tip.label)) {
+      stop("none of the row names of data are in phy$tip.label; if the species are",
+           " in a column, give it with `species =`.", ps_label_hint(sp, phy$tip.label),
            call. = FALSE)
     }
     x <- stats::setNames(as.vector(x), sp)
@@ -156,6 +156,22 @@ ps_name <- function(x, se, species, data, phy) {
     if (!is.null(se) && (!is.null(data) || is.null(names(se)))) se <- stats::setNames(as.vector(se), sp)
   }
   list(x = x, se = se)
+}
+
+# "a, b, c, d, e, ..." for messages
+ps_some <- function(v, k = 5) {
+  paste0(paste(utils::head(v, k), collapse = ", "), if (length(v) > k) ", ...")
+}
+
+# If names would match the tip labels up to spaces/underscores, case or
+# surrounding white space, say so (with an example).
+ps_label_hint <- function(nm, tips) {
+  norm <- function(v) tolower(gsub("[[:space:]_]+", "_", trimws(v)))
+  i <- match(norm(nm), norm(tips))
+  if (all(is.na(i))) return("")
+  j <- which(!is.na(i))[1]
+  paste0("\n", sum(!is.na(i)), " of them differ from a tip label only in spaces vs underscores,",
+         " capitalization or white space (e.g. \"", nm[j], "\" vs \"", tips[i[j]], "\").")
 }
 
 # Match data to tree and set up the pieces the three-point pass needs.
@@ -180,15 +196,18 @@ ps_prepare <- function(x, phy, se) {
     warning(sum(is.na(x)), " species with NA in x were dropped.", call. = FALSE)
     x <- x[!is.na(x)]
   }
+  if (anyDuplicated(phy$tip.label)) {
+    dup <- unique(phy$tip.label[duplicated(phy$tip.label)])
+    stop("phy has duplicated tip labels: ", ps_some(dup), call. = FALSE)
+  }
   miss <- setdiff(names(x), phy$tip.label)
   if (length(miss)) {
-    stop("species in x not found in phy: ", paste(utils::head(miss, 5), collapse = ", "),
-         if (length(miss) > 5) ", ...")
+    stop(length(miss), " of ", length(x), " species are not in phy$tip.label: ", ps_some(miss),
+         ps_label_hint(miss, phy$tip.label), call. = FALSE)
   }
   if (anyDuplicated(names(x))) {
     dup <- unique(names(x)[duplicated(names(x))])
-    stop("species with more than one value: ", paste(utils::head(dup, 5), collapse = ", "),
-         if (length(dup) > 5) ", ...",
+    stop("species with more than one value: ", ps_some(dup),
          ". phylo_signal() needs one value per species: summarize repeated measures",
          " (e.g. the mean, with its standard error as se), or use pglmm().", call. = FALSE)
   }

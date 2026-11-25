@@ -141,7 +141,7 @@ test_that("data are matched to the tree", {
   expect_equal(f2$n, 37)
   # errors
   expect_error(phylo_signal(unname(d$x), d$phy), "named")
-  expect_error(phylo_signal(c(d$x, zz = 1), d$phy), "not found")
+  expect_error(phylo_signal(c(d$x, zz = 1), d$phy), "1 of 41 species are not in phy")
   expect_error(phylo_signal(d$x, d$phy, se = d$se[1:10]), "missing")
   expect_error(phylo_signal(d$x, d$phy, se = -d$se), "non-negative")
 })
@@ -190,7 +190,7 @@ test_that("problems with data give clear errors", {
   dat <- data.frame(sp = names(d$x), mass = unname(d$x), mass_se = unname(d$se[names(d$x)]))
   # automatic row names, or row names that are not species (e.g. after subsetting)
   expect_error(phylo_signal(mass, d$phy, data = dat), "no row names")
-  expect_error(phylo_signal(mass, d$phy, data = dat[5:40, ]), "none of the species")
+  expect_error(phylo_signal(mass, d$phy, data = dat[5:40, ]), "none of the row names")
   expect_error(phylo_signal(mas, d$phy, data = dat, species = sp), "not found")
   expect_error(phylo_signal("mas", d$phy, data = dat, species = sp), "not found in data")
   expect_error(phylo_signal(mass, d$phy, data = dat, species = sp[1:3]), "one value per row")
@@ -205,4 +205,33 @@ test_that("problems with data give clear errors", {
     f <- phylo_signal(mass, d$phy, se = mass_se, data = dat_na, species = sp, test = FALSE),
     "dropped"), "NA")
   expect_equal(f$logL, ref$logL)
+})
+
+test_that("species are checked against the tip labels", {
+  d <- sim_trait(30, 0.5, seed = 6)
+  dat <- data.frame(sp = names(d$x), mass = unname(d$x))
+  # species missing from the tree: an error naming them (not silently dropped)
+  extra <- rbind(dat, data.frame(sp = c("zz", "yy"), mass = 1:2))
+  expect_error(phylo_signal(mass, d$phy, data = extra, species = sp),
+               "2 of 32 species are not in phy\\$tip.label: zz, yy")
+  # names that differ only in spaces / underscores / case get a hint
+  phy2 <- d$phy
+  phy2$tip.label <- sub("^t", "Genus_sp", phy2$tip.label)
+  dat2 <- data.frame(sp = sub("^t", "Genus sp", dat$sp), mass = dat$mass)
+  expect_error(phylo_signal(mass, phy2, data = dat2, species = sp),
+               "30 of them differ from a tip label only in spaces vs underscores")
+  dat3 <- dat2
+  dat3$sp <- toupper(sub(" ", "_", dat3$sp)) # case only
+  expect_error(phylo_signal(mass, phy2, data = dat3, species = sp), "30 of them differ")
+  rownames(dat2) <- dat2$sp
+  expect_error(phylo_signal(mass, phy2, data = dat2), "none of the row names.*differ from a tip label")
+  # duplicated tip labels: an error, not one species' value copied to two tips
+  phy3 <- d$phy
+  phy3$tip.label[2] <- phy3$tip.label[1]
+  expect_error(phylo_signal(mass, phy3, data = dat[-2, ], species = sp, test = FALSE),
+               "duplicated tip labels")
+  # tips without data are pruned, with a message
+  expect_message(f <- phylo_signal(mass, d$phy, data = dat[-(1:4), ], species = sp, test = FALSE),
+                 "4 tips without data were dropped")
+  expect_equal(f$n, 26)
 })
