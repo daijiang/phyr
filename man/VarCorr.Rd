@@ -28,7 +28,7 @@ terms from a fitted model. For Bayesian models, the credible intervals of
 the variances are also returned. Use \code{\link[=ranef]{ranef()}} to get the estimates for each
 level of the random terms.
 
-Before version 1.4.0, this table was returned by \code{ranef()}.
+Before version 1.5.0, this table was returned by \code{ranef()}.
 
 The variances are the elements \code{s2r}, \code{s2n} and \code{s2resid} of the fitted
 model. The variance of a term with a covariance matrix (e.g. a phylogenetic

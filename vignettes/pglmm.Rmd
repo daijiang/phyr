@@ -16,7 +16,7 @@ knitr::opts_chunk$set(
 )
 ```
 
-The purpose of this vignette is _not_ to provide detailed explanation of model set up and results. For this purpose, please read the documentation of `?phyr::pglmm` and the chapter 4 of [Ives 2018](https://leanpub.com/correlateddata). The purpose of this vignette is to show how models are fitted, what is new in phyr 1.4.0 (large phylogenies, more families, confidence intervals, model comparison and diagnostics), and some cases that are not documented in details.
+The purpose of this vignette is _not_ to provide detailed explanation of model set up and results. For this purpose, please read the documentation of `?phyr::pglmm` and the chapter 4 of [Ives 2018](https://leanpub.com/correlateddata). The purpose of this vignette is to show how models are fitted, what is new in phyr 1.5.0 (large phylogenies, more families, confidence intervals, model comparison and diagnostics), and some cases that are not documented in details.
 
 # How models are fitted
 

@@ -211,7 +211,7 @@ not work on the fitted model.}
 \item{sparse}{Whether to fit the model with the sparse precision matrix of the
 phylogeny, which is much faster for large phylogenies (see Details and
 \code{\link[=pglmm]{pglmm()}}). The default, \code{NULL}, is \code{TRUE} (with \code{bayes = TRUE},
-unless \code{ML.init = TRUE}; \code{FALSE} before phyr 1.4.0); use \code{sparse = FALSE} for the dense
+unless \code{ML.init = TRUE}; \code{FALSE} before phyr 1.5.0); use \code{sparse = FALSE} for the dense
 covariance matrix (then also returned in \code{vcv.phy}).}
 
 \item{standardize_cov}{Logical (default \code{TRUE}). Whether to standardize the covariance
@@ -228,7 +228,7 @@ choice; only the scale of the variances (and of \code{s2.init}) does. Not used w
 \code{random.effects} is given.}
 
 \item{method}{For binomial and poisson data, \code{"Laplace"} (default since
-phyr 1.4.0) or \code{"PQL"} (the default of earlier versions): see Details and
+phyr 1.5.0) or \code{"PQL"} (the default of earlier versions): see Details and
 \code{\link[=pglmm]{pglmm()}}. Negative binomial and Gamma data are always fitted with
 \code{"Laplace"}.}
 

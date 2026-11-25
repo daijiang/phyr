@@ -105,7 +105,7 @@ test_that("gaussian pglmm_compare agrees with phylolm", {
   # phylolm(model = "BM", measurement_error = TRUE): V = s2 C + s2_error I, the
   # model of pglmm_compare(), also for trees that are not ultrametric. With
   # the coalescent tree, the ML likelihood has a local optimum with the
-  # phylogenetic variance at zero, where sparse fits stopped before phyr 1.4.0
+  # phylogenetic variance at zero, where sparse fits stopped before phyr 1.5.0
   # (a log-likelihood lower by 3.8)
   set.seed(6)
   n <- 100

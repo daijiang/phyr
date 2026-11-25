@@ -16,9 +16,9 @@ status](https://www.r-pkg.org/badges/version/phyr)](https://CRAN.R-project.org/p
 version](https://daijiang.r-universe.dev/phyr/badges/version)](https://daijiang.r-universe.dev/phyr)
 <!-- badges: end -->
 
-# What’s new in phyr 1.4.0
+# What’s new in phyr 1.5.0
 
-phyr 1.4.0 is a major update of `pglmm()`:
+phyr 1.5.0 is a major update of `pglmm()`, and adds `phylo_signal()`:
 
 - **Large phylogenies.** Models are fitted with the sparse precision
   matrix of the phylogeny (`sparse = TRUE`, the default when possible),
@@ -47,6 +47,14 @@ phyr 1.4.0 is a major update of `pglmm()`:
   the sparse precision matrix, either as a latent field over all nodes
   of the phylogeny (giving the posterior of ancestral states) or as a
   phylogenetic flow (giving the posterior of the rate of each branch).
+- **Phylogenetic signal.** `phylo_signal()` estimates Pagel’s lambda and
+  Blomberg’s K, optionally with known standard errors of the species
+  means, in time linear in the number of species: with 1000 species and
+  measurement error, lambda takes 0.03 seconds instead of about 2
+  minutes with `phytools::phylosig()`, and it reaches the maximum
+  likelihood where other packages can stop short
+  ([benchmarks](https://daijiang.github.io/phyr/articles/benchmarks.html)).
+  The trait can be a column of a data frame.
 
 Some defaults and outputs changed (e.g. `ranef()` now returns per-level
 estimates; the variances are in `VarCorr()`). See the
@@ -77,7 +85,7 @@ remotes::install_github("daijiang/phyr")
 
 # Main functions
 
-The phyr package has three groups of functions:
+The phyr package has four groups of functions:
 
 1.  community phylogenetic diversity metrics (alpha: `psv`, `psr`,
     `pse`, etc. and beta: `pcd`), which were included in the `picante`
@@ -104,6 +112,10 @@ The phyr package has three groups of functions:
       originally from `ape::binaryPGLMM()` but has more features.
     - We hope the model formula proposed here can be used to standardize
       PGLMMs set up across different tools (e.g. `brms` for Stan).
+4.  phylogenetic signal of a trait (`phylo_signal`): Pagel’s lambda and
+    Blomberg’s K, optionally with known standard errors of the species
+    means (as `phytools::phylosig()`), computed in time linear in the
+    number of species.
 
 # Usage examples of `pglmm()`
 

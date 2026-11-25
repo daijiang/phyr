@@ -185,7 +185,7 @@ test_that("method = 'Laplace' gives the same fit with sparse = FALSE or TRUE, an
   expect_equal(m3$logLik, m1$logLik, tolerance = 1e-8)
   expect_identical(m1$method, "Laplace")
   expect_true(m1$REML)
-  # Laplace is the default (since phyr 1.4.0); PQL when given
+  # Laplace is the default (since phyr 1.5.0); PQL when given
   expect_identical(quiet(pglmm(f, s$d, "binomial", cov_ranef = list(sp = s$phy)))$method, "Laplace")
   p <- quiet(pglmm(f, s$d, "binomial", cov_ranef = list(sp = s$phy), method = "PQL"))
   expect_identical(p$method, "PQL")
