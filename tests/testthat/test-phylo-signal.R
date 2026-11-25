@@ -145,3 +145,64 @@ test_that("data are matched to the tree", {
   expect_error(phylo_signal(d$x, d$phy, se = d$se[1:10]), "missing")
   expect_error(phylo_signal(d$x, d$phy, se = -d$se), "non-negative")
 })
+
+test_that("x, se and species can be columns of a data frame", {
+  d <- sim_trait(40, 0.5, seed = 4)
+  ref <- phylo_signal(d$x, d$phy, se = d$se, test = FALSE)
+  dat <- data.frame(sp = names(d$x), mass = unname(d$x), mass_se = unname(d$se[names(d$x)]))
+  dat <- dat[sample(nrow(dat)), ] # row order does not matter
+  rownames(dat) <- NULL
+  ll <- function(...) phylo_signal(..., test = FALSE)$logL
+  # bare names, strings, a variable holding a column name, expressions
+  expect_equal(ll(mass, d$phy, se = mass_se, data = dat, species = sp), ref$logL)
+  expect_equal(ll("mass", d$phy, se = "mass_se", data = dat, species = "sp"), ref$logL)
+  col <- "mass"
+  expect_equal(ll(col, d$phy, se = mass_se, data = dat, species = sp), ref$logL)
+  expect_equal(ll(log(exp(mass)), d$phy, se = mass_se, data = dat, species = sp), ref$logL)
+  # species as row names
+  dat_rn <- dat
+  rownames(dat_rn) <- dat$sp
+  expect_equal(ll(mass, d$phy, se = mass_se, data = dat_rn), ref$logL)
+  # species column wins over row names
+  dat_rn$sp2 <- dat$sp
+  rownames(dat_rn) <- paste0("row", seq_len(nrow(dat)))
+  expect_equal(ll(mass, d$phy, se = mass_se, data = dat_rn, species = sp2), ref$logL)
+  # K too
+  expect_equal(
+    phylo_signal(mass, d$phy, se = mass_se, data = dat, species = sp, method = "K", test = FALSE)$K,
+    phylo_signal(d$x, d$phy, se = d$se, method = "K", test = FALSE)$K)
+  # an unnamed vector with species, without data
+  expect_equal(ll(dat$mass, d$phy, se = dat$mass_se, species = dat$sp), ref$logL)
+})
+
+test_that("tibbles need a species column", {
+  skip_if_not_installed("dplyr")
+  d <- sim_trait(40, 0.5, seed = 4)
+  ref <- phylo_signal(d$x, d$phy, se = d$se, test = FALSE)
+  tb <- dplyr::tibble(sp = names(d$x), mass = unname(d$x), mass_se = unname(d$se[names(d$x)]))
+  expect_equal(phylo_signal(mass, d$phy, se = mass_se, data = tb, species = sp, test = FALSE)$logL,
+               ref$logL)
+  expect_error(phylo_signal(mass, d$phy, se = mass_se, data = tb), "species =")
+})
+
+test_that("problems with data give clear errors", {
+  d <- sim_trait(40, 0.5, seed = 4)
+  dat <- data.frame(sp = names(d$x), mass = unname(d$x), mass_se = unname(d$se[names(d$x)]))
+  # automatic row names, or row names that are not species (e.g. after subsetting)
+  expect_error(phylo_signal(mass, d$phy, data = dat), "no row names")
+  expect_error(phylo_signal(mass, d$phy, data = dat[5:40, ]), "none of the species")
+  expect_error(phylo_signal(mas, d$phy, data = dat, species = sp), "not found")
+  expect_error(phylo_signal("mas", d$phy, data = dat, species = sp), "not found in data")
+  expect_error(phylo_signal(mass, d$phy, data = dat, species = sp[1:3]), "one value per row")
+  expect_error(phylo_signal(dat, d$phy), "give the data frame as data")
+  dup <- rbind(dat, dat[1:2, ])
+  expect_error(phylo_signal(mass, d$phy, data = dup, species = sp), "more than one value")
+  # NA in x: dropped, and se stays matched to the right species
+  dat_na <- dat
+  dat_na$mass[1:3] <- NA
+  ref <- suppressMessages(phylo_signal(d$x[-(1:3)], d$phy, se = d$se, test = FALSE))
+  expect_warning(expect_message(
+    f <- phylo_signal(mass, d$phy, se = mass_se, data = dat_na, species = sp, test = FALSE),
+    "dropped"), "NA")
+  expect_equal(f$logL, ref$logL)
+})

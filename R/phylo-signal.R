@@ -8,13 +8,26 @@
 #' phylogenetic covariance matrix, so it scales to trees with many thousands of
 #' tips.
 #'
-#' @param x A named numeric vector of trait values; names must match
-#'   \code{phy$tip.label}. Species with \code{NA} are dropped with a warning,
-#'   and tips without data are pruned from the tree.
+#' @param x Trait values: a column of \code{data} (see below), or a numeric
+#'   vector named by species (names matching \code{phy$tip.label}), or an
+#'   unnamed one with the species given in \code{species}. Species with
+#'   \code{NA} are dropped with a warning, and tips without data are pruned from
+#'   the tree.
 #' @param phy A phylogeny of class "phylo" with branch lengths.
-#' @param se Optional standard errors of \code{x}: a named numeric vector (or an
-#'   unnamed one in the same order as \code{x}). \code{NULL} (default) means no
+#' @param se Optional standard errors of \code{x}, given the same way as
+#'   \code{x}: a column of \code{data}, a vector named by species, or an unnamed
+#'   vector in the same order as \code{x}. \code{NULL} (default) means no
 #'   measurement error.
+#' @param data An optional data frame (or tibble) with one row per species.
+#'   \code{x}, \code{se} and \code{species} are then looked up in its columns,
+#'   as in \code{subset()} or \code{lm()}: a bare column name
+#'   (\code{x = log_mass}), a string (\code{x = "log_mass"}), or an expression
+#'   (\code{x = log(mass)}).
+#' @param species The species of each value of \code{x}: a column of
+#'   \code{data}, or a vector as long as \code{x}. If \code{NULL} (default),
+#'   the row names of \code{data} are used when it has them (a tibble never has
+#'   row names, and neither does a data frame read from a file without
+#'   \code{row.names}), otherwise the names of \code{x}.
 #' @param method "lambda" (default) or "K".
 #' @param test Logical. For lambda, a likelihood-ratio test against lambda = 0;
 #'   for K, a randomization test that shuffles the trait values (together with
@@ -60,15 +73,32 @@
 #' @examples
 #' set.seed(1)
 #' phy <- ape::rcoal(200)
-#' x <- setNames(as.vector(t(chol(ape::vcv(phy))) %*% rnorm(200)), phy$tip.label)
-#' se <- setNames(runif(200, 0.1, 0.3), phy$tip.label)
-#' x <- x + rnorm(200, 0, se)
-#' phylo_signal(x, phy, se = se, method = "lambda")
-#' phylo_signal(x, phy, se = se, method = "K", nsim = 199)
-phylo_signal <- function(x, phy, se = NULL, method = c("lambda", "K"),
-                         test = TRUE, nsim = 1000) {
+#' dat <- data.frame(sp = phy$tip.label,
+#'                   se = runif(200, 0.1, 0.3))
+#' dat$mass <- as.vector(t(chol(ape::vcv(phy))) %*% rnorm(200)) + rnorm(200, 0, dat$se)
+#'
+#' # a column of species names (also for tibbles)
+#' phylo_signal(mass, phy, se = se, data = dat, species = sp)
+#' phylo_signal(mass, phy, se = se, data = dat, species = sp, method = "K", nsim = 199)
+#'
+#' # species as row names
+#' rownames(dat) <- dat$sp
+#' phylo_signal(mass, phy, se = se, data = dat, test = FALSE)
+#'
+#' # named vectors
+#' x <- setNames(dat$mass, dat$sp)
+#' s <- setNames(dat$se, dat$sp)
+#' phylo_signal(x, phy, se = s, test = FALSE)
+phylo_signal <- function(x, phy, se = NULL, data = NULL, species = NULL,
+                         method = c("lambda", "K"), test = TRUE, nsim = 1000) {
   method <- match.arg(method)
-  pr <- ps_prepare(x, phy, se)
+  if (!inherits(phy, "phylo")) stop("phy should be an object of class \"phylo\".")
+  env <- parent.frame()
+  x <- ps_get(substitute(x), data, env, "x")
+  se <- ps_get(substitute(se), data, env, "se")
+  species <- ps_get(substitute(species), data, env, "species")
+  v <- ps_name(x, se, species, data, phy)
+  pr <- ps_prepare(v$x, phy, v$se)
   out <- if (method == "lambda") ps_lambda(pr, test) else ps_K(pr, test, nsim)
   out$method <- method
   out$n <- pr$n
@@ -76,12 +106,64 @@ phylo_signal <- function(x, phy, se = NULL, method = c("lambda", "K"),
   out
 }
 
+# Evaluate an argument of phylo_signal(): without data, as usual; with data, in
+# its columns (then the calling environment), and a single string is taken as a
+# column name.
+ps_get <- function(expr, data, env, what) {
+  if (is.null(data)) return(eval(expr, env))
+  if (is.null(expr)) return(NULL)
+  if (!is.data.frame(data)) stop("data should be a data frame.")
+  v <- eval(expr, data, env)
+  if (is.null(v)) return(NULL)
+  if (is.character(v) && length(v) == 1 && nrow(data) != 1) {
+    if (!v %in% names(data)) stop("column \"", v, "\" (", what, ") not found in data.")
+    v <- data[[v]]
+  }
+  if (length(v) != nrow(data)) {
+    stop(what, " should be a column of data (or have one value per row of data).")
+  }
+  v
+}
+
+# Name x (and an unnamed se) by species: from `species`, else the row names of
+# data, else x's own names.
+ps_name <- function(x, se, species, data, phy) {
+  if (is.data.frame(x)) stop("x should be a vector; give the data frame as data and the column as x.")
+  if (!is.numeric(x)) stop("x should be numeric.")
+  sp <- NULL
+  from <- NULL
+  if (!is.null(species)) {
+    if (length(species) != length(x)) stop("species should have one value per value of x.")
+    sp <- as.character(species)
+    from <- "species"
+  } else if (!is.null(data)) {
+    if (.row_names_info(data) <= 0) {
+      stop("data has no row names to use as species; give the column of species names",
+           " with `species =`.", call. = FALSE)
+    }
+    sp <- rownames(data)
+    from <- "the row names of data"
+  }
+  if (!is.null(sp)) {
+    if (anyNA(sp)) stop("species names have NA values.")
+    if (!any(sp %in% phy$tip.label)) {
+      stop("none of the species in ", from, " are in phy$tip.label",
+           if (from != "species") "; give the column of species names with `species =`", ".",
+           call. = FALSE)
+    }
+    x <- stats::setNames(as.vector(x), sp)
+    # a column of data, or a vector in the order of x
+    if (!is.null(se) && (!is.null(data) || is.null(names(se)))) se <- stats::setNames(as.vector(se), sp)
+  }
+  list(x = x, se = se)
+}
+
 # Match data to tree and set up the pieces the three-point pass needs.
 ps_prepare <- function(x, phy, se) {
-  if (!inherits(phy, "phylo")) stop("phy should be an object of class \"phylo\".")
   if (is.null(phy$edge.length)) stop("phy needs branch lengths.")
   if (!is.numeric(x) || is.null(names(x))) {
-    stop("x should be a named numeric vector, with names matching phy$tip.label.")
+    stop("x should be a column of data, or a numeric vector named by species",
+         " (or with the species given in `species`).")
   }
   if (!is.null(se)) {
     if (!is.numeric(se)) stop("se should be numeric.")
@@ -103,7 +185,13 @@ ps_prepare <- function(x, phy, se) {
     stop("species in x not found in phy: ", paste(utils::head(miss, 5), collapse = ", "),
          if (length(miss) > 5) ", ...")
   }
-  if (anyDuplicated(names(x))) stop("x has duplicated names.")
+  if (anyDuplicated(names(x))) {
+    dup <- unique(names(x)[duplicated(names(x))])
+    stop("species with more than one value: ", paste(utils::head(dup, 5), collapse = ", "),
+         if (length(dup) > 5) ", ...",
+         ". phylo_signal() needs one value per species: summarize repeated measures",
+         " (e.g. the mean, with its standard error as se), or use pglmm().", call. = FALSE)
+  }
   drop <- setdiff(phy$tip.label, names(x))
   if (length(drop)) {
     message(length(drop), " tips without data were dropped from phy.")

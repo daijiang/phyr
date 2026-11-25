@@ -8,21 +8,38 @@ phylo_signal(
   x,
   phy,
   se = NULL,
+  data = NULL,
+  species = NULL,
   method = c("lambda", "K"),
   test = TRUE,
   nsim = 1000
 )
 }
 \arguments{
-\item{x}{A named numeric vector of trait values; names must match
-\code{phy$tip.label}. Species with \code{NA} are dropped with a warning,
-and tips without data are pruned from the tree.}
+\item{x}{Trait values: a column of \code{data} (see below), or a numeric
+vector named by species (names matching \code{phy$tip.label}), or an
+unnamed one with the species given in \code{species}. Species with
+\code{NA} are dropped with a warning, and tips without data are pruned from
+the tree.}
 
 \item{phy}{A phylogeny of class "phylo" with branch lengths.}
 
-\item{se}{Optional standard errors of \code{x}: a named numeric vector (or an
-unnamed one in the same order as \code{x}). \code{NULL} (default) means no
+\item{se}{Optional standard errors of \code{x}, given the same way as
+\code{x}: a column of \code{data}, a vector named by species, or an unnamed
+vector in the same order as \code{x}. \code{NULL} (default) means no
 measurement error.}
+
+\item{data}{An optional data frame (or tibble) with one row per species.
+\code{x}, \code{se} and \code{species} are then looked up in its columns,
+as in \code{subset()} or \code{lm()}: a bare column name
+(\code{x = log_mass}), a string (\code{x = "log_mass"}), or an expression
+(\code{x = log(mass)}).}
+
+\item{species}{The species of each value of \code{x}: a column of
+\code{data}, or a vector as long as \code{x}. If \code{NULL} (default),
+the row names of \code{data} are used when it has them (a tibble never has
+row names, and neither does a data frame read from a file without
+\code{row.names}), otherwise the names of \code{x}.}
 
 \item{method}{"lambda" (default) or "K".}
 
@@ -70,11 +87,22 @@ The P-value is \eqn{(1 + \#\{K_{sim} \ge K\}) / (nsim + 1)}.
 \examples{
 set.seed(1)
 phy <- ape::rcoal(200)
-x <- setNames(as.vector(t(chol(ape::vcv(phy))) \%*\% rnorm(200)), phy$tip.label)
-se <- setNames(runif(200, 0.1, 0.3), phy$tip.label)
-x <- x + rnorm(200, 0, se)
-phylo_signal(x, phy, se = se, method = "lambda")
-phylo_signal(x, phy, se = se, method = "K", nsim = 199)
+dat <- data.frame(sp = phy$tip.label,
+                  se = runif(200, 0.1, 0.3))
+dat$mass <- as.vector(t(chol(ape::vcv(phy))) \%*\% rnorm(200)) + rnorm(200, 0, dat$se)
+
+# a column of species names (also for tibbles)
+phylo_signal(mass, phy, se = se, data = dat, species = sp)
+phylo_signal(mass, phy, se = se, data = dat, species = sp, method = "K", nsim = 199)
+
+# species as row names
+rownames(dat) <- dat$sp
+phylo_signal(mass, phy, se = se, data = dat, test = FALSE)
+
+# named vectors
+x <- setNames(dat$mass, dat$sp)
+s <- setNames(dat$se, dat$sp)
+phylo_signal(x, phy, se = s, test = FALSE)
 }
 \references{
 Blomberg S.P., Garland T. & Ives A.R. 2003. Testing for phylogenetic signal
