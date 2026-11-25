@@ -37,6 +37,10 @@ reference:
       - get_design_matrix
       - plot_data
       - plot_bayes
+  - title: "Phylogenetic Signal"
+    desc: "Pagel's lambda and Blomberg's K, with known measurement error, in linear time."
+    contents:
+      - phylo_signal
   - title: "Helper Functions"
     desc: "Functions to help with data processing."
     contents:
