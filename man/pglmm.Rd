@@ -2,7 +2,6 @@
 % Please edit documentation in R/pglmm.R
 \name{pglmm}
 \alias{pglmm}
-\alias{communityPGLMM}
 \title{Phylogenetic Generalized Linear Mixed Model for Community Data}
 \usage{
 pglmm(
@@ -33,48 +32,6 @@ pglmm(
   ML.init = FALSE,
   tree = NULL,
   tree_site = NULL,
-  sp = NULL,
-  site = NULL,
-  bayes_options = NULL,
-  bayes_nested_matrix_as_list = FALSE,
-  posterior.sample = TRUE,
-  return.fitted.marginals = TRUE,
-  sparse = NULL,
-  standardize_cov = TRUE,
-  method = c("Laplace", "PQL"),
-  sparse_method = c("precision", "flow")
-)
-
-communityPGLMM(
-  formula,
-  data = NULL,
-  family = "gaussian",
-  cov_ranef = NULL,
-  random.effects = NULL,
-  REML = TRUE,
-  optimizer = NULL,
-  repulsion = FALSE,
-  add.obs.re = TRUE,
-  verbose = FALSE,
-  cpp = TRUE,
-  bayes = FALSE,
-  s2.init = NULL,
-  B.init = NULL,
-  reltol = 10^-6,
-  maxit = 500,
-  tol.pql = 10^-6,
-  maxit.pql = 200,
-  marginal.summ = "mean",
-  calc.DIC = TRUE,
-  calc.WAIC = TRUE,
-  prior = "inla.default",
-  prior_alpha = 0.1,
-  prior_mu = 1,
-  ML.init = FALSE,
-  tree = NULL,
-  tree_site = NULL,
-  sp = NULL,
-  site = NULL,
   bayes_options = NULL,
   bayes_nested_matrix_as_list = FALSE,
   posterior.sample = TRUE,
@@ -329,20 +286,8 @@ the Bayesian model fit? Sometimes this can be helpful, but it may not help; thus
 we set the default to \code{FALSE}. Also, it
 does not work with the zero-inflated families.}
 
-\item{tree}{A phylogeny for column sp, with "phylo" class, or a covariance matrix for sp.
-Make sure to have all species in the matrix; if the matrix is not standardized,
-(i.e., det(tree) != 1), \code{pglmm} will try to standardize it for you.
-No longer used: keep here for compatibility.}
-
-\item{tree_site}{A second phylogeny for "site". This is required only if the
-site column contains species instead of sites. This can be used for bipartitie
-questions; tree_site can also be a covariance matrix. Make sure to have all sites
-in the matrix; if the matrix is not standardized (i.e., det(tree_site) != 1),
-pglmm` will try to standardize it for you. No longer used: keep here for compatibility.}
-
-\item{sp}{No longer used: keep here for compatibility.}
-
-\item{site}{No longer used: keep here for compatibility.}
+\item{tree, tree_site}{Defunct (removed in phyr 2.0.0): give the phylogenies in
+\code{cov_ranef}, e.g. \code{cov_ranef = list(sp = tree, site = tree_site)}.}
 
 \item{bayes_options}{Additional options to pass to INLA when \code{bayes = TRUE}. A named list where the
 names correspond to parameters in the \code{inla} function. One special option is \code{diagonal}: if an

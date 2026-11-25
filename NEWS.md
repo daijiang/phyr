@@ -1,3 +1,11 @@
+# phyr (development version)
+
+## Breaking changes
+
+* `communityPGLMM.profile.LRT()`, `communityPGLMM.matrix.structure()` and `communityPGLMM.predicted.values()`, deprecated since phyr 1.0.3, were removed: use `pglmm_profile_LRT()`, `pglmm_matrix_structure()` and `pglmm_predicted_values()`.
+* The arguments `tree` and `tree_site` of `pglmm()` and `pglmm_plot_ranef()`, deprecated since 2019, are defunct (an error): give the phylogenies in `cov_ranef`, e.g. `cov_ranef = list(sp = tree, site = tree_site)`. The arguments `sp` and `site` of `pglmm()`, which were not used, were removed.
+* `communityPGLMM()`, `communityPGLMM.show.re()` and `communityPGLMM.plot.re()` are deprecated (they still work, with a warning): use `pglmm()` and `pglmm_plot_ranef()` (or `pglmm_plot_re()`). The class of fitted models is still `communityPGLMM`.
+
 # phyr 1.5.0
 
 phyr 1.5.0 fits phylogenetic generalized linear mixed models with large phylogenies (tens of thousands of species) through sparse matrices, fits binomial and poisson models with the Laplace approximation by default (with the same estimates as `lme4::glmer()` and `glmmTMB()`), adds the negative binomial and Gamma families, offsets, confidence intervals and model comparison, and works with the standard methods of R model objects. It also adds `phylo_signal()`, which estimates Pagel's lambda and Blomberg's K with known measurement error in time linear in the number of species.

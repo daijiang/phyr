@@ -287,13 +287,14 @@ pglmm_need_pkgs <- function(pkgs, fun) {
   invisible(TRUE)
 }
 
-# The deprecated arguments tree and tree_site of pglmm(): the phylogenies of
-# the variables sp and site, given in cov_ranef instead
-pglmm_tree_cov_ranef <- function(cov_ranef, tree, tree_site) {
-  if (!is.null(cov_ranef) || (is.null(tree) && is.null(tree_site))) return(cov_ranef)
-  warning("arguments `tree` and `tree_site` are deprecated; please use `cov_ranef` instead.",
-          call. = FALSE)
-  c(if (!is.null(tree)) list(sp = tree), if (!is.null(tree_site)) list(site = tree_site))
+# The arguments tree and tree_site of pglmm() and pglmm_plot_ranef(),
+# deprecated since 2019 and defunct since phyr 2.0.0: the phylogenies go in
+# cov_ranef
+pglmm_defunct_tree <- function(tree, tree_site) {
+  if (is.null(tree) && is.null(tree_site)) return(invisible(NULL))
+  stop("the arguments `tree` and `tree_site` were removed in phyr 2.0.0; give the phylogenies ",
+       "in `cov_ranef` instead, e.g. `cov_ranef = list(sp = tree, site = tree_site)`.",
+       call. = FALSE)
 }
 
 #' Prepare data for \code{pglmm}
@@ -1007,15 +1008,6 @@ pglmm_profile_LRT <- function(x, re.number = 0, cpp = TRUE) {
 }
 
 
-#' @export
-#' @rdname pglmm-profile-LRT
-#' @inheritParams pglmm_profile_LRT
-communityPGLMM.profile.LRT <- function(x, re.number = 0, cpp = TRUE) {
-  .Deprecated("pglmm_profile_LRT")
-  pglmm_profile_LRT(x, re.number, cpp)
-}
-
-
 #' \code{pglmm_matrix_structure} produces the entire
 #' covariance matrix structure (V) when you specify random effects.
 #' @param ss Which of the \code{random.effects} to produce.
@@ -1055,15 +1047,6 @@ pglmm_matrix_structure <- function(formula, data = list(), family = "binomial",
   }
 
   return(V)
-}
-
-#' @rdname pglmm-matrix-structure
-#' @inheritParams pglmm_matrix_structure
-#' @export
-communityPGLMM.matrix.structure <- function(formula, data = list(), family = "binomial",
-                                            cov_ranef, repulsion = FALSE, ss = 1, cpp = TRUE) {
-  .Deprecated("pglmm_matrix_structure")
-  pglmm_matrix_structure(formula, data, family, cov_ranef, repulsion, ss, cpp)
 }
 
 #' Summary information of fitted model
@@ -1686,14 +1669,6 @@ pglmm_binomial_size <- function(object) {
   if (is.null(size) && isTRUE(object$bayes)) size <- object$inla.model$.args$Ntrials
   if (is.null(size)) size <- 1
   as.numeric(size)
-}
-
-#' @rdname pglmm-predicted-values
-#' @export
-communityPGLMM.predicted.values <- function(x, cpp = TRUE,
-                                            gaussian.pred = c("nearest_node", "tip_rm")) {
-  .Deprecated("pglmm_predicted_values")
-  pglmm_predicted_values(x, cpp, gaussian.pred)
 }
 
 #' Residuals of communityPGLMM objects

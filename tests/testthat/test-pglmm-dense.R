@@ -64,11 +64,6 @@ test_that("the C++ and R versions of the dense code give the same fits", {
                     cov_ranef = list(sp = phylotree), REML = FALSE, optimizer = "Nelder-Mead")
   expect_equal(pglmm_profile_LRT(mb, re.number = c(1, 3), cpp = TRUE),
                pglmm_profile_LRT(mb, re.number = c(1, 3), cpp = FALSE), tolerance = 1e-5)
-  # deprecated names
-  expect_warning(lrt <- communityPGLMM.profile.LRT(mb, re.number = 1), "deprecated")
-  expect_equal(lrt, pglmm_profile_LRT(mb, re.number = 1))
-  expect_warning(pv <- communityPGLMM.predicted.values(mb), "deprecated")
-  expect_equal(pv, pglmm_predicted_values(mb))
 })
 
 test_that("the sparse and dense code agree with the phylogeny of the package data", {
@@ -79,10 +74,6 @@ test_that("the sparse and dense code agree with the phylogeny of the package dat
   m2 <- qpglmm(f, d, cov_ranef = list(sp = phylotree), sparse = TRUE)
   expect_equal(m2$logLik, m1$logLik, tolerance = 1e-5)
   expect_equal(m2$B, m1$B, tolerance = 1e-3)
-  # the deprecated argument tree (phylogeny of the variable sp)
-  expect_warning(expect_warning(m3 <- suppressMessages(pglmm(f, d, tree = phylotree)), "deprecated"),
-                 "Drop species")
-  expect_equal(m3$logLik, m2$logLik)
 })
 
 test_that("bayes = TRUE works with zero-inflated families and pc.prior.auto", {
@@ -161,4 +152,20 @@ test_that("the log-likelihood of gaussian models is the same as that of lme4", {
       expect_equal(m$logLik, as.numeric(logLik(l)), tolerance = 1e-6)
     }
   }
+})
+
+test_that("deprecated and removed names", {
+  d <- dense_data()
+  f <- freq ~ 1 + shade + (1 | sp__) + (1 | site)
+  phy <- ape::keep.tip(phylotree, unique(as.character(d$sp)))
+  # communityPGLMM() still works, with a deprecation warning
+  expect_warning(m1 <- suppressMessages(communityPGLMM(f, d, cov_ranef = list(sp = phy))),
+                 "deprecated")
+  m2 <- qpglmm(f, d, cov_ranef = list(sp = phy))
+  expect_equal(m1$logLik, m2$logLik)
+  expect_warning(communityPGLMM.show.re(x = m2, show.image = FALSE), "deprecated")
+  # the arguments tree and tree_site are defunct
+  expect_error(pglmm(f, d, tree = phylotree), "removed in phyr 2.0.0.*cov_ranef")
+  expect_error(pglmm_plot_ranef(f, d, tree = phylotree, show.image = FALSE), "removed in phyr 2.0.0")
+  expect_false(exists("communityPGLMM.profile.LRT", envir = asNamespace("phyr"), inherits = FALSE))
 })

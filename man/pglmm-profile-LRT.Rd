@@ -2,12 +2,9 @@
 % Please edit documentation in R/pglmm-utils.R
 \name{pglmm_profile_LRT}
 \alias{pglmm_profile_LRT}
-\alias{communityPGLMM.profile.LRT}
 \title{Testing statistical significance of random effect}
 \usage{
 pglmm_profile_LRT(x, re.number = 0, cpp = TRUE)
-
-communityPGLMM.profile.LRT(x, re.number = 0, cpp = TRUE)
 }
 \arguments{
 \item{x}{A fitted model with class communityPGLMM with \code{bayes = FALSE}.}

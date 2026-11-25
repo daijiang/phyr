@@ -2,7 +2,6 @@
 % Please edit documentation in R/pglmm-utils.R
 \name{pglmm_predicted_values}
 \alias{pglmm_predicted_values}
-\alias{communityPGLMM.predicted.values}
 \title{Predicted values of PGLMM}
 \usage{
 pglmm_predicted_values(
@@ -12,12 +11,6 @@ pglmm_predicted_values(
   re.form = NULL,
   type = c("link", "response"),
   ...
-)
-
-communityPGLMM.predicted.values(
-  x,
-  cpp = TRUE,
-  gaussian.pred = c("nearest_node", "tip_rm")
 )
 }
 \arguments{

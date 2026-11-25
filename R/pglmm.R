@@ -327,17 +327,8 @@
 #'   the Bayesian model fit? Sometimes this can be helpful, but it may not help; thus,
 #'   we set the default to \code{FALSE}. Also, it
 #'   does not work with the zero-inflated families.
-#' @param tree A phylogeny for column sp, with "phylo" class, or a covariance matrix for sp.
-#'   Make sure to have all species in the matrix; if the matrix is not standardized,
-#'   (i.e., det(tree) != 1), `pglmm` will try to standardize it for you.
-#'   No longer used: keep here for compatibility.
-#' @param tree_site A second phylogeny for "site". This is required only if the
-#'   site column contains species instead of sites. This can be used for bipartitie
-#'   questions; tree_site can also be a covariance matrix. Make sure to have all sites
-#'   in the matrix; if the matrix is not standardized (i.e., det(tree_site) != 1),
-#'   pglmm` will try to standardize it for you. No longer used: keep here for compatibility.
-#' @param sp No longer used: keep here for compatibility.
-#' @param site No longer used: keep here for compatibility.
+#' @param tree,tree_site Defunct (removed in phyr 2.0.0): give the phylogenies in
+#'   \code{cov_ranef}, e.g. \code{cov_ranef = list(sp = tree, site = tree_site)}.
 #' @param bayes_options Additional options to pass to INLA when \code{bayes = TRUE}. A named list where the
 #'   names correspond to parameters in the \code{inla} function. One special option is \code{diagonal}: if an
 #'   element in the list is named \code{diagonal}, INLA adds its value to the diagonal of every random-effects
@@ -939,12 +930,13 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
                   maxit = 500, tol.pql = 10^-6, maxit.pql = 200,
                   marginal.summ = "mean", calc.DIC = TRUE, calc.WAIC = TRUE, prior = "inla.default",
                   prior_alpha = 0.1, prior_mu = 1, ML.init = FALSE,
-                  tree = NULL, tree_site = NULL, sp = NULL, site = NULL, bayes_options = NULL,
+                  tree = NULL, tree_site = NULL, bayes_options = NULL,
                   bayes_nested_matrix_as_list = FALSE,
                   posterior.sample = TRUE,
                   return.fitted.marginals = TRUE,
                   sparse = NULL, standardize_cov = TRUE, method = c("Laplace", "PQL"),
                   sparse_method = c("precision", "flow")) {
+  pglmm_defunct_tree(tree, tree_site)
   z <- pglmm_fit(
     formula = formula, data = data, family = family, cov_ranef = cov_ranef,
     random.effects = random.effects, REML = REML, optimizer = optimizer,
@@ -953,7 +945,7 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
     maxit = maxit, tol.pql = tol.pql, maxit.pql = maxit.pql,
     marginal.summ = marginal.summ, calc.DIC = calc.DIC, calc.WAIC = calc.WAIC, prior = prior,
     prior_alpha = prior_alpha, prior_mu = prior_mu, ML.init = ML.init,
-    tree = tree, tree_site = tree_site, sp = sp, site = site, bayes_options = bayes_options,
+    bayes_options = bayes_options,
     bayes_nested_matrix_as_list = bayes_nested_matrix_as_list,
     posterior.sample = posterior.sample,
     return.fitted.marginals = return.fitted.marginals,
@@ -994,7 +986,7 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
                       maxit = 500, tol.pql = 10^-6, maxit.pql = 200,
                       marginal.summ = "mean", calc.DIC = TRUE, calc.WAIC = TRUE, prior = "inla.default",
                       prior_alpha = 0.1, prior_mu = 1, ML.init = FALSE,
-                      tree = NULL, tree_site = NULL, sp = NULL, site = NULL, bayes_options = NULL,
+                      bayes_options = NULL,
                       bayes_nested_matrix_as_list = FALSE,
                       posterior.sample = TRUE,
                       return.fitted.marginals = TRUE,
@@ -1027,7 +1019,7 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
          "the model).", call. = FALSE)
   }
   if (is.null(sparse)) {
-    sparse <- pglmm_sparse_default(formula, cov_ranef, tree, tree_site, random.effects, bayes,
+    sparse <- pglmm_sparse_default(formula, cov_ranef, random.effects, bayes,
                                    ML.init = ML.init, repulsion = repulsion)
   }
   valid_optimizers <- c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex", "lbfgs")
@@ -1059,12 +1051,6 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
     }
   }
 
-  if (family != "gaussian" & !is.null(tree)) {
-    if (("phylo" %in% class(tree)) & !ape::is.ultrametric(tree)) {
-      warning("The tree is not ultrametric, which will likely give misleading results for family=",
-              family, " models.")
-    }
-  }
 
   data <- as.data.frame(data) # in case of tibbles
   prep_re <- if (is.null(random.effects)) TRUE else FALSE
@@ -1097,16 +1083,11 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
   }
 
   if (!isTRUE(sparse) && !bayes && !laplace && prep_re && length(pglmm_re_phy_vars(re.parsed$terms))) {
-    pglmm_sparse_hint(nrow(data), if (is.null(cov_ranef)) list(tree, tree_site) else cov_ranef)
+    pglmm_sparse_hint(nrow(data), cov_ranef)
   }
   if (!phylo_only && prep_re) pglmm_compare_hint(re.parsed$specs, data)
-  if (phylo_only && (!prep_re || !is.null(tree) || !is.null(tree_site))) {
+  if (phylo_only && !prep_re) {
     stop("phylo_only = TRUE needs random terms in the formula and cov_ranef.", call. = FALSE)
-  }
-  # the deprecated arguments tree and tree_site (phylogenies of the variables
-  # sp and site), for all the code paths
-  if (prep_re && length(pglmm_re_phy_vars(re.parsed$terms))) {
-    cov_ranef <- pglmm_tree_cov_ranef(cov_ranef, tree, tree_site)
   }
 
   if (laplace) {
@@ -1237,7 +1218,6 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
     if (family == "gaussian") {
       ML.init.z <- try(communityPGLMM.gaussian(
         formula = formula, data = data,
-        sp = sp, site = site,
         random.effects = random.effects, REML = REML,
         s2.init = s2.init, B.init = B.init,
         reltol = reltol, maxit = maxit,
@@ -1256,7 +1236,7 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
 
       ML.init.z <- try(communityPGLMM.glmm(
         formula = formula, data = data,
-        sp = sp, site = site, family = family,
+        family = family,
         random.effects = random.effects, REML = REML,
         s2.init = s2.init, B.init = B.init, reltol = reltol,
         maxit = maxit, tol.pql = tol.pql, maxit.pql = maxit.pql,
@@ -1279,7 +1259,6 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
   if (bayes) {
     z <- communityPGLMM.bayes(
       formula = formula, data = data, family = family,
-      sp = sp, site = site,
       random.effects = random.effects,
       s2.init = s2.init, B.init = B.init,
       verbose = verbose,
@@ -1295,7 +1274,6 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
     if (family == "gaussian") {
       z <- communityPGLMM.gaussian(
         formula = formula, data = data,
-        sp = sp, site = site,
         random.effects = random.effects, REML = REML,
         s2.init = s2.init, B.init = B.init,
         reltol = reltol, maxit = maxit,
@@ -1307,7 +1285,6 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
       if (is.null(s2.init)) s2.init <- 0.25
       z <- communityPGLMM.glmm(
         formula = formula, data = data, family = family,
-        sp = sp, site = site,
         random.effects = random.effects, REML = REML,
         s2.init = s2.init, B.init = B.init, reltol = reltol,
         maxit = maxit, tol.pql = tol.pql, maxit.pql = maxit.pql,
@@ -2245,6 +2222,3 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   results
 }
 
-#' @export
-#' @rdname pglmm
-communityPGLMM <- pglmm # to be compatible with old code

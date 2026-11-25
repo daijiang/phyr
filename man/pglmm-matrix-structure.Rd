@@ -2,21 +2,10 @@
 % Please edit documentation in R/pglmm-utils.R
 \name{pglmm_matrix_structure}
 \alias{pglmm_matrix_structure}
-\alias{communityPGLMM.matrix.structure}
 \title{\code{pglmm_matrix_structure} produces the entire
 covariance matrix structure (V) when you specify random effects.}
 \usage{
 pglmm_matrix_structure(
-  formula,
-  data = list(),
-  family = "binomial",
-  cov_ranef,
-  repulsion = FALSE,
-  ss = 1,
-  cpp = TRUE
-)
-
-communityPGLMM.matrix.structure(
   formula,
   data = list(),
   family = "binomial",

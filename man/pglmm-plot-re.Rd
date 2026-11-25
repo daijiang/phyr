@@ -3,8 +3,6 @@
 \name{pglmm_plot_ranef}
 \alias{pglmm_plot_ranef}
 \alias{pglmm_plot_re}
-\alias{communityPGLMM.show.re}
-\alias{communityPGLMM.plot.re}
 \title{Visualize random terms of communityPGLMMs}
 \usage{
 pglmm_plot_ranef(
@@ -29,51 +27,7 @@ pglmm_plot_ranef(
   ...
 )
 
-communityPGLMM.show.re(
-  formula = NULL,
-  data = NULL,
-  family = "gaussian",
-  sp.var = "sp",
-  site.var = "site",
-  tree = NULL,
-  tree_site = NULL,
-  repulsion = FALSE,
-  x = NULL,
-  show.image = TRUE,
-  show.sim.image = FALSE,
-  random.effects = NULL,
-  add.tree.sp = TRUE,
-  add.tree.site = FALSE,
-  cov_ranef = NULL,
-  tree.panel.space = 0.5,
-  title.space = 5,
-  tree.size = 3,
-  ...
-)
-
 pglmm_plot_re(
-  formula = NULL,
-  data = NULL,
-  family = "gaussian",
-  sp.var = "sp",
-  site.var = "site",
-  tree = NULL,
-  tree_site = NULL,
-  repulsion = FALSE,
-  x = NULL,
-  show.image = TRUE,
-  show.sim.image = FALSE,
-  random.effects = NULL,
-  add.tree.sp = TRUE,
-  add.tree.site = FALSE,
-  cov_ranef = NULL,
-  tree.panel.space = 0.5,
-  title.space = 5,
-  tree.size = 3,
-  ...
-)
-
-communityPGLMM.plot.re(
   formula = NULL,
   data = NULL,
   family = "gaussian",
@@ -184,16 +138,8 @@ response data.}
 
 \item{site.var}{The variable name of "site"; x-axis of the image.}
 
-\item{tree}{A phylogeny for column sp, with "phylo" class, or a covariance matrix for sp.
-Make sure to have all species in the matrix; if the matrix is not standardized,
-(i.e., det(tree) != 1), \code{pglmm} will try to standardize it for you.
-No longer used: keep here for compatibility.}
-
-\item{tree_site}{A second phylogeny for "site". This is required only if the
-site column contains species instead of sites. This can be used for bipartitie
-questions; tree_site can also be a covariance matrix. Make sure to have all sites
-in the matrix; if the matrix is not standardized (i.e., det(tree_site) != 1),
-pglmm` will try to standardize it for you. No longer used: keep here for compatibility.}
+\item{tree, tree_site}{Defunct (removed in phyr 2.0.0): give the phylogenies in
+\code{cov_ranef}, e.g. \code{cov_ranef = list(sp = tree, site = tree_site)}.}
 
 \item{repulsion}{When there are nested random terms specified, \code{repulsion = FALSE} tests
 for phylogenetic underdispersion while \code{repulsion = TRUE} tests for overdispersion.

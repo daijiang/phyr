@@ -155,12 +155,12 @@ test_that("sparse = NULL (the default) uses the sparse code whenever it supports
   expect_error(q(y ~ x + (1 | sp__), s$d, cov_ranef = list(sp = V), sparse = TRUE), "phylogeny")
   expect_error(q(y ~ x + (1 | sp__), s$d, cov_ranef = list(sp = s$phy), sparse = NA), "TRUE, FALSE or NULL")
   expect_error(q(y ~ x + (1 | sp__), s$d, cov_ranef = list(sp = s$phy), sparse = "yes"), "TRUE, FALSE or NULL")
-  expect_true(phyr:::pglmm_sparse_default(y ~ x + (1 | sp), NULL, NULL, NULL, NULL, bayes = TRUE))
-  expect_false(phyr:::pglmm_sparse_default(y ~ x + (1 | sp), NULL, NULL, NULL, NULL, bayes = TRUE,
+  expect_true(phyr:::pglmm_sparse_default(y ~ x + (1 | sp), NULL, NULL, bayes = TRUE))
+  expect_false(phyr:::pglmm_sparse_default(y ~ x + (1 | sp), NULL, NULL, bayes = TRUE,
                                            ML.init = TRUE))
-  expect_false(phyr:::pglmm_sparse_default(y ~ x + (1 | sp), NULL, NULL, NULL, NULL, bayes = TRUE,
+  expect_false(phyr:::pglmm_sparse_default(y ~ x + (1 | sp), NULL, NULL, bayes = TRUE,
                                            repulsion = TRUE))
-  expect_true(phyr:::pglmm_sparse_default(y ~ x + (1 | sp), NULL, NULL, NULL, NULL, bayes = FALSE))
+  expect_true(phyr:::pglmm_sparse_default(y ~ x + (1 | sp), NULL, NULL, bayes = FALSE))
 })
 
 test_that("sparse = TRUE stops for what it does not support", {

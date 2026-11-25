@@ -220,7 +220,8 @@ pglmm_plot_ranef <- function(
   show.image = TRUE, show.sim.image = FALSE, random.effects = NULL, 
   add.tree.sp = TRUE, add.tree.site = FALSE, cov_ranef = NULL,
   tree.panel.space = 0.5, title.space = 5, tree.size = 3, ...) {
-  
+  pglmm_defunct_tree(tree, tree_site)
+
   if(hasArg(formula)){
     if(inherits(formula, "communityPGLMM")){
       stop("You supplied a fitted model, please use the argument `x`, 
@@ -246,14 +247,8 @@ pglmm_plot_ranef <- function(
       random.effects <- pd$random.effects
       cov_ranef_update <- pd$cov_ranef_updated
     }
-    # sp <- as.factor(data[, sp.var])
-    # site <- as.factor(data[, site.var])
-    # tree <- x$tree
-    # tree_site <- x$tree_site
   } else {
     if (is.null(random.effects)) {
-      # model not fitted yet: the deprecated arguments tree and tree_site
-      cov_ranef <- pglmm_tree_cov_ranef(cov_ranef, tree, tree_site)
       pd <- prep_dat_pglmm(formula = formula, data = data, cov_ranef,
                            repulsion = repulsion, family = family)
       random.effects <- pd$random.effects
@@ -479,14 +474,4 @@ pglmm_plot_ranef <- function(
 #' @export
 #' @rdname pglmm-plot-re
 #' @aliases pglmm_plot_ranef
-communityPGLMM.show.re <- pglmm_plot_ranef # for legacy code
-
-#' @export
-#' @rdname pglmm-plot-re
-#' @aliases pglmm_plot_ranef
 pglmm_plot_re <- pglmm_plot_ranef
-
-#' @export
-#' @rdname pglmm-plot-re
-#' @aliases pglmm_plot_ranef
-communityPGLMM.plot.re <- pglmm_plot_ranef # for legacy code
