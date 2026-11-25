@@ -9,6 +9,7 @@
 ## New features
 
 * `pglmm()` and `pglmm_compare()` show a message when the fit is at the boundary (singular): when the variance of a random term is estimated at, or very close to, zero, as `lme4::lmer()` does. The new `pglmm_is_singular()` tells whether a fit is at the boundary, and which terms are. Use `options(phyr.boundary.message = FALSE)` to turn the message off.
+* `pglmm()` and `pglmm_compare()` take prior `weights`, given as in `lm()` and `glm()` (a column of `data` or a vector). For gaussian models, the residual variance of an observation is divided by its weight, as in `lme4::lmer()`; for binomial models, the response is a proportion and the weights are the numbers of trials, as in `glm()` (the same model as `cbind(successes, failures)`); for poisson, negative binomial and Gamma models, the weights multiply the log-likelihood of each observation, as in `glm()`, `glmer()` and `glmmTMB()`. The estimates and log-likelihoods are those of `lmer()`, `glmer()` and `glmmTMB()` (within 1e-8 in the log-likelihood). Weights are available with `bayes = FALSE`, for gaussian models fitted with the sparse code and for the other families with `method = "Laplace"`. Note that `glmmTMB()` multiplies the log-likelihood of gaussian models by the weights instead, so its fits of weighted gaussian models differ from those of `lmer()` and `pglmm()`.
 
 # phyr 1.5.0
 

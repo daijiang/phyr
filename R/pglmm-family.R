@@ -20,7 +20,7 @@
 #   family, link: names of the family and of the link function
 #   label: name of the distribution in the summary
 #   linkfun, linkinv: link function and its inverse (from make.link())
-#   laplace(Y, size): list(fam, const, dphi), with fam(eta, phi) returning
+#   laplace(Y, size, wt): list(fam, const, dphi), with fam(eta, phi) returning
 #     list(m = mean of y (size times the probability for binomial models),
 #     g = score d log p(y | eta) / d eta, w = observed information
 #     -d2 log p / d eta2 (> 0), dw = dw / d eta, logp = sum of the log
@@ -30,7 +30,11 @@
 #     dphi(eta, phi) gives the derivatives in phi for the analytic gradient
 #     (pglmm_laplace_grad()): list(lphi = sum of d log p / d phi, gphi =
 #     dg / dphi, wphi = dw / dphi), or NULL (no dphi, or NULL from it: finite
-#     differences).
+#     differences). wt: prior weights (weights of pglmm(); NULL for none),
+#     which multiply the log density of each observation (and so g, w, dw,
+#     logp, const and the derivatives in phi), as in glm() and glmmTMB();
+#     binomial models take them as numbers of trials instead (in size, see
+#     pglmm_glmm_data()).
 #   disp: NULL, or the dispersion parameter, estimated as phi (the last
 #     parameter of pglmm_laplace_ll()):
 #     list(name = element of the fitted model with its reported value (e.g.
@@ -65,11 +69,21 @@ pglmm_family_name <- function(family) {
   if (identical(family, "gamma")) "Gamma" else family
 }
 
-# coefficients of glm() for starting values (NULL if it fails)
-pglmm_glm_start <- function(formula, data, family) {
-  g <- tryCatch(suppressWarnings(glm(formula, data = data, family = family, na.action = na.omit)),
-                error = function(e) NULL)
-  if (is.null(g) || any(!is.finite(stats::coef(g)))) NULL else g
+# glm() (or MASS::glm.nb() with family = "nb") for starting values, with the
+# prior weights of pglmm() if any (the column .pglmm_weights of data, see
+# pglmm_add_weights()): model.frame() evaluates weights in data
+pglmm_glm <- function(formula, data, family) {
+  has.w <- ".pglmm_weights" %in% names(data)
+  if (identical(family, "nb")) {
+    if (has.w) return(MASS::glm.nb(formula, data = data, weights = .pglmm_weights, na.action = na.omit))
+    return(MASS::glm.nb(formula, data = data, na.action = na.omit))
+  }
+  if (has.w) {
+    suppressWarnings(glm(formula, data = data, family = family, weights = .pglmm_weights,
+                         na.action = na.omit))
+  } else {
+    glm(formula, data = data, family = family, na.action = na.omit)
+  }
 }
 
 pglmm_family_binomial <- function() {
@@ -77,7 +91,8 @@ pglmm_family_binomial <- function() {
   list(
     family = "binomial", link = "logit", label = "binomial",
     linkfun = lk$linkfun, linkinv = lk$linkinv, disp = NULL,
-    laplace = function(Y, size) {
+    laplace = function(Y, size, wt = NULL) {
+      if (!is.null(wt)) stop("internal error: the weights of binomial models are in size")
       list(
         fam = function(eta, phi = 0) {
           pr <- stats::plogis(eta)
@@ -91,8 +106,7 @@ pglmm_family_binomial <- function() {
     },
     check = function(Y, size) invisible(NULL),
     start = function(formula, data, X, Y, size, offset) {
-      list(B = stats::coef(glm(formula, data = data, family = stats::binomial, na.action = na.omit)),
-           phi = NULL)
+      list(B = stats::coef(pglmm_glm(formula, data, stats::binomial)), phi = NULL)
     },
     glm.family = function(value = NULL) stats::binomial(),
     simulate = function(mu, value, size) stats::rbinom(length(mu), size, mu)
@@ -104,19 +118,20 @@ pglmm_family_poisson <- function() {
   list(
     family = "poisson", link = "log", label = "poisson",
     linkfun = lk$linkfun, linkinv = lk$linkinv, disp = NULL,
-    laplace = function(Y, size) {
+    laplace = function(Y, size, wt = NULL) {
+      if (is.null(wt)) wt <- 1
       list(
         fam = function(eta, phi = 0) {
           m <- exp(eta)
-          list(m = m, g = Y - m, w = m, dw = m, logp = sum(Y * eta - m))
+          w <- wt * m
+          list(m = m, g = wt * (Y - m), w = w, dw = w, logp = sum(wt * (Y * eta - m)))
         },
-        const = -sum(lgamma(Y + 1))
+        const = -sum(wt * lgamma(Y + 1))
       )
     },
     check = function(Y, size) invisible(NULL),
     start = function(formula, data, X, Y, size, offset) {
-      list(B = stats::coef(glm(formula, data = data, family = stats::poisson, na.action = na.omit)),
-           phi = NULL)
+      list(B = stats::coef(pglmm_glm(formula, data, stats::poisson)), phi = NULL)
     },
     glm.family = function(value = NULL) stats::poisson(),
     simulate = function(mu, value, size) stats::rpois(length(mu), mu)
@@ -144,13 +159,17 @@ pglmm_family_nbinomial <- function() {
     linkfun = lk$linkfun, linkinv = lk$linkinv,
     disp = list(name = "theta", label = "Dispersion parameter of the negative binomial distribution (theta)",
                 value = function(phi) 1 / phi, phi = function(theta) 1 / theta, lower = 0),
-    laplace = function(Y, size) {
+    laplace = function(Y, size, wt = NULL) {
       ymax <- max(Y)
       # very large counts: dnbinom() (accurate, but slower) and finite differences
       big <- ymax > 1e6
       k <- if (!big) seq_len(ymax) - 1 # 0, ..., max(y) - 1
-      ny <- if (!big) tabulate(Y + 1, nbins = ymax + 1) # number of each value 0, ..., max(y)
-      lgy1 <- sum(lgamma(Y + 1))
+      # number (sum of the weights) of each value 0, ..., max(y)
+      ny <- if (!big) {
+        if (is.null(wt)) tabulate(Y + 1, nbins = ymax + 1) else pglmm_sum_by(wt, Y + 1, ymax + 1)
+      }
+      if (is.null(wt)) wt <- 1
+      lgy1 <- sum(wt * lgamma(Y + 1))
       # sums over the observations of sum_{k < y} log(1 + k phi) and of its
       # derivative, for the last phi
       cache <- new.env(parent = emptyenv())
@@ -168,15 +187,15 @@ pglmm_family_nbinomial <- function() {
           x <- phi * m
           den <- 1 + x
           logp <- if (big) {
-            suppressWarnings(sum(stats::dnbinom(Y, size = 1 / phi, mu = m, log = TRUE))) + lgy1
+            suppressWarnings(sum(wt * stats::dnbinom(Y, size = 1 / phi, mu = m, log = TRUE))) + lgy1
           } else if (phi > 0) {
             l <- log1p(x)
-            ksums(phi)$S + sum(Y * (eta - l) - l / phi)
+            ksums(phi)$S + sum(wt * (Y * (eta - l) - l / phi))
           } else {
-            sum(Y * eta - m)
+            sum(wt * (Y * eta - m))
           }
-          w <- m * (1 + phi * Y) / den^2
-          list(m = m, g = (Y - m) / den, w = w, dw = w * (1 - x) / den, logp = logp)
+          w <- wt * m * (1 + phi * Y) / den^2
+          list(m = m, g = wt * (Y - m) / den, w = w, dw = w * (1 - x) / den, logp = logp)
         },
         const = -lgy1,
         dphi = function(eta, phi) {
@@ -188,8 +207,8 @@ pglmm_family_nbinomial <- function() {
           f <- m^2 * (0.5 - 2 * x / 3 + 0.75 * x^2 - 0.8 * x^3)
           j <- x >= 1e-3
           f[j] <- (log1p(x[j]) - x[j] / den[j]) / phi^2
-          list(lphi = ksums(phi)$T + sum(f - Y * m / den), gphi = -(Y - m) * m / den^2,
-               wphi = m * (Y - 2 * m - x * Y) / den^3)
+          list(lphi = ksums(phi)$T + sum(wt * (f - Y * m / den)), gphi = -wt * (Y - m) * m / den^2,
+               wphi = wt * m * (Y - 2 * m - x * Y) / den^3)
         }
       )
     },
@@ -202,12 +221,9 @@ pglmm_family_nbinomial <- function() {
     # starting values of b and of the dispersion phi = 1 / theta from
     # MASS::glm.nb() (the poisson model if it fails)
     start = function(formula, data, X, Y, size, offset) {
-      g0 <- tryCatch(suppressWarnings(MASS::glm.nb(formula, data = data, na.action = na.omit)),
-                     error = function(e) NULL)
+      g0 <- tryCatch(suppressWarnings(pglmm_glm(formula, data, "nb")), error = function(e) NULL)
       phi <- if (!is.null(g0) && is.finite(g0$theta) && g0$theta > 0) 1 / g0$theta else 1
-      B <- if (!is.null(g0)) stats::coef(g0) else {
-        stats::coef(glm(formula, data = data, family = stats::poisson, na.action = na.omit))
-      }
+      B <- if (!is.null(g0)) stats::coef(g0) else stats::coef(pglmm_glm(formula, data, stats::poisson))
       list(B = B, phi = phi)
     },
     glm.family = function(value = NULL) pglmm_nb_family(value),
@@ -230,23 +246,24 @@ pglmm_family_gamma <- function() {
     linkfun = lk$linkfun, linkinv = lk$linkinv,
     disp = list(name = "shape", label = "Shape parameter of the Gamma distribution (shape)",
                 value = function(phi) 1 / phi, phi = function(shape) 1 / shape, lower = 1e-8),
-    laplace = function(Y, size) {
-      n <- length(Y)
-      slogy <- sum(log(Y))
+    laplace = function(Y, size, wt = NULL) {
+      if (is.null(wt)) wt <- rep(1, length(Y))
+      n <- sum(wt) # (weighted) number of observations
+      slogy <- sum(wt * log(Y))
       list(
         fam = function(eta, phi) {
           nu <- 1 / phi
           r <- Y * exp(-eta)
-          w <- nu * r
-          list(m = exp(eta), g = nu * (r - 1), w = w, dw = -w,
-               logp = n * (nu * log(nu) - lgamma(nu)) + (nu - 1) * slogy - nu * sum(eta + r))
+          w <- wt * nu * r
+          list(m = exp(eta), g = wt * nu * (r - 1), w = w, dw = -w,
+               logp = n * (nu * log(nu) - lgamma(nu)) + (nu - 1) * slogy - nu * sum(wt * (eta + r)))
         },
         const = 0,
         dphi = function(eta, phi) {
           nu <- 1 / phi
           r <- Y * exp(-eta)
-          list(lphi = -nu^2 * (n * (log(nu) + 1 - digamma(nu)) + slogy - sum(eta + r)),
-               gphi = -nu^2 * (r - 1), wphi = -nu^2 * r)
+          list(lphi = -nu^2 * (n * (log(nu) + 1 - digamma(nu)) + slogy - sum(wt * (eta + r))),
+               gphi = -nu^2 * wt * (r - 1), wphi = -nu^2 * wt * r)
         }
       )
     },
@@ -257,7 +274,8 @@ pglmm_family_gamma <- function() {
     # starting values from glm() with the maximum likelihood estimate of the
     # shape (MASS::gamma.shape()); the mean of y otherwise
     start = function(formula, data, X, Y, size, offset) {
-      g0 <- pglmm_glm_start(formula, data, stats::Gamma(link = "log"))
+      g0 <- tryCatch(pglmm_glm(formula, data, stats::Gamma(link = "log")), error = function(e) NULL)
+      if (!is.null(g0) && any(!is.finite(stats::coef(g0)))) g0 <- NULL
       if (is.null(g0)) {
         B <- setNames(rep(0, ncol(X)), colnames(X))
         int <- colnames(X) == "(Intercept)"

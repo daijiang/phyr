@@ -39,7 +39,8 @@ pglmm(
   sparse = NULL,
   standardize_cov = TRUE,
   method = c("Laplace", "PQL"),
-  sparse_method = c("precision", "flow")
+  sparse_method = c("precision", "flow"),
+  weights = NULL
 )
 }
 \arguments{
@@ -488,6 +489,16 @@ unit); \code{"flow"} is only available with \code{bayes = TRUE} for now. \code{r
 these models. With \code{"flow"}, the rates are linked to the observations by the matrix
 \code{A} of \code{control.predictor} of INLA (as in fibre), so \code{inla.model} has more
 fitted values than observations (the first ones are those of the observations).}
+
+\item{weights}{Optional prior weights, as in \code{\link[=lm]{lm()}} and \code{\link[=glm]{glm()}}: a column of \code{data}
+(e.g. \code{weights = w}, or \code{"w"}) or a vector with one positive value per row of \code{data}.
+For gaussian models, the residual variance of an observation is the residual
+variance divided by its weight (as \code{\link[lme4:lmer]{lme4::lmer()}}); for binomial models, the
+response is a proportion and the weights are the numbers of trials (as
+\code{\link[=glm]{glm()}}); for the other families, the weights multiply the log-likelihood of
+each observation (as \code{\link[=glm]{glm()}} and \code{glmmTMB()}). Available with
+\code{bayes = FALSE}, for gaussian models fitted with the sparse code and for the
+other families with \code{method = "Laplace"}.}
 }
 \value{
 An object (list) of class \code{communityPGLMM} with the following elements:

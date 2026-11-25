@@ -58,7 +58,7 @@
 # dispersion phi of negative binomial models), the mean m, the score g, the
 # observed information w, and the log density logp (without const). offset:
 # the offset of the linear predictor (NULL if none).
-pglmm_laplace_prep <- function(pre, X, Y, size, family, has.obs, offset = NULL) {
+pglmm_laplace_prep <- function(pre, X, Y, size, family, has.obs, offset = NULL, wt = NULL) {
   Qs <- pre$M
   Qs@x <- pre$qx
   q <- pre$q
@@ -82,7 +82,7 @@ pglmm_laplace_prep <- function(pre, X, Y, size, family, has.obs, offset = NULL) 
   # pglmm_laplace_grad()) and logp
   spec <- pglmm_family_spec(family)
   if (is.null(spec)) stop("internal error: no Laplace code for family ", family)
-  fl <- spec$laplace(Y, size)
+  fl <- spec$laplace(Y, size, wt) # wt: prior weights (not for binomial models)
   list(pre = pre, X = X, Y = Y, size = size, family = family, has.obs = has.obs,
        n = nrow(X), p = ncol(X), nt = max(pre$term.of.col), Qmult = Qmult, fam = fl$fam,
        const = fl$const, dphi = fl$dphi, spec = spec, has.disp = !is.null(spec$disp),
@@ -514,7 +514,7 @@ communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_
   pre <- pglmm_sparse_setup(X, NULL, terms, weights = TRUE)
   q <- nt + has.obs
   offset <- dd$offset # offset() terms of the formula (NULL if none)
-  lp <- pglmm_laplace_prep(pre, X, Y, size, family, has.obs, offset)
+  lp <- pglmm_laplace_prep(pre, X, Y, size, family, has.obs, offset, wt = dd$wt)
   spec <- lp$spec
   spec$check(Y, size)
   has.disp <- lp$has.disp # e.g. the dispersion of negative binomial models
@@ -701,7 +701,7 @@ communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_
                       if (has.obs) c("1|obs" = 1)),
     logLik = LL, AIC = -2 * LL + 2 * k, BIC = -2 * LL + k * log(n),
     REML = REML, bayes = FALSE, method = "Laplace", s2.init = unname(s20[iq] / sf), B.init = B.init,
-    Y = Y, size = size, X = X, offset = offset,
+    Y = Y, size = size, X = X, offset = offset, prior.weights = dd$prior.weights,
     H = matrix(H, ncol = 1), mu = matrix(mu, ncol = 1, dimnames = list(seq_len(n), NULL)),
     nested = list(), Zt = NULL, St = NULL,
     convcode = convcode, niter = n.eval,
@@ -725,13 +725,19 @@ communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_
   results
 }
 
+# prior weights that multiply the log density (NULL for binomial models,
+# whose weights are numbers of trials, in size)
+pglmm_laplace_wt <- function(object) {
+  if (identical(object$family, "binomial")) NULL else object$prior.weights
+}
+
 # Laplace approximation of the log-likelihood of a fitted model at the
 # standard deviations ss (and its fixed effects, for ML; for REML, b is
 # integrated out; and its dispersion, for families that have one)
 pglmm_laplace_logLik_at <- function(object, ss) {
   sp <- object$sparse
   lp <- pglmm_laplace_prep(sp$pre, object$X, object$Y, object$size, object$family, sp$has.obs,
-                           object$offset)
+                           object$offset, wt = pglmm_laplace_wt(object))
   if (lp$has.disp) ss <- c(ss, lp$spec$disp$phi(pglmm_disp_value(object, lp$spec)))
   st <- new.env(parent = emptyenv())
   st$beta <- st$beta0 <- as.vector(object$B)

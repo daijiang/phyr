@@ -14,7 +14,7 @@ NULL
 # issues come with dplyr and the pipe...
 if(getRversion() >= "2.15.1") 
   utils::globalVariables(c("effect_type", "lower", "upper", "..density..",
-                           "val", "var", "sig"))
+                           "val", "var", "sig", ".pglmm_weights"))
 
 
 logit <- make.link("logit")$linkfun

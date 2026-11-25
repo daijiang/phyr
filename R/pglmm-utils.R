@@ -255,7 +255,10 @@ pglmm_one_obs_per_cell <- function(data, g) {
 pglmm_re_obs <- function(terms, data, formula, family, add.obs.re = TRUE) {
   resp <- tryCatch(model.response(model.frame(reformulas::nobars(formula), data, na.action = NULL)),
                    error = function(e) NULL)
-  if (!(family == "poisson" || (family == "binomial" && is.array(resp)))) return(FALSE)
+  # binomial data with trials: cbind(successes, failures), or proportions with
+  # prior weights (the numbers of trials, see pglmm_glmm_data())
+  trials <- is.array(resp) || !is.null(pglmm_prior_weights(data))
+  if (!(family == "poisson" || (family == "binomial" && trials))) return(FALSE)
   obs.term <- any(vapply(terms, function(t) {
     t$nested && !any(t$phy) && t$lhs == "1" && pglmm_one_obs_per_cell(data, t$group)
   }, TRUE))
@@ -285,6 +288,43 @@ pglmm_need_pkgs <- function(pkgs, fun) {
          ").", call. = FALSE)
   }
   invisible(TRUE)
+}
+
+# The prior weights of pglmm() and pglmm_compare(): evaluated as lm() and
+# glm() do (a column of data, given by name, or a vector, with one value per
+# row of data: wexpr is evaluated in data, then in env, the environment of the
+# formula; if that fails, e.g. through a wrapper function, value() forces the
+# argument where it was given), and kept in data as the column .pglmm_weights,
+# so that the code paths that drop the rows with missing values keep them
+# aligned; see pglmm_prior_weights().
+pglmm_add_weights <- function(data, wexpr, env, value) {
+  if (is.null(wexpr)) return(data)
+  if (is.null(data)) stop("weights need data.", call. = FALSE)
+  w <- tryCatch(eval(wexpr, data, env), error = function(e) value())
+  if (is.null(w)) return(data)
+  if (is.character(w) && length(w) == 1 && nrow(data) != 1) {
+    if (w %nin% names(data)) stop("column \"", w, "\" (weights) not found in data.", call. = FALSE)
+    w <- data[[w]]
+  }
+  if (!is.numeric(w) || length(w) != nrow(data)) {
+    stop("weights should be numeric, with one value per row of data.", call. = FALSE)
+  }
+  if (any(!is.na(w) & (!is.finite(w) | w <= 0))) {
+    stop("weights should be positive (drop the observations with weight zero).", call. = FALSE)
+  }
+  data$.pglmm_weights <- as.numeric(w)
+  data
+}
+
+# the environment of a formula (as model.frame()), or env
+pglmm_formula_env <- function(formula, env) {
+  fe <- if (inherits(formula, "formula")) environment(formula)
+  if (is.null(fe)) env else fe
+}
+
+# The prior weights of the rows of data (after rows were dropped), or NULL
+pglmm_prior_weights <- function(data) {
+  if (is.null(data) || ".pglmm_weights" %nin% names(data)) NULL else data$.pglmm_weights
 }
 
 # The arguments tree and tree_site of pglmm() and pglmm_plot_ranef(),
@@ -1727,11 +1767,14 @@ residuals.communityPGLMM <- function(
   if (object$family == "gaussian") {
     if (type == "deviance") stop("no deviance residuals for gaussian model", call. = FALSE)
     res <- as.numeric(object$Y) - pglmm_predicted_values(object)$Y_hat
-    if (scaled) res <- res / sqrt(as.numeric(object$s2resid))
+    # with prior weights w, the residual variance of an observation is s2resid / w
+    pw <- if (is.null(object$prior.weights)) 1 else object$prior.weights
+    if (scaled) res <- res * sqrt(pw / as.numeric(object$s2resid))
   } else {
     y <- as.numeric(object$Y)
     mu <- as.numeric(object$mu[, 1])
-    wt <- rep(1, length(y))
+    # prior weights (for binomial models, the numbers of trials, in size)
+    wt <- if (is.null(object$prior.weights)) rep(1, length(y)) else object$prior.weights
     if (object$family == "binomial") {
       wt <- rep_len(pglmm_binomial_size(object), length(y))
       y <- y / wt # proportion of successes
@@ -2673,8 +2716,11 @@ simulate.communityPGLMM <- function(object, nsim = 1, seed = NULL,
       stop("Formula for random effects to condition on currently is not supported yet")
     }
     if (object$family == "gaussian") {
-      sim <- sim + sqrt(as.numeric(object$s2resid)) * matrix(rnorm(nsim * nn), nrow = nn)
+      # with prior weights w, the residual variance is s2resid / w
+      pw <- if (is.null(object$prior.weights)) 1 else object$prior.weights
+      sim <- sim + sqrt(as.numeric(object$s2resid) / pw) * matrix(rnorm(nsim * nn), nrow = nn)
     } else {
+      if (!is.null(pglmm_laplace_wt(object))) warning("ignoring prior weights", call. = FALSE)
       # responses drawn from the family (see pglmm_family_spec()), with the
       # means given by the inverse link of the linear predictor
       spec <- pglmm_family_spec(object$family)

@@ -498,7 +498,7 @@ pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
 # A = Z' diag(w) Z on the pattern of M are wmap %*% w: each row of Z has at
 # most one non-zero value for each term, so the map is built from the pairs of
 # terms, without forming Z' diag(w) Z for each value of the weights w.
-pglmm_sparse_setup <- function(X, Y, terms, weights = FALSE) {
+pglmm_sparse_setup <- function(X, Y, terms, weights = FALSE, prior.weights = NULL) {
   n <- nrow(X)
   p <- ncol(X)
   Z <- do.call(cbind, lapply(terms, function(z) z$Z))
@@ -506,7 +506,12 @@ pglmm_sparse_setup <- function(X, Y, terms, weights = FALSE) {
   nc <- vapply(terms, function(z) ncol(z$Z), 1L)
   term.of.col <- rep(seq_along(terms), nc)
   Q <- Matrix::bdiag(lapply(terms, function(z) z$Q))
-  A <- Matrix::crossprod(Z)
+  # prior weights w of gaussian models: V = s2 (W^-1 + Z Theta Q^-1 Theta Z'),
+  # so that the cross products of Z, X and Y are weighted (Z' W Z, ...), as
+  # for the rows of Z, X and Y multiplied by sqrt(w), and log|V| has the extra
+  # -sum(log(w)) (wconst, see pglmm_sparse_LL_value())
+  pw <- if (is.null(prior.weights)) 1 else prior.weights
+  A <- if (is.null(prior.weights)) Matrix::crossprod(Z) else Matrix::crossprod(Z, pw * Z)
   if (weights) {
     # column (in Z) and value of each observation for each term
     off <- cumsum(c(0L, nc))
@@ -599,7 +604,8 @@ pglmm_sparse_setup <- function(X, Y, terms, weights = FALSE) {
     cols = split(seq_len(q), factor(term.of.col, levels = seq_along(terms))),
     L = L,
     logdetQ = sum(vapply(terms, function(z) z$logdetQ, 1)) + logdetB,
-    ZtXY = as.matrix(Matrix::crossprod(Z, XY)), XYtXY = crossprod(XY)
+    ZtXY = as.matrix(Matrix::crossprod(Z, pw * XY)), XYtXY = crossprod(XY, pw * XY),
+    prior.w = prior.weights, wconst = if (is.null(prior.weights)) 0 else 0.5 * sum(log(prior.weights))
   )
 }
 
@@ -680,11 +686,13 @@ pglmm_sparse_LL_value <- function(ev, pre, REML) {
   if (is.null(ev) || !is.finite(ev$rss) || ev$rss <= 0) return(1e10)
   n <- pre$n
   p <- pre$p
+  # prior weights: log|V| = log|V*| - sum(log(w)) (see pglmm_sparse_setup())
+  wconst <- if (is.null(pre$wconst)) 0 else pre$wconst
   if (REML) {
     0.5 * ((n - p) * log(ev$rss / (n - p)) + ev$logdetV + (n - p) +
-      as.numeric(determinant(ev$XiVX)$modulus))
+      as.numeric(determinant(ev$XiVX)$modulus)) - wconst
   } else {
-    0.5 * (n * log(ev$rss / n) + ev$logdetV + n)
+    0.5 * (n * log(ev$rss / n) + ev$logdetV + n) - wconst
   }
 }
 
@@ -991,11 +999,33 @@ pglmm_glmm_data <- function(formula, data, family, add.obs.re = TRUE) {
     size <- rep(1, length(Y))
   }
   Y <- as.numeric(Y)
+  # prior weights (weights of pglmm()): for binomial models, the numbers of
+  # trials of a proportion as response, as in glm(), so that they go in size;
+  # for the other families, they multiply the log density (wt)
+  prior.weights <- pglmm_prior_weights(data)
+  wt <- NULL
+  if (!is.null(prior.weights)) {
+    if (family == "binomial") {
+      if (any(size != 1)) {
+        stop("give binomial data either as cbind(successes, failures) or as proportions with ",
+             "weights (the numbers of trials), not both.", call. = FALSE)
+      }
+      if (any(Y < 0 | Y > 1)) {
+        stop("with weights, the response of binomial models should be proportions ",
+             "(successes / trials, the weights).", call. = FALSE)
+      }
+      Y <- Y * prior.weights
+      size <- prior.weights
+      if (any(abs(Y - round(Y)) > 1e-7)) warning("non-integer #successes in a binomial pglmm!", call. = FALSE)
+    } else {
+      wt <- prior.weights
+    }
+  }
   # offset() terms of the formula (NULL if none), used with method = "Laplace"
   offset <- model.offset(mf)
   if (!is.null(offset)) offset <- as.numeric(offset)
   list(formula.nobars = formula.nobars, data = data, X = X, Y = Y, size = size,
-       has.obs = has.obs, offset = offset)
+       has.obs = has.obs, offset = offset, wt = wt, prior.weights = prior.weights)
 }
 
 # Fit a binomial or poisson pglmm (PQL) with the sparse precision matrix of the
@@ -1282,12 +1312,13 @@ communityPGLMM.gaussian.sparse <- function(formula, data, cov_ranef = NULL, REML
   Y <- as.numeric(model.response(mf))
   n <- nrow(X)
   p <- ncol(X)
+  prior.weights <- pglmm_prior_weights(data) # weights of pglmm() (NULL if none)
 
   tm <- pglmm_sparse_terms(formula, data, cov_ranef, standardize_cov, repulsion, phylo_only)
   terms <- tm$terms
   nt <- length(terms)
   nested <- vapply(terms, function(z) z$nested, TRUE)
-  pre <- pglmm_sparse_setup(X, Y, terms)
+  pre <- pglmm_sparse_setup(X, Y, terms, prior.weights = prior.weights)
 
   if (optimizer %in% c("nlminb", "lbfgs")) {
     # Default: nlminb() with the analytic gradient (pglmm_sparse_LL_grad()),
@@ -1376,7 +1407,8 @@ communityPGLMM.gaussian.sparse <- function(formula, data, cov_ranef = NULL, REML
   H <- Y - as.vector(X %*% B)
   # conditional modes of all levels and nodes: u = Theta M^-1 Theta Z'H
   th.col <- theta[pre$term.of.col]
-  u <- th.col * as.vector(pglmm_sparse_solve(ev$L, pre, th.col * as.vector(Matrix::crossprod(pre$Z, H))))
+  u <- th.col * as.vector(pglmm_sparse_solve(ev$L, pre,
+    th.col * as.vector(Matrix::crossprod(pre$Z, (if (is.null(prior.weights)) 1 else prior.weights) * H))))
 
   if (REML) {
     logLik <- -0.5 * (n - p) * log(2 * pi) - LL
@@ -1410,6 +1442,7 @@ communityPGLMM.gaussian.sparse <- function(formula, data, cov_ranef = NULL, REML
     logLik = logLik, AIC = -2 * logLik + 2 * k,
     BIC = -2 * logLik + k * log(n),
     REML = REML, bayes = FALSE, s2.init = s2.init, B.init = NULL, Y = Y, X = X,
+    prior.weights = prior.weights,
     H = matrix(H, ncol = 1), mu = NULL, nested = list(), Zt = NULL, St = NULL,
     convcode = convcode, niter = n.eval,
     sparse = list(
@@ -1464,7 +1497,8 @@ pglmm_sparse_iV_pieces <- function(object) {
   pre <- sp$pre
   if (object$family == "gaussian") {
     ev <- pglmm_sparse_eval(sp$theta, pre)
-    list(pre = pre, L = ev$L, thc = sp$theta[pre$term.of.col], dw = rep(1, nrow(object$X)),
+    dw <- if (is.null(pre$prior.w)) rep(1, nrow(object$X)) else pre$prior.w
+    list(pre = pre, L = ev$L, thc = sp$theta[pre$term.of.col], dw = dw,
          c = 1 / as.numeric(object$s2resid))
   } else {
     ev <- pglmm_sparse_weval(object$ss, pre, sp$w, object$X, sp$has.obs, full = TRUE)

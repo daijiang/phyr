@@ -143,7 +143,7 @@ pglmm_profile_fun <- function(object) {
   if (identical(object$method, "Laplace")) {
     REML <- isTRUE(object$REML)
     lp <- pglmm_laplace_prep(pre, object$X, object$Y, object$size, object$family, sp$has.obs,
-                             object$offset)
+                             object$offset, wt = pglmm_laplace_wt(object))
     p <- lp$p
     tnames <- names(object$ss) # the terms in the order of the fit, then 1|obs
     nt <- length(tnames) - sp$has.obs

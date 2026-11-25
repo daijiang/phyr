@@ -285,7 +285,7 @@ pglmm_compare <- function(formula, family = "gaussian",
                           calc.WAIC = TRUE, bayes_options = NULL, posterior.sample = TRUE,
                           return.fitted.marginals = TRUE,
                           sparse = NULL, standardize_cov = TRUE,
-                          method = c("Laplace", "PQL")) {
+                          method = c("Laplace", "PQL"), weights = NULL) {
   # method is matched by pglmm_fit() (the default is "Laplace" for nbinomial and Gamma)
   if (!inherits(phy, "phylo")) stop("phy must be a phylogeny with class 'phylo'.", call. = FALSE)
   if (!is.null(reformulas::findbars(formula))) {
@@ -293,6 +293,9 @@ pglmm_compare <- function(formula, family = "gaussian",
          "is added automatically. Use pglmm() for models with other random terms.", call. = FALSE)
   }
   data <- as.data.frame(data) # in case of tibbles
+  wexpr <- substitute(weights)
+  data <- pglmm_add_weights(data, wexpr, pglmm_formula_env(formula, parent.frame()),
+                            function() weights)
   sp <- rownames(data)
   if(!all(is.element(sp, phy$tip.label)))  stop("\nSorry, but it appears that there are some species in the rownames of data that are not in phy")
   if(!all(is.element(phy$tip.label, sp)))  {
@@ -356,7 +359,7 @@ pglmm_compare <- function(formula, family = "gaussian",
       NULL
     })
   }
-  z$call <- pglmm_store_call(match.call(), environment())
+  z$call <- pglmm_store_call(match.call(), environment(), list(weights = wexpr))
   class(z) <- c("pglmm_compare", "communityPGLMM", "pglmm")
   pglmm_boundary_message(z)
   z

@@ -415,6 +415,15 @@
 #'   is exact for ultrametric trees; for non-ultrametric trees, check that it matches the
 #'   assumption about the root. Covariance matrices that cannot be written as a tree with
 #'   non-negative branch lengths (e.g. an arbitrary similarity matrix) need \code{sparse = FALSE}.
+#' @param weights Optional prior weights, as in [lm()] and [glm()]: a column of `data`
+#'   (e.g. `weights = w`, or `"w"`) or a vector with one positive value per row of `data`.
+#'   For gaussian models, the residual variance of an observation is the residual
+#'   variance divided by its weight (as [lme4::lmer()]); for binomial models, the
+#'   response is a proportion and the weights are the numbers of trials (as
+#'   [glm()]); for the other families, the weights multiply the log-likelihood of
+#'   each observation (as [glm()] and `glmmTMB()`). Available with
+#'   `bayes = FALSE`, for gaussian models fitted with the sparse code and for the
+#'   other families with `method = "Laplace"`.
 #' @param sparse_method With \code{sparse = TRUE} and \code{bayes = TRUE}, how the
 #'   phylogenetic terms are given to INLA. \code{"precision"} (default): as a latent field
 #'   over all nodes of the phylogeny (tips and internal nodes, without the root), with the
@@ -939,8 +948,11 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
                   posterior.sample = TRUE,
                   return.fitted.marginals = TRUE,
                   sparse = NULL, standardize_cov = TRUE, method = c("Laplace", "PQL"),
-                  sparse_method = c("precision", "flow")) {
+                  sparse_method = c("precision", "flow"), weights = NULL) {
   pglmm_defunct_tree(tree, tree_site)
+  wexpr <- substitute(weights)
+  data <- pglmm_add_weights(data, wexpr, pglmm_formula_env(formula, parent.frame()),
+                            function() weights)
   z <- pglmm_fit(
     formula = formula, data = data, family = family, cov_ranef = cov_ranef,
     random.effects = random.effects, REML = REML, optimizer = optimizer,
@@ -956,7 +968,7 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
     sparse = sparse, standardize_cov = standardize_cov, method = method,
     reltol.given = !missing(reltol), sparse_method = sparse_method
   )
-  z$call <- pglmm_store_call(match.call(), environment())
+  z$call <- pglmm_store_call(match.call(), environment(), list(weights = wexpr))
   pglmm_boundary_message(z)
   z
 }
@@ -965,10 +977,11 @@ pglmm <- function(formula, data = NULL, family = "gaussian", cov_ranef = NULL,
 # update(): arguments passed through the ... of another function (..1, ..2,
 # which cannot be evaluated later) are replaced by their values (env: the
 # frame of the function, where they are its arguments)
-pglmm_store_call <- function(cl, env) {
+pglmm_store_call <- function(cl, env, exprs = list()) {
   for (a in setdiff(names(cl), "")) {
     if (is.symbol(cl[[a]]) && grepl("^\\.\\.[0-9]+$", as.character(cl[[a]]))) {
-      cl[[a]] <- get(a, envir = env)
+      # arguments evaluated in data (weights): their expressions; others: values
+      cl[[a]] <- if (a %in% names(exprs)) exprs[[a]] else get(a, envir = env)
     }
   }
   cl
@@ -1026,6 +1039,16 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
   if (is.null(sparse)) {
     sparse <- pglmm_sparse_default(formula, cov_ranef, random.effects, bayes,
                                    ML.init = ML.init, repulsion = repulsion)
+  }
+  if (!is.null(pglmm_prior_weights(data))) {
+    if (bayes) stop("weights are not available with bayes = TRUE yet.", call. = FALSE)
+    if (family == "gaussian" && !isTRUE(sparse)) {
+      stop("weights of gaussian models need the sparse code (sparse = TRUE): they are not ",
+           "available yet with random.effects or covariance matrices in cov_ranef.", call. = FALSE)
+    }
+    if (family != "gaussian" && !laplace) {
+      stop("weights of ", family, " models need method = \"Laplace\".", call. = FALSE)
+    }
   }
   valid_optimizers <- c("nelder-mead-nlopt", "bobyqa", "Nelder-Mead", "subplex", "lbfgs")
   optimizer.given <- !is.null(optimizer)

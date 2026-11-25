@@ -34,7 +34,8 @@ pglmm_compare(
   return.fitted.marginals = TRUE,
   sparse = NULL,
   standardize_cov = TRUE,
-  method = c("Laplace", "PQL")
+  method = c("Laplace", "PQL"),
+  weights = NULL
 )
 
 \method{predict}{pglmm_compare}(object, newdata = NULL, ...)
@@ -231,6 +232,16 @@ choice; only the scale of the variances (and of \code{s2.init}) does. Not used w
 phyr 1.5.0) or \code{"PQL"} (the default of earlier versions): see Details and
 \code{\link[=pglmm]{pglmm()}}. Negative binomial and Gamma data are always fitted with
 \code{"Laplace"}.}
+
+\item{weights}{Optional prior weights, as in \code{\link[=lm]{lm()}} and \code{\link[=glm]{glm()}}: a column of \code{data}
+(e.g. \code{weights = w}, or \code{"w"}) or a vector with one positive value per row of \code{data}.
+For gaussian models, the residual variance of an observation is the residual
+variance divided by its weight (as \code{\link[lme4:lmer]{lme4::lmer()}}); for binomial models, the
+response is a proportion and the weights are the numbers of trials (as
+\code{\link[=glm]{glm()}}); for the other families, the weights multiply the log-likelihood of
+each observation (as \code{\link[=glm]{glm()}} and \code{glmmTMB()}). Available with
+\code{bayes = FALSE}, for gaussian models fitted with the sparse code and for the
+other families with \code{method = "Laplace"}.}
 
 \item{object}{A fitted model with class pglmm_compare.}
 
