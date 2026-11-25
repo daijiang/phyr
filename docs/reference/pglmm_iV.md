@@ -1,7 +1,7 @@
 # Inverse of the covariance matrix of a fitted PGLMM
 
 Calculate the inverse of the marginal covariance matrix (`iV`) of the
-data for a model fitted with `bayes = FALSE`. Since version 1.4.0, this
+data for a model fitted with `bayes = FALSE`. Since version 1.5.0, this
 n by n matrix is no longer returned by
 [`pglmm()`](https://daijiang.github.io/phyr/reference/pglmm.md), because
 it needs a lot of memory and time for large data sets, and no function

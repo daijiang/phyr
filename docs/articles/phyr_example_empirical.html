@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">phyr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.4.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -141,7 +141,7 @@ a syntax similar to <code>lmer</code> and <code>glmer</code> in the
 <code>lme4</code> package for specifying random effects. We also include
 site-level random effects to account for the paired design of the
 experiment. We will start by modeling just presence and absence of
-species (a binomial model). Since phyr 1.4.0, binomial models are fitted
+species (a binomial model). Since phyr 1.5.0, binomial models are fitted
 by maximum likelihood with the Laplace approximation
 (<code>method = "Laplace"</code>, with the same estimates as
 <code><a href="https://rdrr.io/pkg/lme4/man/glmer.html" class="external-link">lme4::glmer()</a></code> and <code>glmmTMB()</code>), using the sparse
@@ -262,9 +262,9 @@ range.</p>
 <span><span class="co">#&gt;                  LR           df Pr          </span></span>
 <span><span class="co">#&gt; 1|sp             14.5798      1  3.332738e-08</span></span>
 <span><span class="co">#&gt; 1|sp__           0.1717596    1  0.2789024   </span></span>
-<span><span class="co">#&gt; 1|site           1.023182e-11 1  1           </span></span>
+<span><span class="co">#&gt; 1|site           9.777068e-12 1  1           </span></span>
 <span><span class="co">#&gt; disturbance|sp   4.025619     1  0.002273628 </span></span>
-<span><span class="co">#&gt; disturbance|sp__ 1.023182e-11 1  1           </span></span>
+<span><span class="co">#&gt; disturbance|sp__ 9.777068e-12 1  1           </span></span>
 <span><span class="co">#&gt; 1|sp__@site      4.726921     1  0.001053536</span></span></code></pre></div>
 <p>This result shows that the nested phylogenetic effect is
 statistically significant. What does this mean? A model where the
@@ -345,21 +345,21 @@ posterior distribution of our random effect variance terms.</p>
 <span><span class="co">#&gt; Formula: pres ~ disturbance + (1 | sp__) + (1 | site) + (disturbance | sp__) + (1 | sp__@site)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; marginal logLik             DIC            WAIC </span></span>
-<span><span class="co">#&gt;          -616.1          1097.2          1084.2 </span></span>
+<span><span class="co">#&gt;          -616.1          1097.3          1084.2 </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Random effects:</span></span>
 <span><span class="co">#&gt;                  Variance Std.Dev  lower.CI upper.CI</span></span>
-<span><span class="co">#&gt; 1|sp             2.158775 1.46928 1.1493091   4.7987</span></span>
-<span><span class="co">#&gt; 1|sp__           0.076716 0.27698 0.0133832   1.4354</span></span>
-<span><span class="co">#&gt; 1|site           0.002358 0.04855 0.0003466   0.1736</span></span>
-<span><span class="co">#&gt; disturbance|sp   1.917331 1.38468 0.9083156   4.9268</span></span>
-<span><span class="co">#&gt; disturbance|sp__ 0.015930 0.12621 0.0023347   1.5256</span></span>
-<span><span class="co">#&gt; 1|sp__@site      0.107109 0.32728 0.0462410   0.2917</span></span>
+<span><span class="co">#&gt; 1|sp             2.152317 1.46708 1.1430278   4.7803</span></span>
+<span><span class="co">#&gt; 1|sp__           0.079658 0.28224 0.0140156   1.4845</span></span>
+<span><span class="co">#&gt; 1|site           0.002171 0.04659 0.0003192   0.1783</span></span>
+<span><span class="co">#&gt; disturbance|sp   1.907420 1.38109 0.9038894   4.8669</span></span>
+<span><span class="co">#&gt; disturbance|sp__ 0.019253 0.13875 0.0028316   1.5628</span></span>
+<span><span class="co">#&gt; 1|sp__@site      0.107066 0.32721 0.0461963   0.2920</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Fixed effects:</span></span>
 <span><span class="co">#&gt;                  Value   lower.CI upper.CI</span></span>
-<span><span class="co">#&gt; (Intercept) -3.3663673 -4.6049965  -2.3494</span></span>
-<span><span class="co">#&gt; disturbance  0.9982638 -0.0036201   2.0805</span></span></code></pre></div>
+<span><span class="co">#&gt; (Intercept) -3.3585693 -4.5767852  -2.3562</span></span>
+<span><span class="co">#&gt; disturbance  0.9929201 -0.0022495   2.0668</span></span></code></pre></div>
 <p>“pc.prior.auto” is a good choice to generate priors for binomial
 models. If you are interested in the details of this kind of prior
 (known as a penalizing complexity prior), check out this paper: <a href="https://arxiv.org/abs/1403.4630" class="external-link uri">https://arxiv.org/abs/1403.4630</a>.</p>
@@ -385,7 +385,7 @@ density). For the random effects these aren’t too meaningful, but they
 can help distinguish genuine effects in the fixed effects. If these
 credible intervals overlap zero in the fixed effects, the density will
 be plotted with a lighter color to suggest it is not a strong effect.
-Here, the credible interval of <code>disturbance</code> (0 to 2.08) is
+Here, the credible interval of <code>disturbance</code> (0 to 2.07) is
 wider than its Wald interval from the maximum likelihood fit, and the
 evidence for an effect of disturbance is weaker than that for the
 species effects.</p>
@@ -456,7 +456,7 @@ able to calculate several flavors of R<sup>2</sup>, and supports
 <span><span class="co">#&gt; Models of class pglmm do not have a R2_resid method.</span></span>
 <span><span class="co">#&gt; Models of class pglmm with bayes = TRUE do not have a R2_lik method.</span></span>
 <span><span class="co">#&gt;   R2_pred </span></span>
-<span><span class="co">#&gt; 0.4572808</span></span></code></pre></div>
+<span><span class="co">#&gt; 0.4572928</span></span></code></pre></div>
 <p>There we go! R<sup>2</sup><sub>pred</sub> = 0.47 for <code>mod</code>
 and 0.46 for <code>mod_bayes</code>! We can think of this as saying
 roughly 47% (or 46%) of our response’s variance has been explained by
@@ -510,9 +510,9 @@ those of <code>mod</code>.</p>
 <span><span class="op">(</span><span class="va">roc_mod_bayes2</span> <span class="op">&lt;-</span> <span class="fu">pROC</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/pROC/man/coords.html" class="external-link">coords</a></span><span class="op">(</span><span class="va">roc_mod_bayes</span>, <span class="st">"best"</span>, ret <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"sens"</span>, <span class="st">"spec"</span><span class="op">)</span>,</span>
 <span>                           transpose <span class="op">=</span> <span class="cn">F</span><span class="op">)</span> <span class="op">/</span> <span class="fl">100</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   sensitivity specificity</span></span>
-<span><span class="co">#&gt; 1   0.8491228   0.8647568</span></span>
+<span><span class="co">#&gt; 1   0.8877193   0.8261159</span></span>
 <span><span class="op">(</span><span class="va">TSS_bayes</span> <span class="op">=</span> <span class="va">roc_mod_bayes2</span><span class="op">[</span><span class="fl">1</span>, <span class="st">"sensitivity"</span><span class="op">]</span> <span class="op">+</span> <span class="va">roc_mod_bayes2</span><span class="op">[</span><span class="fl">1</span>, <span class="st">"specificity"</span><span class="op">]</span> <span class="op">-</span> <span class="fl">1</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 0.7138796</span></span>
+<span><span class="co">#&gt; [1] 0.7138352</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu">ROCR</span><span class="fu">::</span><span class="fu"><a href="https://ipa-tys.github.io/ROCR/reference/performance.html" class="external-link">performance</a></span><span class="op">(</span><span class="fu">ROCR</span><span class="fu">::</span><span class="fu"><a href="https://ipa-tys.github.io/ROCR/reference/prediction.html" class="external-link">prediction</a></span><span class="op">(</span><span class="va">pred_mod_bayes</span>, <span class="va">obs_mod_bayes</span><span class="op">)</span>, measure <span class="op">=</span> <span class="st">"tpr"</span>, </span>
 <span>                        x.measure <span class="op">=</span> <span class="st">"fpr"</span><span class="op">)</span>, main <span class="op">=</span> <span class="st">"ROC Curve"</span><span class="op">)</span> <span class="co"># ROC curve</span></span></code></pre></div>
 <p><img src="phyr_example_empirical_files/figure-html/perfBayes-1.png" class="r-plt" alt="" width="672"></p>
@@ -545,7 +545,7 @@ models.</p>
 <p>Including species’ phylogenetic relationships in the model indeed
 improved the model performance. After dropping the phylogenetic random
 terms from the model, <code>AUC</code> decreased from 0.9317 to 0.9023
-and <code>TSS</code> decreased from 0.7139 to 0.659.</p>
+and <code>TSS</code> decreased from 0.7138 to 0.659.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

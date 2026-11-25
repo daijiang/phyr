@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">phyr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.4.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -67,7 +67,7 @@
                         <h4 data-toc-skip class="author">Daijiang
 Li</h4>
             
-            <h4 data-toc-skip class="date">2026-11-22</h4>
+            <h4 data-toc-skip class="date">2026-11-25</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/daijiang/phyr/blob/HEAD/vignettes/benchmarks.Rmd" class="external-link"><code>vignettes/benchmarks.Rmd</code></a></small>
       <div class="d-none name"><code>benchmarks.Rmd</code></div>
@@ -600,9 +600,369 @@ sparse code (the default) for large models.</p>
 </div>
 </div>
 <div class="section level2">
+<h2 id="benchmark-for-phylo_signal">Benchmark for <code>phylo_signal()</code><a class="anchor" aria-label="anchor" href="#benchmark-for-phylo_signal"></a>
+</h2>
+<p><code><a href="../reference/phylo_signal.html">phylo_signal()</a></code> estimates Pagel’s lambda or Blomberg’s K
+of a trait, optionally with known standard errors of the species means.
+It is compared here with <code><a href="https://rdrr.io/pkg/phytools/man/phylosig.html" class="external-link">phytools::phylosig()</a></code>,
+<code>geiger::fitContinuous()</code>,
+<code><a href="https://rdrr.io/pkg/phylosignal/man/phylosignalStats.html" class="external-link">phylosignal::phyloSignal()</a></code>,
+<code><a href="https://rdrr.io/pkg/picante/man/phylosignal.html" class="external-link">picante::phylosignal()</a></code>, <code><a href="https://rdrr.io/pkg/phylolm/man/phylolm.html" class="external-link">phylolm::phylolm()</a></code>,
+<code><a href="https://rdrr.io/pkg/caper/man/pgls.html" class="external-link">caper::pgls()</a></code> and <code><a href="https://rdrr.io/pkg/nlme/man/gls.html" class="external-link">nlme::gls()</a></code> with
+<code><a href="https://rdrr.io/pkg/ape/man/corPagel.html" class="external-link">ape::corPagel()</a></code>. Only phytools and geiger also fit lambda
+with known standard errors
+(<code>phylolm(..., measurement_error = TRUE)</code> estimates an
+unknown error variance instead, a different model), and only phytools
+fits K with them.</p>
+<p>The benchmarks were run on the same computer as those of
+<code><a href="../reference/pglmm.html">pglmm()</a></code> (Apple M1 Pro, 32 GB, R 4.6.0 with Accelerate
+BLAS), with phytools 2.5.2, geiger 2.0.12, phylosignal 1.3.1, picante
+1.8.4, phylolm 2.6.5, caper 1.0.4 and nlme 3.1.172, on one core.</p>
+<div class="section level3">
+<h3 id="simulated-data-1">Simulated data<a class="anchor" aria-label="anchor" href="#simulated-data-1"></a>
+</h3>
+<p>A coalescent tree, a trait that evolved by Brownian motion along the
+tree with its branches transformed by Pagel’s lambda, and, for the fits
+with measurement error, standard errors between 0.05 and 0.6 with the
+corresponding noise added to the trait:</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">sim_trait</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">n</span>, <span class="va">lambda</span>, <span class="va">se</span> <span class="op">=</span> <span class="cn">TRUE</span>, <span class="va">seed</span> <span class="op">=</span> <span class="fl">1</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="va">seed</span><span class="op">)</span></span>
+<span>  <span class="va">phy</span> <span class="op">&lt;-</span> <span class="fu">ape</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/ape/man/rtree.html" class="external-link">rcoal</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span></span>
+<span>  <span class="va">tl</span> <span class="op">&lt;-</span> <span class="fu">phylolm</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/phylolm/man/transf.branch.lengths.html" class="external-link">transf.branch.lengths</a></span><span class="op">(</span><span class="va">phy</span>, <span class="st">"lambda"</span>, parameters <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>lambda <span class="op">=</span> <span class="va">lambda</span><span class="op">)</span><span class="op">)</span><span class="op">$</span><span class="va">tree</span></span>
+<span>  <span class="va">x</span> <span class="op">&lt;-</span> <span class="fu">ape</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/ape/man/rTraitCont.html" class="external-link">rTraitCont</a></span><span class="op">(</span><span class="va">tl</span>, sigma <span class="op">=</span> <span class="fl">1</span><span class="op">)</span><span class="op">[</span><span class="va">phy</span><span class="op">$</span><span class="va">tip.label</span><span class="op">]</span></span>
+<span>  <span class="va">s</span> <span class="op">&lt;-</span> <span class="cn">NULL</span></span>
+<span>  <span class="kw">if</span> <span class="op">(</span><span class="va">se</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="va">s</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/setNames.html" class="external-link">setNames</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="va">n</span>, <span class="fl">0.05</span>, <span class="fl">0.6</span><span class="op">)</span>, <span class="va">phy</span><span class="op">$</span><span class="va">tip.label</span><span class="op">)</span></span>
+<span>    <span class="va">x</span> <span class="op">&lt;-</span> <span class="va">x</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n</span>, <span class="fl">0</span>, <span class="va">s</span><span class="op">)</span></span>
+<span>  <span class="op">}</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>phy <span class="op">=</span> <span class="va">phy</span>, x <span class="op">=</span> <span class="va">x</span>, se <span class="op">=</span> <span class="va">s</span>,</span>
+<span>       data <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">$</span><span class="va">tip.label</span>, x <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unname.html" class="external-link">unname</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span>, row.names <span class="op">=</span> <span class="va">phy</span><span class="op">$</span><span class="va">tip.label</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu">sim_trait</span><span class="op">(</span><span class="fl">1000</span>, lambda <span class="op">=</span> <span class="fl">0.6</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="pagels-lambda">Pagel’s lambda<a class="anchor" aria-label="anchor" href="#pagels-lambda"></a>
+</h3>
+<p>The same model fitted with each package (without <code>se</code> for
+the packages that do not take it):</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/phylo_signal.html">phylo_signal</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">d</span><span class="op">$</span><span class="va">phy</span>, se <span class="op">=</span> <span class="va">se</span>, data <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">cbind</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">data</span>, se <span class="op">=</span> <span class="va">d</span><span class="op">$</span><span class="va">se</span><span class="op">)</span>, species <span class="op">=</span> <span class="va">sp</span><span class="op">)</span></span>
+<span><span class="fu">phytools</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/phytools/man/phylosig.html" class="external-link">phylosig</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">phy</span>, <span class="va">d</span><span class="op">$</span><span class="va">x</span>, method <span class="op">=</span> <span class="st">"lambda"</span>, se <span class="op">=</span> <span class="va">d</span><span class="op">$</span><span class="va">se</span><span class="op">)</span></span>
+<span><span class="fu">geiger</span><span class="fu">::</span><span class="fu">fitContinuous</span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">phy</span>, <span class="va">d</span><span class="op">$</span><span class="va">x</span>, SE <span class="op">=</span> <span class="va">d</span><span class="op">$</span><span class="va">se</span>, model <span class="op">=</span> <span class="st">"lambda"</span><span class="op">)</span></span>
+<span><span class="fu">phylosignal</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/phylosignal/man/phylosignalStats.html" class="external-link">phyloSignal</a></span><span class="op">(</span><span class="fu">phylobase</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/phylobase/man/phylo4d-methods.html" class="external-link">phylo4d</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">phy</span>, tip.data <span class="op">=</span> <span class="va">d</span><span class="op">$</span><span class="va">data</span><span class="op">[</span><span class="st">"x"</span><span class="op">]</span><span class="op">)</span>, methods <span class="op">=</span> <span class="st">"Lambda"</span><span class="op">)</span></span>
+<span><span class="fu">phylolm</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/phylolm/man/phylolm.html" class="external-link">phylolm</a></span><span class="op">(</span><span class="va">x</span> <span class="op">~</span> <span class="fl">1</span>, data <span class="op">=</span> <span class="va">d</span><span class="op">$</span><span class="va">data</span>, phy <span class="op">=</span> <span class="va">d</span><span class="op">$</span><span class="va">phy</span>, model <span class="op">=</span> <span class="st">"lambda"</span><span class="op">)</span></span>
+<span><span class="fu">caper</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/caper/man/pgls.html" class="external-link">pgls</a></span><span class="op">(</span><span class="va">x</span> <span class="op">~</span> <span class="fl">1</span>, <span class="fu">caper</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/caper/man/comparative.data.html" class="external-link">comparative.data</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">phy</span>, <span class="va">d</span><span class="op">$</span><span class="va">data</span>, <span class="st">"sp"</span><span class="op">)</span>, lambda <span class="op">=</span> <span class="st">"ML"</span><span class="op">)</span></span>
+<span><span class="fu">nlme</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/nlme/man/gls.html" class="external-link">gls</a></span><span class="op">(</span><span class="va">x</span> <span class="op">~</span> <span class="fl">1</span>, data <span class="op">=</span> <span class="va">d</span><span class="op">$</span><span class="va">data</span>, method <span class="op">=</span> <span class="st">"ML"</span>,</span>
+<span>          correlation <span class="op">=</span> <span class="fu">ape</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/ape/man/corPagel.html" class="external-link">corPagel</a></span><span class="op">(</span><span class="fl">0.5</span>, <span class="va">d</span><span class="op">$</span><span class="va">phy</span>, form <span class="op">=</span> <span class="op">~</span><span class="va">sp</span>, fixed <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<table class="table">
+<colgroup>
+<col width="9%">
+<col width="9%">
+<col width="9%">
+<col width="9%">
+<col width="9%">
+<col width="9%">
+<col width="9%">
+<col width="9%">
+<col width="9%">
+<col width="9%">
+<col width="9%">
+</colgroup>
+<thead><tr class="header">
+<th align="right">Species</th>
+<th align="right">phyr</th>
+<th align="right">phyr, <code>se</code>
+</th>
+<th align="right">geiger</th>
+<th align="right">geiger, <code>se</code>
+</th>
+<th align="right">phylolm</th>
+<th align="right">phylosignal</th>
+<th align="right">nlme</th>
+<th align="right">phytools</th>
+<th align="right">phytools, <code>se</code>
+</th>
+<th align="right">caper</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td align="right">1000</td>
+<td align="right">&lt; 0.01</td>
+<td align="right">0.03</td>
+<td align="right">1.5</td>
+<td align="right">1.1</td>
+<td align="right">0.07</td>
+<td align="right">1.5</td>
+<td align="right">4.7</td>
+<td align="right">5.2</td>
+<td align="right">113</td>
+<td align="right">63</td>
+</tr>
+<tr class="even">
+<td align="right">2000</td>
+<td align="right">&lt; 0.01</td>
+<td align="right">0.05</td>
+<td align="right">2.2</td>
+<td align="right">1.7</td>
+<td align="right">0.14</td>
+<td align="right">10.5</td>
+<td align="right">36</td>
+<td align="right">34</td>
+<td align="right">533</td>
+<td align="right">241</td>
+</tr>
+<tr class="odd">
+<td align="right">5000</td>
+<td align="right">0.01</td>
+<td align="right">0.11</td>
+<td align="right">4.5</td>
+<td align="right">4.2</td>
+<td align="right">0.41</td>
+<td align="right">273</td>
+<td align="right">683</td>
+<td align="right">342</td>
+<td align="right"></td>
+<td align="right"></td>
+</tr>
+<tr class="even">
+<td align="right">20000</td>
+<td align="right">0.02</td>
+<td align="right">0.36</td>
+<td align="right">15.9</td>
+<td align="right">15.2</td>
+<td align="right">1.39</td>
+<td align="right"></td>
+<td align="right"></td>
+<td align="right"></td>
+<td align="right"></td>
+<td align="right"></td>
+</tr>
+</tbody>
+</table>
+<p>Time (seconds) for one fit, without tests; empty cells were not run,
+as the previous size took more than two minutes. phyr, geiger and
+phylolm compute the likelihood in time linear in the number of species
+(without the covariance matrix of the species); the other packages use
+the dense covariance matrix, and their time grows with its cube.</p>
+<p>To compare the estimates, the lambda of each package is scored on the
+same profile log-likelihood (the likelihood of the model maximized over
+the variance and the mean, at that lambda), the one all packages
+maximize:</p>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">prof_loglik</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">lambda</span>, <span class="va">x</span>, <span class="va">phy</span>, <span class="va">se</span> <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">C</span> <span class="op">&lt;-</span> <span class="fu">ape</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/ape/man/vcv.phylo.html" class="external-link">vcv</a></span><span class="op">(</span><span class="va">phy</span><span class="op">)</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span><span class="op">]</span></span>
+<span>  <span class="va">Cl</span> <span class="op">&lt;-</span> <span class="va">lambda</span> <span class="op">*</span> <span class="va">C</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span> <span class="op">-</span> <span class="va">lambda</span><span class="op">)</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="va">C</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="va">M</span> <span class="op">&lt;-</span> <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">se</span><span class="op">)</span><span class="op">)</span> <span class="fl">0</span> <span class="kw">else</span> <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="va">se</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span><span class="op">]</span><span class="op">^</span><span class="fl">2</span><span class="op">)</span></span>
+<span>  <span class="va">ll</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">log_sig2</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="va">V</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="va">log_sig2</span><span class="op">)</span> <span class="op">*</span> <span class="va">Cl</span> <span class="op">+</span> <span class="va">M</span></span>
+<span>    <span class="va">iV</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/solve.html" class="external-link">solve</a></span><span class="op">(</span><span class="va">V</span><span class="op">)</span></span>
+<span>    <span class="va">a</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">iV</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="va">x</span><span class="op">)</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">iV</span><span class="op">)</span></span>
+<span>    <span class="va">r</span> <span class="op">&lt;-</span> <span class="va">x</span> <span class="op">-</span> <span class="va">a</span></span>
+<span>    <span class="op">-</span><span class="fl">0.5</span> <span class="op">*</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">r</span> <span class="op">*</span> <span class="op">(</span><span class="va">iV</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="va">r</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/base/det.html" class="external-link">determinant</a></span><span class="op">(</span><span class="va">V</span><span class="op">)</span><span class="op">$</span><span class="va">modulus</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">log</a></span><span class="op">(</span><span class="fl">2</span> <span class="op">*</span> <span class="va">pi</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="op">}</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/stats/optimize.html" class="external-link">optimise</a></span><span class="op">(</span><span class="va">ll</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">20</span>, <span class="fl">10</span><span class="op">)</span>, maximum <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">$</span><span class="va">objective</span></span>
+<span><span class="op">}</span></span></code></pre></div>
+<p>Across 80 simulated data sets (lambda of 0, 0.3, 0.7 and 1, 10 data
+sets each, with 100 and 300 species), the number of data sets where the
+estimate of each package is below the maximum (the log-likelihood of
+phyr’s estimate) by more than 0.001 and by more than 1:</p>
+<table class="table">
+<colgroup>
+<col width="9%">
+<col width="12%">
+<col width="12%">
+<col width="12%">
+<col width="12%">
+<col width="12%">
+<col width="12%">
+<col width="12%">
+</colgroup>
+<thead><tr class="header">
+<th>Without measurement error</th>
+<th align="right">phyr</th>
+<th align="right">geiger</th>
+<th align="right">phylolm</th>
+<th align="right">caper</th>
+<th align="right">phytools</th>
+<th align="right">phylosignal</th>
+<th align="right">nlme</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>Failed</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">13</td>
+</tr>
+<tr class="even">
+<td>Below by &gt; 0.001</td>
+<td align="right">0</td>
+<td align="right">12</td>
+<td align="right">21</td>
+<td align="right">21</td>
+<td align="right">32</td>
+<td align="right">33</td>
+<td align="right">4</td>
+</tr>
+<tr class="odd">
+<td>Below by &gt; 1</td>
+<td align="right">0</td>
+<td align="right">3</td>
+<td align="right">3</td>
+<td align="right">3</td>
+<td align="right">10</td>
+<td align="right">10</td>
+<td align="right">4</td>
+</tr>
+<tr class="even">
+<td>Largest difference</td>
+<td align="right">0</td>
+<td align="right">3.1</td>
+<td align="right">3.1</td>
+<td align="right">3.1</td>
+<td align="right">5.9</td>
+<td align="right">5.6</td>
+<td align="right"></td>
+</tr>
+<tr class="odd">
+<td>Median time, 300 species (s)</td>
+<td align="right">0.001</td>
+<td align="right">0.88</td>
+<td align="right">0.02</td>
+<td align="right">3.5</td>
+<td align="right">0.36</td>
+<td align="right">0.09</td>
+<td align="right">0.45</td>
+</tr>
+</tbody>
+</table>
+<p>The estimates agree on average, and most differences are in data sets
+with lambda = 1, where the maximum can be slightly above 1: lambda can
+be as large as the height of the tree over the height of its deepest
+internal node (for these trees, about 1.00002), and without measurement
+error the likelihood rises steeply in that narrow interval. geiger,
+phylolm and caper keep lambda below 1; phytools and phylosignal search
+up to the maximum with one call to <code><a href="https://rdrr.io/r/stats/optimize.html" class="external-link">optimize()</a></code>, whose
+precision (about 1e-4) is coarser than the interval. phylolm and caper
+also stopped at their lower bound (lambda of 1e-7) in one data set whose
+estimate is 0.16. nlme did not converge in 13 data sets, and does not
+bound lambda: it returned values below 0 or above the maximum in 4
+others (where the covariance matrix is not valid).</p>
+<table class="table">
+<thead><tr class="header">
+<th>With measurement error</th>
+<th align="right">phyr</th>
+<th align="right">geiger</th>
+<th align="right">phytools</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>Below by &gt; 0.001</td>
+<td align="right">0</td>
+<td align="right">5</td>
+<td align="right">7</td>
+</tr>
+<tr class="even">
+<td>Below by &gt; 1</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">7</td>
+</tr>
+<tr class="odd">
+<td>Largest difference</td>
+<td align="right">0</td>
+<td align="right">0.04</td>
+<td align="right">101</td>
+</tr>
+<tr class="even">
+<td>Mean lambda, true lambda 0 (300 species)</td>
+<td align="right">0.001</td>
+<td align="right">0.001</td>
+<td align="right">0.100</td>
+</tr>
+<tr class="odd">
+<td>Mean lambda, true lambda 0.3 (300 species)</td>
+<td align="right">0.265</td>
+<td align="right">0.265</td>
+<td align="right">0.470</td>
+</tr>
+<tr class="even">
+<td>Median time, 300 species (s)</td>
+<td align="right">0.012</td>
+<td align="right">0.76</td>
+<td align="right">10</td>
+</tr>
+</tbody>
+</table>
+<p>With measurement error, phytools stopped at a local maximum near
+lambda = 1 in 7 of the 80 data sets (37 to 101 units of log-likelihood
+below the maximum), which also changes its test of lambda = 0 from P of
+about 1 to P of about 0, and biases its mean estimate upwards. The small
+differences of geiger are data sets whose maximum is above 1.
+<code><a href="../reference/phylo_signal.html">phylo_signal()</a></code> evaluates the profile likelihood on a grid
+of lambda between 0 and the maximum before refining the best value, so
+it does not depend on starting values.</p>
+</div>
+<div class="section level3">
+<h3 id="blombergs-k">Blomberg’s K<a class="anchor" aria-label="anchor" href="#blombergs-k"></a>
+</h3>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu">sim_trait</span><span class="op">(</span><span class="fl">2000</span>, lambda <span class="op">=</span> <span class="fl">0.8</span>, se <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/phylo_signal.html">phylo_signal</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">x</span>, <span class="va">d</span><span class="op">$</span><span class="va">phy</span>, method <span class="op">=</span> <span class="st">"K"</span>, nsim <span class="op">=</span> <span class="fl">999</span><span class="op">)</span></span>
+<span><span class="fu">phytools</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/phytools/man/phylosig.html" class="external-link">phylosig</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">phy</span>, <span class="va">d</span><span class="op">$</span><span class="va">x</span>, method <span class="op">=</span> <span class="st">"K"</span>, test <span class="op">=</span> <span class="cn">TRUE</span>, nsim <span class="op">=</span> <span class="fl">999</span><span class="op">)</span></span>
+<span><span class="fu">picante</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/picante/man/phylosignal.html" class="external-link">phylosignal</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">x</span><span class="op">[</span><span class="va">d</span><span class="op">$</span><span class="va">phy</span><span class="op">$</span><span class="va">tip.label</span><span class="op">]</span>, <span class="va">d</span><span class="op">$</span><span class="va">phy</span>, reps <span class="op">=</span> <span class="fl">999</span><span class="op">)</span></span>
+<span><span class="fu">phylosignal</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/phylosignal/man/phylosignalStats.html" class="external-link">phyloSignal</a></span><span class="op">(</span><span class="fu">phylobase</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/phylobase/man/phylo4d-methods.html" class="external-link">phylo4d</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">phy</span>, tip.data <span class="op">=</span> <span class="va">d</span><span class="op">$</span><span class="va">data</span><span class="op">[</span><span class="st">"x"</span><span class="op">]</span><span class="op">)</span>,</span>
+<span>                         methods <span class="op">=</span> <span class="st">"K"</span>, reps <span class="op">=</span> <span class="fl">999</span><span class="op">)</span></span></code></pre></div>
+<table class="table">
+<thead><tr class="header">
+<th align="right">Species</th>
+<th align="right">phyr</th>
+<th align="right">phylosignal</th>
+<th align="right">picante</th>
+<th align="right">phytools</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td align="right">500</td>
+<td align="right">0.03</td>
+<td align="right">0.18</td>
+<td align="right">0.39</td>
+<td align="right">1.1</td>
+</tr>
+<tr class="even">
+<td align="right">1000</td>
+<td align="right">0.06</td>
+<td align="right">0.75</td>
+<td align="right">1.9</td>
+<td align="right">4.3</td>
+</tr>
+<tr class="odd">
+<td align="right">2000</td>
+<td align="right">0.11</td>
+<td align="right">4.5</td>
+<td align="right">14.8</td>
+<td align="right">18.5</td>
+</tr>
+</tbody>
+</table>
+<p>Time (seconds) for K and its randomization test with 999
+randomizations, without measurement error. The four packages give the
+same K (to 8 significant digits), and P-values that agree within the
+error of the randomizations. With measurement error (<code>se</code>), K
+and its test took 0.19 seconds with phyr and 36 seconds with phytools
+for 300 species (the same K), and 0.43 and 2.2 seconds with phyr for
+1000 and 5000 species.</p>
+</div>
+</div>
+<div class="section level2">
 <h2 id="benchmark-for-cor_phylo">Benchmark for <code>cor_phylo()</code><a class="anchor" aria-label="anchor" href="#benchmark-for-cor_phylo"></a>
 </h2>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/emmanuelparadis/ape" class="external-link">ape</a></span><span class="op">)</span></span>
 <span><span class="co"># Set up parameter values for simulating data</span></span>
 <span><span class="va">n</span> <span class="op">&lt;-</span> <span class="fl">50</span></span>

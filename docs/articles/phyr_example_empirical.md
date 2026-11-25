@@ -76,7 +76,7 @@ two different phylogenetic effects in our `pglmm`, which uses a syntax
 similar to `lmer` and `glmer` in the `lme4` package for specifying
 random effects. We also include site-level random effects to account for
 the paired design of the experiment. We will start by modeling just
-presence and absence of species (a binomial model). Since phyr 1.4.0,
+presence and absence of species (a binomial model). Since phyr 1.5.0,
 binomial models are fitted by maximum likelihood with the Laplace
 approximation (`method = "Laplace"`, with the same estimates as
 [`lme4::glmer()`](https://rdrr.io/pkg/lme4/man/glmer.html) and
@@ -215,9 +215,9 @@ t(LRTs)
 #>                  LR           df Pr          
 #> 1|sp             14.5798      1  3.332738e-08
 #> 1|sp__           0.1717596    1  0.2789024   
-#> 1|site           1.023182e-11 1  1           
+#> 1|site           9.777068e-12 1  1           
 #> disturbance|sp   4.025619     1  0.002273628 
-#> disturbance|sp__ 1.023182e-11 1  1           
+#> disturbance|sp__ 9.777068e-12 1  1           
 #> 1|sp__@site      4.726921     1  0.001053536
 ```
 
@@ -315,21 +315,21 @@ summary(mod_bayes)
 #> Formula: pres ~ disturbance + (1 | sp__) + (1 | site) + (disturbance | sp__) + (1 | sp__@site)
 #> 
 #> marginal logLik             DIC            WAIC 
-#>          -616.1          1097.2          1084.2 
+#>          -616.1          1097.3          1084.2 
 #> 
 #> Random effects:
 #>                  Variance Std.Dev  lower.CI upper.CI
-#> 1|sp             2.158775 1.46928 1.1493091   4.7987
-#> 1|sp__           0.076716 0.27698 0.0133832   1.4354
-#> 1|site           0.002358 0.04855 0.0003466   0.1736
-#> disturbance|sp   1.917331 1.38468 0.9083156   4.9268
-#> disturbance|sp__ 0.015930 0.12621 0.0023347   1.5256
-#> 1|sp__@site      0.107109 0.32728 0.0462410   0.2917
+#> 1|sp             2.152317 1.46708 1.1430278   4.7803
+#> 1|sp__           0.079658 0.28224 0.0140156   1.4845
+#> 1|site           0.002171 0.04659 0.0003192   0.1783
+#> disturbance|sp   1.907420 1.38109 0.9038894   4.8669
+#> disturbance|sp__ 0.019253 0.13875 0.0028316   1.5628
+#> 1|sp__@site      0.107066 0.32721 0.0461963   0.2920
 #> 
 #> Fixed effects:
 #>                  Value   lower.CI upper.CI
-#> (Intercept) -3.3663673 -4.6049965  -2.3494
-#> disturbance  0.9982638 -0.0036201   2.0805
+#> (Intercept) -3.3585693 -4.5767852  -2.3562
+#> disturbance  0.9929201 -0.0022495   2.0668
 ```
 
 “pc.prior.auto” is a good choice to generate priors for binomial models.
@@ -363,7 +363,7 @@ density). For the random effects these aren’t too meaningful, but they
 can help distinguish genuine effects in the fixed effects. If these
 credible intervals overlap zero in the fixed effects, the density will
 be plotted with a lighter color to suggest it is not a strong effect.
-Here, the credible interval of `disturbance` (0 to 2.08) is wider than
+Here, the credible interval of `disturbance` (0 to 2.07) is wider than
 its Wald interval from the maximum likelihood fit, and the evidence for
 an effect of disturbance is weaker than that for the species effects.
 
@@ -448,7 +448,7 @@ flavors of R², and supports `phyr`’s `pglmm` model object. Let’s try it!
 #> Models of class pglmm do not have a R2_resid method.
 #> Models of class pglmm with bayes = TRUE do not have a R2_lik method.
 #>   R2_pred 
-#> 0.4572808
+#> 0.4572928
 ```
 
 There we go! R²_(pred) = 0.47 for `mod` and 0.46 for `mod_bayes`! We can
@@ -511,9 +511,9 @@ roc_mod_bayes <- pROC::roc(obs_mod_bayes, pred_mod_bayes, percent = T,
 (roc_mod_bayes2 <- pROC::coords(roc_mod_bayes, "best", ret = c("sens", "spec"),
                            transpose = F) / 100)
 #>   sensitivity specificity
-#> 1   0.8491228   0.8647568
+#> 1   0.8877193   0.8261159
 (TSS_bayes = roc_mod_bayes2[1, "sensitivity"] + roc_mod_bayes2[1, "specificity"] - 1)
-#> [1] 0.7138796
+#> [1] 0.7138352
 plot(ROCR::performance(ROCR::prediction(pred_mod_bayes, obs_mod_bayes), measure = "tpr", 
                         x.measure = "fpr"), main = "ROC Curve") # ROC curve
 ```
@@ -553,4 +553,4 @@ plot(ROCR::performance(ROCR::prediction(pred_mod_bayes_no_phy, obs_mod_bayes_no_
 Including species’ phylogenetic relationships in the model indeed
 improved the model performance. After dropping the phylogenetic random
 terms from the model, `AUC` decreased from 0.9317 to 0.9023 and `TSS`
-decreased from 0.7139 to 0.659.
+decreased from 0.7138 to 0.659.

@@ -36,7 +36,7 @@ of the variances are also returned. Use
 [`ranef()`](https://daijiang.github.io/phyr/reference/ranef.md) to get
 the estimates for each level of the random terms.
 
-Before version 1.4.0, this table was returned by
+Before version 1.5.0, this table was returned by
 [`ranef()`](https://daijiang.github.io/phyr/reference/ranef.md).
 
 The variances are the elements `s2r`, `s2n` and `s2resid` of the fitted

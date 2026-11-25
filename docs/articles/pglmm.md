@@ -6,7 +6,7 @@ documentation of
 [`?phyr::pglmm`](https://daijiang.github.io/phyr/reference/pglmm.md) and
 the chapter 4 of [Ives 2018](https://leanpub.com/correlateddata). The
 purpose of this vignette is to show how models are fitted, what is new
-in phyr 1.4.0 (large phylogenies, more families, confidence intervals,
+in phyr 1.5.0 (large phylogenies, more families, confidence intervals,
 model comparison and diagnostics), and some cases that are not
 documented in details.
 

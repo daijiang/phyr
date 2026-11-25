@@ -21,7 +21,7 @@ install.packages('INLA', repos='https://www.math.ntnu.no/inla/R/stable') in R.">
 
     <a class="navbar-brand me-2" href="../index.html">phyr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.4.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -501,7 +501,7 @@ random terms in the formula (not <code>random.effects</code>), phylogenies
 (class <code>phylo</code>, not covariance matrices) in <code>cov_ranef</code>, and, with
 <code>bayes = TRUE</code>, <code>ML.init = FALSE</code> and <code>repulsion = FALSE</code>; <code>FALSE</code>
 otherwise (it was
-<code>FALSE</code> before phyr 1.4.0). Both give the same model; the estimates can differ
+<code>FALSE</code> before phyr 1.5.0). Both give the same model; the estimates can differ
 slightly, as the optimizers differ (for binomial and poisson models fitted by PQL, the
 log-likelihood also depends on the path of the iterations). With <code>TRUE</code>, the model is
 fitted with the sparse
@@ -578,7 +578,7 @@ choice; only the scale of the variances (and of <code>s2.init</code>) does. Not 
 <dd><p>For binomial and poisson models with <code>bayes = FALSE</code>, the
 approximation of the likelihood (negative binomial and Gamma models, <code>family =
   "nbinomial"</code> and <code>"Gamma"</code>, are always fitted with <code>"Laplace"</code>):
-<code>"Laplace"</code> (default since phyr 1.4.0) for the Laplace approximation of the
+<code>"Laplace"</code> (default since phyr 1.5.0) for the Laplace approximation of the
 marginal likelihood, as in <code><a href="https://rdrr.io/pkg/lme4/man/glmer.html" class="external-link">lme4::glmer()</a></code> (with <code>nAGQ = 1</code>) and
 <code>glmmTMB</code>, or <code>"PQL"</code> for penalized quasi-likelihood (the default of earlier
 versions, and with <code>random.effects</code>, which the Laplace code does not support). PQL is known to underestimate the variances of
@@ -796,7 +796,7 @@ This is set to NULL if <code>bayes = FALSE</code></p></dd>
 <dd><p>the log-likelihood, restricted (<code>REML = TRUE</code>) or not (<code>REML = FALSE</code>).
 For gaussian models with <code>REML = TRUE</code>, it is the restricted log-likelihood of
 <code>lmer()</code>, <code>glmmTMB()</code> and <code><a href="https://rdrr.io/pkg/nlme/man/lme.html" class="external-link">nlme::lme()</a></code> (the likelihood integrated over the
-fixed effects); versions of phyr before 1.4.0 added \(\log|X'X|/2\)
+fixed effects); versions of phyr before 1.5.0 added \(\log|X'X|/2\)
 to it. For binomial and poisson models fitted with <code>method = "PQL"</code>, it is an approximation
 from the gaussian model of the working response; with <code>method = "Laplace"</code>, it is the
 Laplace approximation of the (restricted) marginal log-likelihood, the same as that of

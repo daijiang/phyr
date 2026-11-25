@@ -157,6 +157,14 @@ Functions to fit PGLMMs.
 - [`plot_bayes()`](https://daijiang.github.io/phyr/reference/plot_bayes.md)
   : plot_bayes generic
 
+## Phylogenetic Signal
+
+Pagel’s lambda and Blomberg’s K, with known measurement error, in linear
+time.
+
+- [`phylo_signal()`](https://daijiang.github.io/phyr/reference/phylo_signal.md)
+  : Phylogenetic signal with known measurement error
+
 ## Helper Functions
 
 Functions to help with data processing.

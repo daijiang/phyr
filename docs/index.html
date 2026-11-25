@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="index.html">phyr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.4.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -70,9 +70,9 @@
 
 </div>
 <div class="section level1">
-<h1 id="whats-new-in-phyr-140">What’s new in phyr 1.4.0<a class="anchor" aria-label="anchor" href="#whats-new-in-phyr-140"></a>
+<h1 id="whats-new-in-phyr-150">What’s new in phyr 1.5.0<a class="anchor" aria-label="anchor" href="#whats-new-in-phyr-150"></a>
 </h1>
-<p>phyr 1.4.0 is a major update of <code><a href="reference/pglmm.html">pglmm()</a></code>:</p>
+<p>phyr 1.5.0 is a major update of <code><a href="reference/pglmm.html">pglmm()</a></code>, and adds <code><a href="reference/phylo_signal.html">phylo_signal()</a></code>:</p>
 <ul>
 <li>
 <strong>Large phylogenies.</strong> Models are fitted with the sparse precision matrix of the phylogeny (<code>sparse = TRUE</code>, the default when possible), so time and memory grow about linearly with the number of species. A binomial model with 5000 species at 20 sites (80,000 observations) is fitted in about 5 seconds, versus about 11 minutes for <code>glmmTMB()</code>, with the same estimates (<a href="https://daijiang.github.io/phyr/articles/benchmarks.html">benchmarks</a>).</li>
@@ -86,6 +86,8 @@
 <strong>Standard model methods.</strong> <code><a href="reference/VarCorr.html">VarCorr()</a></code>, <code><a href="reference/ranef.html">ranef()</a></code> (one estimate per level, as lme4), <code><a href="reference/fixef.html">fixef()</a></code>, <code><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef()</a></code>, <code><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov()</a></code>, <code><a href="https://rdrr.io/r/stats/logLik.html" class="external-link">logLik()</a></code>/<code><a href="https://rdrr.io/r/stats/AIC.html" class="external-link">AIC()</a></code>/<code><a href="https://rdrr.io/r/stats/AIC.html" class="external-link">BIC()</a></code>, <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> with <code>newdata</code>, <code><a href="https://rdrr.io/r/stats/simulate.html" class="external-link">simulate()</a></code> (residual diagnostics with DHARMa), <code><a href="https://rdrr.io/r/stats/update.html" class="external-link">update()</a></code>, and <code><a href="https://generics.r-lib.org/reference/tidy.html" class="external-link">tidy()</a></code>/<code><a href="https://generics.r-lib.org/reference/glance.html" class="external-link">glance()</a></code> for broom.mixed and <code><a href="https://amices.org/mice/reference/pool.html" class="external-link">mice::pool()</a></code>, e.g. to combine fits with several candidate phylogenies.</li>
 <li>
 <strong>Bayesian models with large phylogenies.</strong> <code>bayes = TRUE</code> also uses the sparse precision matrix, either as a latent field over all nodes of the phylogeny (giving the posterior of ancestral states) or as a phylogenetic flow (giving the posterior of the rate of each branch).</li>
+<li>
+<strong>Phylogenetic signal.</strong> <code><a href="reference/phylo_signal.html">phylo_signal()</a></code> estimates Pagel’s lambda and Blomberg’s K, optionally with known standard errors of the species means, in time linear in the number of species: with 1000 species and measurement error, lambda takes 0.03 seconds instead of about 2 minutes with <code><a href="https://rdrr.io/pkg/phytools/man/phylosig.html" class="external-link">phytools::phylosig()</a></code>, and it reaches the maximum likelihood where other packages can stop short (<a href="https://daijiang.github.io/phyr/articles/benchmarks.html">benchmarks</a>). The trait can be a column of a data frame.</li>
 </ul>
 <p>Some defaults and outputs changed (e.g. <code><a href="reference/ranef.html">ranef()</a></code> now returns per-level estimates; the variances are in <code><a href="reference/VarCorr.html">VarCorr()</a></code>). See the <a href="https://daijiang.github.io/phyr/news/index.html">NEWS</a> for the breaking changes, and the vignette <a href="https://daijiang.github.io/phyr/articles/pglmm.html">“Usage of pglmm()”</a> for examples.</p>
 </div>
@@ -108,7 +110,7 @@
 <div class="section level1">
 <h1 id="main-functions">Main functions<a class="anchor" aria-label="anchor" href="#main-functions"></a>
 </h1>
-<p>The phyr package has three groups of functions:</p>
+<p>The phyr package has four groups of functions:</p>
 <ol style="list-style-type: decimal">
 <li>community phylogenetic diversity metrics (alpha: <code>psv</code>, <code>psr</code>, <code>pse</code>, etc. and beta: <code>pcd</code>), which were included in the <code>picante</code> package originally. They were updated with C++ to improve speed.</li>
 <li>models to estimate correlation between functional traits while accounting for phylogenetic relationships (<code>cor_phylo</code>), which was included in the <code>ape</code> package originally. It has new syntax, much improved performance (C++), and bootstrapping option.</li>
@@ -120,6 +122,7 @@
 <li>We hope the model formula proposed here can be used to standardize PGLMMs set up across different tools (e.g. <code>brms</code> for Stan).</li>
 </ul>
 </li>
+<li>phylogenetic signal of a trait (<code>phylo_signal</code>): Pagel’s lambda and Blomberg’s K, optionally with known standard errors of the species means (as <code><a href="https://rdrr.io/pkg/phytools/man/phylosig.html" class="external-link">phytools::phylosig()</a></code>), computed in time linear in the number of species.</li>
 </ol>
 </div>
 <div class="section level1">

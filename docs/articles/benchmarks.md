@@ -245,6 +245,178 @@ within 2e-4). With 1000 species, the optimizer of the dense code
 is 668 units of log-likelihood below the sparse one: use the sparse code
 (the default) for large models.
 
+## Benchmark for `phylo_signal()`
+
+[`phylo_signal()`](https://daijiang.github.io/phyr/reference/phylo_signal.md)
+estimates Pagel’s lambda or Blomberg’s K of a trait, optionally with
+known standard errors of the species means. It is compared here with
+[`phytools::phylosig()`](https://rdrr.io/pkg/phytools/man/phylosig.html),
+`geiger::fitContinuous()`,
+[`phylosignal::phyloSignal()`](https://rdrr.io/pkg/phylosignal/man/phylosignalStats.html),
+[`picante::phylosignal()`](https://rdrr.io/pkg/picante/man/phylosignal.html),
+[`phylolm::phylolm()`](https://rdrr.io/pkg/phylolm/man/phylolm.html),
+[`caper::pgls()`](https://rdrr.io/pkg/caper/man/pgls.html) and
+[`nlme::gls()`](https://rdrr.io/pkg/nlme/man/gls.html) with
+[`ape::corPagel()`](https://rdrr.io/pkg/ape/man/corPagel.html). Only
+phytools and geiger also fit lambda with known standard errors
+(`phylolm(..., measurement_error = TRUE)` estimates an unknown error
+variance instead, a different model), and only phytools fits K with
+them.
+
+The benchmarks were run on the same computer as those of
+[`pglmm()`](https://daijiang.github.io/phyr/reference/pglmm.md) (Apple
+M1 Pro, 32 GB, R 4.6.0 with Accelerate BLAS), with phytools 2.5.2,
+geiger 2.0.12, phylosignal 1.3.1, picante 1.8.4, phylolm 2.6.5, caper
+1.0.4 and nlme 3.1.172, on one core.
+
+### Simulated data
+
+A coalescent tree, a trait that evolved by Brownian motion along the
+tree with its branches transformed by Pagel’s lambda, and, for the fits
+with measurement error, standard errors between 0.05 and 0.6 with the
+corresponding noise added to the trait:
+
+``` r
+
+sim_trait <- function(n, lambda, se = TRUE, seed = 1) {
+  set.seed(seed)
+  phy <- ape::rcoal(n)
+  tl <- phylolm::transf.branch.lengths(phy, "lambda", parameters = list(lambda = lambda))$tree
+  x <- ape::rTraitCont(tl, sigma = 1)[phy$tip.label]
+  s <- NULL
+  if (se) {
+    s <- setNames(runif(n, 0.05, 0.6), phy$tip.label)
+    x <- x + rnorm(n, 0, s)
+  }
+  list(phy = phy, x = x, se = s,
+       data = data.frame(sp = phy$tip.label, x = unname(x), row.names = phy$tip.label))
+}
+d <- sim_trait(1000, lambda = 0.6)
+```
+
+### Pagel’s lambda
+
+The same model fitted with each package (without `se` for the packages
+that do not take it):
+
+``` r
+
+phylo_signal(x, d$phy, se = se, data = cbind(d$data, se = d$se), species = sp)
+phytools::phylosig(d$phy, d$x, method = "lambda", se = d$se)
+geiger::fitContinuous(d$phy, d$x, SE = d$se, model = "lambda")
+phylosignal::phyloSignal(phylobase::phylo4d(d$phy, tip.data = d$data["x"]), methods = "Lambda")
+phylolm::phylolm(x ~ 1, data = d$data, phy = d$phy, model = "lambda")
+caper::pgls(x ~ 1, caper::comparative.data(d$phy, d$data, "sp"), lambda = "ML")
+nlme::gls(x ~ 1, data = d$data, method = "ML",
+          correlation = ape::corPagel(0.5, d$phy, form = ~sp, fixed = FALSE))
+```
+
+| Species | phyr | phyr, `se` | geiger | geiger, `se` | phylolm | phylosignal | nlme | phytools | phytools, `se` | caper |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1000 | \< 0.01 | 0.03 | 1.5 | 1.1 | 0.07 | 1.5 | 4.7 | 5.2 | 113 | 63 |
+| 2000 | \< 0.01 | 0.05 | 2.2 | 1.7 | 0.14 | 10.5 | 36 | 34 | 533 | 241 |
+| 5000 | 0.01 | 0.11 | 4.5 | 4.2 | 0.41 | 273 | 683 | 342 |  |  |
+| 20000 | 0.02 | 0.36 | 15.9 | 15.2 | 1.39 |  |  |  |  |  |
+
+Time (seconds) for one fit, without tests; empty cells were not run, as
+the previous size took more than two minutes. phyr, geiger and phylolm
+compute the likelihood in time linear in the number of species (without
+the covariance matrix of the species); the other packages use the dense
+covariance matrix, and their time grows with its cube.
+
+To compare the estimates, the lambda of each package is scored on the
+same profile log-likelihood (the likelihood of the model maximized over
+the variance and the mean, at that lambda), the one all packages
+maximize:
+
+``` r
+
+prof_loglik <- function(lambda, x, phy, se = NULL) {
+  C <- ape::vcv(phy)[names(x), names(x)]
+  Cl <- lambda * C + (1 - lambda) * diag(diag(C))
+  M <- if (is.null(se)) 0 else diag(se[names(x)]^2)
+  ll <- function(log_sig2) {
+    V <- exp(log_sig2) * Cl + M
+    iV <- solve(V)
+    a <- sum(iV %*% x) / sum(iV)
+    r <- x - a
+    -0.5 * (sum(r * (iV %*% r)) + determinant(V)$modulus + length(x) * log(2 * pi))
+  }
+  optimise(ll, c(-20, 10), maximum = TRUE)$objective
+}
+```
+
+Across 80 simulated data sets (lambda of 0, 0.3, 0.7 and 1, 10 data sets
+each, with 100 and 300 species), the number of data sets where the
+estimate of each package is below the maximum (the log-likelihood of
+phyr’s estimate) by more than 0.001 and by more than 1:
+
+| Without measurement error | phyr | geiger | phylolm | caper | phytools | phylosignal | nlme |
+|----|---:|---:|---:|---:|---:|---:|---:|
+| Failed | 0 | 0 | 0 | 0 | 0 | 0 | 13 |
+| Below by \> 0.001 | 0 | 12 | 21 | 21 | 32 | 33 | 4 |
+| Below by \> 1 | 0 | 3 | 3 | 3 | 10 | 10 | 4 |
+| Largest difference | 0 | 3.1 | 3.1 | 3.1 | 5.9 | 5.6 |  |
+| Median time, 300 species (s) | 0.001 | 0.88 | 0.02 | 3.5 | 0.36 | 0.09 | 0.45 |
+
+The estimates agree on average, and most differences are in data sets
+with lambda = 1, where the maximum can be slightly above 1: lambda can
+be as large as the height of the tree over the height of its deepest
+internal node (for these trees, about 1.00002), and without measurement
+error the likelihood rises steeply in that narrow interval. geiger,
+phylolm and caper keep lambda below 1; phytools and phylosignal search
+up to the maximum with one call to
+[`optimize()`](https://rdrr.io/r/stats/optimize.html), whose precision
+(about 1e-4) is coarser than the interval. phylolm and caper also
+stopped at their lower bound (lambda of 1e-7) in one data set whose
+estimate is 0.16. nlme did not converge in 13 data sets, and does not
+bound lambda: it returned values below 0 or above the maximum in 4
+others (where the covariance matrix is not valid).
+
+| With measurement error                     |  phyr | geiger | phytools |
+|--------------------------------------------|------:|-------:|---------:|
+| Below by \> 0.001                          |     0 |      5 |        7 |
+| Below by \> 1                              |     0 |      0 |        7 |
+| Largest difference                         |     0 |   0.04 |      101 |
+| Mean lambda, true lambda 0 (300 species)   | 0.001 |  0.001 |    0.100 |
+| Mean lambda, true lambda 0.3 (300 species) | 0.265 |  0.265 |    0.470 |
+| Median time, 300 species (s)               | 0.012 |   0.76 |       10 |
+
+With measurement error, phytools stopped at a local maximum near lambda
+= 1 in 7 of the 80 data sets (37 to 101 units of log-likelihood below
+the maximum), which also changes its test of lambda = 0 from P of about
+1 to P of about 0, and biases its mean estimate upwards. The small
+differences of geiger are data sets whose maximum is above 1.
+[`phylo_signal()`](https://daijiang.github.io/phyr/reference/phylo_signal.md)
+evaluates the profile likelihood on a grid of lambda between 0 and the
+maximum before refining the best value, so it does not depend on
+starting values.
+
+### Blomberg’s K
+
+``` r
+
+d <- sim_trait(2000, lambda = 0.8, se = FALSE)
+phylo_signal(d$x, d$phy, method = "K", nsim = 999)
+phytools::phylosig(d$phy, d$x, method = "K", test = TRUE, nsim = 999)
+picante::phylosignal(d$x[d$phy$tip.label], d$phy, reps = 999)
+phylosignal::phyloSignal(phylobase::phylo4d(d$phy, tip.data = d$data["x"]),
+                         methods = "K", reps = 999)
+```
+
+| Species | phyr | phylosignal | picante | phytools |
+|--------:|-----:|------------:|--------:|---------:|
+|     500 | 0.03 |        0.18 |    0.39 |      1.1 |
+|    1000 | 0.06 |        0.75 |     1.9 |      4.3 |
+|    2000 | 0.11 |         4.5 |    14.8 |     18.5 |
+
+Time (seconds) for K and its randomization test with 999 randomizations,
+without measurement error. The four packages give the same K (to 8
+significant digits), and P-values that agree within the error of the
+randomizations. With measurement error (`se`), K and its test took 0.19
+seconds with phyr and 36 seconds with phytools for 300 species (the same
+K), and 0.43 and 2.2 seconds with phyr for 1000 and 5000 species.
+
 ## Benchmark for `cor_phylo()`
 
 ``` r

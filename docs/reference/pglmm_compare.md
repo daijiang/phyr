@@ -306,7 +306,7 @@ predict(object, newdata = NULL, ...)
   phylogeny, which is much faster for large phylogenies (see Details and
   [`pglmm()`](https://daijiang.github.io/phyr/reference/pglmm.md)). The
   default, `NULL`, is `TRUE` (with `bayes = TRUE`, unless
-  `ML.init = TRUE`; `FALSE` before phyr 1.4.0); use `sparse = FALSE` for
+  `ML.init = TRUE`; `FALSE` before phyr 1.5.0); use `sparse = FALSE` for
   the dense covariance matrix (then also returned in `vcv.phy`).
 
 - standardize_cov:
@@ -328,7 +328,7 @@ predict(object, newdata = NULL, ...)
 
 - method:
 
-  For binomial and poisson data, `"Laplace"` (default since phyr 1.4.0)
+  For binomial and poisson data, `"Laplace"` (default since phyr 1.5.0)
   or `"PQL"` (the default of earlier versions): see Details and
   [`pglmm()`](https://daijiang.github.io/phyr/reference/pglmm.md).
   Negative binomial and Gamma data are always fitted with `"Laplace"`.
@@ -671,7 +671,7 @@ ape::binaryPGLMM(Y ~ X1, phy = phy, data = sim.dat)
 #> 
 #> 
 #> Call:Y ~ X1
-#> <environment: 0x76f43c5ea8>
+#> <environment: 0x75e30fbab8>
 #> 
 #> Random effect (phylogenetic signal s2):
 #>      s2       Pr

@@ -509,7 +509,7 @@ communityPGLMM(
   model, i.e. with random terms in the formula (not `random.effects`),
   phylogenies (class `phylo`, not covariance matrices) in `cov_ranef`,
   and, with `bayes = TRUE`, `ML.init = FALSE` and `repulsion = FALSE`;
-  `FALSE` otherwise (it was `FALSE` before phyr 1.4.0). Both give the
+  `FALSE` otherwise (it was `FALSE` before phyr 1.5.0). Both give the
   same model; the estimates can differ slightly, as the optimizers
   differ (for binomial and poisson models fitted by PQL, the
   log-likelihood also depends on the path of the iterations). With
@@ -607,7 +607,7 @@ communityPGLMM(
   For binomial and poisson models with `bayes = FALSE`, the
   approximation of the likelihood (negative binomial and Gamma models,
   `family = "nbinomial"` and `"Gamma"`, are always fitted with
-  `"Laplace"`): `"Laplace"` (default since phyr 1.4.0) for the Laplace
+  `"Laplace"`): `"Laplace"` (default since phyr 1.5.0) for the Laplace
   approximation of the marginal likelihood, as in
   [`lme4::glmer()`](https://rdrr.io/pkg/lme4/man/glmer.html) (with
   `nAGQ = 1`) and `glmmTMB`, or `"PQL"` for penalized quasi-likelihood
@@ -901,7 +901,7 @@ An object (list) of class `communityPGLMM` with the following elements:
   (`REML = FALSE`). For gaussian models with `REML = TRUE`, it is the
   restricted log-likelihood of `lmer()`, `glmmTMB()` and
   [`nlme::lme()`](https://rdrr.io/pkg/nlme/man/lme.html) (the likelihood
-  integrated over the fixed effects); versions of phyr before 1.4.0
+  integrated over the fixed effects); versions of phyr before 1.5.0
   added \\\log\|X'X\|/2\\ to it. For binomial and poisson models fitted
   with `method = "PQL"`, it is an approximation from the gaussian model
   of the working response; with `method = "Laplace"`, it is the Laplace

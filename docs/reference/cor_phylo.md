@@ -245,7 +245,7 @@ print(x, digits = max(3, getOption("digits") - 3), ...)
   standardized variates. The restricted likelihood is the likelihood
   integrated over the coefficients, as in
   [`pglmm()`](https://daijiang.github.io/phyr/reference/pglmm.md),
-  `lme4` and `nlme`; versions of phyr before 1.4.0 (and
+  `lme4` and `nlme`; versions of phyr before 1.5.0 (and
   [`ape::corphylo()`](https://rdrr.io/pkg/ape/man/corphylo.html)) added
   \\\log(p(n-1))/2\\ to it.
 

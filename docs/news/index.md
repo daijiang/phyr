@@ -1,15 +1,18 @@
 # Changelog
 
-## phyr 1.4.0
+## phyr 1.5.0
 
-phyr 1.4.0 fits phylogenetic generalized linear mixed models with large
+phyr 1.5.0 fits phylogenetic generalized linear mixed models with large
 phylogenies (tens of thousands of species) through sparse matrices, fits
 binomial and poisson models with the Laplace approximation by default
 (with the same estimates as
 [`lme4::glmer()`](https://rdrr.io/pkg/lme4/man/glmer.html) and
 `glmmTMB()`), adds the negative binomial and Gamma families, offsets,
 confidence intervals and model comparison, and works with the standard
-methods of R model objects.
+methods of R model objects. It also adds
+[`phylo_signal()`](https://daijiang.github.io/phyr/reference/phylo_signal.md),
+which estimates Pagel’s lambda and Blomberg’s K with known measurement
+error in time linear in the number of species.
 
 ### Breaking changes
 
@@ -114,6 +117,24 @@ methods of R model objects.
 
 ### New features
 
+- New
+  [`phylo_signal()`](https://daijiang.github.io/phyr/reference/phylo_signal.md)
+  estimates Pagel’s lambda or Blomberg’s K, optionally with known
+  standard errors of the species means. The trait and its standard
+  errors can be columns of a data frame or tibble
+  (`phylo_signal(mass, phy, se = mass_se, data = d, species = sp)`, or
+  with the species as row names), as well as named vectors. It fits the
+  same models as
+  [`phytools::phylosig()`](https://rdrr.io/pkg/phytools/man/phylosig.html)
+  with `se` (with a likelihood-ratio test for lambda and a randomization
+  test for K), but computes the likelihood in time linear in the number
+  of species with the three-point algorithm (Ho & Ane 2014, implemented
+  in C++), so it handles trees with tens of thousands of tips: lambda
+  with measurement error for 1,000 species takes about 0.03 s instead of
+  over 2 minutes with
+  [`phytools::phylosig()`](https://rdrr.io/pkg/phytools/man/phylosig.html).
+  The lambda search is deterministic (a grid over \[0, maximum lambda\],
+  then refined) rather than from random starting values.
 - Sparse matrices for large phylogenies (`sparse = TRUE`, the default
   when possible): models are fitted with the sparse precision matrix of
   the phylogeny (including its internal nodes) and sparse Cholesky
