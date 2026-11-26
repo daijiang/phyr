@@ -24,6 +24,16 @@ knitr::opts_chunk$set(
 [![R-universe version](https://daijiang.r-universe.dev/phyr/badges/version)](https://daijiang.r-universe.dev/phyr)
 <!-- badges: end -->
 
+# What's new in phyr 1.9.0
+
+* **One engine for all models.** Covariance matrices in `cov_ranef`, lists in `random.effects` and Bayesian models (`bayes = TRUE`) are now also fitted with the sparse code; a covariance matrix that comes from a phylogeny is converted back to the phylogeny, so it is as fast.
+* **Prior weights** (`weights`), for all families, also with `bayes = TRUE`.
+* **Better tests for binary data.** `pglmm_boot_LRT()` gives a parametric bootstrap test of nested models, which keeps its nominal error rate where Wald and chi-square tests reject a true null hypothesis too often (see the [simulation study](https://daijiang.github.io/phyr/articles/benchmarks.html)).
+* **Other packages.** Estimated marginal means and contrasts (emmeans), marginal effects (marginaleffects) and effect plots (effects) work with `pglmm()` models.
+* **Fits at the boundary.** A message when a variance is estimated at zero, and `pglmm_is_singular()`.
+
+Some names were removed or deprecated (e.g. the arguments `tree` and `tree_site`), and binomial and poisson models with `random.effects` are now fitted with the Laplace approximation: see the [NEWS](https://daijiang.github.io/phyr/news/index.html).
+
 # What's new in phyr 1.5.0
 
 phyr 1.5.0 is a major update of `pglmm()`, and adds `phylo_signal()`:

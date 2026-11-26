@@ -18,7 +18,7 @@ test_that("fits with a variance at zero are singular, with a message", {
   on.exit(options(old0), add = TRUE)
   b <- boundary_data(sp_sd = 0)
   expect_message(m <- pglmm(y ~ x + (1 | sp__) + (1 | site), data = b$d, cov_ranef = list(sp = b$phy)),
-                 "boundary \\(singular\\) fit: the variance of 1\\|sp, 1\\|sp__ are")
+                 "boundary \\(singular\\) fit: the variances of 1\\|sp, 1\\|sp__ are")
   s <- pglmm_is_singular(m)
   expect_true(s)
   expect_equal(attr(s, "terms"), c("1|sp", "1|sp__"))

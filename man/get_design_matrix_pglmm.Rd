@@ -75,7 +75,7 @@ definite; in \code{list(V)}, rows of \code{V} that are identical (e.g. replicate
 observations of the same species at the same site) are merged into one level, and
 if \code{V} is still singular, the dense code is used (\code{sparse = NULL}, not with
 \code{method = "Laplace"}). Binomial and poisson models with \code{random.effects} are fitted
-with the Laplace approximation by default (PQL before phyr 2.0.0); no
+with the Laplace approximation by default (PQL before phyr 1.9.0); no
 observation-level term is added, as \code{random.effects} gives all the random terms.}
 
 \item{na.action}{What to do with NAs?}

@@ -344,11 +344,11 @@ pglmm_prior_weights <- function(data) {
 }
 
 # The arguments tree and tree_site of pglmm() and pglmm_plot_ranef(),
-# deprecated since 2019 and defunct since phyr 2.0.0: the phylogenies go in
+# deprecated since 2019 and defunct since phyr 1.9.0: the phylogenies go in
 # cov_ranef
 pglmm_defunct_tree <- function(tree, tree_site) {
   if (is.null(tree) && is.null(tree_site)) return(invisible(NULL))
-  stop("the arguments `tree` and `tree_site` were removed in phyr 2.0.0; give the phylogenies ",
+  stop("the arguments `tree` and `tree_site` were removed in phyr 1.9.0; give the phylogenies ",
        "in `cov_ranef` instead, e.g. `cov_ranef = list(sp = tree, site = tree_site)`.",
        call. = FALSE)
 }

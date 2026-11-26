@@ -165,7 +165,7 @@ test_that("deprecated and removed names", {
   expect_equal(m1$logLik, m2$logLik)
   expect_warning(communityPGLMM.show.re(x = m2, show.image = FALSE), "deprecated")
   # the arguments tree and tree_site are defunct
-  expect_error(pglmm(f, d, tree = phylotree), "removed in phyr 2.0.0.*cov_ranef")
-  expect_error(pglmm_plot_ranef(f, d, tree = phylotree, show.image = FALSE), "removed in phyr 2.0.0")
+  expect_error(pglmm(f, d, tree = phylotree), "removed in phyr 1.9.0.*cov_ranef")
+  expect_error(pglmm_plot_ranef(f, d, tree = phylotree, show.image = FALSE), "removed in phyr 1.9.0")
   expect_false(exists("communityPGLMM.profile.LRT", envir = asNamespace("phyr"), inherits = FALSE))
 })

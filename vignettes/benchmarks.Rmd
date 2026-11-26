@@ -84,7 +84,7 @@ rbenchmark::benchmark(
 
 # Benchmark for `pglmm()`
 
-The benchmarks below were run on a MacBook Pro (Apple M1 Pro, 32 GB of memory) with R 4.6.0 and Apple's Accelerate BLAS library, with phyr 1.4.0, lme4 2.0.1, glmmTMB 1.1.15.2 and Matrix 1.7.5; the times and memory of phyr were measured again with phyr 2.0.0 (they changed by less than about 15%, which is within the variation between runs). Each model was fitted once, in a new R session; times are elapsed seconds, and memory is the peak memory of the R session (which uses about 0.3 GB with the packages loaded).
+The benchmarks below were run on a MacBook Pro (Apple M1 Pro, 32 GB of memory) with R 4.6.0 and Apple's Accelerate BLAS library, with phyr 1.4.0, lme4 2.0.1, glmmTMB 1.1.15.2 and Matrix 1.7.5; the times and memory of phyr were measured again with phyr 1.9.0 (they changed by less than about 15%, which is within the variation between runs). Each model was fitted once, in a new R session; times are elapsed seconds, and memory is the peak memory of the R session (which uses about 0.3 GB with the packages loaded).
 
 ## Simulated data
 

@@ -52,8 +52,9 @@ pglmm_boundary_message <- function(x) {
   if (!isTRUE(getOption("phyr.boundary.message", TRUE))) return(invisible(NULL))
   b <- pglmm_boundary_terms(x)
   if (length(b)) {
-    message("boundary (singular) fit: the variance of ", paste(b, collapse = ", "),
-            if (length(b) > 1) " are" else " is", " (close to) zero; see ?pglmm_is_singular")
+    message("boundary (singular) fit: the variance", if (length(b) > 1) "s", " of ",
+            paste(b, collapse = ", "), if (length(b) > 1) " are" else " is",
+            " (close to) zero; see ?pglmm_is_singular")
   }
   invisible(NULL)
 }

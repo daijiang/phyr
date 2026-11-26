@@ -223,7 +223,7 @@
 #'   observations of the same species at the same site) are merged into one level, and
 #'   if `V` is still singular, the dense code is used (`sparse = NULL`, not with
 #'   `method = "Laplace"`). Binomial and poisson models with `random.effects` are fitted
-#'   with the Laplace approximation by default (PQL before phyr 2.0.0); no
+#'   with the Laplace approximation by default (PQL before phyr 1.9.0); no
 #'   observation-level term is added, as `random.effects` gives all the random terms.
 #' @param REML Whether REML or ML is used for model fitting the random effects. Ignored if
 #'  \code{bayes = TRUE}. For binomial and poisson models with \code{method = "Laplace"},
@@ -343,7 +343,7 @@
 #'   estimates are those of the fit with \code{bayes = FALSE} and the sparse code (with the
 #'   Laplace approximation for binomial and poisson models; PQL with \code{sparse = FALSE}).
 #'   Only for gaussian, binomial and poisson models.
-#' @param tree,tree_site Defunct (removed in phyr 2.0.0): give the phylogenies in
+#' @param tree,tree_site Defunct (removed in phyr 1.9.0): give the phylogenies in
 #'   \code{cov_ranef}, e.g. \code{cov_ranef = list(sp = tree, site = tree_site)}.
 #' @param bayes_options Additional options to pass to INLA when \code{bayes = TRUE}. A named list where the
 #'   names correspond to parameters in the \code{inla} function. One special option is \code{diagonal}: if an
@@ -373,7 +373,7 @@
 #'   when a covariance matrix of the observations in \code{random.effects} is singular
 #'   (see \code{random.effects}); \code{sparse = FALSE} is kept as a reference (it was the
 #'   default before phyr 1.5.0, and the default for covariance matrices, \code{random.effects}
-#'   and \code{ML.init} before phyr 2.0.0). Both give the same model; the estimates can differ
+#'   and \code{ML.init} before phyr 1.9.0). Both give the same model; the estimates can differ
 #'   slightly, as the optimizers differ (for binomial and poisson models fitted by PQL, the
 #'   log-likelihood also depends on the path of the iterations). With \code{TRUE}, the model is
 #'   fitted with the sparse
@@ -501,7 +501,7 @@
 #'   \code{"Laplace"} (default since phyr 1.5.0) for the Laplace approximation of the
 #'   marginal likelihood, as in \code{lme4::glmer()} (with \code{nAGQ = 1}) and
 #'   \code{glmmTMB}, or \code{"PQL"} for penalized quasi-likelihood (the default of earlier
-#'   versions, and with \code{random.effects} before phyr 2.0.0). PQL is known to underestimate the variances of
+#'   versions, and with \code{random.effects} before phyr 1.9.0). PQL is known to underestimate the variances of
 #'   random terms, and to shrink the fixed effects towards zero, for binary data and counts
 #'   with small means; the Laplace approximation is much less biased, and its
 #'   log-likelihood approximates the marginal likelihood of the model, so that it can be

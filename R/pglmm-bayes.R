@@ -670,7 +670,7 @@ pglmm_ranef_bayes_sparse <- function(object, nsamp = 1000) {
 pglmm_ranef_bayes <- function(object) {
   if (!is.null(object$bayes_sparse)) {
     if (is.null(object$bayes_sparse$report)) {
-      stop("ranef() needs models fitted with bayes = TRUE and sparse = TRUE by phyr 2.0.0 or ",
+      stop("ranef() needs models fitted with bayes = TRUE and sparse = TRUE by phyr 1.9.0 or ",
            "later (see object$bayes_sparse$latent); refit the model.", call. = FALSE)
     }
     return(pglmm_ranef_bayes_sparse(object))

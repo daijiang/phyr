@@ -30,7 +30,7 @@ use their replacements:
 The functions \code{communityPGLMM.profile.LRT()},
 \code{communityPGLMM.matrix.structure()} and
 \code{communityPGLMM.predicted.values()}, deprecated since phyr 1.0.3, were
-removed in phyr 2.0.0: use \code{\link{pglmm_profile_LRT}()},
+removed in phyr 1.9.0: use \code{\link{pglmm_profile_LRT}()},
 \code{\link{pglmm_matrix_structure}()} and
 \code{\link{pglmm_predicted_values}()}.
 }
