@@ -42,4 +42,14 @@ asymptotic (z tests), as with \code{glmmTMB()}.
 marginaleffects accepts only the model classes it knows: until it knows
 those of phyr, set \code{options(marginaleffects_model_classes = "communityPGLMM")}
 before using it with \code{pglmm()} models.
+
+Other packages that work with these models, through \code{coef()}, \code{vcov()},
+\code{terms()}, \code{model.matrix()}, \code{logLik()}, \code{nobs()} and \code{update()}: Wald tests
+of the terms with \code{car::Anova()} and of linear hypotheses with
+\code{car::linearHypothesis()}; multiple comparisons with \code{multcomp::glht()};
+likelihood ratio tests with \code{lmtest::lrtest()}; model selection and
+averaging with \code{MuMIn::dredge()} (with \code{options(na.action = "na.fail")}),
+\code{MuMIn::model.sel()} and \code{MuMIn::model.avg()}, which keep the random terms
+of the global model in all the submodels; and plots of predictions with
+ggeffects through emmeans (\code{ggeffects::predict_response(fit, "x", margin = "marginalmeans")} or \code{ggeffects::ggemmeans()}).
 }

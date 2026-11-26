@@ -143,3 +143,48 @@ test_that("effects works with phylogenetic models fitted inside a function", {
   B <- m$B[, 1]
   expect_equal(e$fit, unname(B[1] + B["x"] * mean(b$d$x) + c(0, B["trtb"], B["trtc"])), tolerance = 1e-6)
 })
+
+test_that("car, multcomp, lmtest and MuMIn work with pglmm() models", {
+  b <- compat_data()
+  d <- b$d
+  d$z <- rnorm(nrow(d))
+  m <- qpglmm(y ~ x + z + trt + (1 | sp__) + (1 | site), data = d, cov_ranef = list(sp = b$phy),
+              REML = FALSE)
+  B <- m$B[, 1]
+  V <- vcov(m)
+  # summary() returns the table of the fixed effects
+  expect_s3_class(summary(m), "summary.communityPGLMM")
+  expect_equal(summary(m)$coefficients, fixef(m))
+  expect_output(print(summary(m)), "Fixed effects")
+  if (requireNamespace("car", quietly = TRUE)) {
+    a <- car::Anova(m)
+    # Wald chi-square tests of the terms
+    expect_equal(a["x", "Chisq"], unname(B["x"]^2 / V["x", "x"]), tolerance = 1e-8)
+    i <- c("trtb", "trtc")
+    expect_equal(a["trt", "Chisq"], as.numeric(t(B[i]) %*% solve(V[i, i]) %*% B[i]), tolerance = 1e-8)
+    lh <- car::linearHypothesis(m, "x = 1")
+    expect_equal(lh$Chisq[2], unname((B["x"] - 1)^2 / V["x", "x"]), tolerance = 1e-8)
+  }
+  if (requireNamespace("multcomp", quietly = TRUE)) {
+    g <- summary(multcomp::glht(m, linfct = multcomp::mcp(trt = "Tukey")))
+    expect_equal(unname(g$test$coefficients[1]), unname(B["trtb"]), tolerance = 1e-8)
+    expect_equal(unname(g$test$sigma[1]), sqrt(V["trtb", "trtb"]), tolerance = 1e-8)
+  }
+  m0 <- qpglmm(y ~ x + trt + (1 | sp__) + (1 | site), data = d, cov_ranef = list(sp = b$phy),
+               REML = FALSE)
+  if (requireNamespace("lmtest", quietly = TRUE)) {
+    expect_equal(lmtest::lrtest(m, m0)$Chisq[2], anova(m0, m)$Chisq[2], tolerance = 1e-8)
+  }
+  if (requireNamespace("MuMIn", quietly = TRUE)) {
+    op <- options(na.action = "na.fail")
+    on.exit(options(op), add = TRUE)
+    dd <- suppressMessages(MuMIn::dredge(m))
+    expect_equal(nrow(dd), 8)
+    # every submodel keeps the random terms of the global model
+    expect_equal(max(dd$logLik), max(m$logLik, m0$logLik, dd$logLik))
+    expect_equal(dd$logLik[which(!is.na(dd$z) & !is.na(dd$x) & !is.na(dd$trt))], m$logLik,
+                 tolerance = 1e-6)
+    ms <- MuMIn::model.sel(m, m0)
+    expect_equal(sort(ms$logLik), sort(c(m$logLik, m0$logLik)), tolerance = 1e-8)
+  }
+})

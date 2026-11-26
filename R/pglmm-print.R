@@ -12,9 +12,27 @@
 #' @param object A fitted model with class communityPGLMM.
 #' @param digits Minimal number of significant digits for printing, as in \code{\link{print.default}}.
 #' @param ... Additional arguments, currently ignored.
+#' @return An object of class `summary.communityPGLMM`, printed by its
+#'   `print()` method: a list with the fitted model (`fit`), the table of the
+#'   fixed effects (`coefficients`, as [fixef()]), the variances of the random
+#'   terms (`varcor`, as [VarCorr()]) and `digits`.
 #' @export
 summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") - 3), ...) {
-  x <- object # summary generic function first argument is object, not x.
+  structure(list(fit = object, coefficients = fixef.communityPGLMM(object),
+                 varcor = tryCatch(VarCorr(object), error = function(e) NULL), digits = digits),
+            class = "summary.communityPGLMM")
+}
+
+#' @rdname summary.communityPGLMM
+#' @param x Output of `summary()`.
+#' @export
+print.summary.communityPGLMM <- function(x, digits = x$digits, ...) {
+  pglmm_print_summary(x$fit, digits)
+  invisible(x)
+}
+
+# The printed summary of a fitted model (summary() and print())
+pglmm_print_summary <- function(x, digits) {
   if (is.null(x$bayes)) x$bayes <- FALSE # to be compatible with models fitting by pez
 
   cat(if (x$bayes) pglmm_bayes_title(x) else pglmm_fit_title(x))
@@ -99,7 +117,8 @@ summary.communityPGLMM <- function(object, digits = max(3, getOption("digits") -
 #' @param ... Additional arguments, currently ignored.
 #' @export
 print.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ...) {
-  summary.communityPGLMM(x, digits = digits)
+  pglmm_print_summary(x, digits)
+  invisible(x)
 }
 
 

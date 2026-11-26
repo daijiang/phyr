@@ -2,9 +2,12 @@
 % Please edit documentation in R/pglmm_compare.R
 \name{summary.pglmm_compare}
 \alias{summary.pglmm_compare}
+\alias{print.summary.pglmm_compare}
 \title{Summary information of fitted pglmm_compare model}
 \usage{
 \method{summary}{pglmm_compare}(object, digits = max(3, getOption("digits") - 3), ...)
+
+\method{print}{summary.pglmm_compare}(x, digits = x$digits, ...)
 }
 \arguments{
 \item{object}{A fitted model with class pglmm_compare.}
@@ -12,6 +15,13 @@
 \item{digits}{Minimal number of significant digits for printing, as in \code{\link{print.default}}.}
 
 \item{...}{Additional arguments, currently ignored.}
+
+\item{x}{Output of \code{summary()}.}
+}
+\value{
+An object of class \code{summary.pglmm_compare}, printed by its \code{print()}
+method: a list with the fitted model (\code{fit}), the table of the fixed
+effects (\code{coefficients}) and \code{digits}.
 }
 \description{
 Summary information of fitted pglmm_compare model

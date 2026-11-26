@@ -31,6 +31,17 @@
 #' those of phyr, set `options(marginaleffects_model_classes = "communityPGLMM")`
 #' before using it with `pglmm()` models.
 #'
+#' Other packages that work with these models, through `coef()`, `vcov()`,
+#' `terms()`, `model.matrix()`, `logLik()`, `nobs()` and `update()`: Wald tests
+#' of the terms with `car::Anova()` and of linear hypotheses with
+#' `car::linearHypothesis()`; multiple comparisons with `multcomp::glht()`;
+#' likelihood ratio tests with `lmtest::lrtest()`; model selection and
+#' averaging with `MuMIn::dredge()` (with `options(na.action = "na.fail")`),
+#' `MuMIn::model.sel()` and `MuMIn::model.avg()`, which keep the random terms
+#' of the global model in all the submodels; and plots of predictions with
+#' ggeffects through emmeans (`ggeffects::predict_response(fit, "x", margin =
+#' "marginalmeans")` or `ggeffects::ggemmeans()`).
+#'
 #' @param x,object A model fitted by [pglmm()] or [pglmm_compare()].
 #' @param fixed.only Only `TRUE` (the fixed effects) is available.
 #' @param ... Ignored.
@@ -132,4 +143,21 @@ effSources.communityPGLMM <- function(mod) {
        call = as.call(list(as.name("glm"), formula = fixed, data = mod$data)),
        formula = fixed, family = pglmm_stats_family(mod),
        coefficients = b, vcov = vcov(mod))
+}
+
+# MuMIn ----
+
+# The arguments of the submodels of MuMIn::dredge(): the formula of the fixed
+# terms, with the random terms of the global model (as MuMIn does for lme4
+# models, makeArgs.merMod())
+#' @exportS3Method MuMIn::makeArgs
+makeArgs.communityPGLMM <- function(obj, termNames, opt, ...) {
+  termNames[termNames %in% opt$interceptLabel] <- "1"
+  f <- stats::reformulate(c(if (!opt$intercept) "0" else if (!length(termNames)) "1", termNames),
+                          response = opt$response)
+  if (!is.null(opt$random)) f <- stats::update.formula(f, opt$random)
+  environment(f) <- opt$gmFormulaEnv
+  ret <- list(formula = f)
+  attr(ret, "problems") <- character(0)
+  ret
 }

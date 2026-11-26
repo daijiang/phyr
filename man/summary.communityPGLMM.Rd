@@ -2,9 +2,12 @@
 % Please edit documentation in R/pglmm-print.R
 \name{summary.communityPGLMM}
 \alias{summary.communityPGLMM}
+\alias{print.summary.communityPGLMM}
 \title{Summary information of fitted model}
 \usage{
 \method{summary}{communityPGLMM}(object, digits = max(3, getOption("digits") - 3), ...)
+
+\method{print}{summary.communityPGLMM}(x, digits = x$digits, ...)
 }
 \arguments{
 \item{object}{A fitted model with class communityPGLMM.}
@@ -12,6 +15,14 @@
 \item{digits}{Minimal number of significant digits for printing, as in \code{\link{print.default}}.}
 
 \item{...}{Additional arguments, currently ignored.}
+
+\item{x}{Output of \code{summary()}.}
+}
+\value{
+An object of class \code{summary.communityPGLMM}, printed by its
+\code{print()} method: a list with the fitted model (\code{fit}), the table of the
+fixed effects (\code{coefficients}, as \code{\link[=fixef]{fixef()}}), the variances of the random
+terms (\code{varcor}, as \code{\link[=VarCorr]{VarCorr()}}) and \code{digits}.
 }
 \description{
 The variances of random terms that are printed are those of \code{\link[=VarCorr]{VarCorr()}}. For

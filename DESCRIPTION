@@ -61,7 +61,11 @@ Suggests:
     emmeans,
     estimability,
     marginaleffects,
-    effects
+    effects,
+    MuMIn,
+    car,
+    multcomp,
+    lmtest
 VignetteBuilder: knitr
 URL: https://daijiang.github.io/phyr/, https://github.com/daijiang/phyr/
 BugReports: https://github.com/daijiang/phyr/issues
