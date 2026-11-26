@@ -62,7 +62,8 @@ or the covariates of random slopes are dropped before fitting; this is equivalen
 removing those rows from \code{data} manually before calling \code{pglmm}. As a
 result, \code{pglmm(data_with_NAs)} and \code{pglmm(na.omit(data[, vars]))} (with
 \code{vars} the variables of the model) produce identical estimates. With
-\code{random.effects}, only the rows with missing values in the response are dropped.}
+\code{random.effects}, the rows with missing values in the response or the fixed
+effects are dropped, together with their values in \code{random.effects}.}
 
 \item{family}{Either "gaussian" for a Linear Mixed Model, or
 "binomial", "poisson", "nbinomial" or "Gamma" for Generalized Linear Mixed Models.

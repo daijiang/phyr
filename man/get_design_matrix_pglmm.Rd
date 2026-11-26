@@ -53,7 +53,8 @@ or the covariates of random slopes are dropped before fitting; this is equivalen
 removing those rows from \code{data} manually before calling \code{pglmm}. As a
 result, \code{pglmm(data_with_NAs)} and \code{pglmm(na.omit(data[, vars]))} (with
 \code{vars} the variables of the model) produce identical estimates. With
-\code{random.effects}, only the rows with missing values in the response are dropped.}
+\code{random.effects}, the rows with missing values in the response or the fixed
+effects are dropped, together with their values in \code{random.effects}.}
 
 \item{random.effects}{Optional pre-build list of random effects. If \code{NULL} (the default),
 the function \code{\link{prep_dat_pglmm}} will prepare the random effects for you from the information
@@ -63,7 +64,19 @@ possible to construct models with both phylogenetic correlation and spatio-tempo
 In preparing \code{random.effect}, make sure that the orders of rows and columns of
 covariance matrices in the list are the same as their corresponding group variables
 in the data. Also, this should be \emph{a list of lists}, e.g.
-\code{random.effects = list(re1 = list(matrix_a), re2 = list(1, sp = sp, covar = Vsp))}.}
+\code{random.effects = list(re1 = list(matrix_a), re2 = list(1, sp = sp, covar = Vsp))}.
+Each element is one random term: \code{list(x, g, covar)} (one value per level of the
+factor \code{g}, with covariance matrix \code{covar}, times the covariate \code{x}, 1 for
+intercepts), \code{list(x, g1, covar1, g2)} (one value per combination of \code{g1} and
+\code{g2}, with covariance matrix \code{kronecker(I, covar1)}), or \code{list(V)} (one value per
+row of the data, with covariance matrix \code{V}). They are fitted with the sparse code
+(see \code{sparse}), with the inverses of these matrices, which must be positive
+definite; in \code{list(V)}, rows of \code{V} that are identical (e.g. replicated
+observations of the same species at the same site) are merged into one level, and
+if \code{V} is still singular, the dense code is used (\code{sparse = NULL}, not with
+\code{method = "Laplace"}). Binomial and poisson models with \code{random.effects} are fitted
+with the Laplace approximation by default (PQL before phyr 2.0.0); no
+observation-level term is added, as \code{random.effects} gives all the random terms.}
 
 \item{na.action}{What to do with NAs?}
 }

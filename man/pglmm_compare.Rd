@@ -164,9 +164,11 @@ where sd is the standard deviation of the random effect.}
 
 \item{ML.init}{Only relevant if \code{bayes = TRUE}. Should maximum
 likelihood estimates be calculated and used as initial values for
-the Bayesian model fit? Sometimes this can be helpful, but it may not help; thus,
-we set the default to \code{FALSE}. Also, it
-does not work with the zero-inflated families.}
+the Bayesian model fit? Sometimes this can be helpful, but it may not help (INLA can
+then find another mode of the posterior); thus, we set the default to \code{FALSE}. The
+estimates are those of the fit with \code{bayes = FALSE} and the sparse code (with the
+Laplace approximation for binomial and poisson models; PQL with \code{sparse = FALSE}).
+Only for gaussian, binomial and poisson models.}
 
 \item{s2.init}{Initial estimate of s2 (default 1; \code{NULL} uses the
 defaults of \code{\link[=pglmm]{pglmm()}}).}
@@ -180,9 +182,9 @@ correspond in order to the predictor (independent) variables in the
 formula. If \code{B.init} is not provided, these are estimated
 using \code{\link{lm}} or \code{\link{glm}} assuming no phylogenetic signal.
 A better approach might be to run \code{\link[lme4:lmer]{lmer}} and use the
-output fixed effects for \code{B.init}. When \code{bayes = TRUE}, initial values are estimated
-using the maximum likelihood fit unless \code{ML.init = FALSE}, in
-which case the default \code{INLA} initial values will be used.}
+output fixed effects for \code{B.init}. When \code{bayes = TRUE} and \code{ML.init = TRUE},
+initial values are estimated using the maximum likelihood fit; otherwise, the default
+\code{INLA} initial values are used.}
 
 \item{calc.WAIC}{Should the WAIC be calculated and returned
 when doing a Bayesian PGLMM? Ignored if \code{bayes = FALSE}.}
@@ -240,8 +242,8 @@ variance divided by its weight (as \code{\link[lme4:lmer]{lme4::lmer()}}); for b
 response is a proportion and the weights are the numbers of trials (as
 \code{\link[=glm]{glm()}}); for the other families, the weights multiply the log-likelihood of
 each observation (as \code{\link[=glm]{glm()}} and \code{glmmTMB()}). Available with
-\code{bayes = FALSE}, for gaussian models fitted with the sparse code and for the
-other families with \code{method = "Laplace"}.}
+\code{bayes = FALSE}, for gaussian models fitted with the sparse code (the default) and
+for the other families with \code{method = "Laplace"} (the default).}
 
 \item{object}{A fitted model with class pglmm_compare.}
 

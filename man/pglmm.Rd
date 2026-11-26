@@ -90,7 +90,8 @@ or the covariates of random slopes are dropped before fitting; this is equivalen
 removing those rows from \code{data} manually before calling \code{pglmm}. As a
 result, \code{pglmm(data_with_NAs)} and \code{pglmm(na.omit(data[, vars]))} (with
 \code{vars} the variables of the model) produce identical estimates. With
-\code{random.effects}, only the rows with missing values in the response are dropped.}
+\code{random.effects}, the rows with missing values in the response or the fixed
+effects are dropped, together with their values in \code{random.effects}.}
 
 \item{family}{Either "gaussian" for a Linear Mixed Model, or
 "binomial", "poisson", "nbinomial" or "Gamma" for Generalized Linear Mixed Models.
@@ -149,7 +150,19 @@ possible to construct models with both phylogenetic correlation and spatio-tempo
 In preparing \code{random.effect}, make sure that the orders of rows and columns of
 covariance matrices in the list are the same as their corresponding group variables
 in the data. Also, this should be \emph{a list of lists}, e.g.
-\code{random.effects = list(re1 = list(matrix_a), re2 = list(1, sp = sp, covar = Vsp))}.}
+\code{random.effects = list(re1 = list(matrix_a), re2 = list(1, sp = sp, covar = Vsp))}.
+Each element is one random term: \code{list(x, g, covar)} (one value per level of the
+factor \code{g}, with covariance matrix \code{covar}, times the covariate \code{x}, 1 for
+intercepts), \code{list(x, g1, covar1, g2)} (one value per combination of \code{g1} and
+\code{g2}, with covariance matrix \code{kronecker(I, covar1)}), or \code{list(V)} (one value per
+row of the data, with covariance matrix \code{V}). They are fitted with the sparse code
+(see \code{sparse}), with the inverses of these matrices, which must be positive
+definite; in \code{list(V)}, rows of \code{V} that are identical (e.g. replicated
+observations of the same species at the same site) are merged into one level, and
+if \code{V} is still singular, the dense code is used (\code{sparse = NULL}, not with
+\code{method = "Laplace"}). Binomial and poisson models with \code{random.effects} are fitted
+with the Laplace approximation by default (PQL before phyr 2.0.0); no
+observation-level term is added, as \code{random.effects} gives all the random terms.}
 
 \item{REML}{Whether REML or ML is used for model fitting the random effects. Ignored if
 \code{bayes = TRUE}. For binomial and poisson models with \code{method = "Laplace"},
@@ -223,9 +236,9 @@ correspond in order to the predictor (independent) variables in the
 formula. If \code{B.init} is not provided, these are estimated
 using \code{\link{lm}} or \code{\link{glm}} assuming no phylogenetic signal.
 A better approach might be to run \code{\link[lme4:lmer]{lmer}} and use the
-output fixed effects for \code{B.init}. When \code{bayes = TRUE}, initial values are estimated
-using the maximum likelihood fit unless \code{ML.init = FALSE}, in
-which case the default \code{INLA} initial values will be used.}
+output fixed effects for \code{B.init}. When \code{bayes = TRUE} and \code{ML.init = TRUE},
+initial values are estimated using the maximum likelihood fit; otherwise, the default
+\code{INLA} initial values are used.}
 
 \item{reltol}{A control parameter dictating the relative tolerance
 for convergence in the optimization; see \code{\link{optim}}. With \code{sparse = TRUE},
@@ -283,9 +296,11 @@ where sd is the standard deviation of the random effect.}
 
 \item{ML.init}{Only relevant if \code{bayes = TRUE}. Should maximum
 likelihood estimates be calculated and used as initial values for
-the Bayesian model fit? Sometimes this can be helpful, but it may not help; thus,
-we set the default to \code{FALSE}. Also, it
-does not work with the zero-inflated families.}
+the Bayesian model fit? Sometimes this can be helpful, but it may not help (INLA can
+then find another mode of the posterior); thus, we set the default to \code{FALSE}. The
+estimates are those of the fit with \code{bayes = FALSE} and the sparse code (with the
+Laplace approximation for binomial and poisson models; PQL with \code{sparse = FALSE}).
+Only for gaussian, binomial and poisson models.}
 
 \item{tree, tree_site}{Defunct (removed in phyr 2.0.0): give the phylogenies in
 \code{cov_ranef}, e.g. \code{cov_ranef = list(sp = tree, site = tree_site)}.}
@@ -317,12 +332,12 @@ not work on the fitted model.}
 
 \item{sparse}{Whether to fit the model with the sparse precision matrix of the phylogeny
 (\code{TRUE}) or with the dense covariance matrices (\code{FALSE}). The default,
-\code{NULL}, is \code{TRUE} whenever the sparse code supports the model, i.e. with
-random terms in the formula (not \code{random.effects}), phylogenies
-(class \code{phylo}, not covariance matrices) in \code{cov_ranef}, and, with
-\code{bayes = TRUE}, \code{ML.init = FALSE} and \code{repulsion = FALSE}; \code{FALSE}
-otherwise (it was
-\code{FALSE} before phyr 1.5.0). Both give the same model; the estimates can differ
+\code{NULL}, is \code{TRUE} for all models with random terms (in the formula or in
+\code{random.effects}), except with \code{bayes = TRUE} and \code{repulsion = TRUE}, and
+when a covariance matrix of the observations in \code{random.effects} is singular
+(see \code{random.effects}); \code{sparse = FALSE} is kept as a reference (it was the
+default before phyr 1.5.0, and the default for covariance matrices, \code{random.effects}
+and \code{ML.init} before phyr 2.0.0). Both give the same model; the estimates can differ
 slightly, as the optimizers differ (for binomial and poisson models fitted by PQL, the
 log-likelihood also depends on the path of the iterations). With \code{TRUE}, the model is
 fitted with the sparse
@@ -340,8 +355,10 @@ is used instead. Binomial and poisson models are fitted with the same penalized
 quasi-likelihood (PQL) iterations as with \code{sparse = FALSE} (same updates and
 convergence rules, \code{tol.pql} and \code{maxit.pql}); at each iteration, the working
 weights change only the values of the sparse matrix, and the observation-level term
-\code{1|obs} is folded into the weights. Only available with phylogenies (class
-\code{phylo}) in \code{cov_ranef}. With \code{bayes = TRUE}, the model is given to INLA
+\code{1|obs} is folded into the weights. A covariance matrix in \code{cov_ranef} (or in
+\code{random.effects}) is used through its inverse, which is dense: give the phylogeny
+instead when there is one, as its precision matrix is sparse (e.g. about 1 s versus 35 s
+for 1000 species and 10 sites). With \code{bayes = TRUE}, the model is given to INLA
 with one of the sparse representations of \code{sparse_method}; use \code{sparse = FALSE}
 for the dense INLA model of earlier versions (needed for \code{ranef()},
 \code{predict()} with \code{newdata} and \code{simulate()} with \code{re.form = NA},
@@ -379,7 +396,8 @@ model over a grid of values and comparing the log-likelihoods, which is fast wit
 transformed tree (e.g. \eqn{\sigma^2} of the OU model) has no effect. The OU transformation
 is exact for ultrametric trees; for non-ultrametric trees, check that it matches the
 assumption about the root. Covariance matrices that cannot be written as a tree with
-non-negative branch lengths (e.g. an arbitrary similarity matrix) need \code{sparse = FALSE}.}
+non-negative branch lengths (e.g. an arbitrary similarity matrix) are used through their
+(dense) inverse.}
 
 \item{standardize_cov}{Logical (default \code{TRUE}). Whether to standardize the covariance
 matrices of \code{cov_ranef} to have a determinant of one (a phylogeny is first converted to
@@ -400,7 +418,7 @@ approximation of the likelihood (negative binomial and Gamma models, \code{famil
 \code{"Laplace"} (default since phyr 1.5.0) for the Laplace approximation of the
 marginal likelihood, as in \code{lme4::glmer()} (with \code{nAGQ = 1}) and
 \code{glmmTMB}, or \code{"PQL"} for penalized quasi-likelihood (the default of earlier
-versions, and with \code{random.effects}, which the Laplace code does not support). PQL is known to underestimate the variances of
+versions, and with \code{random.effects} before phyr 2.0.0). PQL is known to underestimate the variances of
 random terms, and to shrink the fixed effects towards zero, for binary data and counts
 with small means; the Laplace approximation is much less biased, and its
 log-likelihood approximates the marginal likelihood of the model, so that it can be
@@ -412,9 +430,9 @@ With \code{"Laplace"}, the model is always fitted with the precision matrices us
 \code{sparse = TRUE}, whatever the value of \code{sparse}: a phylogeny gives the sparse
 precision matrix of all its nodes, and a covariance matrix in \code{cov_ranef} its (dense)
 inverse. The time to fit a model thus grows about linearly with the number of species,
-and nested terms and \code{repulsion} are supported. The random terms must be given in
-the formula (\code{random.effects} is not supported: models with it are fitted with PQL
-by default). The mode of the random effects
+and nested terms, \code{repulsion} and \code{random.effects} are supported (except a
+singular covariance matrix of the observations, see \code{random.effects}). The mode of
+the random effects
 (including the observation-level term \code{1|obs}) is found by Newton iterations. The
 variances of the random terms are estimated first with the fixed effects at the mode
 (as \code{glmer(nAGQ = 0)}); this is the final fit with \code{REML = TRUE}, where the
@@ -441,7 +459,8 @@ Choosing between them:
 \itemize{
 \item \code{"PQL"} (the default of earlier versions): often faster (about 1--3 times
 with \code{sparse = TRUE}), supports every model of \code{pglmm()} (including
-\code{random.effects}), and gives the same estimates as earlier versions of phyr. But its
+singular matrices in \code{random.effects}, with \code{sparse = FALSE}), and gives the
+same estimates as earlier versions of phyr. But its
 estimates are biased for binary data: compared with \code{"Laplace"} (and
 \code{glmer()}/\code{glmmTMB}), the fixed effects were about 5--10\% closer to zero
 and the variances of random terms about 10--30\% smaller in our comparisons. For counts,
@@ -483,7 +502,9 @@ rates (\code{"flow"}) or of the nodes of non-nested phylogenetic terms
 (\code{"precision"}) are in \code{bayes_sparse$latent} of the fitted model. Both methods
 report the marginal log-likelihood of the model (\code{logLik}; with \code{"flow"}, INLA's
 value with the matrix \code{A} can differ from that of \code{"precision"} by about one
-unit); \code{"flow"} is only available with \code{bayes = TRUE} for now. \code{repulsion}, \code{ML.init},
+unit); \code{"flow"} is only available with \code{bayes = TRUE} for now. Covariance
+matrices and the terms of \code{random.effects} are given to INLA with their precision
+matrices with both methods. \code{repulsion},
 \code{ranef()}, \code{predict()} with \code{newdata} and \code{simulate()} with
 \code{re.form = NA} (any \code{simulate()} for \code{"flow"}) are not available yet for
 these models. With \code{"flow"}, the rates are linked to the observations by the matrix
@@ -497,8 +518,8 @@ variance divided by its weight (as \code{\link[lme4:lmer]{lme4::lmer()}}); for b
 response is a proportion and the weights are the numbers of trials (as
 \code{\link[=glm]{glm()}}); for the other families, the weights multiply the log-likelihood of
 each observation (as \code{\link[=glm]{glm()}} and \code{glmmTMB()}). Available with
-\code{bayes = FALSE}, for gaussian models fitted with the sparse code and for the
-other families with \code{method = "Laplace"}.}
+\code{bayes = FALSE}, for gaussian models fitted with the sparse code (the default) and
+for the other families with \code{method = "Laplace"} (the default).}
 }
 \value{
 An object (list) of class \code{communityPGLMM} with the following elements:
