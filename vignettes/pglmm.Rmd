@@ -16,7 +16,18 @@ knitr::opts_chunk$set(
 )
 ```
 
-The purpose of this vignette is _not_ to provide detailed explanation of model set up and results. For this purpose, please read the documentation of `?phyr::pglmm` and the chapter 4 of [Ives 2018](https://leanpub.com/correlateddata). The purpose of this vignette is to show how models are fitted, what is new in phyr 1.5.0 (large phylogenies, more families, confidence intervals, model comparison and diagnostics), and some cases that are not documented in details.
+The purpose of this vignette is _not_ to provide detailed explanation of model set up and results. For this purpose, please read the documentation of `?phyr::pglmm` and the chapter 4 of [Ives 2018](https://leanpub.com/correlateddata). The purpose of this vignette is to show how models are fitted, what is new in phyr 1.5.0 (large phylogenies, more families, confidence intervals, model comparison and diagnostics) and 2.0.0 (see the next section), and some cases that are not documented in details.
+
+# Changes in phyr 2.0.0
+
+phyr 2.0.0 changes a few defaults and removes old names; code written for phyr 1.x mostly runs unchanged, but can give (slightly) different results or messages:
+
+- One engine for all models: the sparse code (`sparse = NULL`, the default) is now also used with covariance matrices in `cov_ranef`, with lists in `random.effects`, and with `bayes = TRUE` (except with `repulsion = TRUE`). A covariance matrix that comes from a phylogeny (e.g. `ape::vcv(tree)`) is converted back to the phylogeny, with a message suggesting to give the phylogeny itself; other matrices are used through their (dense) inverse. The fits are the same as those of the dense code (`sparse = FALSE`, kept as a reference).
+- Binomial and poisson models with `random.effects` are fitted with the Laplace approximation by default (they were fitted by PQL): use `method = "PQL"` for the previous estimates.
+- With `bayes = TRUE`, `ML.init = TRUE` takes its initial values from the fit by maximum likelihood with the sparse code (Laplace for binomial and poisson models), and `ranef()`, `predict()` with `newdata` and `simulate()` with `re.form = NA` work with the sparse code.
+- `pglmm()` shows a message when the variance of a random term is estimated at zero (a fit at the boundary, as `lme4::lmer()`); `pglmm_is_singular()` tells which terms are, and `options(phyr.boundary.message = FALSE)` turns the message off.
+- The arguments `tree` and `tree_site` are defunct (give the phylogenies in `cov_ranef`); `communityPGLMM()` and its helpers are deprecated (use `pglmm()`); `communityPGLMM.profile.LRT()`, `communityPGLMM.matrix.structure()` and `communityPGLMM.predicted.values()` were removed (use `pglmm_profile_LRT()`, `pglmm_matrix_structure()` and `pglmm_predicted_values()`).
+- New: prior `weights`, `pglmm_boot_LRT()` (a parametric bootstrap test of nested models), and methods for the emmeans, marginaleffects and effects packages (see below).
 
 # How models are fitted
 
@@ -34,7 +45,7 @@ When the model has phylogenies (`cov_ranef = list(sp = phy)`), `pglmm()` uses th
 
 # Large phylogenies
 
-As an example, with 5000 species at 20 sites (80,000 observations), the binomial and poisson models `y ~ x + (1 | sp__) + (1 | site)` were fitted by maximum likelihood in about 5 seconds each, with 2 GB of memory, while `glmmTMB()` with the same model (a `propto()` term with the phylogenetic correlation matrix) needed about 11 minutes and 11 to 12 GB, with the same estimates (log-likelihoods within 6e-7). Nothing special is needed for such models:
+As an example, with 5000 species at 20 sites (80,000 observations), the binomial and poisson models `y ~ x + (1 | sp__) + (1 | site)` were fitted by maximum likelihood in about 7 to 8 seconds each, with less than 1 GB of memory, while `glmmTMB()` with the same model (a `propto()` term with the phylogenetic correlation matrix) needed about 11 to 12 minutes and 12 to 13 GB, with the same estimates (see the vignette "Performance benchmark"). Nothing special is needed for such models:
 
 ```{r}
 library(phyr)
@@ -85,6 +96,12 @@ fit_nb
 
 Positive continuous responses (e.g. biomass) can be fitted with `family = "Gamma"` (log link).
 
+Prior weights are given with `weights`, as in `lm()` and `glm()`: for gaussian models, the residual variance of an observation is divided by its weight (as `lme4::lmer()`); for binomial models, the response is a proportion and the weights are the numbers of trials; for the other families, the weights multiply the log-likelihood of each observation. For example, with a column `w` of weights in `d`:
+
+```{r weights}
+pglmm(y ~ x + (1 | sp__) + (1 | site), data = d, cov_ranef = list(sp = phy), weights = w)
+```
+
 # Phylogenetic and non-phylogenetic terms
 
 A phylogenetic term such as `(1 | sp__)` fits two terms: `1|sp__`, with the phylogenetic covariance matrix, and `1|sp`, independent among species (random slopes `(x | sp__)` likewise fit `x|sp__` and `x|sp`). The variation among species is split between a part that follows the phylogeny and a part specific to each species, and the data decide which is more important (see the section "Phylogenetic and non-phylogenetic terms" of `?pglmm`).
@@ -120,6 +137,24 @@ anova(fit0, fit)
 pglmm_profile_LRT(fit, re.number = which(names(fit$ss) == "1|sp__"))
 ```
 
+These tests rely on the chi-square distribution of the likelihood ratio, which can be a poor approximation with few levels of the random terms or few effectively independent species: in simulations of binary data with phylogenetic signal (100 species, 15 sites), the Wald test of a fixed effect rejected a true null hypothesis in about 9% of the data sets and the likelihood ratio test of `anova()` in about 11%, instead of 5% (see the vignette "Performance benchmark"). `pglmm_boot_LRT()` gives a parametric bootstrap test instead (as `pbkrtest::PBmodcomp()`), from refits of both models to responses simulated from the smaller one; it rejected the true null hypothesis in 4% of the data sets:
+
+```{r boot}
+fit_x0 <- pglmm(y ~ 1 + (1 | sp__) + (1 | site), data = d, cov_ranef = list(sp = phy))
+pglmm_boot_LRT(fit, fit_x0, nsim = 500, seed = 1, ncores = 4)
+```
+
+# Marginal means, marginal effects and effect plots
+
+Models fitted with `bayes = FALSE` work with the emmeans (estimated marginal means and contrasts), marginaleffects (slopes, comparisons and predictions averaged over the data) and effects (effect plots) packages. They use the fixed effects and their covariance matrix, with the random effects at zero, as for lme4 models (for marginaleffects, use `re.form = NA` for that; by default, its predictions include the estimated random effects). Until marginaleffects knows the class of phyr models, set an option first:
+
+```{r marginal}
+emmeans::emmeans(fit, ~ 1, at = list(x = c(-1, 0, 1)))
+options(marginaleffects_model_classes = "communityPGLMM")
+marginaleffects::avg_slopes(fit_nb, variables = "x", re.form = NA)
+plot(effects::Effect("x", fit_nb))
+```
+
 # Residual diagnostics
 
 The DHARMa package calculates scaled residuals from simulations of the fitted model (`simulate()`). It warns that the class of the model is not among those it lists, but the residuals are correct.
@@ -151,7 +186,7 @@ pglmm(cbind(yes, no) ~ 1 + x, data = dat, family = 'binomial')
 
 # Prepare random terms for complex models that cannot be set up with formula
 
-Sometimes, users may want to prepare their own list of random terms to fit phylogenetic generalized linear mixed models in more flexible ways. For example, users may want to add an extra random term on top of those specified by the model formula. For this, we can extract the list of random terms generated by the model formula using `prep_dat_pglmm()` and then append the one we want to add. See `?phyr::prep_dat_pglmm` for details about its arguments.
+Sometimes, users may want to prepare their own list of random terms to fit phylogenetic generalized linear mixed models in more flexible ways. For example, users may want to add an extra random term on top of those specified by the model formula. For this, we can extract the list of random terms generated by the model formula using `prep_dat_pglmm()` and then append the one we want to add. See `?phyr::prep_dat_pglmm` for details about its arguments. Since phyr 2.0.0, models with `random.effects` are fitted with the sparse code (and binomial and poisson models with the Laplace approximation); covariance matrices that come from a phylogeny are converted back to it, and identical rows of a covariance matrix of the observations (e.g. replicated observations of a species at a site) are merged (see `random.effects` in `?pglmm`).
 
 # Other functions to work with models fitted with `pglmm()`
 
@@ -164,12 +199,15 @@ All models fitted with `pglmm()` have class of `communityPGLMM`. Here is a list 
 - `confint()`: confidence intervals of fixed effects and variances
 - `logLik()`, `AIC()`, `BIC()`, `anova()`: log-likelihood and model comparison
 - `pglmm_profile_LRT()`: likelihood ratio test of random terms
+- `pglmm_boot_LRT()`: parametric bootstrap likelihood ratio test of nested models
+- `pglmm_is_singular()`: whether the fit is at the boundary (variances estimated at zero)
 - `fitted()`, `pglmm_predicted_values()`: fitted values
 - `predict()`: predicted values, also for new data (`newdata`)
 - `residuals()`: residuals
 - `simulate()`: simulated responses (e.g. for DHARMa)
 - `update()`: refit with a changed formula or arguments
 - `tidy()`, `glance()`: data frames of the estimates and of the fit (broom and broom.mixed)
+- `terms()`, `model.matrix()`: terms and design matrix of the fixed effects; with them, the emmeans, marginaleffects and effects packages work with these models
 - `pglmm_iV()`: inverse of the covariance matrix of the observations
 - `pglmm_matrix_structure()`: the whole covariance matrix
 - `pglmm_plot_ranef()`, `pglmm_plot_re()`: plot images of the covariance matrices of random terms, see the vignette `plot-re`
