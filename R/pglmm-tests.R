@@ -160,8 +160,9 @@ pglmm_profile_LRT <- function(x, re.number = 0, cpp = TRUE) {
 #' terms or, in phylogenetic models, few effectively independent species. In
 #' simulations of binary data with phylogenetic signal (100 species, 15
 #' sites), the Wald test of a fixed effect rejected a true null hypothesis in
-#' about 9% of data sets and the chi-square likelihood ratio test in about 11%,
-#' instead of 5%; the bootstrap test does not rely on this approximation. It
+#' 8.6% to 9.8% of data sets and the chi-square likelihood ratio test in 10.6%
+#' to 11.2% (500 data sets), instead of 5%; the bootstrap test (199
+#' simulations) rejected it in 4% of 100 data sets. It
 #' also gives a valid test of a variance at the boundary (zero), where the
 #' chi-square test is conservative.
 #'
