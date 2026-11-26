@@ -445,7 +445,12 @@
 #'   [glm()]); for the other families, the weights multiply the log-likelihood of
 #'   each observation (as [glm()] and `glmmTMB()`). Available with
 #'   `bayes = FALSE`, for gaussian models fitted with the sparse code (the default) and
-#'   for the other families with `method = "Laplace"` (the default).
+#'   for the other families with `method = "Laplace"` (the default), and with
+#'   `bayes = TRUE` (except for the zero-inflated families), where INLA scales the
+#'   precision of gaussian observations by the weights (its `scale`), uses them as the
+#'   numbers of trials of binomial observations (`Ntrials`), and multiplies the
+#'   log-likelihood of poisson and negative binomial observations by them (its
+#'   `weights`, which INLA describes as experimental).
 #' @param sparse_method With \code{sparse = TRUE} and \code{bayes = TRUE}, how the
 #'   phylogenetic terms are given to INLA. \code{"precision"} (default): as a latent field
 #'   over all nodes of the phylogeny (tips and internal nodes, without the root), with the
@@ -1094,8 +1099,8 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
       }
     }
   }
-  if (!is.null(pglmm_prior_weights(data))) {
-    if (bayes) stop("weights are not available with bayes = TRUE yet.", call. = FALSE)
+  if (!is.null(pglmm_prior_weights(data)) && !bayes) {
+    # (with bayes = TRUE, see communityPGLMM.bayes())
     if (family == "gaussian" && !isTRUE(sparse)) {
       stop("weights of gaussian models need the sparse code (sparse = TRUE).", call. = FALSE)
     }
@@ -1875,6 +1880,34 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
 
   base_family <- gsub("zeroinflated.", "", family, fixed = TRUE)
 
+  # prior weights (weights of pglmm()), as with bayes = FALSE: for gaussian
+  # models, the precision of each observation multiplied by its weight (scale
+  # of INLA); for binomial models, the numbers of trials of a proportion as
+  # response (Ntrials, with the numbers of successes as response); for poisson
+  # and negative binomial models, the weights multiply the log-likelihood of
+  # each observation (weights of INLA)
+  prior.weights <- pglmm_prior_weights(data)
+  if (!is.null(prior.weights)) {
+    if (family != base_family) {
+      stop("weights are not available with the zero-inflated families.", call. = FALSE)
+    }
+    if (family == "binomial") {
+      if (!is.null(Ntrials)) {
+        stop("give binomial data either as cbind(successes, failures) or as proportions with ",
+             "weights (the numbers of trials), not both.", call. = FALSE)
+      }
+      if (any(Y < 0 | Y > 1)) {
+        stop("with weights, the response of binomial models should be proportions ",
+             "(successes / trials, the weights).", call. = FALSE)
+      }
+      Y <- as.numeric(Y) * prior.weights
+      if (any(abs(Y - round(Y)) > 1e-7)) warning("non-integer #successes in a binomial pglmm!", call. = FALSE)
+      data$.pglmm_successes <- Y
+      formula_bayes[[2]] <- as.name(".pglmm_successes")
+      Ntrials <- prior.weights
+    }
+  }
+
   if (family == "zeroinflated.binomial") {
     family <- "zeroinflatedbinomial1"
   }
@@ -2165,6 +2198,10 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   } else {
     argus$Ntrials <- Ntrials
   }
+  if (!is.null(prior.weights)) {
+    if (family == "gaussian") argus$scale <- prior.weights
+    if (family %in% c("poisson", "nbinomial")) argus$weights <- prior.weights
+  }
 
   out <- do.call(INLA::inla, argus)
   if (sparse && !is.null(inla_A)) { # names of the fixed effects, as with the formula
@@ -2284,6 +2321,7 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
     logLik = logLik, AIC = NULL, BIC = NULL, DIC = DIC, WAIC = WAIC,
     REML = NULL, bayes = TRUE, marginal.summ = marginal.summ,
     s2.init = s2.init, B.init = B.init, Y = Y, size = Ntrials, X = X, H = H,
+    prior.weights = prior.weights,
     mu = mu, nested = nested, Zt = NULL, St = NULL,
     convcode = NULL, niter = NULL, inla.model = out
   )

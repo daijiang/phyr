@@ -116,7 +116,6 @@ test_that("weights that are not available give errors", {
   expect_error(pglmm(y ~ x + (1 | sp), data = d, weights = w, sparse = FALSE), "sparse code")
   expect_error(pglmm(count ~ x + (1 | sp), data = d, family = "poisson", weights = k, method = "PQL"),
                "Laplace")
-  expect_error(pglmm(y ~ x + (1 | sp), data = d, weights = w, bayes = TRUE), "bayes")
   expect_error(pglmm(cbind(succ, n - succ) ~ x + (1 | sp), data = d, family = "binomial", weights = n),
                "not both")
 })
@@ -128,4 +127,41 @@ test_that("pglmm_compare() takes weights", {
   expect_equal(m$prior.weights, dd$w)
   m1 <- quiet(pglmm_compare(y ~ 1, data = dd, phy = b$phy))
   expect_false(isTRUE(all.equal(m$logLik, m1$logLik)))
+})
+
+test_that("weights with bayes = TRUE: as cbind() (binomial), duplicated rows (poisson) and lmer (gaussian)", {
+  skip_on_cran()
+  skip_if_not_installed("INLA")
+  b <- weights_data(nsp = 25, nsite = 5)
+  d <- b$d
+  cr <- list(sp = b$phy)
+  f <- ~ x + (1 | sp__) + (1 | site)
+  B <- function(m) as.vector(as.matrix(m$B))
+  # binomial: proportions with the numbers of trials as weights, as cbind()
+  d$fail <- d$n - d$succ
+  mw <- qpglmm(update(f, prop ~ .), d, "binomial", cov_ranef = cr, bayes = TRUE, weights = n)
+  mc <- qpglmm(update(f, cbind(succ, fail) ~ .), d, "binomial", cov_ranef = cr, bayes = TRUE)
+  expect_equal(B(mw), B(mc), tolerance = 1e-3)
+  expect_equal(c(mw$s2r, mw$s2n), c(mc$s2r, mc$s2n), tolerance = 1e-3)
+  expect_equal(as.vector(mw$Y), d$succ)
+  # poisson: integer weights, as duplicated rows (weights of INLA)
+  dd <- d[rep(seq_len(nrow(d)), d$k), ]
+  pw <- qpglmm(update(f, count ~ .), d, "poisson", cov_ranef = cr, bayes = TRUE, weights = k,
+               add.obs.re = FALSE)
+  pd <- qpglmm(update(f, count ~ .), dd, "poisson", cov_ranef = cr, bayes = TRUE, add.obs.re = FALSE)
+  expect_equal(B(pw), B(pd), tolerance = 0.01)
+  # gaussian: the residual variance divided by the weights, as lmer(): about the
+  # REML estimate with weights, and weights of 1 change nothing
+  gw <- qpglmm(update(f, y ~ .), d, cov_ranef = cr, bayes = TRUE, weights = w)
+  gr <- qpglmm(update(f, y ~ .), d, cov_ranef = cr, weights = w)
+  expect_equal(as.numeric(gw$s2resid), as.numeric(gr$s2resid), tolerance = 0.05)
+  expect_equal(gw$prior.weights, d$w)
+  g0 <- qpglmm(update(f, y ~ .), d, cov_ranef = cr, bayes = TRUE)
+  g1 <- qpglmm(update(f, y ~ .), d, cov_ranef = cr, bayes = TRUE, weights = rep(1, nrow(d)))
+  expect_equal(B(g1), B(g0), tolerance = 1e-3)
+  # the dense INLA model takes them too
+  gd <- qpglmm(update(f, y ~ .), d, cov_ranef = cr, bayes = TRUE, weights = w, sparse = FALSE)
+  expect_equal(B(gd), B(gw), tolerance = 0.01)
+  expect_error(qpglmm(update(f, count ~ .), d, "zeroinflated.poisson", cov_ranef = cr, bayes = TRUE,
+                      weights = k), "zero-inflated")
 })

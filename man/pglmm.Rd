@@ -523,7 +523,12 @@ response is a proportion and the weights are the numbers of trials (as
 \code{\link[=glm]{glm()}}); for the other families, the weights multiply the log-likelihood of
 each observation (as \code{\link[=glm]{glm()}} and \code{glmmTMB()}). Available with
 \code{bayes = FALSE}, for gaussian models fitted with the sparse code (the default) and
-for the other families with \code{method = "Laplace"} (the default).}
+for the other families with \code{method = "Laplace"} (the default), and with
+\code{bayes = TRUE} (except for the zero-inflated families), where INLA scales the
+precision of gaussian observations by the weights (its \code{scale}), uses them as the
+numbers of trials of binomial observations (\code{Ntrials}), and multiplies the
+log-likelihood of poisson and negative binomial observations by them (its
+\code{weights}, which INLA describes as experimental).}
 }
 \value{
 An object (list) of class \code{communityPGLMM} with the following elements:
