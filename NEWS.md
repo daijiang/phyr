@@ -1,3 +1,9 @@
+# phyr (development version)
+
+## New features
+
+* `predict()` gives standard errors (`se.fit = TRUE`) and confidence intervals (`interval = "confidence"`) of the predictions of models fitted with `bayes = FALSE`: without random effects (`re.form = NA`), from the covariance matrix of the fixed effects (the same as `glmmTMB()`); with the random effects (models fitted with the sparse code or the Laplace approximation), the standard errors of prediction of the fixed and random effects together, from the mixed model equations (conditional on the estimated variances, as `ranef(condVar = TRUE)`). With `type = "response"`, they are on the scale of the response (delta method).
+
 # phyr 1.9.0
 
 phyr 1.9.0 fits all models of `pglmm()` with one engine, the sparse code: also models with covariance matrices in `cov_ranef` (those of phylogenies are converted back to the phylogenies), with lists in `random.effects`, and with `bayes = TRUE`. It adds prior weights, a parametric bootstrap test of nested models (`pglmm_boot_LRT()`), a message for fits at the boundary, and methods for the emmeans, marginaleffects and effects packages, and it removes or deprecates old names. The maximum likelihood estimates of models with random terms in the formula and phylogenies are the same as with phyr 1.5.0.

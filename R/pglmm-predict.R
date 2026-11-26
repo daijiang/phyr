@@ -332,11 +332,31 @@ fitted.communityPGLMM <- function(object, ...) {
 #'   `newdata` that were not in the data used to fit the model. If `TRUE`,
 #'   their random effects are set to zero; if `FALSE` (default), they give an
 #'   error. Only used with `newdata`.
+#' @param se.fit Whether to return the standard errors of the predictions
+#'   (models fitted with `bayes = FALSE`). Without random effects
+#'   (`re.form = NA`), they come from the covariance matrix of the fixed effects
+#'   ([vcov()][vcov.communityPGLMM()]). With the random effects (`re.form =
+#'   NULL`, models fitted with the sparse code or `method = "Laplace"`), they are
+#'   the standard errors of prediction of the fixed and random effects together
+#'   (from the mixed model equations, conditional on the estimated variances,
+#'   as for the conditional modes of [ranef()]); a level of a random term
+#'   without phylogeny that is not in the data (`allow.new.levels = TRUE`)
+#'   adds the variance of the term, and other new levels give `NA`. With
+#'   `type = "response"`, the standard errors are on the scale of the response
+#'   (delta method). With `newdata = NULL`, the predictions are those of the
+#'   rows of the data used for the fit, without the observation-level term
+#'   `1|obs` of binomial and poisson models.
+#' @param interval `"confidence"` for confidence intervals of the predictions
+#'   (on the scale of the linear predictor, transformed with `type =
+#'   "response"`), from the standard errors of `se.fit`.
+#' @param level Confidence level of the intervals.
 #' @param ... Additional arguments passed to [pglmm_predicted_values()] when
 #'   `newdata` is `NULL`, e.g. `gaussian.pred`.
 #' @return A matrix with one column (`Y_hat`) and one row for each row of the
-#'   data (or of `newdata`). Rows of `newdata` with missing values in the
-#'   variables needed have `NA`.
+#'   data (or of `newdata`), with the columns `lower` and `upper` with
+#'   `interval = "confidence"`. With `se.fit = TRUE`, a list with this matrix
+#'   (`fit`) and the standard errors (`se.fit`). Rows of `newdata` with missing
+#'   values in the variables needed have `NA`.
 #' @examples
 #' # community data: abundance of each species at each site
 #' dat <- data.frame(
@@ -374,27 +394,179 @@ fitted.communityPGLMM <- function(object, ...) {
 #'   data = dat, family = "binomial", cov_ranef = list(sp = phy)
 #' )
 #' predict(fit_pa, newdata = newdat, type = "response")
+#'
+#' # standard errors and confidence intervals, without and with random effects
+#' predict(fit_pa, newdata = newdat, re.form = NA, se.fit = TRUE)
+#' predict(fit_pa, newdata = newdat, type = "response", interval = "confidence")
 #' @method predict communityPGLMM
 #' @export
 predict.communityPGLMM <- function(object, newdata = NULL, re.form = NULL,
                                    type = c("link", "response"),
-                                   allow.new.levels = FALSE, ...) {
+                                   allow.new.levels = FALSE, se.fit = FALSE,
+                                   interval = c("none", "confidence"), level = 0.95, ...) {
   type <- match.arg(type)
-  if (is.null(newdata)) {
-    return(as.matrix(pglmm_predicted_values(object, re.form = re.form, type = type, ...)))
-  }
-
-  newdata <- as.data.frame(newdata) # in case of tibbles
-  eta <- pglmm_predict_fixed(object, newdata)
-  if (is.null(re.form)) {
-    eta <- eta + pglmm_predict_ranef(object, newdata, allow.new.levels = allow.new.levels)
-  } else if (!(identical(re.form, NA) ||
+  interval <- match.arg(interval)
+  no.re <- !is.null(re.form)
+  if (no.re && !(identical(re.form, NA) ||
     (inherits(re.form, "formula") && identical(deparse(re.form), "~0")))) {
     stop("Formula for random effects to condition on currently is not supported yet")
   }
-  if (type == "response") eta <- pglmm_linkinv(object$family)(eta)
+  want.se <- isTRUE(se.fit) || interval == "confidence"
+  if (is.null(newdata) && !want.se) {
+    return(as.matrix(pglmm_predicted_values(object, re.form = re.form, type = type, ...)))
+  }
+  if (want.se && isTRUE(object$bayes)) {
+    stop("se.fit and interval are available for models fitted with bayes = FALSE; with ",
+         "bayes = TRUE, use the posterior distribution (e.g. simulate()).", call. = FALSE)
+  }
+  if (is.null(newdata)) {
+    # the rows of the data used for the fit
+    keep <- pglmm_kept_rows(object)
+    newdata <- if (is.null(keep)) object$data else object$data[keep, , drop = FALSE]
+  }
 
-  out <- matrix(eta, ncol = 1, dimnames = list(rownames(newdata), "Y_hat"))
+  newdata <- as.data.frame(newdata) # in case of tibbles
+  fx <- pglmm_predict_X(object, newdata)
+  eta <- as.vector(fx$X %*% as.vector(object$B))
+  if (!is.null(fx$offset)) eta <- eta + fx$offset
+  if (!no.re) {
+    eta <- eta + pglmm_predict_ranef(object, newdata, allow.new.levels = allow.new.levels)
+  }
+  se <- NULL
+  if (want.se) {
+    se <- if (no.re) {
+      V <- vcov(object)
+      sqrt(pmax(rowSums((fx$X %*% V) * fx$X), 0))
+    } else {
+      pglmm_predict_se_re(object, newdata, fx$X, allow.new.levels)
+    }
+  }
+  linkinv <- pglmm_linkinv(object$family)
+  fit <- matrix(if (type == "response") linkinv(eta) else eta, ncol = 1,
+                dimnames = list(rownames(newdata), "Y_hat"))
+  if (interval == "confidence") {
+    z <- stats::qnorm(1 - (1 - level) / 2)
+    lu <- cbind(lower = eta - z * se, upper = eta + z * se)
+    if (type == "response") lu <- linkinv(lu)
+    fit <- cbind(fit, lu)
+  }
+  if (!isTRUE(se.fit)) return(fit)
+  if (type == "response") se <- se * abs(pglmm_mu_eta(object, eta))
+  list(fit = fit, se.fit = stats::setNames(se, rownames(newdata)))
+}
+
+# d mu / d eta of the link function of a fitted model (for the standard errors
+# on the scale of the response)
+pglmm_mu_eta <- function(object, eta) {
+  spec <- pglmm_family_spec(object$family)
+  link <- if (is.null(spec)) "identity" else spec$link
+  stats::make.link(link)$mu.eta(eta)
+}
+
+# Standard errors of the predictions with the random effects (re.form =
+# NULL) of models fitted with the sparse code or method = "Laplace", from the
+# mixed model equations: with D the weights (prior weights of gaussian models,
+# working weights at the mode otherwise) and M = Q + Theta Z' D Z Theta the
+# matrix of the fit, the prediction error variance of x'b + z'u for a row
+# (x, z) of newdata is, with c = Theta z,
+#   (1 / k) [(x - T'c)' S^-1 (x - T'c) + c' M^-1 c],
+# with T = M^-1 Theta Z' D X, S = X' D X - X' D Z Theta T (the Schur
+# complement: (1 / k) S^-1 is the covariance matrix of the fixed effects
+# given the variances) and k = 1 / s2resid for gaussian models (1 otherwise),
+# conditional on the estimated variances. New levels of terms without
+# phylogeny add the variance of the term; other new levels give NA.
+pglmm_predict_se_re <- function(object, newdata, X, allow.new.levels = FALSE) {
+  if (is.null(object$sparse)) {
+    stop("se.fit and interval with the random effects (re.form = NULL) are available for ",
+         "models fitted with the sparse code (sparse = TRUE, the default) or method = ",
+         "\"Laplace\"; use re.form = NA for the fixed effects only.", call. = FALSE)
+  }
+  sp <- object$sparse
+  pc <- pglmm_sparse_iV_pieces(object)
+  pre <- pc$pre
+  n <- nrow(newdata)
+  q <- pre$q
+  offset <- match(seq_along(sp$terms), pre$term.of.col) - 1L
+  ii <- jj <- xx <- list()
+  newvar <- numeric(n)
+  bad <- rep(FALSE, n)
+  for (k in seq_along(sp$terms)) {
+    z <- sp$terms[[k]]
+    info <- pglmm_term_info(object, z$name)
+    gv <- if (is.null(info)) z$group else info$group
+    lhs <- if (is.null(info)) "1" else info$lhs
+    if (!all(gv %in% names(newdata)) || (lhs != "1" && !lhs %in% names(newdata))) {
+      stop("newdata does not have the variables of the random term '", z$name, "'.", call. = FALSE)
+    }
+    x <- if (lhs == "1") rep(1, n) else as.numeric(newdata[[lhs]])
+    key.new <- do.call(paste, c(lapply(gv, function(g) as.character(newdata[[g]])), sep = "\r"))
+    if (isTRUE(z$nested)) {
+      lab <- z$labels
+      key <- do.call(paste, c(lapply(gv, function(g) as.character(lab[[g]])), sep = "\r"))
+      col <- z$pick[match(key.new, key)]
+    } else {
+      col <- match(key.new, as.character(z$labels))
+      if (isTRUE(z$phy)) col[!col %in% z$level.order] <- NA # internal nodes are not levels
+    }
+    miss <- is.na(col) & stats::complete.cases(newdata[gv])
+    if (any(miss)) {
+      if (!allow.new.levels) {
+        stop("newdata has levels of the random term '", z$name, "' that were not in the data ",
+             "used to fit the model. Use allow.new.levels = TRUE.", call. = FALSE)
+      }
+      th <- pc$thc[offset[k] + 1L]
+      if (!any(z$phy)) newvar[miss] <- newvar[miss] + th^2 / pc$c * x[miss]^2 else bad[miss] <- TRUE
+    }
+    ok <- !is.na(col) & !is.na(x)
+    ii[[k]] <- which(ok)
+    jj[[k]] <- offset[k] + col[ok]
+    xx[[k]] <- x[ok] * pc$thc[offset[k] + col[ok]]
+  }
+  C <- Matrix::sparseMatrix(i = unlist(ii), j = unlist(jj), x = unlist(xx), dims = c(n, q))
+  # T = M^-1 Theta Z' D X and S
+  DX <- pc$dw * object$X
+  TZ <- pc$thc * as.matrix(Matrix::crossprod(pre$Z, DX))
+  Tm <- pglmm_sparse_solve(pc$L, pre, TZ)
+  S <- crossprod(object$X, DX) - crossprod(TZ, Tm)
+  A <- X - as.matrix(C %*% Tm)
+  fixed.part <- rowSums((A %*% solve(S)) * A)
+  # c' M^-1 c of each row, from the entries of M^-1 at the pairs of its columns
+  # (selected inverse) when they are on the pattern of M, by solves otherwise
+  CT <- as(Matrix::t(C), "CsparseMatrix")
+  nr <- diff(CT@p)
+  row <- rep.int(seq_len(n), nr)
+  col <- CT@i
+  val <- CT@x
+  quad <- numeric(n)
+  qa <- if (is.null(pre$qa)) q else pre$qa
+  keys <- pre$mi + as.numeric(pre$mj) * qa
+  a <- b <- list()
+  for (k in seq_len(max(c(nr, 1L))) - 1L) {
+    t1 <- seq_len(max(length(val) - k, 0))
+    t1 <- t1[row[t1] == row[t1 + k]]
+    a[[k + 1L]] <- t1
+    b[[k + 1L]] <- t1 + k
+  }
+  mult <- rep(c(1, rep(2, length(a) - 1L)), lengths(a))
+  a <- unlist(a)
+  b <- unlist(b)
+  if (length(a)) {
+    lo <- pmin(col[a], col[b])
+    hi <- pmax(col[a], col[b])
+    on <- (lo + as.numeric(hi) * qa) %in% keys
+    off.rows <- unique(row[a][!on])
+    use <- on & !row[a] %in% off.rows
+    if (any(use)) {
+      z <- pglmm_sparse_inv_at(pc$L, lo[use], hi[use])
+      quad <- quad + pglmm_sum_by(mult[use] * val[a][use] * val[b][use] * z, row[a][use], n)
+    }
+    for (idx in split(off.rows, ceiling(seq_along(off.rows) / 200))) {
+      R <- as.matrix(CT[, idx, drop = FALSE])
+      quad[idx] <- colSums(R * pglmm_sparse_solve(pc$L, pre, R))
+    }
+  }
+  out <- sqrt(pmax((fixed.part + quad) / pc$c + newvar, 0))
+  out[bad] <- NA
   out
 }
 
@@ -402,6 +574,14 @@ predict.communityPGLMM <- function(object, newdata = NULL, re.form = NULL,
 # with the factor levels, contrasts, and data-dependent terms (e.g. poly(),
 # scale()) of the data used to fit the model.
 pglmm_predict_fixed <- function(object, newdata) {
+  fx <- pglmm_predict_X(object, newdata)
+  out <- as.vector(fx$X %*% as.vector(object$B))
+  if (!is.null(fx$offset)) out <- out + fx$offset
+  out
+}
+
+# Design matrix of the fixed effects (and offset, NULL if none) for new data
+pglmm_predict_X <- function(object, newdata) {
   mf0 <- model.frame(object$formula, data = object$data, na.action = NULL)
   tt <- delete.response(terms(mf0))
   vars.missing <- setdiff(all.vars(tt), names(newdata))
@@ -413,16 +593,13 @@ pglmm_predict_fixed <- function(object, newdata) {
   contr <- attr(model.matrix(terms(mf0), data = mf0), "contrasts")
   mf <- model.frame(tt, data = newdata, na.action = na.pass, xlev = .getXlevels(tt, mf0))
   X <- model.matrix(tt, data = mf, contrasts.arg = contr)
-  B <- as.vector(object$B)
-  if (ncol(X) != length(B) || !identical(colnames(X), colnames(object$X))) {
+  if (ncol(X) != length(object$B) || !identical(colnames(X), colnames(object$X))) {
     stop("The design matrix of newdata does not match the fixed effects of the model.",
       call. = FALSE
     )
   }
-  out <- as.vector(X %*% B)
   off <- model.offset(mf) # offset() terms of the formula, from newdata
-  if (!is.null(off)) out <- out + as.numeric(off)
-  out
+  list(X = X, offset = if (!is.null(off)) as.numeric(off))
 }
 
 # Random part (Zu) of the predictions for new data: sum of the estimates of the

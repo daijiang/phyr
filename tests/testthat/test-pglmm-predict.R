@@ -244,3 +244,77 @@ test_that("predict() with newdata works with bayesian models", {
   expect_false(anyNA(predict(b, newdata = nd, allow.new.levels = TRUE)))
 })
 
+
+test_that("predict(se.fit = TRUE) gives the prediction errors of the mixed model equations", {
+  set.seed(4)
+  nsp <- 15
+  phy <- ape::rcoal(nsp, tip.label = paste0("sp", 1:nsp))
+  d <- expand.grid(sp = phy$tip.label, site = paste0("s", 1:5), stringsAsFactors = FALSE)
+  d <- d[sample(nrow(d), 60), ]
+  u <- as.numeric(t(chol(ape::vcv(phy))) %*% rnorm(nsp))
+  d$x <- rnorm(nrow(d))
+  d$y <- 0.3 * d$x + u[match(d$sp, phy$tip.label)] + rnorm(5, sd = 0.7)[match(d$site, paste0("s", 1:5))] +
+    rnorm(nrow(d))
+  m <- qpglmm(y ~ x + (1 | sp__) + (1 | site), d, cov_ranef = list(sp = phy), REML = FALSE)
+  # dense mixed model equations with the covariance matrix of the tips
+  V <- ape::vcv(phy)
+  V <- V / max(V)
+  V <- V / exp(determinant(V)$modulus[1] / nsp)
+  sts <- sort(unique(d$site))
+  zrow <- function(sp, site) {
+    Zsp <- outer(sp, phy$tip.label, "==") * 1
+    cbind(Zsp, Zsp, outer(site, sts, "==") * 1)
+  }
+  X <- cbind(1, d$x)
+  Z <- zrow(d$sp, d$site)
+  v <- VarCorr(m)
+  s2 <- v["residual", "Variance"]
+  G <- as.matrix(Matrix::bdiag(v["1|sp", "Variance"] * diag(nsp), v["1|sp__", "Variance"] * V,
+                               v["1|site", "Variance"] * diag(length(sts))))
+  Cm <- rbind(cbind(crossprod(X), crossprod(X, Z)), cbind(crossprod(Z, X), crossprod(Z) + s2 * MASS::ginv(G)))
+  pev <- function(W) s2 * rowSums((W %*% MASS::ginv(Cm)) * W)
+  p <- predict(m, se.fit = TRUE)
+  expect_equal(unname(p$se.fit), sqrt(pev(cbind(X, Z))), tolerance = 1e-8)
+  expect_equal(as.vector(p$fit), as.vector(fitted(m)), tolerance = 1e-8)
+  # new combinations of levels, and a new site (its variance is added)
+  nd <- data.frame(sp = c("sp1", "sp2", "sp3"), site = c("s1", "s2", "new"), x = c(0.5, -1, 0))
+  pn <- predict(m, newdata = nd, se.fit = TRUE, allow.new.levels = TRUE)
+  Wn <- cbind(1, nd$x, zrow(nd$sp, nd$site))
+  expect_equal(unname(pn$se.fit), sqrt(pev(Wn) + c(0, 0, v["1|site", "Variance"])), tolerance = 1e-8)
+  expect_error(predict(m, newdata = nd, se.fit = TRUE), "allow.new.levels")
+  # without random effects: x' vcov x; intervals
+  p0 <- predict(m, newdata = nd, re.form = NA, se.fit = TRUE)
+  Xn <- cbind(1, nd$x)
+  expect_equal(unname(p0$se.fit), sqrt(rowSums((Xn %*% vcov(m)) * Xn)), tolerance = 1e-10)
+  ci <- predict(m, newdata = nd[1:2, ], interval = "confidence", level = 0.9)
+  expect_equal(colnames(ci), c("Y_hat", "lower", "upper"))
+  expect_equal(ci[, "upper"] - ci[, "Y_hat"], qnorm(0.95) * pn$se.fit[1:2], tolerance = 1e-8,
+               ignore_attr = TRUE)
+  # the dense code: only without random effects
+  md <- qpglmm(y ~ x + (1 | sp__) + (1 | site), d, cov_ranef = list(sp = phy), REML = FALSE, sparse = FALSE)
+  expect_error(predict(md, newdata = nd[1:2, ], se.fit = TRUE), "re.form = NA")
+  expect_equal(predict(md, newdata = nd[1:2, ], se.fit = TRUE, re.form = NA)$se.fit,
+               sqrt(rowSums((Xn[1:2, ] %*% vcov(md)) * Xn[1:2, ])), tolerance = 1e-8, ignore_attr = TRUE)
+})
+
+test_that("predict(se.fit = TRUE) of binomial models: as glmmTMB without random effects", {
+  skip_if_not_installed("glmmTMB")
+  set.seed(5)
+  d <- expand.grid(sp = paste0("sp", 1:30), site = paste0("s", 1:6), stringsAsFactors = FALSE)
+  d$x <- rnorm(nrow(d))
+  d$pa <- rbinom(nrow(d), 1, plogis(0.5 * d$x + rnorm(30)[match(d$sp, paste0("sp", 1:30))] +
+                                     rnorm(6, sd = 0.6)[match(d$site, paste0("s", 1:6))]))
+  m <- qpglmm(pa ~ x + (1 | sp) + (1 | site), d, "binomial", REML = FALSE)
+  expect_false(pglmm_is_singular(m))
+  g <- glmmTMB::glmmTMB(pa ~ x + (1 | sp) + (1 | site), d, family = binomial)
+  nd <- d[1:6, ]
+  a <- predict(m, newdata = nd, re.form = NA, se.fit = TRUE, type = "response")
+  b <- predict(g, newdata = nd, re.form = NA, se.fit = TRUE, type = "response")
+  expect_equal(as.vector(a$fit), as.vector(b$fit), tolerance = 1e-5)
+  expect_equal(unname(a$se.fit), unname(b$se.fit), tolerance = 1e-3)
+  # with the random effects: conditional on the variances (glmmTMB also
+  # includes their uncertainty, so its standard errors are slightly larger)
+  a1 <- predict(m, newdata = nd, se.fit = TRUE)
+  b1 <- predict(g, newdata = nd, se.fit = TRUE)
+  expect_true(all(a1$se.fit <= b1$se.fit * 1.001 & a1$se.fit > 0.8 * b1$se.fit))
+})

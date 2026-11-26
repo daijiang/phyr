@@ -10,6 +10,9 @@
   re.form = NULL,
   type = c("link", "response"),
   allow.new.levels = FALSE,
+  se.fit = FALSE,
+  interval = c("none", "confidence"),
+  level = 0.95,
   ...
 )
 }
@@ -33,13 +36,34 @@ predictor (\code{"link"}, default) or of the response (\code{"response"}).}
 their random effects are set to zero; if \code{FALSE} (default), they give an
 error. Only used with \code{newdata}.}
 
+\item{se.fit}{Whether to return the standard errors of the predictions
+(models fitted with \code{bayes = FALSE}). Without random effects
+(\code{re.form = NA}), they come from the covariance matrix of the fixed effects
+(\link[=vcov.communityPGLMM]{vcov()}). With the random effects (\code{re.form = NULL}, models fitted with the sparse code or \code{method = "Laplace"}), they are
+the standard errors of prediction of the fixed and random effects together
+(from the mixed model equations, conditional on the estimated variances,
+as for the conditional modes of \code{\link[=ranef]{ranef()}}); a level of a random term
+without phylogeny that is not in the data (\code{allow.new.levels = TRUE})
+adds the variance of the term, and other new levels give \code{NA}. With
+\code{type = "response"}, the standard errors are on the scale of the response
+(delta method). With \code{newdata = NULL}, the predictions are those of the
+rows of the data used for the fit, without the observation-level term
+\code{1|obs} of binomial and poisson models.}
+
+\item{interval}{\code{"confidence"} for confidence intervals of the predictions
+(on the scale of the linear predictor, transformed with \code{type = "response"}), from the standard errors of \code{se.fit}.}
+
+\item{level}{Confidence level of the intervals.}
+
 \item{...}{Additional arguments passed to \code{\link[=pglmm_predicted_values]{pglmm_predicted_values()}} when
 \code{newdata} is \code{NULL}, e.g. \code{gaussian.pred}.}
 }
 \value{
 A matrix with one column (\code{Y_hat}) and one row for each row of the
-data (or of \code{newdata}). Rows of \code{newdata} with missing values in the
-variables needed have \code{NA}.
+data (or of \code{newdata}), with the columns \code{lower} and \code{upper} with
+\code{interval = "confidence"}. With \code{se.fit = TRUE}, a list with this matrix
+(\code{fit}) and the standard errors (\code{se.fit}). Rows of \code{newdata} with missing
+values in the variables needed have \code{NA}.
 }
 \description{
 Predicted values of a fitted model, for the data used to fit the model or
@@ -116,4 +140,8 @@ fit_pa <- pglmm(pa ~ shade + (1 | sp__) + (1 | site),
   data = dat, family = "binomial", cov_ranef = list(sp = phy)
 )
 predict(fit_pa, newdata = newdat, type = "response")
+
+# standard errors and confidence intervals, without and with random effects
+predict(fit_pa, newdata = newdat, re.form = NA, se.fit = TRUE)
+predict(fit_pa, newdata = newdat, type = "response", interval = "confidence")
 }
