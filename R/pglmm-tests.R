@@ -233,7 +233,7 @@ pglmm_boot_LRT <- function(full, reduced, nsim = 500, seed = NULL, ncores = 1) {
   if (anyNA(rows) || nrow(small$X) != length(rows)) {
     stop("The rows used to fit the models cannot be found in their data.", call. = FALSE)
   }
-  binom <- small$family == "binomial"
+  binom <- pglmm_trials_family(small$family)
   size <- if (binom) rep_len(pglmm_binomial_size(small), length(rows)) else NULL
   has.w <- !is.null(small$prior.weights)
   # the response of the formula replaced by the simulated one: successes and

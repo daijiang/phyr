@@ -217,7 +217,7 @@ residuals.communityPGLMM <- function(
     mu <- as.numeric(object$mu[, 1])
     # prior weights (for binomial models, the numbers of trials, in size)
     wt <- if (is.null(object$prior.weights)) rep(1, length(y)) else object$prior.weights
-    if (object$family == "binomial") {
+    if (pglmm_trials_family(object$family)) {
       wt <- rep_len(pglmm_binomial_size(object), length(y))
       y <- y / wt # proportion of successes
     }
@@ -763,7 +763,7 @@ simulate.communityPGLMM <- function(object, nsim = 1, seed = NULL,
       spec <- pglmm_family_spec(object$family)
       mu_sim <- spec$linkinv(sim)
       value <- pglmm_disp_value(object, spec)
-      size <- if (object$family == "binomial") pglmm_binomial_size(object) else 1
+      size <- if (pglmm_trials_family(object$family)) pglmm_binomial_size(object) else 1
       sim <- apply(mu_sim, MARGIN = 2, FUN = function(x) spec$simulate(x, value, size))
     }
   } else { # beyes version

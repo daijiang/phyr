@@ -2,6 +2,7 @@
 
 ## New features
 
+* New family `"betabinomial"` for overdispersed binomial data (successes out of trials), with its precision `phi` estimated, as `glmmTMB(family = betabinomial())`: the estimates are those of glmmTMB (log-likelihoods within 1e-8 with 300 and 1000 species), and the fits are about 5 to 10 times faster.
 * Binomial models with the probit and complementary log-log links: `family = binomial(link = "probit")` or `binomial(link = "cloglog")` (with `method = "Laplace"`). With `offset(log(area))`, the cloglog link models presence/absence from plots of different sizes or sampling efforts. The estimates are those of `glmmTMB()` (log-likelihoods within 1e-9 with 300 and 1000 species).
 * `predict()` gives standard errors (`se.fit = TRUE`) and confidence intervals (`interval = "confidence"`) of the predictions of models fitted with `bayes = FALSE`: without random effects (`re.form = NA`), from the covariance matrix of the fixed effects (the same as `glmmTMB()`); with the random effects (models fitted with the sparse code or the Laplace approximation), the standard errors of prediction of the fixed and random effects together, from the mixed model equations (conditional on the estimated variances, as `ranef(condVar = TRUE)`). With `type = "response"`, they are on the scale of the response (delta method).
 

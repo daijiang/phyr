@@ -100,7 +100,8 @@ repulsion to be something like \code{c(TRUE, FALSE, TRUE, TRUE)} (length of 4).}
 \item{prep.re.effects}{Whether to prepare random effects for users.}
 
 \item{family}{Either "gaussian" for a Linear Mixed Model, or
-"binomial", "poisson", "nbinomial" or "Gamma" for Generalized Linear Mixed Models.
+"binomial", "poisson", "nbinomial", "Gamma" or "betabinomial" for Generalized Linear
+Mixed Models.
 "family" should be specified as a character string (i.e., quoted), or as a family
 object (e.g. \code{binomial(link = "cloglog")}). For binomial and
 Poisson data, we use the canonical logit and log link functions, respectively, by
@@ -134,6 +135,20 @@ fitted model; \code{sigma()} of \code{glmmTMB} is \eqn{1/\sqrt{\nu}}{1 / sqrt(sh
 coefficient of variation). No observation-level random term is added. Gamma models are only
 available with \code{bayes = FALSE}, and are always fitted with \code{method = "Laplace"},
 with starting values from \code{glm()} and \code{MASS::gamma.shape()}.
+
+"betabinomial" is the beta-binomial distribution for overdispersed binomial data
+(successes out of trials, given as \code{cbind(successes, failures)} or as proportions with
+the numbers of trials as \code{weights}), with the logit link: the probability of success
+of each observation varies as a beta distribution with mean \eqn{p}{p} and precision
+\eqn{\phi}{phi}, so that the variance of the number of successes out of \eqn{n}{n} trials is
+\eqn{n p (1 - p) (n + \phi) / (1 + \phi)}{n p (1 - p) (n + phi) / (1 + phi)} (as
+\code{glmmTMB(family = betabinomial())}, whose \code{sigma()} is \eqn{\phi}{phi}).
+\eqn{\phi}{phi} is estimated with the other parameters (element \code{phi} of the fitted
+model); \eqn{\phi = \infty}{phi = Inf} is the binomial distribution. As \eqn{\phi}{phi}
+accounts for overdispersion, no observation-level random term is added; it is an alternative
+to the binomial distribution with \code{1|obs}. Its overdispersion cannot be estimated with
+0/1 data (one trial per observation). Only with \code{bayes = FALSE} and \code{method =
+  "Laplace"}.
 
 If \code{bayes = TRUE} there are
 three additional families available: "zeroinflated.binomial", "zeroinflated.poisson" and

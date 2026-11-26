@@ -351,3 +351,65 @@ test_that("binomial models with the probit and cloglog links", {
   expect_error(pglmm(pa ~ x + (1 | sp__), d, binomial(link = "cloglog"), cov_ranef = list(sp = phy),
                      method = "PQL"), "only available with method")
 })
+
+test_that("beta-binomial models: as glmmTMB(family = betabinomial())", {
+  # log density and derivatives (finite differences), with the sums over the counts
+  Y <- c(0, 1, 3, 5, 2, 0, 7)
+  size <- c(1, 4, 5, 5, 4, 3, 10)
+  lp <- phyr:::pglmm_family_spec("betabinomial")$laplace(Y, size)
+  e <- c(-2, -0.5, 0, 1, 3, 0.2, 1.5)
+  h <- 1e-5
+  for (q in c(0.05, 0.5, 2)) {
+    k <- lp$fam(e, q)
+    p <- plogis(e)
+    expect_equal(k$logp, sum(lbeta(Y + p / q, size - Y + (1 - p) / q) - lbeta(p / q, (1 - p) / q)),
+                 tolerance = 1e-12)
+    expect_equal(k$w, -(lp$fam(e + h, q)$g - lp$fam(e - h, q)$g) / (2 * h), tolerance = 1e-6)
+    expect_equal(k$dw, (lp$fam(e + h, q)$w - lp$fam(e - h, q)$w) / (2 * h), tolerance = 1e-6)
+    d <- lp$dphi(e, q)
+    hq <- 1e-6 * q
+    expect_equal(d$lphi, (lp$fam(e, q + hq)$logp - lp$fam(e, q - hq)$logp) / (2 * hq), tolerance = 1e-5)
+    expect_equal(d$wphi, (lp$fam(e, q + hq)$w - lp$fam(e, q - hq)$w) / (2 * hq), tolerance = 1e-5)
+  }
+  set.seed(8)
+  nsp <- 40
+  phy <- ape::rcoal(nsp, tip.label = paste0("sp", 1:nsp))
+  d <- expand.grid(sp = phy$tip.label, site = paste0("s", 1:6), stringsAsFactors = FALSE)
+  d$x <- rnorm(nrow(d))
+  u <- as.numeric(t(chol(ape::vcv(phy))) %*% rnorm(nsp, sd = 0.5))
+  p <- plogis(-0.3 + 0.4 * d$x + u[match(d$sp, phy$tip.label)])
+  d$n <- sample(2:8, nrow(d), replace = TRUE)
+  d$succ <- rbinom(nrow(d), d$n, rbeta(nrow(d), p * 3, (1 - p) * 3))
+  d$fail <- d$n - d$succ
+  m <- qpglmm(cbind(succ, fail) ~ x + (1 | sp__) + (1 | site), d, "betabinomial",
+              cov_ranef = list(sp = phy), REML = FALSE)
+  expect_identical(m$method, "Laplace")
+  expect_true(m$phi > 0 && m$phi < 100)
+  expect_output(print(m), "beta-binomial")
+  expect_output(print(m), "Precision parameter")
+  # proportions with the numbers of trials as weights: the same model
+  d$prop <- d$succ / d$n
+  mw <- qpglmm(prop ~ x + (1 | sp__) + (1 | site), d, "betabinomial", cov_ranef = list(sp = phy),
+               REML = FALSE, weights = n)
+  expect_equal(mw$logLik, m$logLik, tolerance = 1e-8)
+  # methods: probabilities, residuals, simulations of successes
+  expect_true(all(fitted(m) > 0 & fitted(m) < 1))
+  expect_length(residuals(m), nrow(d))
+  expect_true(all(is.finite(residuals(m))))
+  s <- simulate(m, nsim = 2)
+  expect_true(all(s >= 0 & s <= d$n))
+  expect_error(pglmm(pa ~ x + (1 | sp__), transform(d, pa = as.numeric(succ > 0)), "betabinomial",
+                     cov_ranef = list(sp = phy)), "numbers of trials larger than one")
+  skip_if_not_installed("glmmTMB")
+  C <- ape::vcv(phy)
+  C <- C / max(C)
+  C <- C / exp(determinant(C)$modulus[1] / nsp)
+  d$spf <- factor(d$sp, levels = phy$tip.label)
+  d$g <- factor(1)
+  g <- glmmTMB::glmmTMB(cbind(succ, fail) ~ x + (1 | spf) + propto(0 + spf | g, C) + (1 | site), data = d,
+                        family = glmmTMB::betabinomial())
+  expect_equal(m$logLik, as.numeric(logLik(g)), tolerance = 1e-6)
+  expect_equal(unname(m$B[, 1]), unname(glmmTMB::fixef(g)$cond), tolerance = 1e-4)
+  expect_equal(unname(m$B.se[, 1]), unname(sqrt(diag(vcov(g)$cond))), tolerance = 1e-3)
+  expect_equal(m$phi, sigma(g), tolerance = 1e-3)
+})

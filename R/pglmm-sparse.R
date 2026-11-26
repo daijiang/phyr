@@ -1093,7 +1093,7 @@ pglmm_glmm_data <- function(formula, data, family, add.obs.re = TRUE, re.list = 
   prior.weights <- pglmm_prior_weights(data)
   wt <- NULL
   if (!is.null(prior.weights)) {
-    if (family == "binomial") {
+    if (pglmm_trials_family(family)) {
       if (any(size != 1)) {
         stop("give binomial data either as cbind(successes, failures) or as proportions with ",
              "weights (the numbers of trials), not both.", call. = FALSE)

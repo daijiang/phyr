@@ -53,6 +53,7 @@ pglmm_family_spec <- function(family) {
   if (!is.character(family) || length(family) != 1) return(NULL)
   switch(family,
     binomial = pglmm_family_binomial(pglmm_family_link(family, "logit")),
+    betabinomial = pglmm_family_betabinomial(),
     poisson = pglmm_family_poisson(),
     nbinomial = pglmm_family_nbinomial(),
     Gamma = pglmm_family_gamma(),
@@ -61,8 +62,14 @@ pglmm_family_spec <- function(family) {
 }
 
 # families fitted with method = "Laplace", and those fitted only with it
-pglmm_laplace_families <- c("binomial", "poisson", "nbinomial", "Gamma")
-pglmm_laplace_only_families <- c("nbinomial", "Gamma")
+pglmm_laplace_families <- c("binomial", "poisson", "nbinomial", "Gamma", "betabinomial")
+pglmm_laplace_only_families <- c("nbinomial", "Gamma", "betabinomial")
+
+# families whose data are numbers of successes out of trials (cbind(), or
+# proportions with the numbers of trials as weights)
+pglmm_trials_family <- function(family) {
+  isTRUE(family %in% c("binomial", "betabinomial"))
+}
 
 # the name of a family given to pglmm(): "gamma" for "Gamma"; a family object
 # (e.g. binomial(link = "cloglog")) gives its name, with its link as the
@@ -303,6 +310,157 @@ pglmm_family_nbinomial <- function() {
     glm.family = function(value = NULL) pglmm_nb_family(value),
     simulate = function(mu, value, size) stats::rnbinom(length(mu), mu = mu, size = value)
   )
+}
+
+# The beta-binomial family (logit link), parameterized as glmmTMB
+# (betabinomial(), Morris 1997): with p = plogis(eta) and the precision phi,
+# y | P ~ binomial(n, P) with P ~ beta(p phi, (1 - p) phi), so that
+# Var(y) = n p (1 - p) (n + phi) / (1 + phi); phi = Inf is the binomial
+# distribution. Estimated as the dispersion q = 1 / phi (lower bound 0, the
+# binomial model, as for the negative binomial). With a = p / q,
+# b = (1 - p) / q and f = dp / deta = p (1 - p), the log density
+#   lgamma(y + a) - lgamma(a) + lgamma(n - y + b) - lgamma(b) + lgamma(1 / q) - lgamma(n + 1 / q)
+# (plus log choose(n, y)) has, with D1 = (psi(y + a) - psi(a)) - (psi(n - y + b) - psi(b)),
+# S2 = (psi1(y + a) - psi1(a)) + (psi1(n - y + b) - psi1(b)) and
+# S3 = (psi2(y + a) - psi2(a)) - (psi2(n - y + b) - psi2(b)) (psi: digamma,
+# psi1: trigamma, psi2: its derivative), the derivatives in eta
+#   g = f D1 / q, l'' = f' D1 / q + f^2 S2 / q^2, l''' = f'' D1 / q + 3 f f' S2 / q^2 + f^3 S3 / q^3.
+# For q < 1e-8, the binomial log density (the differences of digamma
+# functions lose their precision for very large a and b); dphi gives the
+# derivatives in q (finite differences for q < 1e-6).
+pglmm_family_betabinomial <- function() {
+  lk <- stats::make.link("logit")
+  bin <- pglmm_family_binomial("logit")
+  list(
+    family = "betabinomial", link = "logit", label = "beta-binomial",
+    linkfun = lk$linkfun, linkinv = lk$linkinv,
+    disp = list(name = "phi", label = "Precision parameter of the beta-binomial distribution (phi)",
+                value = function(q) 1 / q, phi = function(phi) 1 / phi, lower = 0),
+    laplace = function(Y, size, wt = NULL) {
+      if (!is.null(wt)) stop("internal error: the weights of beta-binomial models are in size")
+      nY <- size - Y
+      fbin <- bin$laplace(Y, size)$fam
+      # For integer counts y (up to 500 trials), the differences of the
+      # (poly)gamma functions are sums: psi(y + a) - psi(a) = sum_{k < y} 1 / (a + k),
+      # psi1(y + a) - psi1(a) = -sum 1 / (a + k)^2, psi2(y + a) - psi2(a) =
+      # sum 2 / (a + k)^3, lgamma(y + a) - lgamma(a) = sum log(a + k): faster and
+      # more accurate (no cancellation for large a); the observations with y > k
+      # are the same for all evaluations. lgamma(P) - lgamma(n + P) =
+      # -sum_k N_k log(P + k), with N_k the number of observations with n > k.
+      sums <- max(size) <= 500
+      if (sums) {
+        idx <- function(y) lapply(seq_len(max(y)) - 1L, function(k) which(y > k))
+        iY <- idx(Y)
+        inY <- idx(nY)
+        Nk <- tabulate(size, nbins = max(size))
+        Nk <- rev(cumsum(rev(Nk))) # number of observations with n > k, k = 0, ...
+        ks <- seq_along(Nk) - 1
+      }
+      # the differences of the functions of y + a and a: list(l = lgamma,
+      # d1 = digamma, d2 = trigamma, d3 = psigamma(, 2))
+      pdiff <- function(a, y, iy, deriv = 3) {
+        if (!sums) {
+          return(list(l = lgamma(y + a) - lgamma(a), d1 = digamma(y + a) - digamma(a),
+                      d2 = if (deriv >= 2) trigamma(y + a) - trigamma(a),
+                      d3 = if (deriv >= 3) psigamma(y + a, 2) - psigamma(a, 2)))
+        }
+        n <- length(a)
+        l <- d1 <- d2 <- d3 <- numeric(n)
+        for (k in seq_along(iy)) {
+          j <- iy[[k]]
+          x <- a[j] + (k - 1)
+          t <- 1 / x
+          l[j] <- l[j] + log(x)
+          d1[j] <- d1[j] + t
+          if (deriv >= 2) d2[j] <- d2[j] - t^2
+          if (deriv >= 3) d3[j] <- d3[j] + 2 * t^3
+        }
+        list(l = l, d1 = d1, d2 = d2, d3 = d3)
+      }
+      lgP <- function(P) {
+        if (sums) -sum(Nk * log(P + ks)) else sum(lgamma(P) - lgamma(size + P))
+      }
+      dgP <- function(P) {
+        if (sums) -sum(Nk / (P + ks)) else sum(digamma(P) - digamma(size + P))
+      }
+      list(
+        fam = function(eta, phi = 0) {
+          if (phi < 1e-8) return(fbin(eta))
+          P <- 1 / phi
+          p <- stats::plogis(eta)
+          f <- p * (1 - p)
+          f1 <- f * (1 - 2 * p)
+          f2 <- f * ((1 - 2 * p)^2 - 2 * f)
+          A <- pdiff(p * P, Y, if (sums) iY)
+          B <- pdiff((1 - p) * P, nY, if (sums) inY)
+          D1 <- A$d1 - B$d1
+          S2 <- A$d2 + B$d2
+          S3 <- A$d3 - B$d3
+          l2 <- P * f1 * D1 + P^2 * f^2 * S2
+          l3 <- P * f2 * D1 + 3 * P^2 * f * f1 * S2 + P^3 * f^3 * S3
+          logp <- sum(A$l + B$l) + lgP(P)
+          list(m = size * p, g = P * f * D1, w = -l2, dw = -l3, logp = logp)
+        },
+        const = sum(lchoose(size, Y)),
+        # derivatives in q = 1 / P (dP / dq = -P^2) of the sum of the log
+        # densities, of g and of w; finite differences near the binomial model
+        dphi = function(eta, phi) {
+          if (phi < 1e-6) return(NULL)
+          P <- 1 / phi
+          p <- stats::plogis(eta)
+          f <- p * (1 - p)
+          f1 <- f * (1 - 2 * p)
+          A <- pdiff(p * P, Y, if (sums) iY)
+          B <- pdiff((1 - p) * P, nY, if (sums) inY)
+          D1 <- A$d1 - B$d1
+          S2 <- A$d2 + B$d2
+          dD1 <- p * A$d2 - (1 - p) * B$d2 # d D1 / dP
+          dS2 <- p * A$d3 + (1 - p) * B$d3 # d S2 / dP
+          dl <- sum(p * A$d1 + (1 - p) * B$d1) + dgP(P)
+          dg <- f * D1 + P * f * dD1
+          dw <- -(f1 * D1 + P * f1 * dD1 + 2 * P * f^2 * S2 + P^2 * f^2 * dS2)
+          list(lphi = -P^2 * dl, gphi = -P^2 * dg, wphi = -P^2 * dw)
+        }
+      )
+    },
+    check = function(Y, size) {
+      bin$check(Y, size)
+      if (all(size <= 1)) {
+        stop("family = \"betabinomial\" needs numbers of trials larger than one (cbind(successes, ",
+             "failures), or proportions with the numbers of trials as weights): with 0/1 data, its ",
+             "overdispersion cannot be estimated (it is the binomial distribution).", call. = FALSE)
+      }
+      invisible(NULL)
+    },
+    start = function(formula, data, X, Y, size, offset) {
+      list(B = stats::coef(pglmm_glm(formula, data, stats::binomial)), phi = 0.1)
+    },
+    glm.family = function(value = NULL) pglmm_betabinomial_family(value),
+    simulate = function(mu, value, size) {
+      stats::rbinom(length(mu), size, stats::rbeta(length(mu), mu * value, (1 - mu) * value))
+    }
+  )
+}
+
+# family object of the beta-binomial distribution with the precision phi (for
+# family() and deviance residuals): binomial() with the deviance of the
+# beta-binomial distribution, from its log density at the fitted probability
+# and at the observed proportion (y: proportions, wt: numbers of trials)
+pglmm_betabinomial_family <- function(phi = NULL) {
+  fam <- stats::binomial()
+  fam$family <- "betabinomial"
+  if (is.null(phi) || !is.finite(phi)) return(fam)
+  ll <- function(k, n, p) {
+    a <- p * phi
+    b <- (1 - p) * phi
+    lbeta(k + a, n - k + b) - lbeta(a, b)
+  }
+  fam$dev.resids <- function(y, mu, wt) {
+    k <- y * wt
+    ps <- pmin(pmax(y, 1e-8), 1 - 1e-8)
+    2 * (ll(k, wt, ps) - ll(k, wt, mu))
+  }
+  fam
 }
 
 # Gamma with the log link: shape nu, Var(y) = m^2 / nu, estimated as the
