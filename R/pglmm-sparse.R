@@ -1235,6 +1235,7 @@ communityPGLMM.glmm.sparse <- function(formula, data, family = "binomial", cov_r
       cache <- new.env(parent = emptyenv())
       fn <- function(v) {
         s <- sqrt(pmax(v, 0) / sf)
+        cache$ev <- NULL # (frees the previous factorization before the next one)
         ev <- tryCatch(pglmm_sparse_weval(s, pre, w, XH, has.obs, full = TRUE), error = function(e) NULL)
         cache$v <- v
         cache$ev <- ev
@@ -1429,6 +1430,7 @@ communityPGLMM.gaussian.sparse <- function(formula, data, cov_ranef = NULL, REML
     cache <- new.env(parent = emptyenv())
     fn <- function(v) {
       theta <- sqrt(pmax(v, 0) / sf)
+      cache$ev <- NULL # (frees the previous factorization before the next one)
       ev <- tryCatch(pglmm_sparse_eval(theta, pre), error = function(e) NULL)
       cache$v <- v
       cache$theta <- theta

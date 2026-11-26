@@ -209,6 +209,7 @@ pglmm_laplace_ll <- function(par, lp, st, REML = FALSE, fit.beta = REML, keep = 
     beta <- par[seq_len(lp$p)]
     ss <- par[-seq_len(lp$p)]
   }
+  if (!is.null(keep)) keep$md <- NULL # (frees the previous factorization before the next one)
   md <- tryCatch(pglmm_laplace_mode(beta, ss, lp, st, fit.beta, phi = phi),
                  error = function(e) NULL)
   if (is.null(md) || !is.finite(md$ll)) {
