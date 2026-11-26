@@ -52,7 +52,7 @@
 pglmm_family_spec <- function(family) {
   if (!is.character(family) || length(family) != 1) return(NULL)
   switch(family,
-    binomial = pglmm_family_binomial(),
+    binomial = pglmm_family_binomial(pglmm_family_link(family, "logit")),
     poisson = pglmm_family_poisson(),
     nbinomial = pglmm_family_nbinomial(),
     Gamma = pglmm_family_gamma(),
@@ -64,9 +64,32 @@ pglmm_family_spec <- function(family) {
 pglmm_laplace_families <- c("binomial", "poisson", "nbinomial", "Gamma")
 pglmm_laplace_only_families <- c("nbinomial", "Gamma")
 
-# the name of a family given to pglmm(): "gamma" for "Gamma"
+# the name of a family given to pglmm(): "gamma" for "Gamma"; a family object
+# (e.g. binomial(link = "cloglog")) gives its name, with its link as the
+# attribute "link" when it is not the default one of the family (so that
+# models with the default links are unchanged)
 pglmm_family_name <- function(family) {
+  if (is.function(family)) family <- family()
+  if (inherits(family, "family")) {
+    links <- list(binomial = c("logit", "probit", "cloglog"), poisson = "log",
+                  gaussian = "identity", Gamma = "log")
+    nm <- family$family
+    if (nm %in% names(links) && !family$link %in% links[[nm]]) {
+      stop("The link \"", family$link, "\" is not available for family = \"", nm, "\"; the links are ",
+           paste0("\"", links[[nm]], "\"", collapse = ", "), ".", call. = FALSE)
+    }
+    if (nm %in% names(links) && family$link != links[[nm]][1]) {
+      return(structure(nm, link = family$link))
+    }
+    return(nm)
+  }
   if (identical(family, "gamma")) "Gamma" else family
+}
+
+# the link of a family name of pglmm_family_name() (default: the default link)
+pglmm_family_link <- function(family, default) {
+  lk <- attr(family, "link")
+  if (is.null(lk)) default else lk
 }
 
 # glm() (or MASS::glm.nb() with family = "nb") for starting values, with the
@@ -86,20 +109,56 @@ pglmm_glm <- function(formula, data, family) {
   }
 }
 
-pglmm_family_binomial <- function() {
-  lk <- stats::make.link("logit")
+# The binomial family, with the logit (default), probit or cloglog link. For a
+# link p = F(eta) with density f = F', the log density
+# y log p + (n - y) log(1 - p) has, with r = f / p, s = f / (1 - p),
+# h1 = f' / f and h2 = f'' / f, the derivatives in eta
+#   g = y r - (n - y) s,
+#   w = -d2/deta2 = y r^2 + (n - y) s^2 - h1 g,
+#   dw = -d3/deta3 = -(2 y r^3 - 2 (n - y) s^3 - 3 h1 (y r^2 + (n - y) s^2) + h2 g),
+# computed in forms that do not overflow (for cloglog, s = exp(eta), and
+# r = t / expm1(t) with t = exp(eta)). w > 0 for these links (F and 1 - F are
+# log-concave), as the mode search needs.
+pglmm_family_binomial <- function(link = "logit") {
+  lk <- stats::make.link(link)
+  # r, s, h1, h2, and log p and log(1 - p), for the link
+  parts <- switch(link,
+    probit = function(eta) {
+      ld <- stats::dnorm(eta, log = TRUE)
+      lp <- stats::pnorm(eta, log.p = TRUE)
+      lq <- stats::pnorm(-eta, log.p = TRUE)
+      list(r = exp(ld - lp), s = exp(ld - lq), h1 = -eta, h2 = eta^2 - 1, lp = lp, lq = lq)
+    },
+    cloglog = function(eta) {
+      t <- exp(pmin(eta, 700))
+      list(r = ifelse(t > 30, t * exp(-t), t / expm1(t)), s = t, h1 = 1 - t, h2 = (1 - t)^2 - t,
+           lp = log(-expm1(-t)), lq = -t)
+    }
+  )
   list(
-    family = "binomial", link = "logit", label = "binomial",
+    family = "binomial", link = link, label = "binomial",
     linkfun = lk$linkfun, linkinv = lk$linkinv, disp = NULL,
     laplace = function(Y, size, wt = NULL) {
       if (!is.null(wt)) stop("internal error: the weights of binomial models are in size")
+      nY <- size - Y
       list(
-        fam = function(eta, phi = 0) {
-          pr <- stats::plogis(eta)
-          l1pe <- pmax(eta, 0) + log1p(exp(-abs(eta))) # log(1 + exp(eta)), without overflow
-          m <- size * pr
-          w <- size * pr * (1 - pr)
-          list(m = m, g = Y - m, w = w, dw = w * (1 - 2 * pr), logp = sum(Y * eta - size * l1pe))
+        fam = if (link == "logit") {
+          function(eta, phi = 0) {
+            pr <- stats::plogis(eta)
+            l1pe <- pmax(eta, 0) + log1p(exp(-abs(eta))) # log(1 + exp(eta)), without overflow
+            m <- size * pr
+            w <- size * pr * (1 - pr)
+            list(m = m, g = Y - m, w = w, dw = w * (1 - 2 * pr), logp = sum(Y * eta - size * l1pe))
+          }
+        } else {
+          function(eta, phi = 0) {
+            k <- parts(eta)
+            g <- Y * k$r - nY * k$s
+            q2 <- Y * k$r^2 + nY * k$s^2
+            list(m = size * lk$linkinv(eta), g = g, w = q2 - k$h1 * g,
+                 dw = -(2 * Y * k$r^3 - 2 * nY * k$s^3 - 3 * k$h1 * q2 + k$h2 * g),
+                 logp = sum(ifelse(Y > 0, Y * k$lp, 0) + ifelse(nY > 0, nY * k$lq, 0)))
+          }
         },
         const = sum(lchoose(size, Y))
       )
@@ -116,9 +175,9 @@ pglmm_family_binomial <- function() {
       invisible(NULL)
     },
     start = function(formula, data, X, Y, size, offset) {
-      list(B = stats::coef(pglmm_glm(formula, data, stats::binomial)), phi = NULL)
+      list(B = stats::coef(pglmm_glm(formula, data, stats::binomial(link = link))), phi = NULL)
     },
-    glm.family = function(value = NULL) stats::binomial(),
+    glm.family = function(value = NULL) stats::binomial(link = link),
     simulate = function(mu, value, size) stats::rbinom(length(mu), size, mu)
   )
 }

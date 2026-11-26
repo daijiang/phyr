@@ -126,7 +126,9 @@ print.communityPGLMM <- function(x, digits = max(3, getOption("digits") - 3), ..
 # used by INLA for zero-inflated models (e.g. zeroinflatedpoisson1)
 pglmm_family_label <- function(family) {
   spec <- pglmm_family_spec(family)
-  if (!is.null(spec)) return(spec$label)
+  if (!is.null(spec)) {
+    return(if (is.null(attr(family, "link"))) spec$label else paste0(spec$label, " (", spec$link, " link)"))
+  }
   if (grepl("nbinomial", family)) return("negative binomial")
   if (grepl("binomial", family)) return("binomial")
   if (grepl("poisson", family)) return("poisson")

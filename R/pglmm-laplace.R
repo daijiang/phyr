@@ -734,7 +734,7 @@ communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_
 # prior weights that multiply the log density (NULL for binomial models,
 # whose weights are numbers of trials, in size)
 pglmm_laplace_wt <- function(object) {
-  if (identical(object$family, "binomial")) NULL else object$prior.weights
+  if (isTRUE(object$family == "binomial")) NULL else object$prior.weights
 }
 
 # Laplace approximation of the log-likelihood of a fitted model at the

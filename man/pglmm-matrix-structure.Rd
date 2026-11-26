@@ -67,8 +67,16 @@ effects are dropped, together with their values in \code{random.effects}.}
 
 \item{family}{Either "gaussian" for a Linear Mixed Model, or
 "binomial", "poisson", "nbinomial" or "Gamma" for Generalized Linear Mixed Models.
-"family" should be specified as a character string (i.e., quoted). For binomial and
-Poisson data, we use the canonical logit and log link functions, respectively.
+"family" should be specified as a character string (i.e., quoted), or as a family
+object (e.g. \code{binomial(link = "cloglog")}). For binomial and
+Poisson data, we use the canonical logit and log link functions, respectively, by
+default; binomial models can also have the probit or the complementary log-log link,
+with \code{family = binomial(link = "probit")} or \code{binomial(link = "cloglog")}
+(with \code{bayes = FALSE} and \code{method = "Laplace"}). The cloglog link is the
+usual one for presence/absence data from plots of different sizes or sampling efforts:
+with \code{offset(log(area))} in the formula, the probability of presence is
+\eqn{1 - \exp(-\lambda \, area)}{1 - exp(-lambda area)}, as for a poisson number of
+individuals with the rate \eqn{\lambda}{lambda} per unit of area.
 Binomial data can be either presence/absence, or a two-column array of 'successes' and 'failures'.
 For both binomial  and Poisson data, we add an observation-level
 random term by default via \code{add.obs.re = TRUE}.

@@ -2,6 +2,7 @@
 
 ## New features
 
+* Binomial models with the probit and complementary log-log links: `family = binomial(link = "probit")` or `binomial(link = "cloglog")` (with `method = "Laplace"`). With `offset(log(area))`, the cloglog link models presence/absence from plots of different sizes or sampling efforts. The estimates are those of `glmmTMB()` (log-likelihoods within 1e-9 with 300 and 1000 species).
 * `predict()` gives standard errors (`se.fit = TRUE`) and confidence intervals (`interval = "confidence"`) of the predictions of models fitted with `bayes = FALSE`: without random effects (`re.form = NA`), from the covariance matrix of the fixed effects (the same as `glmmTMB()`); with the random effects (models fitted with the sparse code or the Laplace approximation), the standard errors of prediction of the fixed and random effects together, from the mixed model equations (conditional on the estimated variances, as `ranef(condVar = TRUE)`). With `type = "response"`, they are on the scale of the response (delta method).
 
 * More packages work with `pglmm()` models: `car::Anova()`, `car::linearHypothesis()` and `car::vif()`, `multcomp::glht()`, `lmtest::lrtest()`, MuMIn's `dredge()`, `model.sel()` and `model.avg()` (a `makeArgs()` method keeps the random terms of the global model in the submodels), and ggeffects through emmeans (see `?pglmm-terms`).

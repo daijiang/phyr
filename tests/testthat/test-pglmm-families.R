@@ -296,3 +296,58 @@ test_that("Gamma models give errors when not supported", {
   expect_error(qpglmm(bm ~ x + (1 | sp__), data = gd$d, family = "Gamma", cov_ranef = list(sp = gd$phy),
                       bayes = TRUE), "bayes = FALSE")
 })
+
+test_that("binomial models with the probit and cloglog links", {
+  # derivatives of the log density in eta (finite differences)
+  for (lk in c("probit", "cloglog")) {
+    f <- phyr:::pglmm_family_spec(structure("binomial", link = lk))$laplace(c(0, 1, 3, 2), c(1, 1, 5, 4))$fam
+    for (eta in c(-4, -0.5, 1, 3)) {
+      e <- rep(eta, 4)
+      h <- 1e-5
+      k <- f(e)
+      expect_equal(k$w, -(f(e + h)$g - f(e - h)$g) / (2 * h), tolerance = 1e-6)
+      expect_equal(k$dw, (f(e + h)$w - f(e - h)$w) / (2 * h), tolerance = 1e-5)
+      expect_true(all(k$w > 0))
+    }
+  }
+  set.seed(3)
+  nsp <- 40
+  phy <- ape::rcoal(nsp, tip.label = paste0("sp", 1:nsp))
+  d <- expand.grid(sp = phy$tip.label, site = paste0("s", 1:6), stringsAsFactors = FALSE)
+  d$x <- rnorm(nrow(d))
+  d$area <- runif(nrow(d), 0.5, 2)
+  u <- as.numeric(t(chol(ape::vcv(phy))) %*% rnorm(nsp, sd = 0.5))
+  eta <- -0.5 + 0.4 * d$x + log(d$area) + u[match(d$sp, phy$tip.label)]
+  d$pa <- rbinom(nrow(d), 1, 1 - exp(-exp(eta)))
+  m <- qpglmm(pa ~ x + offset(log(area)) + (1 | sp__) + (1 | site), d, binomial(link = "cloglog"),
+              cov_ranef = list(sp = phy), REML = FALSE, add.obs.re = FALSE)
+  expect_identical(m$method, "Laplace")
+  expect_identical(family(m)$link, "cloglog")
+  expect_output(print(m), "binomial \\(cloglog link\\)")
+  expect_equal(as.vector(fitted(m)), as.vector(1 - exp(-exp(predict(m)[, 1]))), tolerance = 1e-8)
+  nd <- d[1:4, ]
+  expect_equal(as.vector(predict(m, newdata = nd, type = "response", re.form = NA)),
+               1 - exp(-exp(as.vector(cbind(1, nd$x) %*% m$B) + log(nd$area))), tolerance = 1e-8)
+  expect_equal(dim(simulate(m, nsim = 2)), c(nrow(d), 2))
+  if (requireNamespace("glmmTMB", quietly = TRUE)) {
+    C <- ape::vcv(phy)
+    C <- C / max(C)
+    C <- C / exp(determinant(C)$modulus[1] / nsp)
+    d$spf <- factor(d$sp, levels = phy$tip.label)
+    d$g <- factor(1)
+    for (lk in c("cloglog", "probit")) {
+      f <- if (lk == "cloglog") pa ~ x + offset(log(area)) else pa ~ x
+      p <- qpglmm(update(f, . ~ . + (1 | sp__) + (1 | site)), d, binomial(link = lk),
+                  cov_ranef = list(sp = phy), REML = FALSE, add.obs.re = FALSE)
+      g <- glmmTMB::glmmTMB(update(f, . ~ . + (1 | spf) + propto(0 + spf | g, C) + (1 | site)), data = d,
+                            family = binomial(link = lk))
+      expect_equal(p$logLik, as.numeric(logLik(g)), tolerance = 1e-6)
+      expect_equal(unname(p$B[, 1]), unname(glmmTMB::fixef(g)$cond), tolerance = 1e-4)
+      expect_equal(unname(p$B.se[, 1]), unname(sqrt(diag(vcov(g)$cond))), tolerance = 1e-3)
+    }
+  }
+  expect_error(pglmm(pa ~ x + (1 | sp__), d, binomial(link = "cauchit"), cov_ranef = list(sp = phy)),
+               "not available for family")
+  expect_error(pglmm(pa ~ x + (1 | sp__), d, binomial(link = "cloglog"), cov_ranef = list(sp = phy),
+                     method = "PQL"), "only available with method")
+})
