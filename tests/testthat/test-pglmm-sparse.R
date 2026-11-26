@@ -143,16 +143,15 @@ test_that("sparse = NULL (the default) uses the sparse code whenever it supports
   q <- function(...) suppressWarnings(suppressMessages(pglmm(...)))
   expect_false(is.null(q(y ~ x + (1 | sp__) + (1 | site), s$d, cov_ranef = list(sp = s$phy))$sparse))
   expect_false(is.null(q(y ~ x + (1 | sp__) + (x | sp), s$d, cov_ranef = list(sp = s$phy))$sparse))
-  # the dense code: covariance matrices, random.effects
+  # covariance matrices: their (dense) inverse; random.effects: the dense code
   V <- ape::vcv(s$phy)
-  expect_null(q(y ~ x + (1 | sp__), s$d, cov_ranef = list(sp = V))$sparse)
+  expect_false(is.null(q(y ~ x + (1 | sp__), s$d, cov_ranef = list(sp = V))$sparse))
   re <- list(list(1, sp = factor(s$d$sp), covar = diag(length(unique(s$d$sp)))))
   expect_null(q(y ~ x, s$d, random.effects = re)$sparse)
   # TRUE and FALSE are used as given (TRUE stops for what the sparse code does
   # not support, see below); other values are errors
   expect_null(q(y ~ x + (1 | sp__) + (1 | site), s$d, cov_ranef = list(sp = s$phy), sparse = FALSE)$sparse)
   expect_false(is.null(q(y ~ x + (1 | sp__), s$d, cov_ranef = list(sp = s$phy), sparse = TRUE)$sparse))
-  expect_error(q(y ~ x + (1 | sp__), s$d, cov_ranef = list(sp = V), sparse = TRUE), "phylogeny")
   expect_error(q(y ~ x + (1 | sp__), s$d, cov_ranef = list(sp = s$phy), sparse = NA), "TRUE, FALSE or NULL")
   expect_error(q(y ~ x + (1 | sp__), s$d, cov_ranef = list(sp = s$phy), sparse = "yes"), "TRUE, FALSE or NULL")
   expect_true(phyr:::pglmm_sparse_default(y ~ x + (1 | sp), NULL, NULL, bayes = TRUE))
@@ -165,8 +164,6 @@ test_that("sparse = NULL (the default) uses the sparse code whenever it supports
 
 test_that("sparse = TRUE stops for what it does not support", {
   s <- sim_sparse_data(nsp = 15, nsite = 5)
-  V <- ape::vcv(s$phy)
-  expect_error(pglmm(y ~ x + (1 | sp__), s$d, cov_ranef = list(sp = V), sparse = TRUE), "phylogeny")
   # one value of repulsion for each phylogenetic variable of nested terms
   expect_error(
     pglmm(y ~ x + (1 | sp__) + (1 | sp__@site), s$d, cov_ranef = list(sp = s$phy), sparse = TRUE,
@@ -510,4 +507,37 @@ test_that("pglmm(sparse = TRUE) gives the same fit and methods as the default co
     # inverse of the covariance matrix of the working response
     expect_equal(pglmm_iV(m2), pglmm_iV(m1), tolerance = 1e-4)
   }
+})
+
+test_that("covariance matrices in cov_ranef give the same fits as the dense code and as phylogenies", {
+  s <- sim_sparse_data(nsp = 25, nsite = 6)
+  V <- ape::vcv(s$phy)
+  f <- y ~ x + (1 | sp__) + (1 | site) + (1 | sp__@site)
+  q <- function(...) suppressWarnings(suppressMessages(pglmm(...)))
+  for (reml in c(TRUE, FALSE)) {
+    ms <- q(f, s$d, cov_ranef = list(sp = V), REML = reml)
+    md <- q(f, s$d, cov_ranef = list(sp = V), REML = reml, sparse = FALSE)
+    mp <- q(f, s$d, cov_ranef = list(sp = s$phy), REML = reml)
+    expect_false(is.null(ms$sparse))
+    expect_equal(ms$logLik, md$logLik, tolerance = 1e-6)
+    expect_equal(ms$B, md$B, tolerance = 1e-4)
+    expect_equal(ms$logLik, mp$logLik, tolerance = 1e-8)
+    expect_equal(ms$ss, mp$ss, tolerance = 1e-5)
+    expect_equal(ranef(ms), ranef(mp), tolerance = 1e-5)
+    expect_equal(predict(ms, newdata = s$d[1:5, ]), predict(mp, newdata = s$d[1:5, ]), tolerance = 1e-6)
+  }
+  # binomial with PQL: the same model as the dense code
+  d <- s$d
+  d$pa <- as.numeric(d$y > median(d$y))
+  fb <- pa ~ x + (1 | sp__) + (1 | site)
+  ps <- q(fb, d, "binomial", cov_ranef = list(sp = V), method = "PQL")
+  pp <- q(fb, d, "binomial", cov_ranef = list(sp = s$phy), method = "PQL")
+  expect_false(is.null(ps$sparse))
+  expect_equal(ps$logLik, pp$logLik, tolerance = 1e-6)
+  # a matrix that is not positive definite (two species with the same rows)
+  V2 <- V
+  V2[, 2] <- V2[, 1]
+  V2[2, ] <- V2[1, ]
+  expect_error(q(y ~ x + (1 | sp__), s$d, cov_ranef = list(sp = V2)), "not positive definite")
+  expect_error(q(y ~ x + (1 | sp__), s$d, cov_ranef = list(sp = V2), sparse = FALSE), "not positive definite")
 })

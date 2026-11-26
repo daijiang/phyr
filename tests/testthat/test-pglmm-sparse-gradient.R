@@ -88,7 +88,7 @@ test_that("the gradient of the Laplace approximation is correct", {
   for (cs in cases) {
     fam <- cs[[2]]
     dd <- suppressMessages(phyr:::pglmm_glmm_data(cs[[1]], dg, fam, TRUE))
-    tm <- suppressWarnings(phyr:::pglmm_sparse_terms(cs[[1]], dd$data, crg, allow.matrix = TRUE))
+    tm <- suppressWarnings(phyr:::pglmm_sparse_terms(cs[[1]], dd$data, crg))
     pre <- phyr:::pglmm_sparse_setup(dd$X, NULL, tm$terms, weights = TRUE)
     lp <- phyr:::pglmm_laplace_prep(pre, dd$X, dd$Y, dd$size, fam, dd$has.obs)
     nt <- length(tm$terms)

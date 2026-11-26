@@ -60,8 +60,7 @@ dense_laplace <- function(beta, ss, dm, family, REML = FALSE, phi = NULL) {
 new_laplace <- function(formula, data, family, cov_ranef, beta, ss, REML = FALSE,
                         repulsion = FALSE, phi = NULL) {
   dd <- quiet(phyr:::pglmm_glmm_data(formula, data, family))
-  tm <- quiet(phyr:::pglmm_sparse_terms(formula, dd$data, cov_ranef, TRUE, repulsion,
-                                        allow.matrix = TRUE))
+  tm <- quiet(phyr:::pglmm_sparse_terms(formula, dd$data, cov_ranef, TRUE, repulsion))
   pre <- phyr:::pglmm_sparse_setup(dd$X, NULL, tm$terms, weights = TRUE)
   lp <- phyr:::pglmm_laplace_prep(pre, dd$X, dd$Y, dd$size, family, dd$has.obs)
   st <- new.env()

@@ -506,8 +506,7 @@ communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_
   p <- ncol(X)
   ip <- seq_len(p)
 
-  tm <- pglmm_sparse_terms(formula, data, cov_ranef, standardize_cov, repulsion, phylo_only,
-                           allow.matrix = TRUE)
+  tm <- pglmm_sparse_terms(formula, data, cov_ranef, standardize_cov, repulsion, phylo_only)
   terms <- tm$terms
   nt <- length(terms)
   nested <- vapply(terms, function(z) z$nested, TRUE)

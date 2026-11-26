@@ -12,6 +12,14 @@
 #' @param standardize Whether to standardize the var-cov matrices.
 #' @return A named list, which includes the processed var-cov matrices of random terms.
 #' @noRd
+# Whether a (symmetric) matrix is positive definite, numerically: its
+# Cholesky decomposition exists and its smallest pivot is not negligible
+pglmm_is_pd <- function(V, tol = 1e-10) {
+  V <- as.matrix(V)
+  R <- tryCatch(chol(V), error = function(e) NULL)
+  !is.null(R) && min(diag(R))^2 > tol * max(abs(diag(V)))
+}
+
 parse_conv_ranef <- function(x, df, standardize = TRUE) {
   if (is.null(names(x))) stop("conv_ranef list must have names")
   x2 <- x
@@ -53,6 +61,12 @@ parse_conv_ranef <- function(x, df, standardize = TRUE) {
                     " must be the same and in the same order"))
       }
       xx <- xx[spl, spl, drop = FALSE]
+      if (!pglmm_is_pd(xx)) {
+        stop("The covariance matrix of variable ", names(x)[i], " in cov_ranef is not positive ",
+             "definite (e.g. two levels with the same rows, such as tips of a phylogeny joined by ",
+             "branches of length zero); pglmm() needs positive definite covariance matrices.",
+             call. = FALSE)
+      }
       if (standardize && abs(det(xx) - 1) > 0.0001) {
         warning("The cov matrix is not standardized, we will do this now...", call. = FALSE, immediate. = TRUE)
         xx <- xx / max(xx)

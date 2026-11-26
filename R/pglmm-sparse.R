@@ -226,7 +226,7 @@ chol_H <- function(A) {
 
 # Precision matrix of a (dense) covariance matrix V, in the same format as
 # phylo_precision() (the rows are the levels of the variable, no internal
-# nodes). Used by method = "Laplace" for covariance matrices in cov_ranef.
+# nodes), for covariance matrices in cov_ranef.
 cov_precision <- function(V) {
   V <- as.matrix(V)
   R <- tryCatch(chol(V), error = function(e) {
@@ -245,10 +245,9 @@ cov_precision <- function(V) {
 # The terms are in the order of the parameters of the default code: non-nested
 # terms first, then nested terms. `formula.order` gives the order of the terms
 # in the formula (as random.effects of the default code): terms[formula.order].
-# With allow.matrix = TRUE (method = "Laplace"), cov_ranef can also have
-# covariance matrices, whose (dense) inverse is used as precision matrix, and
-# phylogenies with terminal branches of length zero (used as their covariance
-# matrix). With flow = TRUE (bayes = TRUE, sparse_method = "flow"), each
+# cov_ranef can also have covariance matrices, whose (dense) inverse is used
+# as precision matrix, and phylogenies with terminal branches of length zero
+# (used as their covariance matrix). With flow = TRUE (bayes = TRUE, sparse_method = "flow"), each
 # phylogenetic term also has `flow`: the design matrix D of the rates of its
 # branches (or pairs of branches for nested terms, from the row-wise Kronecker
 # product of the flow matrices, see phylo_flow()), the vector C of the
@@ -256,8 +255,7 @@ cov_precision <- function(V) {
 # lengths), their labels, and `len.scale` to put the rates on the scale of
 # the branch lengths of the phylogenies in cov_ranef.
 pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
-                               repulsion = FALSE, phylo_only = FALSE, allow.matrix = FALSE,
-                               flow = FALSE) {
+                               repulsion = FALSE, phylo_only = FALSE, flow = FALSE) {
   re.terms <- pglmm_parse_re(formula, data, phylo_only = phylo_only)$terms
   if (!length(re.terms)) stop("No random terms specified, use lm or glm instead")
   if (!is.null(cov_ranef)) names(cov_ranef) <- gsub("__$", "", names(cov_ranef))
@@ -274,14 +272,13 @@ pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
     if (is.null(trees[[g]])) {
       tree <- cov_ranef[[g]]
       if (is.null(tree)) stop("Cov matrix of variable ", g, " not specified in cov_ranef.")
+      # covariance matrices, and phylogenies with terminal branches of length
+      # zero (whose precision matrix with internal nodes does not exist): the
+      # (dense) inverse of their covariance matrix
       as_matrix <- !inherits(tree, "phylo") ||
-        (allow.matrix && !is.null(tree$edge.length) &&
+        (!is.null(tree$edge.length) &&
            any(tree$edge.length[tree$edge[, 2] <= ape::Ntip(tree)] == 0, na.rm = TRUE))
       if (as_matrix) {
-        if (!allow.matrix) {
-          stop("With sparse = TRUE, cov_ranef$", g, " must be a phylogeny (class phylo); ",
-               "a covariance matrix does not have a sparse inverse in general.", call. = FALSE)
-        }
         df <- data.frame(f)
         names(df) <- g
         pc <- parse_conv_ranef(stats::setNames(list(tree), g), df, standardize = standardize_cov)
@@ -1459,15 +1456,16 @@ communityPGLMM.gaussian.sparse <- function(formula, data, cov_ranef = NULL, REML
 }
 
 # The value of sparse = NULL (the default of pglmm()): TRUE when the sparse
-# code supports the model, i.e. with bayes = FALSE, random terms in the formula
-# (not random.effects), and phylogenies (not covariance matrices) in cov_ranef;
-# FALSE otherwise
+# code supports the model, i.e. with random terms in the formula (not
+# random.effects), and with bayes = TRUE, phylogenies (not covariance
+# matrices) in cov_ranef; FALSE otherwise
 pglmm_sparse_default <- function(formula, cov_ranef, random.effects, bayes,
                                  ML.init = FALSE, repulsion = FALSE) {
   if (!is.null(random.effects)) return(FALSE)
-  # not available yet with bayes = TRUE and sparse = TRUE
-  if (bayes && (isTRUE(ML.init) || any(as.logical(repulsion)))) return(FALSE)
   if (!length(reformulas::findbars(formula))) return(FALSE)
+  if (!bayes) return(TRUE)
+  # not available yet with bayes = TRUE and sparse = TRUE
+  if (isTRUE(ML.init) || any(as.logical(repulsion))) return(FALSE)
   covs <- Filter(Negate(is.null), if (is.list(cov_ranef)) cov_ranef)
   all(vapply(covs, inherits, logical(1), "phylo"))
 }
