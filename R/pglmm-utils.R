@@ -2214,9 +2214,61 @@ pglmm_cond_modes <- function(object, condVar = FALSE) {
   out
 }
 
+# Posterior summaries of the random effects of the levels of a model fitted
+# with bayes = TRUE and sparse = TRUE, in the format of pglmm_ranef_bayes():
+# the rows of the latent field of each term that are levels in the data (for
+# phylogenies, the tips, not the internal nodes; for nested terms, the
+# combinations in the data). With sparse_method = "flow", the latent field is
+# the rates of the branches, and the value of a level is a sum of rates
+# (Dlev r): its posterior mean is Dlev times the posterior means of the rates,
+# and its other summaries come from nsamp samples of the joint posterior.
+pglmm_ranef_bayes_sparse <- function(object, nsamp = 1000) {
+  rep <- object$bayes_sparse$report
+  sr <- object$inla.model$summary.random
+  ms <- object$marginal.summ
+  if (is.null(ms)) ms <- "mean"
+  if (ms == "median") ms <- "0.5quant"
+  obs <- rownames(object$X)
+  if (is.null(obs)) obs <- seq_len(nrow(object$X))
+  out <- lapply(seq_along(rep), function(i) {
+    r <- rep[[i]]
+    d <- if (is.null(r$labels)) data.frame(obs = obs, stringsAsFactors = FALSE) else r$labels
+    if (is.null(r$Dlev)) {
+      s <- sr[[i]][r$rows, , drop = FALSE]
+      d$estimate <- s[[ms]]
+      d$sd <- s[["sd"]]
+      d$lower <- s[["0.025quant"]]
+      d$upper <- s[["0.975quant"]]
+    } else {
+      if (is.null(object$inla.model$misc$configs)) {
+        stop("ranef() of terms fitted with sparse_method = \"flow\" needs posterior samples: ",
+             "refit the model with posterior.sample = TRUE.", call. = FALSE)
+      }
+      sel <- stats::setNames(list(0), names(sr)[i])
+      draws <- INLA::inla.posterior.sample(nsamp, object$inla.model, selection = sel)
+      R <- vapply(draws, function(x) as.numeric(x$latent), numeric(nrow(sr[[i]])))
+      U <- as.matrix(r$Dlev %*% R)
+      d$estimate <- if (ms == "mean") as.vector(r$Dlev %*% sr[[i]][["mean"]]) else apply(U, 1, stats::median)
+      d$sd <- apply(U, 1, stats::sd)
+      d$lower <- apply(U, 1, stats::quantile, 0.025)
+      d$upper <- apply(U, 1, stats::quantile, 0.975)
+    }
+    rownames(d) <- NULL
+    d
+  })
+  names(out) <- names(rep)
+  out
+}
+
 # Posterior summaries of the latent random effects of a model fitted by INLA.
 pglmm_ranef_bayes <- function(object) {
-  pglmm_bayes_sparse_stop(object, "ranef() (see object$bayes_sparse$latent)")
+  if (!is.null(object$bayes_sparse)) {
+    if (is.null(object$bayes_sparse$report)) {
+      stop("ranef() needs models fitted with bayes = TRUE and sparse = TRUE by phyr 2.0.0 or ",
+           "later (see object$bayes_sparse$latent); refit the model.", call. = FALSE)
+    }
+    return(pglmm_ranef_bayes_sparse(object))
+  }
   re <- object$random.effects
   sr <- object$inla.model$summary.random
   if (is.null(sr) || length(sr) != length(re)) {
@@ -2536,7 +2588,6 @@ predict.communityPGLMM <- function(object, newdata = NULL, re.form = NULL,
   if (is.null(newdata)) {
     return(as.matrix(pglmm_predicted_values(object, re.form = re.form, type = type, ...)))
   }
-  pglmm_bayes_sparse_stop(object, "predict() with newdata")
 
   newdata <- as.data.frame(newdata) # in case of tibbles
   eta <- pglmm_predict_fixed(object, newdata)
@@ -2814,7 +2865,6 @@ rmvnorm_cov <- function(S, nsim) {
 }
 
 bayes_simulate <- function(object, nsim = 250, re.form, ntry = 5, full = FALSE) {
-  if (!is.null(re.form)) pglmm_bayes_sparse_stop(object, "simulate() with re.form = NA")
   if (identical(object$bayes_sparse$method, "flow")) {
     stop("simulate() is not available yet for models fitted with sparse_method = \"flow\".", call. = FALSE)
   }

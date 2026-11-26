@@ -495,10 +495,12 @@ pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
         f2 <- flow_var(g[2], phy[2])
         # pairs of branches (or of a branch and a level), as in kronecker(F2, F1)
         if (!is.null(f1) && !is.null(f2)) {
+          D <- row_kronecker(f1$D, f2$D)
           terms[[length(terms)]]$flow <- list(
-            D = row_kronecker(f1$D, f2$D), C = as.vector(outer(f1$C, f2$C)),
+            D = D, C = as.vector(outer(f1$C, f2$C)),
             labels = stats::setNames(expand.grid(f1$labels, f2$labels, stringsAsFactors = FALSE), g),
-            len.scale = f1$len.scale * f2$len.scale
+            len.scale = f1$len.scale * f2$len.scale,
+            Dlev = D[first, , drop = FALSE] # rows of the combinations reported (labels)
           )
         }
       }
@@ -526,7 +528,8 @@ pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
       fv <- if (flow) flow_var(g, TRUE)
       if (!is.null(fv)) {
         terms[[length(terms)]]$flow <- list(D = fv$D, C = fv$C, labels = fv$labels,
-                                            len.scale = fv$len.scale)
+                                            len.scale = fv$len.scale,
+                                            Dlev = fv$D[first, , drop = FALSE])
       }
       next
     }
@@ -552,8 +555,11 @@ pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
       )
       fv <- if (flow) flow_var(g, TRUE)
       if (!is.null(fv)) {
+        # Dlev: the rows of the levels (in the order of the levels), without
+        # the covariate of slopes
         terms[[length(terms)]]$flow <- list(D = Matrix::Diagonal(x = covariate) %*% fv$D, C = fv$C,
-                                            labels = fv$labels, len.scale = fv$len.scale)
+                                            labels = fv$labels, len.scale = fv$len.scale,
+                                            Dlev = tp$F[match(levels(f), tp$tip.label), , drop = FALSE])
       }
     }
   }
@@ -1775,6 +1781,21 @@ pglmm_cond_modes_sparse <- function(object, condVar = FALSE, nodes = FALSE) {
 pglmm_bayes_sparse_terms <- function(tm, n, sparse_method = c("precision", "flow"),
                                      has.obs = FALSE) {
   sparse_method <- match.arg(sparse_method)
+  # the levels reported by ranef(): their rows in the latent field of the term
+  # (rows), with their labels; for the flow, the matrix Dlev that gives their
+  # values from the rates of the branches (see pglmm_ranef_bayes_sparse())
+  report <- function(z, flow) {
+    if (isTRUE(z$nested)) {
+      out <- list(rows = z$pick, labels = z$labels)
+    } else {
+      rows <- if (isTRUE(z$phy)) z$level.order else seq_len(ncol(z$Z))
+      labels <- data.frame(z$labels[rows], stringsAsFactors = FALSE)
+      names(labels) <- z$group
+      out <- list(rows = rows, labels = labels)
+    }
+    if (flow) out$Dlev <- z$flow$Dlev
+    out
+  }
   generic0 <- function(z) {
     Zt <- as(z$Z, "TsparseMatrix")
     if (anyDuplicated(Zt@i)) stop("Each observation must have one level in each random term.", call. = FALSE)
@@ -1792,15 +1813,17 @@ pglmm_bayes_sparse_terms <- function(tm, n, sparse_method = c("precision", "flow
       list(name = z$name, nested = z$nested, type = "flow", idx = seq_len(m),
            D = as(z$flow$D, "CsparseMatrix"), C = Matrix::Diagonal(x = z$flow$C),
            values = seq_len(m), logdetC = sum(log(z$flow$C)), phy = TRUE,
-           labels = z$flow$labels, len.scale = z$flow$len.scale, mean.diag = z$mean.diag)
+           labels = z$flow$labels, len.scale = z$flow$len.scale, mean.diag = z$mean.diag,
+           report = report(z, TRUE))
     } else {
-      generic0(z)
+      c(generic0(z), list(report = report(z, FALSE)))
     }
   })
   if (has.obs) {
     out[[length(out) + 1]] <- list(name = "1|obs", nested = TRUE, type = "generic0", idx = seq_len(n),
                                    w = NULL, C = Matrix::Diagonal(n), values = seq_len(n),
-                                   logdetC = 0, phy = FALSE, labels = seq_len(n), mean.diag = 1)
+                                   logdetC = 0, phy = FALSE, labels = seq_len(n), mean.diag = 1,
+                                   report = list(rows = seq_len(n), labels = NULL))
   }
   names(out) <- vapply(out, function(z) z$name, "")
   out
@@ -1827,14 +1850,4 @@ pglmm_bayes_sparse_latent <- function(out, sparse_terms, n) {
     }
   }
   res
-}
-
-# Stop for the methods that are not available yet for models fitted with
-# bayes = TRUE and sparse = TRUE
-pglmm_bayes_sparse_stop <- function(object, what) {
-  if (!is.null(object$bayes_sparse)) {
-    stop(what, " is not available yet for models fitted with bayes = TRUE and sparse = TRUE.",
-         call. = FALSE)
-  }
-  invisible(NULL)
 }

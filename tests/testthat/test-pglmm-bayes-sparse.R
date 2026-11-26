@@ -90,7 +90,7 @@ test_that("dense, sparse precision and flow bayesian fits agree", {
     expect_lt(abs(m1$logLik - m2$logLik), 3)
     expect_equal(m1$bayes_sparse$method, "precision")
     expect_equal(m2$bayes_sparse$method, "flow")
-    expect_error(ranef(m2), "not available yet")
+    expect_equal(names(ranef(m2)), names(ranef(m1)))
   }
 })
 
@@ -270,4 +270,36 @@ test_that("rows with a missing response are dropped, and the latent estimates ar
   expect_true(all(c("sp", "site", "mean", "sd", "0.025quant", "0.975quant") %in% names(lat[["1|sp__@site"]])))
   mp <- pglmm(f, d_na, cov_ranef = list(sp = s$phy), bayes = TRUE, sparse = TRUE)
   expect_equal(mp$bayes_sparse$latent[["1|sp__"]]$node, pp$node.label)
+})
+
+test_that("ranef(), predict(newdata) and simulate(re.form = NA) of sparse fits match the dense INLA model", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("INLA")
+  s <- sim_bayes_sparse_data(15, 4)
+  q <- function(...) suppressWarnings(suppressMessages(pglmm(...)))
+  f <- y ~ x + (1 | sp__) + (1 | site) + (x | sp) + (1 | sp__@site)
+  md <- q(f, s$d, cov_ranef = list(sp = s$phy), bayes = TRUE, sparse = FALSE)
+  rd <- ranef(md)
+  for (meth in c("precision", "flow")) {
+    m <- q(f, s$d, cov_ranef = list(sp = s$phy), bayes = TRUE, sparse_method = meth)
+    r <- ranef(m)
+    expect_named(r, names(rd))
+    for (k in names(rd)) {
+      lab <- setdiff(names(rd[[k]]), c("estimate", "sd", "lower", "upper"))
+      expect_named(r[[k]], names(rd[[k]]))
+      key <- function(z) do.call(paste, z[lab])
+      i <- match(key(rd[[k]]), key(r[[k]]))
+      expect_false(anyNA(i))
+      expect_equal(r[[k]]$estimate[i], rd[[k]]$estimate, tolerance = 0.02)
+      # (flow: summaries from samples of the posterior)
+      expect_equal(r[[k]]$sd[i], rd[[k]]$sd, tolerance = if (meth == "flow") 0.1 else 0.02)
+    }
+    nd <- s$d[1:5, ]
+    expect_equal(predict(m, newdata = nd), predict(md, newdata = nd), tolerance = 0.02)
+    nd$sp[1] <- "new_sp"
+    expect_error(predict(m, newdata = nd), "allow.new.levels")
+    expect_false(anyNA(predict(m, newdata = nd, allow.new.levels = TRUE)))
+  }
+  ms <- q(f, s$d, cov_ranef = list(sp = s$phy), bayes = TRUE)
+  expect_equal(dim(simulate(ms, nsim = 3, re.form = NA)), c(nrow(s$d), 3))
 })

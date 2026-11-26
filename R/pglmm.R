@@ -398,9 +398,7 @@
 #'   (e.g. about 35 s versus 1 s with the phylogeny for 1000 species and 10 sites). Give the
 #'   phylogeny itself when there is one. With \code{bayes = TRUE}, the model is given to INLA
 #'   with one of the sparse representations of \code{sparse_method}; use \code{sparse = FALSE}
-#'   for the dense INLA model of earlier versions (needed for \code{ranef()},
-#'   \code{predict()} with \code{newdata} and \code{simulate()} with \code{re.form = NA},
-#'   see \code{sparse_method}).
+#'   for the dense INLA model of earlier versions (see \code{sparse_method}).
 #'
 #'   With \code{bayes = FALSE}, the variances (for gaussian models, relative to the residual variance; for binomial and
 #'   poisson models, at each PQL iteration) are estimated with \code{nlminb()} and the analytic
@@ -475,10 +473,13 @@
 #'   value with the matrix \code{A} can differ from that of \code{"precision"} by about one
 #'   unit); \code{"flow"} is only available with \code{bayes = TRUE} for now. Covariance
 #'   matrices and the terms of \code{random.effects} are given to INLA with their precision
-#'   matrices with both methods. \code{repulsion},
-#'   \code{ranef()}, \code{predict()} with \code{newdata} and \code{simulate()} with
-#'   \code{re.form = NA} (any \code{simulate()} for \code{"flow"}) are not available yet for
-#'   these models. With \code{"flow"}, the rates are linked to the observations by the matrix
+#'   matrices with both methods. \code{ranef()} gives the posterior summaries of the levels
+#'   in the data (for phylogenies, the tips; the internal nodes are in
+#'   \code{bayes_sparse$latent}); with \code{"flow"}, the value of a level is a sum of
+#'   rates, whose posterior mean is exact and whose other summaries come from 1000 samples
+#'   of the joint posterior (which needs \code{posterior.sample = TRUE}). \code{repulsion}
+#'   and \code{simulate()} of \code{"flow"} models are not available yet. With \code{"flow"},
+#'   the rates are linked to the observations by the matrix
 #'   \code{A} of \code{control.predictor} of INLA (as in fibre), so \code{inla.model} has more
 #'   fitted values than observations (the first ones are those of the observations).
 #' @param standardize_cov Logical (default \code{TRUE}). Whether to standardize the covariance
@@ -2328,7 +2329,9 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   if (sparse) {
     results$bayes_sparse <- list(
       method = if (any(vapply(sparse_terms, function(z) z$type == "flow", TRUE))) "flow" else "precision",
-      latent = pglmm_bayes_sparse_latent(out, sparse_terms, n)
+      latent = pglmm_bayes_sparse_latent(out, sparse_terms, n),
+      # the levels reported by ranef() (see pglmm_ranef_bayes_sparse())
+      report = lapply(sparse_terms, function(z) z$report)
     )
   }
   class(results) <- c("communityPGLMM", "pglmm")
