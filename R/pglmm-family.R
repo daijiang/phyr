@@ -23,7 +23,8 @@
 #   laplace(Y, size, wt): list(fam, const, dphi), with fam(eta, phi) returning
 #     list(m = mean of y (size times the probability for binomial models),
 #     g = score d log p(y | eta) / d eta, w = observed information
-#     -d2 log p / d eta2 (> 0), dw = dw / d eta, logp = sum of the log
+#     -d2 log p / d eta2 (> 0), dw = dw / d eta (or a function giving it, when
+#     it is costly: it is only needed for the gradient), logp = sum of the log
 #     densities without the constant const); it is called at each step of the
 #     search for the mode, so that logp should be cheap (precompute what does
 #     not depend on eta and phi). For families with a dispersion parameter,
@@ -54,6 +55,7 @@ pglmm_family_spec <- function(family) {
   switch(family,
     binomial = pglmm_family_binomial(pglmm_family_link(family, "logit")),
     betabinomial = pglmm_family_betabinomial(),
+    beta = pglmm_family_beta(),
     poisson = pglmm_family_poisson(),
     nbinomial = pglmm_family_nbinomial(),
     Gamma = pglmm_family_gamma(),
@@ -62,8 +64,8 @@ pglmm_family_spec <- function(family) {
 }
 
 # families fitted with method = "Laplace", and those fitted only with it
-pglmm_laplace_families <- c("binomial", "poisson", "nbinomial", "Gamma", "betabinomial")
-pglmm_laplace_only_families <- c("nbinomial", "Gamma", "betabinomial")
+pglmm_laplace_families <- c("binomial", "poisson", "nbinomial", "Gamma", "betabinomial", "beta")
+pglmm_laplace_only_families <- c("nbinomial", "Gamma", "betabinomial", "beta")
 
 # families whose data are numbers of successes out of trials (cbind(), or
 # proportions with the numbers of trials as weights)
@@ -460,6 +462,99 @@ pglmm_betabinomial_family <- function(phi = NULL) {
     ps <- pmin(pmax(y, 1e-8), 1 - 1e-8)
     2 * (ll(k, wt, ps) - ll(k, wt, mu))
   }
+  fam
+}
+
+# The beta family (logit link) for proportions strictly between 0 and 1,
+# parameterized as glmmTMB (beta_family()): y ~ beta(mu phi, (1 - mu) phi),
+# with mean mu = plogis(eta) and precision phi, Var(y) = mu (1 - mu) / (1 + phi).
+# Estimated as the dispersion q = 1 / phi. With P = phi, f = mu (1 - mu), the
+# log density
+#   lgamma(P) - lgamma(mu P) - lgamma((1 - mu) P) + (mu P - 1) log(y) + ((1 - mu) P - 1) log(1 - y)
+# has, with T1 = log(y) - log(1 - y) - psi(mu P) + psi((1 - mu) P),
+# U2 = psi1(mu P) + psi1((1 - mu) P) and U3 = psi2(mu P) - psi2((1 - mu) P),
+# the derivatives in eta
+#   g = P T1 f, l'' = P T1 f' - P^2 U2 f^2, l''' = P T1 f'' - 3 P^2 U2 f f' - P^3 U3 f^3,
+# and dphi gives the derivatives in q (dP / dq = -P^2). Prior weights
+# multiply the log density.
+pglmm_family_beta <- function() {
+  lk <- stats::make.link("logit")
+  list(
+    family = "beta", link = "logit", label = "beta",
+    linkfun = lk$linkfun, linkinv = lk$linkinv,
+    disp = list(name = "phi", label = "Precision parameter of the beta distribution (phi)",
+                value = function(q) 1 / q, phi = function(phi) 1 / phi, lower = 1e-8),
+    laplace = function(Y, size, wt = NULL) {
+      ly <- log(Y)
+      l1y <- log1p(-Y)
+      if (is.null(wt)) wt <- 1
+      parts <- function(eta, phi) {
+        P <- 1 / phi
+        mu <- stats::plogis(eta)
+        f <- mu * (1 - mu)
+        a <- mu * P
+        b <- (1 - mu) * P
+        list(P = P, mu = mu, f = f, f1 = f * (1 - 2 * mu), f2 = f * ((1 - 2 * mu)^2 - 2 * f), a = a, b = b,
+             T1 = ly - l1y - digamma(a) + digamma(b), U2 = trigamma(a) + trigamma(b))
+      }
+      list(
+        fam = function(eta, phi) {
+          k <- parts(eta, phi)
+          P <- k$P
+          l2 <- P * k$T1 * k$f1 - P^2 * k$U2 * k$f^2
+          logp <- sum(wt * (lgamma(P) - lgamma(k$a) - lgamma(k$b) + (k$a - 1) * ly + (k$b - 1) * l1y))
+          # dw only for the gradient (psigamma() is slow): as a function
+          dw <- function() {
+            U3 <- psigamma(k$a, 2) - psigamma(k$b, 2)
+            -wt * (P * k$T1 * k$f2 - 3 * P^2 * k$U2 * k$f * k$f1 - P^3 * U3 * k$f^3)
+          }
+          list(m = k$mu, g = wt * P * k$T1 * k$f, w = -wt * l2, dw = dw, logp = logp)
+        },
+        const = 0,
+        dphi = function(eta, phi) {
+          k <- parts(eta, phi)
+          P <- k$P
+          V2 <- -k$mu * trigamma(k$a) + (1 - k$mu) * trigamma(k$b) # d T1 / dP
+          V3 <- k$mu * psigamma(k$a, 2) + (1 - k$mu) * psigamma(k$b, 2) # d U2 / dP
+          dl <- digamma(P) - k$mu * digamma(k$a) - (1 - k$mu) * digamma(k$b) + k$mu * ly + (1 - k$mu) * l1y
+          dg <- k$f * (k$T1 + P * V2)
+          dw <- 2 * P * k$U2 * k$f^2 + P^2 * k$f^2 * V3 - k$f1 * (k$T1 + P * V2)
+          list(lphi = -P^2 * sum(wt * dl), gphi = -P^2 * wt * dg, wphi = -P^2 * wt * dw)
+        }
+      )
+    },
+    check = function(Y, size) {
+      if (any(Y <= 0 | Y >= 1)) {
+        stop('family = "beta" needs a response strictly between 0 and 1; for proportions that ',
+             "can be 0 or 1, transform them, e.g. (y * (n - 1) + 0.5) / n with n the number of ",
+             "observations (Smithson and Verkuilen 2006), or use \"betabinomial\" for counts.",
+             call. = FALSE)
+      }
+      invisible(NULL)
+    },
+    # starting values: glm() with quasibinomial(), and the precision from the
+    # mean and variance of the response
+    start = function(formula, data, X, Y, size, offset) {
+      B <- stats::coef(pglmm_glm(formula, data, stats::quasibinomial))
+      m <- mean(Y)
+      phi <- max(m * (1 - m) / stats::var(Y) - 1, 1)
+      list(B = B, phi = 1 / phi)
+    },
+    glm.family = function(value = NULL) pglmm_beta_family(value),
+    simulate = function(mu, value, size) stats::rbeta(length(mu), mu * value, (1 - mu) * value)
+  )
+}
+
+# family object of the beta distribution with the precision phi (for
+# family() and deviance residuals: twice the difference of the log density
+# at mu = y and at the fitted mean)
+pglmm_beta_family <- function(phi = NULL) {
+  fam <- stats::quasibinomial()
+  fam$family <- "beta"
+  if (is.null(phi) || !is.finite(phi)) return(fam)
+  fam$variance <- function(mu) mu * (1 - mu) / (1 + phi)
+  ll <- function(y, mu) stats::dbeta(y, mu * phi, (1 - mu) * phi, log = TRUE)
+  fam$dev.resids <- function(y, mu, wt) 2 * wt * (ll(y, y) - ll(y, mu))
   fam
 }
 

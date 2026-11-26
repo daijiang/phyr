@@ -100,8 +100,8 @@ repulsion to be something like \code{c(TRUE, FALSE, TRUE, TRUE)} (length of 4).}
 \item{prep.re.effects}{Whether to prepare random effects for users.}
 
 \item{family}{Either "gaussian" for a Linear Mixed Model, or
-"binomial", "poisson", "nbinomial", "Gamma" or "betabinomial" for Generalized Linear
-Mixed Models.
+"binomial", "poisson", "nbinomial", "Gamma", "betabinomial" or "beta" for Generalized
+Linear Mixed Models.
 "family" should be specified as a character string (i.e., quoted), or as a family
 object (e.g. \code{binomial(link = "cloglog")}). For binomial and
 Poisson data, we use the canonical logit and log link functions, respectively, by
@@ -149,6 +149,17 @@ accounts for overdispersion, no observation-level random term is added; it is an
 to the binomial distribution with \code{1|obs}. Its overdispersion cannot be estimated with
 0/1 data (one trial per observation). Only with \code{bayes = FALSE} and \code{method =
   "Laplace"}.
+
+"beta" is the beta distribution for proportions strictly between 0 and 1 (e.g. percent
+cover, relative abundance), with the logit link, mean \eqn{\mu}{mu} and precision
+\eqn{\phi}{phi}: \eqn{y \sim Beta(\mu \phi, (1 - \mu) \phi)}{y ~ Beta(mu phi, (1 - mu) phi)}
+and \eqn{Var(y) = \mu (1 - \mu) / (1 + \phi)}{Var(y) = mu (1 - mu) / (1 + phi)} (as
+\code{glmmTMB(family = beta_family())}, whose \code{sigma()} is \eqn{\phi}{phi}).
+\eqn{\phi}{phi} is estimated with the other parameters (element \code{phi} of the fitted
+model). Responses of exactly 0 or 1 are not allowed: transform them (e.g.
+\eqn{(y (n - 1) + 0.5) / n}{(y (n - 1) + 0.5) / n}, Smithson and Verkuilen 2006), or
+use "betabinomial" for counts. Prior weights multiply the log density. Only with
+\code{bayes = FALSE} and \code{method = "Laplace"}.
 
 If \code{bayes = TRUE} there are
 three additional families available: "zeroinflated.binomial", "zeroinflated.poisson" and

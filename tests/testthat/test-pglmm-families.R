@@ -413,3 +413,61 @@ test_that("beta-binomial models: as glmmTMB(family = betabinomial())", {
   expect_equal(unname(m$B.se[, 1]), unname(sqrt(diag(vcov(g)$cond))), tolerance = 1e-3)
   expect_equal(m$phi, sigma(g), tolerance = 1e-3)
 })
+
+test_that("beta models: as glmmTMB(family = beta_family())", {
+  Y <- c(0.1, 0.5, 0.93, 0.02, 0.7, 0.33)
+  wt <- c(1, 2, 0.5, 1, 1, 3)
+  lp <- phyr:::pglmm_family_spec("beta")$laplace(Y, NULL, wt)
+  e <- c(-2, 0, 2.5, -3, 0.8, -0.4)
+  h <- 1e-5
+  for (q in c(0.05, 0.2, 1)) {
+    k <- lp$fam(e, q)
+    mu <- plogis(e)
+    expect_equal(k$logp, sum(wt * dbeta(Y, mu / q, (1 - mu) / q, log = TRUE)), tolerance = 1e-12)
+    expect_equal(k$w, -(lp$fam(e + h, q)$g - lp$fam(e - h, q)$g) / (2 * h), tolerance = 1e-6)
+    expect_equal(k$dw(), (lp$fam(e + h, q)$w - lp$fam(e - h, q)$w) / (2 * h), tolerance = 1e-6)
+    d <- lp$dphi(e, q)
+    hq <- 1e-6 * q
+    expect_equal(d$lphi, (lp$fam(e, q + hq)$logp - lp$fam(e, q - hq)$logp) / (2 * hq), tolerance = 1e-5)
+    expect_equal(d$gphi, (lp$fam(e, q + hq)$g - lp$fam(e, q - hq)$g) / (2 * hq), tolerance = 1e-5)
+  }
+  set.seed(9)
+  nsp <- 40
+  phy <- ape::rcoal(nsp, tip.label = paste0("sp", 1:nsp))
+  d <- expand.grid(sp = phy$tip.label, site = paste0("s", 1:6), stringsAsFactors = FALSE)
+  d$x <- rnorm(nrow(d))
+  u <- as.numeric(t(chol(ape::vcv(phy))) %*% rnorm(nsp, sd = 0.5))
+  mu <- plogis(-0.3 + 0.4 * d$x + u[match(d$sp, phy$tip.label)])
+  d$yb <- rbeta(nrow(d), mu * 6, (1 - mu) * 6)
+  m <- qpglmm(yb ~ x + (1 | sp__) + (1 | site), d, "beta", cov_ranef = list(sp = phy), REML = FALSE)
+  expect_output(print(m), "Precision parameter of the beta")
+  expect_true(all(fitted(m) > 0 & fitted(m) < 1))
+  expect_true(all(is.finite(residuals(m))))
+  s <- simulate(m, nsim = 2)
+  expect_true(all(s > 0 & s < 1))
+  # prior weights multiply the log density: integer weights are repeated rows
+  d$k <- sample(1:2, nrow(d), replace = TRUE)
+  mk <- qpglmm(yb ~ x + (1 | sp__) + (1 | site), d, "beta", cov_ranef = list(sp = phy), REML = FALSE,
+               weights = k)
+  dd <- d[rep(seq_len(nrow(d)), d$k), ]
+  md <- qpglmm(yb ~ x + (1 | sp__) + (1 | site), dd, "beta", cov_ranef = list(sp = phy), REML = FALSE)
+  expect_equal(mk$logLik, md$logLik, tolerance = 1e-6)
+  expect_equal(mk$phi, md$phi, tolerance = 1e-4)
+  d$y01 <- d$yb
+  d$y01[1] <- 0
+  expect_error(pglmm(y01 ~ x + (1 | sp__), d, "beta", cov_ranef = list(sp = phy)), "strictly between 0 and 1")
+  skip_if_not_installed("glmmTMB")
+  C <- ape::vcv(phy)
+  C <- C / max(C)
+  C <- C / exp(determinant(C)$modulus[1] / nsp)
+  d$spf <- factor(d$sp, levels = phy$tip.label)
+  d$g <- factor(1)
+  g <- glmmTMB::glmmTMB(yb ~ x + (1 | spf) + propto(0 + spf | g, C) + (1 | site), data = d,
+                        family = glmmTMB::beta_family())
+  expect_equal(m$logLik, as.numeric(logLik(g)), tolerance = 1e-6)
+  expect_equal(unname(m$B[, 1]), unname(glmmTMB::fixef(g)$cond), tolerance = 1e-4)
+  se.g <- sqrt(diag(vcov(g)$cond))
+  if (all(is.finite(se.g))) expect_equal(unname(m$B.se[, 1]), unname(se.g), tolerance = 1e-3)
+  expect_true(all(is.finite(m$B.se)))
+  expect_equal(m$phi, sigma(g), tolerance = 1e-3)
+})

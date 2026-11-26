@@ -300,7 +300,8 @@ pglmm_laplace_grad <- function(md, ss, lp, REML = FALSE, fit.beta = REML, phi = 
     }
   }
   Dw <- -0.5 * (dZ + qi) / den^2 - 0.5 * s2 / den # dD/dw
-  cc <- cur$dw * Dw
+  # (a family can give dw as a function, computed only here)
+  cc <- (if (is.function(cur$dw)) cur$dw() else cur$dw) * Dw
   # adjoint: lambda = H^-1 J'c, with o eliminated as in pglmm_laplace_mode()
   cd <- cc / den
   rv <- thc * as.vector(Matrix::crossprod(Z, cd))
