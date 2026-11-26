@@ -1,3 +1,149 @@
+# Tests of random terms and of nested models: profile likelihood ratio test
+# and parametric bootstrap ----
+
+# End pglmm.V
+
+#' Testing statistical significance of random effect
+#'
+#' \code{pglmm_profile_LRT} tests statistical significance of the
+#' phylogenetic random effect using profile likelihoods when bayes = F.
+#'
+#' For models fitted with \code{sparse = TRUE} (gaussian) or
+#' \code{method = "Laplace"}, it is a likelihood ratio test: the variances of
+#' the terms \code{re.number} are set to zero and the other parameters are
+#' estimated again (as for the profile likelihood intervals of
+#' [confint.communityPGLMM()]). For the other models, the p-values are
+#' conditional on the estimates of the other parameters (which are not
+#' estimated again), in contrast to a standard likelihood ratio test. As a
+#' variance of zero is at the boundary of its range, the p-value of the
+#' chi-square test is halved.
+#'
+#' For binomial and poisson models fitted with `method = "Laplace"`, the
+#' log-likelihoods are the Laplace approximations of the (restricted) marginal
+#' log-likelihood (for `REML = FALSE`, with the fixed effects at their
+#' estimates; for `REML = TRUE`, integrated out).
+#'
+#' @rdname pglmm-profile-LRT
+#' @param x A fitted model with class communityPGLMM with `bayes = FALSE`.
+#' @param re.number Which random term to test: positions in `x$ss` (the standard deviations
+#'   of the random terms, in the order of the fit). Can be a vector with length >1.
+#' @inheritParams pglmm
+#' @return A list of likelihood, df, and p-value.
+#' @export
+#'
+pglmm_profile_LRT <- function(x, re.number = 0, cpp = TRUE) {
+  if (x$bayes) stop("pglmm_profile_LRT only works with models fitted with `bayes = FALSE`")
+  n <- dim(x$X)[1]
+  p <- dim(x$X)[2]
+  par <- x$ss
+  par[re.number] <- 0
+  df <- length(re.number)
+
+  # sparse gaussian and Laplace fits: the profile likelihood, with the other
+  # parameters optimized with the variances re.number at zero (as
+  # confint.communityPGLMM())
+  prof <- if (!is.null(x$sparse) && !identical(x$method, "PQL")) pglmm_profile_fun(x)
+  if (!is.null(prof)) {
+    k <- names(x$ss)[re.number]
+    if (anyNA(k) || "residual" %in% k) {
+      stop("re.number must give random terms (positions in x$ss, without the residual).",
+           call. = FALSE)
+    }
+    LR <- max(prof$ll0 - prof$prof(k, pglmm_var_lb), 0)
+    Pr <- pchisq(2 * LR, df = df, lower.tail = FALSE) / 2
+    return(list(LR = LR, df = df, Pr = if (Pr > 0.499) 1 else Pr))
+  }
+
+  if (identical(x$method, "Laplace")) {
+    # Laplace approximation of the log-likelihood with the variances of the
+    # terms re.number set to zero, the other parameters unchanged (for REML,
+    # the fixed effects are integrated out)
+    LR <- pglmm_laplace_logLik_at(x, x$ss) - pglmm_laplace_logLik_at(x, par)
+    Pr <- pchisq(2 * LR, df = df, lower.tail = FALSE) / 2
+    return(list(LR = LR, df = df, Pr = if (Pr > 0.499) 1 else Pr))
+  }
+  if (!is.null(x$sparse)) {
+    if (x$family == "gaussian") {
+      nt <- length(x$sparse$theta)
+      LR <- pglmm_sparse_LL(par[seq_len(nt)], x$sparse$pre, x$REML) -
+        pglmm_sparse_LL(x$ss[seq_len(nt)], x$sparse$pre, x$REML)
+    } else {
+      XH <- cbind(x$X, as.vector(x$H))
+      LR <- pglmm_sparse_glmm_LL(par, x$sparse$pre, x$sparse$w, XH, x$REML, x$sparse$has.obs) -
+        pglmm_sparse_glmm_LL(x$ss, x$sparse$pre, x$sparse$w, XH, x$REML, x$sparse$has.obs)
+    }
+    Pr <- pchisq(2 * LR, df = df, lower.tail = FALSE) / 2
+    return(list(LR = LR, df = df, Pr = if (Pr > 0.499) 1 else Pr))
+  }
+
+  # models with nested terms only can have an St with no rows (as for cpp)
+  St <- x$St
+  Zt <- x$Zt
+  if (!is.null(St) && nrow(St) == 0) St <- Zt <- NULL
+  St.cpp <- if (is.null(St)) as(matrix(0, 0, 0), "sparseMatrix") else St
+  Zt.cpp <- if (is.null(Zt)) as(matrix(0, 0, 0), "sparseMatrix") else Zt
+  if (x$family == "gaussian") {
+    LL <- pglmm_gaussian_LL_calc(
+      par = x$ss, X = x$X, Y = x$Y, Zt = Zt,
+      St = St, nested = x$nested, REML = x$REML, verbose = F, optim_ll = TRUE
+    )
+  } else {
+    if (cpp) {
+      LL <- pglmm_LL_cpp(
+        par = x$ss, H = x$H, X = x$X, Zt = Zt.cpp,
+        St = St.cpp, mu = x$mu, nested = x$nested, REML = x$REML, verbose = FALSE,
+        family = x$family, totalSize = x$size
+      )
+    } else {
+      LL <- pglmm.LL(
+        par = x$ss, H = x$H, X = x$X, Zt = Zt,
+        St = St, mu = x$mu, nested = x$nested, REML = x$REML, verbose = FALSE,
+        family = x$family, size = x$size
+      )
+    }
+  }
+
+  if (x$REML) {
+    logLik <- -0.5 * (n - p) * log(2 * pi) - LL
+  } else {
+    logLik <- -0.5 * n * log(2 * pi) - LL
+  }
+
+  if (x$family == "gaussian") {
+    LL0 <- pglmm_gaussian_LL_calc(
+      par = par, X = x$X, Y = x$Y, Zt = Zt,
+      St = St, nested = x$nested, REML = x$REML, verbose = F, optim_ll = TRUE
+    )
+  } else {
+    if (cpp) {
+      LL0 <- pglmm_LL_cpp(
+        par = par, H = x$H, X = x$X, Zt = Zt.cpp, St = St.cpp,
+        mu = x$mu, nested = x$nested, REML = x$REML, verbose = FALSE,
+        family = x$family, totalSize = x$size
+      )
+    } else {
+      LL0 <- pglmm.LL(
+        par = par, H = x$H, X = x$X, Zt = Zt, St = St,
+        mu = x$mu, nested = x$nested, REML = x$REML, verbose = FALSE,
+        family = x$family, size = x$size
+      )
+    }
+  }
+
+  if (x$REML) {
+    logLik0 <- -0.5 * (n - p) * log(2 * pi) - LL0
+  } else {
+    logLik0 <- -0.5 * n * log(2 * pi) - LL0
+  }
+
+  P.H0.s2 <- pchisq(2 * (logLik - logLik0), df = df, lower.tail = FALSE) / 2
+  if (P.H0.s2 > 0.499) {
+    P.H0.s2 <- 1
+  }
+
+  list(LR = logLik - logLik0, df = df, Pr = P.H0.s2)
+}
+
 #' Parametric bootstrap likelihood ratio test of nested models
 #'
 #' Compares two nested models fitted by [pglmm()] (or [pglmm_compare()]) with a

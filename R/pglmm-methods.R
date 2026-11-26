@@ -293,3 +293,71 @@ generics::tidy
 #' @importFrom generics glance
 #' @export
 generics::glance
+
+#' Family Objects for communityPGLMM objects
+#'
+#' @inheritParams stats::family
+#' @method family communityPGLMM
+#'
+#' @export
+family.communityPGLMM <- function(object, ...) {
+  spec <- pglmm_family_spec(object$family)
+  if (!is.null(spec)) return(spec$glm.family(pglmm_disp_value(object, spec)))
+  if (grepl("nbinomial", object$family)) return(pglmm_nb_family(object[["theta"]]))
+  fam <- match.fun(object$family)
+  fam()
+}
+
+#' Number of Observation in a communityPGLMM Model
+#'
+#' @inheritParams stats::nobs
+#' @method nobs communityPGLMM
+#' @export
+nobs.communityPGLMM <- function(object, use.fallback = FALSE, ...) {
+  nrow(object$data)
+}
+
+#' Log-likelihood of a communityPGLMM Model
+#'
+#' The log-likelihood of a model fitted with `bayes = FALSE` (the restricted
+#' log-likelihood if `REML = TRUE`), with the number of parameters as attribute
+#' `df`, so that [stats::AIC()] gives `x$AIC`. For binomial and poisson models,
+#' it is the approximate log-likelihood calculated by [pglmm()]: with
+#' `method = "Laplace"`, the Laplace approximation of the marginal
+#' log-likelihood (the same as `lme4::glmer()` and `glmmTMB()` with
+#' `REML = FALSE`), and `df` is the number of fixed effects and variances; with
+#' `method = "PQL"`, the log-likelihood of the gaussian model of the working
+#' response, which is not comparable with that of other software. The number of
+#' observations is attribute `nobs`, so that [stats::BIC()] gives `x$BIC`.
+#'
+#' @param object A fitted model with class communityPGLMM.
+#' @param ... Additional arguments, currently ignored.
+#' @return An object of class `logLik`.
+#' @method logLik communityPGLMM
+#' @export
+logLik.communityPGLMM <- function(object, ...) {
+  if (isTRUE(object$bayes)) {
+    stop("logLik() is not available for models fitted with bayes = TRUE; ",
+         "the marginal log-likelihood of INLA is in $logLik, and DIC and WAIC in $DIC and $WAIC.",
+         call. = FALSE)
+  }
+  if (is.null(object$logLik) || is.null(object$AIC)) {
+    stop("The fitted model does not have a log-likelihood.", call. = FALSE)
+  }
+  ll <- as.numeric(object$logLik)
+  structure(ll,
+    df = round((as.numeric(object$AIC) + 2 * ll) / 2),
+    nobs = nrow(object$X), class = "logLik"
+  )
+}
+
+#' Extracting the Model Frame from a communityPGLMM Model
+#' object
+#'
+#' @inheritParams stats::model.frame
+#' @method model.frame communityPGLMM
+#'
+#' @export
+model.frame.communityPGLMM <- function(formula, ...) {
+  model.frame(formula$formula, formula$data)
+}
