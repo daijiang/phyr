@@ -104,7 +104,17 @@ pglmm_family_binomial <- function() {
         const = sum(lchoose(size, Y))
       )
     },
-    check = function(Y, size) invisible(NULL),
+    check = function(Y, size) {
+      if (any(Y < 0 | Y > size | abs(Y - round(Y)) > 1e-7)) {
+        stop("The response of binomial models should be 0 or 1, cbind(successes, failures), or ",
+             "proportions with the numbers of trials as weights.", call. = FALSE)
+      }
+      if (all(Y == 0) || all(Y == size)) {
+        stop("The response is ", if (all(Y == 0)) "0 (no success)" else "1 (all successes)",
+             " for all observations, so the model cannot be fitted.", call. = FALSE)
+      }
+      invisible(NULL)
+    },
     start = function(formula, data, X, Y, size, offset) {
       list(B = stats::coef(pglmm_glm(formula, data, stats::binomial)), phi = NULL)
     },
@@ -129,7 +139,12 @@ pglmm_family_poisson <- function() {
         const = -sum(wt * lgamma(Y + 1))
       )
     },
-    check = function(Y, size) invisible(NULL),
+    check = function(Y, size) {
+      if (any(Y < 0)) stop('family = "poisson" needs counts (zero or larger) as response.', call. = FALSE)
+      if (all(Y == 0)) stop("The response is 0 for all observations, so the model cannot be fitted.",
+                            call. = FALSE)
+      invisible(NULL)
+    },
     start = function(formula, data, X, Y, size, offset) {
       list(B = stats::coef(pglmm_glm(formula, data, stats::poisson)), phi = NULL)
     },

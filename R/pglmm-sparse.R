@@ -340,7 +340,7 @@ pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
   get_tree <- function(g, f) {
     if (is.null(trees[[g]])) {
       tree <- cov_ranef[[g]]
-      if (is.null(tree)) stop("Cov matrix of variable ", g, " not specified in cov_ranef.")
+      if (is.null(tree)) pglmm_stop_no_cov(g, cov_ranef)
       # covariance matrices, and phylogenies with terminal branches of length
       # zero (whose precision matrix with internal nodes does not exist): the
       # (dense) inverse of their covariance matrix
@@ -366,8 +366,7 @@ pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
         return(trees[[g]])
       }
       if (length(setdiff(levels(f), tree$tip.label))) {
-        stop(paste0("Some species of variable ", g, " not in the phylogeny,
-                    please either drop these species or update the phylogeny"))
+        pglmm_stop_missing_levels(g, levels(f), tree$tip.label)
       }
       if (length(setdiff(tree$tip.label, levels(f)))) {
         warning(paste0("Drop species from the phylogeny that are not in the variable ", g),
@@ -1077,6 +1076,10 @@ pglmm_glmm_data <- function(formula, data, family, add.obs.re = TRUE, re.list = 
   mf <- model.frame(formula.nobars, data = data, na.action = NULL)
   X <- model.matrix(attr(mf, "terms"), data = mf)
   Y <- model.response(mf)
+  # a factor response of binomial models: the first level is a failure, the
+  # others successes (as glm()); logical: TRUE is a success
+  if (family == "binomial" && is.factor(Y)) Y <- as.numeric(Y != levels(Y)[1])
+  if (is.logical(Y)) Y <- as.numeric(Y)
   if (is.matrix(Y) && ncol(Y) == 2) { # success, failure
     size <- rowSums(Y)
     Y <- Y[, 1]
@@ -1106,6 +1109,9 @@ pglmm_glmm_data <- function(formula, data, family, add.obs.re = TRUE, re.list = 
       wt <- prior.weights
     }
   }
+  # the response is valid for the family (also checked by the Laplace code)
+  spec <- pglmm_family_spec(family)
+  if (!is.null(spec)) spec$check(Y, size)
   # offset() terms of the formula (NULL if none), used with method = "Laplace"
   offset <- model.offset(mf)
   if (!is.null(offset)) offset <- as.numeric(offset)

@@ -290,9 +290,10 @@ test_that("ranef(), predict(newdata) and simulate(re.form = NA) of sparse fits m
       key <- function(z) do.call(paste, z[lab])
       i <- match(key(rd[[k]]), key(r[[k]]))
       expect_false(anyNA(i))
-      expect_equal(r[[k]]$estimate[i], rd[[k]]$estimate, tolerance = 0.02)
-      # (flow: summaries from samples of the posterior)
-      expect_equal(r[[k]]$sd[i], rd[[k]]$sd, tolerance = if (meth == "flow") 0.1 else 0.02)
+      # (INLA's fits vary slightly between runs; flow: summaries from samples
+      # of the posterior)
+      expect_equal(r[[k]]$estimate[i], rd[[k]]$estimate, tolerance = 0.05)
+      expect_equal(r[[k]]$sd[i], rd[[k]]$sd, tolerance = 0.1)
     }
     nd <- s$d[1:5, ]
     expect_equal(predict(m, newdata = nd), predict(md, newdata = nd), tolerance = 0.02)

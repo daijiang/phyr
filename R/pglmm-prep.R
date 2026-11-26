@@ -31,8 +31,7 @@ parse_conv_ranef <- function(x, df, standardize = TRUE) {
     if ("phylo" %in% class(xx)) {
       # phylogeny
       if (length(setdiff(spl, xx$tip.label))) {
-        stop(paste0("Some species of variable ", names(x)[i], " not in the phylogeny,
-                    please either drop these species or update the phylogeny"))
+        pglmm_stop_missing_levels(names(x)[i], spl, xx$tip.label)
       }
       if (length(setdiff(xx$tip.label, spl))) {
         warning(paste0("Drop species from the phylogeny that are not in the variable ", names(x)[i]),
@@ -53,8 +52,7 @@ parse_conv_ranef <- function(x, df, standardize = TRUE) {
     if (inherits(xx, c("matrix", "Matrix"))) {
       # already a cov matrix
       if (length(setdiff(spl, row.names(xx)))) {
-        stop(paste0("Some levels of variable ", names(x)[i], " not in the matrix,
-                    please either drop these levels or update the matrix"))
+        pglmm_stop_missing_levels(names(x)[i], spl, row.names(xx), "covariance matrix")
       }
       # keep the levels in the data only, in the same order as the levels
       # (also when the matrix has the same names but in a different order)
@@ -352,3 +350,75 @@ pglmm_defunct_tree <- function(tree, tree_site) {
        "in `cov_ranef` instead, e.g. `cov_ranef = list(sp = tree, site = tree_site)`.",
        call. = FALSE)
 }
+
+# Errors for the phylogenies and covariance matrices of cov_ranef ----
+
+# Levels of the grouping variable g that are not in the phylogeny (or
+# covariance matrix) of cov_ranef: which ones, and a hint when they differ from
+# the tip labels only in spaces vs underscores or capitalization
+pglmm_stop_missing_levels <- function(g, lev, labels, what = "phylogeny") {
+  miss <- setdiff(lev, labels)
+  stop(length(miss), " of the ", length(lev), " levels of ", g, if (length(miss) > 1) " are" else " is",
+       " not in the ", what, " of cov_ranef$", g, ": ", ps_some(miss), if (length(miss) <= 5) ".",
+       ps_label_hint(miss, labels),
+       "\nDrop these rows from the data, or give a ", what, " that has them.", call. = FALSE)
+}
+
+# A phylogenetic term (e.g. 1|sp__) without its phylogeny in cov_ranef
+pglmm_stop_no_cov <- function(g, cov_ranef) {
+  nm <- names(cov_ranef)
+  stop("The phylogenetic term(s) of ", g, " (", g, "__) need a phylogeny or a covariance ",
+       "matrix named ", g, " in cov_ranef, e.g. cov_ranef = list(", g, " = tree); ",
+       if (length(nm)) paste0("cov_ranef has ", paste(nm, collapse = ", "), ".") else "cov_ranef is empty.",
+       call. = FALSE)
+}
+
+# Checks of the arguments of pglmm() before fitting ----
+
+# The family: a name of the families of pglmm(), with a suggestion for a
+# misspelled one
+pglmm_check_family <- function(family, bayes) {
+  fams <- c("gaussian", pglmm_laplace_families)
+  if (bayes) fams <- c("gaussian", "binomial", "poisson", "nbinomial", "zeroinflated.binomial",
+                       "zeroinflated.poisson", "zeroinflated.nbinomial")
+  if (is.character(family) && length(family) == 1 && family %in% fams) return(invisible(NULL))
+  if (bayes && identical(family, "Gamma")) {
+    stop('family = "Gamma" is only available with bayes = FALSE.', call. = FALSE)
+  }
+  near <- if (is.character(family) && length(family) == 1) {
+    fams[utils::adist(tolower(family), tolower(fams)) <= 2]
+  }
+  stop("family = \"", paste(family, collapse = " "), "\" is not available",
+       if (bayes) " with bayes = TRUE", "; the families are ", paste0("\"", fams, "\"", collapse = ", "),
+       ".", if (length(near)) paste0(" Did you mean \"", near[1], "\"?"), call. = FALSE)
+}
+
+# The variables of the fixed effects that are neither in data nor in the
+# environment of the formula
+pglmm_check_vars <- function(formula, data) {
+  v <- all.vars(reformulas::nobars(formula))
+  env <- environment(formula)
+  if (is.null(env)) env <- parent.frame()
+  miss <- v[!v %in% names(data) & !vapply(v, exists, TRUE, envir = env)]
+  if (length(miss)) {
+    stop("The variable", if (length(miss) > 1) "s", " ", paste(miss, collapse = ", "),
+         " of the formula ", if (length(miss) > 1) "are" else "is", " not in data.", call. = FALSE)
+  }
+  invisible(NULL)
+}
+
+# Random terms whose grouping variable (or combination of variables) has a
+# single level in the data: their variance cannot be estimated (as lme4)
+pglmm_check_levels <- function(terms, data) {
+  for (t in terms) {
+    g <- t$group
+    key <- unique(do.call(paste, c(lapply(g, function(v) as.character(data[[v]])), sep = ":")))
+    if (length(key) < 2) {
+      stop("The grouping variable", if (length(g) > 1) "s", " of the random term ", t$name,
+           " ha", if (length(g) > 1) "ve" else "s", " a single level in the data (", key[1],
+           "), so its variance cannot be estimated: remove the term.", call. = FALSE)
+    }
+  }
+  invisible(NULL)
+}
+

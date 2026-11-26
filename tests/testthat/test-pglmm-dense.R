@@ -124,7 +124,7 @@ test_that("random.effects given as lists give the same fit as the formula, with 
                     repulsion = c(FALSE, TRUE, FALSE, TRUE))
   expect_same_dense_fit(m1, m2)
   expect_error(pglmm_dense(freq ~ 1 + shade + (1 | sp__) + (1 | site__), data = d,
-                           cov_ranef = list(spi = phylotree)), "not in cov_ranef")
+                           cov_ranef = list(spi = phylotree)), "named sp in cov_ranef")
 })
 
 test_that("pglmm_matrix_structure() does not depend on the family", {

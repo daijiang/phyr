@@ -471,14 +471,10 @@ prep_dat_pglmm <- function(formula, data, cov_ranef = NULL, repulsion = FALSE,
   # covariance matrices of the variables with __
   phy.vars <- pglmm_re_phy_vars(terms)
   if (length(phy.vars)) {
-    if (is.null(cov_ranef)) stop("cov_ranef, the list of cov matrices, is not specified")
+    if (is.null(cov_ranef)) pglmm_stop_no_cov(phy.vars[1], NULL)
     names(cov_ranef) <- gsub("__$", "", names(cov_ranef)) # remove potential trailing __
     if (!all(phy.vars %in% names(cov_ranef))) {
-      stop(paste0(
-        "Some group variables (",
-        paste(setdiff(phy.vars, names(cov_ranef)), collapse = ", "),
-        ") assigned to have specific cov matrix are not in cov_ranef"
-      ))
+      pglmm_stop_no_cov(setdiff(phy.vars, names(cov_ranef))[1], cov_ranef)
     }
     cov_list <- parse_conv_ranef(cov_ranef, data, standardize = standardize_cov)
     cov_ranef_list <- cov_list$cleaned_list
@@ -547,7 +543,7 @@ pglmm_dense_re_term <- function(t, data, covs, bayes = FALSE, as_list = FALSE) {
   if (!t$nested) {
     d <- data[, g]
     if (t$phy) {
-      if (g %nin% names(covs)) stop(paste0("Cov matrix of variable ", g, " not specified in cov_ranef."))
+      if (g %nin% names(covs)) pglmm_stop_no_cov(g, covs)
       out <- list(covariate, d, covar = covs[[g]])
       names(out)[2] <- paste0(g, "__")
     } else {
@@ -558,10 +554,7 @@ pglmm_dense_re_term <- function(t, data, covs, bayes = FALSE, as_list = FALSE) {
   }
   if (t$lhs != "1" && !bayes) stop("Nested random term for slope is not allowed yet")
   phy <- t$phy
-  if (any(g[phy] %nin% names(covs))) {
-    stop(paste0("Cov matrix of variable ", paste(g[phy], collapse = " and "),
-                " not specified in cov_ranef."))
-  }
+  if (any(g[phy] %nin% names(covs))) pglmm_stop_no_cov(g[phy][g[phy] %nin% names(covs)][1], covs)
   if (!any(phy) && t$lhs != "1") {
     # x|sp@site without phylogeny
     return(list(covariate, Matrix::Diagonal(nrow(data))))

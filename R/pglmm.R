@@ -1118,10 +1118,7 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
     optimizer <- match.arg(optimizer, valid_optimizers)
   }
 
-  if ((family %nin% c("gaussian", pglmm_laplace_families)) & (bayes == FALSE)) {
-    stop("\nSorry, but only gaussian, binomial, poisson, nbinomial and Gamma options are available for
-         pglmm at this time")
-  }
+  pglmm_check_family(family, bayes)
 
   if (bayes && family == "Gamma") {
     stop('family = "Gamma" is only available with bayes = FALSE.', call. = FALSE)
@@ -1151,7 +1148,9 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
     # before building the random effects, so that factor levels (and thus
     # covariance matrices) are built only from the rows that are used:
     # fit(data_with_NAs) == fit(data_NAs_removed), with all code paths.
+    pglmm_check_vars(formula, data)
     data <- data[pglmm_complete_rows(formula, data, re.parsed$vars), , drop = FALSE]
+    pglmm_check_levels(re.parsed$terms, data)
   }
   # the terms of the model, stored in the fitted model (named by term), so
   # that methods (ranef(), predict()) do not need to parse the term names
