@@ -150,6 +150,11 @@ test_that("weights with bayes = TRUE: as cbind() (binomial), duplicated rows (po
                add.obs.re = FALSE)
   pd <- qpglmm(update(f, count ~ .), dd, "poisson", cov_ranef = cr, bayes = TRUE, add.obs.re = FALSE)
   expect_equal(B(pw), B(pd), tolerance = 0.01)
+  d$nb <- rnbinom(nrow(d), mu = exp(0.3 * d$x), size = 2)
+  dd <- d[rep(seq_len(nrow(d)), d$k), ]
+  nw <- qpglmm(update(f, nb ~ .), d, "nbinomial", cov_ranef = cr, bayes = TRUE, weights = k)
+  nd <- qpglmm(update(f, nb ~ .), dd, "nbinomial", cov_ranef = cr, bayes = TRUE)
+  expect_equal(B(nw), B(nd), tolerance = 0.01)
   # gaussian: the residual variance divided by the weights, as lmer(): about the
   # REML estimate with weights, and weights of 1 change nothing
   gw <- qpglmm(update(f, y ~ .), d, cov_ranef = cr, bayes = TRUE, weights = w)
