@@ -9,6 +9,7 @@
 * Binomial and poisson models with `random.effects` are now fitted with the Laplace approximation by default, as models with random terms in the formula (they were fitted with PQL); use `method = "PQL"` for the previous estimates. No observation-level term is added to them: `random.effects` gives all the random terms.
 * With `bayes = TRUE`, `ML.init = TRUE` now takes the initial values from the fit by maximum likelihood with the sparse code, with the Laplace approximation for binomial and poisson models (instead of PQL); INLA can then end at another mode of the posterior.
 * Covariance matrices in `cov_ranef` that are not positive definite now give a clear error (they failed before, with an unclear one).
+* A covariance matrix in `cov_ranef` or `random.effects` that is the covariance matrix of a phylogeny (e.g. `ape::vcv(tree)`, to numerical precision) is converted back to that phylogeny, and fitted with its sparse precision matrix, as fast as with the phylogeny (e.g. 1.5 s instead of 35 s for 1000 species and 10 sites), with a message suggesting to give the phylogeny instead. Other covariance matrices are used through their (dense) inverse, with a message that this is slow for many levels (`options(phyr.matrix.hint = FALSE)` turns both off).
 
 ## New features
 

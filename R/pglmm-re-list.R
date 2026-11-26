@@ -111,25 +111,44 @@ pglmm_merge_rows <- function(V) {
   list(group = grp, V = V[first, first, drop = FALSE])
 }
 
-# Precision matrix of a covariance matrix of random.effects[[i]], in the
-# format of cov_precision(); an identity or diagonal matrix gives a diagonal
-# one
-pglmm_re_precision <- function(V, i) {
+# Precision matrix of a covariance matrix of random.effects[[i]], with the
+# column of the precision matrix of each level (col) and the labels of all its
+# columns (node.labels; levels: the labels of the levels). A diagonal matrix
+# gives a diagonal one; the covariance matrix of a phylogeny gives the sparse
+# precision matrix of that phylogeny, with its internal nodes as extra columns
+# (see pglmm_matrix_tree()); other matrices, their (dense) inverse.
+pglmm_re_precision <- function(V, i, levels = NULL) {
   V <- as.matrix(V)
+  q <- nrow(V)
+  if (is.null(levels)) levels <- as.character(seq_len(q))
+  out <- list(identity = FALSE, col = seq_len(q), ncol = q, node.labels = levels)
   if (all(V[row(V) != col(V)] == 0)) {
     d <- diag(V)
     if (any(d <= 0)) {
       stop("the covariance matrix of random.effects[[", i, "]] has variances that are not ",
            "positive.", call. = FALSE)
     }
-    return(list(Q = Matrix::Diagonal(x = 1 / d), logdetQ = -sum(log(d)),
-                identity = all(d == 1)))
+    out[c("Q", "logdetQ", "identity")] <- list(Matrix::Diagonal(x = 1 / d), -sum(log(d)), all(d == 1))
+    return(out)
   }
   if (!pglmm_is_pd(V)) {
     stop("the covariance matrix of random.effects[[", i, "]] is not positive definite.",
          call. = FALSE)
   }
-  c(cov_precision(V)[c("Q", "logdetQ")], identity = FALSE)
+  dimnames(V) <- list(paste0("l", seq_len(q)), paste0("l", seq_len(q)))
+  tr <- pglmm_matrix_tree(V)
+  if (!is.null(tr) || q >= 100) pglmm_matrix_hint(paste0("in random.effects[[", i, "]]"), !is.null(tr))
+  if (is.null(tr)) {
+    out[c("Q", "logdetQ")] <- cov_precision(V)[c("Q", "logdetQ")]
+    return(out)
+  }
+  pp <- phylo_precision(tr, standardize = FALSE)
+  out$col <- match(rownames(V), pp$tip.label)
+  out$ncol <- nrow(pp$Q)
+  out$node.labels <- pp$node.label
+  out$node.labels[out$col] <- levels
+  out[c("Q", "logdetQ")] <- pp[c("Q", "logdetQ")]
+  out
 }
 
 # Random terms of the sparse code (in the format of pglmm_sparse_terms()) for
@@ -154,24 +173,24 @@ pglmm_sparse_terms_re <- function(random.effects, obs) {
       x <- rep_n(re.i[[1]])
       f <- re.i[[2]]
       ok <- !is.na(f)
-      pr <- pglmm_re_precision(re.i[[3]], i)
+      pr <- pglmm_re_precision(re.i[[3]], i, levels(f))
       g <- label(nmi[2], "level")
       terms[[i]] <- list(
         name = nms[i], group = g, lhs = if (length(re.i[[1]]) == 1) "1" else "x",
         phy = !pr$identity, nested = FALSE,
-        Z = Matrix::sparseMatrix(i = which(ok), j = as.integer(f)[ok], x = x[ok],
-                                 dims = c(n, nlevels(f))),
-        Q = pr$Q, logdetQ = pr$logdetQ, labels = levels(f), n.levels = nlevels(f),
-        level.order = seq_len(nlevels(f)), mean.diag = sf[[i]]
+        Z = Matrix::sparseMatrix(i = which(ok), j = pr$col[as.integer(f)[ok]], x = x[ok],
+                                 dims = c(n, pr$ncol)),
+        Q = pr$Q, logdetQ = pr$logdetQ, labels = pr$node.labels, n.levels = nlevels(f),
+        level.order = pr$col, mean.diag = sf[[i]]
       )
     } else if (len == 4) { # one value per combination of g1 and g2
       x <- rep_n(re.i[[1]])
       f1 <- re.i[[2]]
       f2 <- re.i[[4]]
       ok <- !is.na(f1) & !is.na(f2)
-      n1 <- nlevels(f1)
-      pr <- pglmm_re_precision(re.i[[3]], i)
-      col <- (as.integer(f2) - 1) * n1 + as.integer(f1)
+      pr <- pglmm_re_precision(re.i[[3]], i, levels(f1))
+      n1 <- pr$ncol
+      col <- (as.integer(f2) - 1) * n1 + pr$col[as.integer(f1)]
       first <- ok & !duplicated(col)
       if (pr$identity) {
         # independent combinations: only those in the data
@@ -200,10 +219,11 @@ pglmm_sparse_terms_re <- function(random.effects, obs) {
       V <- re.i[[len]]
       mg <- pglmm_merge_rows(V)
       if (!pglmm_is_pd(mg$V)) return(list(singular = i))
-      cp <- cov_precision(mg$V)
+      pr <- pglmm_re_precision(mg$V, i)
+      grp <- pr$col[mg$group] # column of each row
       # labels of the rows, as the dense code (see pglmm_cond_modes())
       labels <- re_obs_labels(rownames(V), nms[i], obs)
-      pick <- mg$group
+      pick <- grp
       if (names(labels)[1] != "obs") {
         first <- !duplicated(labels)
         labels <- labels[first, , drop = FALSE]
@@ -213,8 +233,8 @@ pglmm_sparse_terms_re <- function(random.effects, obs) {
       terms[[i]] <- list(
         name = nms[i], group = "obs", lhs = if (len == 2) "x" else "1",
         phy = c(TRUE, FALSE), nested = TRUE, repulsion = c(FALSE, FALSE),
-        Z = Matrix::sparseMatrix(i = seq_len(n), j = mg$group, x = x, dims = c(n, nrow(cp$Q))),
-        Q = cp$Q, logdetQ = cp$logdetQ, aux = list(), labels = labels, pick = pick,
+        Z = Matrix::sparseMatrix(i = seq_len(n), j = grp, x = x, dims = c(n, pr$ncol)),
+        Q = pr$Q, logdetQ = pr$logdetQ, aux = list(), labels = labels, pick = pick,
         mean.diag = sf[[i]]
       )
     }

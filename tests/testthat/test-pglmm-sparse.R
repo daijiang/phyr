@@ -539,3 +539,65 @@ test_that("covariance matrices in cov_ranef give the same fits as the dense code
   expect_error(q(y ~ x + (1 | sp__), s$d, cov_ranef = list(sp = V2)), "not positive definite")
   expect_error(q(y ~ x + (1 | sp__), s$d, cov_ranef = list(sp = V2), sparse = FALSE), "not positive definite")
 })
+
+test_that("pglmm_matrix_tree() recovers the phylogeny of a covariance matrix, and only then", {
+  set.seed(11)
+  same_vcv <- function(V, tr) max(abs(ape::vcv(tr)[rownames(V), colnames(V)] - V))
+  trees <- list(ape::rcoal(60), ape::rtree(60))
+  ct <- ape::stree(40, "left")
+  ct$edge.length <- runif(nrow(ct$edge))
+  trees[[3]] <- ct # caterpillar
+  tp <- ape::rcoal(60)
+  trees[[4]] <- ape::di2multi(tp, tol = stats::quantile(tp$edge.length, 0.3)) # polytomies
+  for (tr in trees) {
+    V <- ape::vcv(tr)
+    r <- phyr:::pglmm_matrix_tree(V)
+    expect_s3_class(r, "phylo")
+    expect_lt(same_vcv(V, r), 1e-12)
+    # standardized as pglmm() does
+    Vs <- V / max(V)
+    Vs <- Vs / exp(determinant(Vs)$modulus[1] / nrow(Vs))
+    expect_lt(same_vcv(Vs, phyr:::pglmm_matrix_tree(Vs)), 1e-12)
+  }
+  # not the covariance matrix of a phylogeny
+  xy <- matrix(runif(80), 40)
+  Vsp <- exp(-as.matrix(dist(xy)) / 0.3)
+  dimnames(Vsp) <- list(paste0("s", 1:40), paste0("s", 1:40))
+  expect_null(phyr:::pglmm_matrix_tree(Vsp))
+  V <- ape::vcv(ape::rcoal(40))
+  expect_null(phyr:::pglmm_matrix_tree(V + 0.5)) # a root edge
+  expect_null(phyr:::pglmm_matrix_tree(V + 1e-6 * crossprod(matrix(rnorm(1600), 40)) / 40))
+  expect_null(phyr:::pglmm_matrix_tree(unname(V))) # no names
+})
+
+test_that("covariance matrices of phylogenies use their sparse precision matrix, with a message", {
+  s <- sim_sparse_data(nsp = 25, nsite = 6)
+  V <- ape::vcv(s$phy)
+  f <- y ~ x + (1 | sp__) + (1 | site) + (1 | sp__@site)
+  q <- function(...) suppressWarnings(suppressMessages(pglmm(...)))
+  ms <- q(f, s$d, cov_ranef = list(sp = V))
+  mp <- q(f, s$d, cov_ranef = list(sp = s$phy))
+  # the internal nodes are levels of the phylogenetic term
+  expect_gt(ncol(ms$sparse$pre$Z), nlevels(factor(s$d$sp)) * 2 + 6)
+  expect_equal(ncol(ms$sparse$pre$Z), ncol(mp$sparse$pre$Z))
+  expect_equal(ms$logLik, mp$logLik, tolerance = 1e-10)
+  expect_equal(ranef(ms), ranef(mp), tolerance = 1e-6)
+  # a matrix that is not that of a phylogeny: its inverse (no internal nodes)
+  xy <- matrix(runif(50), 25)
+  Vsp <- exp(-as.matrix(dist(xy)) / 0.3)
+  dimnames(Vsp) <- dimnames(V)
+  mx <- q(f, s$d, cov_ranef = list(sp = Vsp))
+  expect_equal(ncol(mx$sparse$pre$Z), 2 * 25 + 6 + 25 * 6)
+  expect_equal(mx$logLik, q(f, s$d, cov_ranef = list(sp = Vsp), sparse = FALSE)$logLik, tolerance = 1e-6)
+  # the messages, once per session each
+  withr_state <- phyr:::.phyr_state
+  rm(list = intersect(c("matrix.tree.hint.shown", "matrix.dense.hint.shown"), ls(withr_state)),
+     envir = withr_state)
+  op <- options(phyr.matrix.hint = TRUE)
+  on.exit(options(op), add = TRUE)
+  fit <- function(cv) suppressWarnings(pglmm(y ~ x + (1 | sp__), s$d, cov_ranef = list(sp = cv)))
+  expect_message(fit(V), "is that of a phylogeny")
+  expect_no_message(fit(V))
+  expect_message(fit(Vsp), "not that of a phylogeny")
+  expect_no_message(fit(s$phy))
+})

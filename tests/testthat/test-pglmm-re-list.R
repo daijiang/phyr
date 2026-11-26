@@ -152,3 +152,24 @@ test_that("random.effects lists: rows with missing values, slopes, weights and c
                "one row and column per level")
   expect_error(pglmm(y ~ x, s$d, random.effects = list(1, 2)), "list of lists")
 })
+
+test_that("random.effects: covariance matrices of phylogenies use their sparse precision matrix", {
+  s <- re_list_data()
+  m <- qpglmm(y ~ x, s$d, random.effects = s$re)
+  # the internal nodes of the phylogeny are columns of the phylogenetic terms
+  expect_gt(ncol(m$sparse$pre$Z), 2 * nlevels(s$d$sp) + s$nsite + nlevels(s$d$sp) * s$nsite)
+  # the same fit with the inverse of the matrix (perturbed slightly so that it
+  # is not that of a phylogeny)
+  set.seed(4)
+  Vx <- s$Vp + 1e-6 * tcrossprod(rnorm(nrow(s$Vp)))
+  dimnames(Vx) <- dimnames(s$Vp)
+  rex <- s$re
+  rex[[2]]$covar <- rex[[4]]$covar <- Vx
+  mx <- qpglmm(y ~ x, s$d, random.effects = rex)
+  expect_equal(ncol(mx$sparse$pre$Z), 2 * nlevels(s$d$sp) + s$nsite + nlevels(s$d$sp) * s$nsite)
+  expect_equal(m$logLik, mx$logLik, tolerance = 1e-4)
+  # ranef(): the levels only, in the order of the levels
+  r <- ranef(m)
+  expect_identical(r[["1|sp__"]]$sp, levels(s$d$sp))
+  expect_equal(r[["1|sp__"]]$estimate, ranef(mx)[["1|sp__"]]$estimate, tolerance = 1e-3)
+})

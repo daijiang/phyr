@@ -391,9 +391,12 @@
 #'   convergence rules, \code{tol.pql} and \code{maxit.pql}); at each iteration, the working
 #'   weights change only the values of the sparse matrix, and the observation-level term
 #'   \code{1|obs} is folded into the weights. A covariance matrix in \code{cov_ranef} (or in
-#'   \code{random.effects}) is used through its inverse, which is dense: give the phylogeny
-#'   instead when there is one, as its precision matrix is sparse (e.g. about 1 s versus 35 s
-#'   for 1000 species and 10 sites). With \code{bayes = TRUE}, the model is given to INLA
+#'   \code{random.effects}) that is the covariance matrix of a phylogeny (e.g. from
+#'   \code{ape::vcv(tree)}, to numerical precision) is converted back to that phylogeny, whose
+#'   precision matrix is sparse; other covariance matrices (e.g. spatial ones) are used through
+#'   their inverse, which is dense, so their time grows with the cube of the number of levels
+#'   (e.g. about 35 s versus 1 s with the phylogeny for 1000 species and 10 sites). Give the
+#'   phylogeny itself when there is one. With \code{bayes = TRUE}, the model is given to INLA
 #'   with one of the sparse representations of \code{sparse_method}; use \code{sparse = FALSE}
 #'   for the dense INLA model of earlier versions (needed for \code{ranef()},
 #'   \code{predict()} with \code{newdata} and \code{simulate()} with \code{re.form = NA},
@@ -432,7 +435,8 @@
 #'   is exact for ultrametric trees; for non-ultrametric trees, check that it matches the
 #'   assumption about the root. Covariance matrices that cannot be written as a tree with
 #'   non-negative branch lengths (e.g. an arbitrary similarity matrix) are used through their
-#'   (dense) inverse.
+#'   (dense) inverse; give the transformed phylogeny itself, not its covariance matrix, if it
+#'   has been rounded.
 #' @param weights Optional prior weights, as in [lm()] and [glm()]: a column of `data`
 #'   (e.g. `weights = w`, or `"w"`) or a vector with one positive value per row of `data`.
 #'   For gaussian models, the residual variance of an observation is the residual
@@ -701,6 +705,13 @@
 #' fitted with `sparse = FALSE`, `pglmm()` shows a message once per session
 #' suggesting `sparse = TRUE`; use `options(phyr.sparse.hint = FALSE)` to turn it
 #' off.
+#'
+#' When a covariance matrix in `cov_ranef` (or in `random.effects`) is that of a
+#' phylogeny, `pglmm()` recovers the phylogeny and uses its sparse precision
+#' matrix, and shows a message once per session suggesting to give the phylogeny
+#' instead; for other covariance matrices (with at least 100 levels in
+#' `random.effects`), it shows a message once per session that their dense
+#' inverse is slow. Use `options(phyr.matrix.hint = FALSE)` to turn them off.
 #'
 #' When the variance of a random term is estimated at (or very close to) zero,
 #' `pglmm()` shows a message, as `lme4::lmer()` does: see [pglmm_is_singular()];

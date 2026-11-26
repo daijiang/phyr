@@ -240,6 +240,75 @@ cov_precision <- function(V) {
        is.matrix = TRUE, V = V)
 }
 
+# The phylogeny whose covariance matrix under Brownian motion is V (a
+# covariance matrix with row names), or NULL if there is none. In such a
+# matrix, V[i, j] is the depth of the most recent common ancestor of i and j,
+# so single-linkage clustering of max(diag(V)) - V gives the tree (with
+# zero-length branches for polytomies); the depth of each node is then V for
+# two tips on each side of it. The tree is kept only if its covariance matrix
+# is V (to tol, relative to the largest variance), with a root at depth zero
+# and no terminal branch of length zero (which the precision matrix of
+# phylo_precision() does not allow). Matrices of more than max.n rows are not
+# tried (hclust() needs a distance matrix of their size).
+pglmm_matrix_tree <- function(V, tol = 1e-10, max.n = 10000) {
+  V <- as.matrix(V)
+  n <- nrow(V)
+  if (n < 2 || n > max.n || is.null(rownames(V)) || anyDuplicated(rownames(V)) ||
+      !isSymmetric(unname(V))) return(NULL)
+  s <- max(diag(V))
+  if (!is.finite(s) || s <= 0) return(NULL)
+  h <- stats::hclust(stats::as.dist(s - V), method = "single")
+  tr <- ape::as.phylo(h)
+  ti <- match(tr$tip.label, rownames(V)) # row of V of each tip
+  N <- n + tr$Nnode
+  # one descendant tip of each node, and the depth of each node; in the
+  # numbering of as.phylo(), internal nodes have larger numbers than their
+  # parents, so the nodes are done from the last to the first
+  tip <- c(seq_len(n), integer(tr$Nnode))
+  depth <- c(diag(V)[ti], numeric(tr$Nnode))
+  kids <- split(tr$edge[, 2], factor(tr$edge[, 1], levels = seq_len(N)))
+  for (nd in N:(n + 1)) {
+    ch <- kids[[nd]]
+    if (length(ch) < 2 || any(tip[ch] == 0)) return(NULL)
+    tip[nd] <- tip[ch[1]]
+    depth[nd] <- V[ti[tip[ch[1]]], ti[tip[ch[2]]]]
+  }
+  if (abs(depth[n + 1]) > tol * s) return(NULL) # a root edge (all covariances positive)
+  len <- depth[tr$edge[, 2]] - depth[tr$edge[, 1]]
+  if (any(len < -tol * s)) return(NULL)
+  len <- pmax(len, 0)
+  if (any(len[tr$edge[, 2] <= n] <= tol * s)) return(NULL)
+  tr$edge.length <- len
+  Vr <- ape::vcv(tr)[rownames(V), colnames(V)]
+  if (max(abs(Vr - V)) > tol * s) return(NULL)
+  tr
+}
+
+# Message (once per session for each kind; options(phyr.matrix.hint = FALSE)
+# turns it off) for a covariance matrix (what: e.g. "cov_ranef$sp") that is
+# (tree = TRUE) or is not that of a phylogeny
+pglmm_matrix_hint <- function(what, tree) {
+  key <- if (tree) "matrix.tree.hint.shown" else "matrix.dense.hint.shown"
+  if (!isTRUE(getOption("phyr.matrix.hint", TRUE)) || isTRUE(.phyr_state[[key]])) {
+    return(invisible(FALSE))
+  }
+  .phyr_state[[key]] <- TRUE
+  if (tree) {
+    message("The covariance matrix ", what, " is that of a phylogeny: pglmm() recovered the ",
+            "phylogeny and uses its sparse precision matrix. If you have the phylogeny, give it ",
+            "instead (e.g. cov_ranef = list(sp = tree)): this gives the same model, without the ",
+            "conversion. This message is shown once per session; set ",
+            "options(phyr.matrix.hint = FALSE) to turn it off.")
+  } else {
+    message("The covariance matrix ", what, " is not that of a phylogeny (to numerical ",
+            "precision), so pglmm() uses its dense inverse, which is slow with many levels. If it ",
+            "comes from a phylogeny (e.g. with transformed branch lengths), give the phylogeny ",
+            "instead (e.g. cov_ranef = list(sp = tree)), which is much faster. This message is ",
+            "shown once per session; set options(phyr.matrix.hint = FALSE) to turn it off.")
+  }
+  invisible(TRUE)
+}
+
 # Random terms of the formula for the sparse path: a list with one element per
 # term (`1|sp__` gives two terms, 1|sp and 1|sp__, as in prep_dat_pglmm()).
 # The terms are in the order of the parameters of the default code: non-nested
@@ -282,7 +351,18 @@ pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
         df <- data.frame(f)
         names(df) <- g
         pc <- parse_conv_ranef(stats::setNames(list(tree), g), df, standardize = standardize_cov)
-        trees[[g]] <<- c(cov_precision(pc$cleaned_list[[1]]), list(tree = pc$updated_orgi_list[[1]]))
+        V <- pc$cleaned_list[[1]]
+        # the covariance matrix of a phylogeny: the sparse precision matrix of
+        # that phylogeny (V is already standardized); otherwise its inverse
+        tr <- if (inherits(tree, "phylo")) NULL else pglmm_matrix_tree(V)
+        if (!inherits(tree, "phylo")) pglmm_matrix_hint(paste0("cov_ranef$", g), !is.null(tr))
+        if (!is.null(tr)) {
+          trees[[g]] <<- c(phylo_precision(tr, standardize = FALSE),
+                           list(tree = pc$updated_orgi_list[[1]], from.matrix = TRUE))
+          if (flow) trees[[g]]$F <<- phylo_flow(trees[[g]])
+        } else {
+          trees[[g]] <<- c(cov_precision(V), list(tree = pc$updated_orgi_list[[1]]))
+        }
         return(trees[[g]])
       }
       if (length(setdiff(levels(f), tree$tip.label))) {
