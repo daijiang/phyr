@@ -180,19 +180,44 @@ test_that("pglmm_bayes_sparse_terms() builds the INLA terms", {
   expect_equal(S, Vsp[i, i] * outer(s$d$site, s$d$site, "=="), ignore_attr = TRUE, tolerance = 1e-8)
 })
 
-test_that("sparse = TRUE with bayes = TRUE stops for what it does not support", {
-  s <- sim_bayes_sparse_data(10, 3)
+test_that("bayes = TRUE: covariance matrices, random.effects lists and ML.init with the sparse code", {
+  testthat::skip_on_cran()
   testthat::skip_if_not_installed("INLA")
+  s <- sim_bayes_sparse_data(15, 4)
+  q <- function(...) suppressWarnings(suppressMessages(pglmm(...)))
+  d <- s$d
+  d$sp <- factor(d$sp, s$phy$tip.label)
+  d$site <- factor(d$site)
   V <- ape::vcv(s$phy)
+  f <- y ~ x + (1 | sp__) + (1 | site)
+  m0 <- q(f, d, cov_ranef = list(sp = s$phy), bayes = TRUE)
+  same <- function(m) {
+    expect_false(is.null(m$bayes_sparse))
+    expect_equal(m$B, m0$B, tolerance = 0.02)
+    expect_equal(c(m$s2r, m$s2n), c(m0$s2r, m0$s2n), tolerance = 0.1)
+  }
+  # covariance matrices, also with sparse_method = "flow" (their precision matrix)
+  same(q(f, d, cov_ranef = list(sp = V), bayes = TRUE))
+  same(q(f, d, cov_ranef = list(sp = V), bayes = TRUE, sparse_method = "flow"))
+  # random.effects lists
+  Vp <- V[levels(d$sp), levels(d$sp)]
+  Vp <- Vp / max(Vp)
+  Vp <- Vp / exp(determinant(Vp)$modulus[1] / nrow(Vp))
+  re <- list(`1|sp` = list(1, sp = d$sp, covar = diag(nlevels(d$sp))),
+             `1|sp__` = list(1, sp = d$sp, covar = Vp),
+             `1|site` = list(1, site = d$site, covar = diag(nlevels(d$site))))
+  mr <- q(y ~ x, d, random.effects = re, bayes = TRUE)
+  same(mr)
+  expect_identical(mr$random.effects, re)
+  # ML.init: initial values from the fit by maximum likelihood
+  same(q(f, d, cov_ranef = list(sp = s$phy), bayes = TRUE, ML.init = TRUE))
+  # repulsion: the dense code
+  expect_false(phyr:::pglmm_sparse_default(y ~ x + (1 | sp__@site), NULL, NULL, bayes = TRUE,
+                                           repulsion = TRUE))
   expect_error(
-    pglmm(y ~ x + (1 | sp__), s$d, cov_ranef = list(sp = V), bayes = TRUE, sparse = TRUE,
-          sparse_method = "flow"),
-    "must be a phylogeny|needs phylogenies"
-  )
-  expect_error(
-    pglmm(y ~ x + (1 | sp__), s$d, cov_ranef = list(sp = s$phy), bayes = TRUE, sparse = TRUE,
-          ML.init = TRUE),
-    "ML.init = TRUE is not available yet"
+    q(y ~ x + (1 | sp__@site), d, cov_ranef = list(sp = s$phy), bayes = TRUE, sparse = TRUE,
+      repulsion = TRUE),
+    "repulsion = TRUE is not available yet"
   )
 })
 

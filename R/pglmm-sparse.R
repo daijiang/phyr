@@ -301,7 +301,8 @@ pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
   }
   # rows of the flow matrix (phylogeny) or of the identity matrix (no
   # phylogeny) for the observations, the precisions of the columns, their
-  # labels, and the scale of the rates
+  # labels, and the scale of the rates; NULL for a covariance matrix (its term
+  # is then given to INLA with its precision matrix, as with "precision")
   flow_var <- function(g, phy) {
     f <- as_group(g)
     if (!phy) {
@@ -309,9 +310,7 @@ pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
                   C = rep(1, nlevels(f)), labels = levels(f), len.scale = 1))
     }
     tp <- get_tree(g, f)
-    if (isTRUE(tp$is.matrix)) {
-      stop("sparse_method = \"flow\" needs phylogenies (class phylo) in cov_ranef.", call. = FALSE)
-    }
+    if (isTRUE(tp$is.matrix)) return(NULL)
     list(D = tp$F[match(as.character(f), tp$tip.label), , drop = FALSE], C = tp$edge.len,
          labels = tp$node.label, len.scale = tp$len.scale)
   }
@@ -415,11 +414,13 @@ pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
         f1 <- flow_var(g[1], phy[1])
         f2 <- flow_var(g[2], phy[2])
         # pairs of branches (or of a branch and a level), as in kronecker(F2, F1)
-        terms[[length(terms)]]$flow <- list(
-          D = row_kronecker(f1$D, f2$D), C = as.vector(outer(f1$C, f2$C)),
-          labels = stats::setNames(expand.grid(f1$labels, f2$labels, stringsAsFactors = FALSE), g),
-          len.scale = f1$len.scale * f2$len.scale
-        )
+        if (!is.null(f1) && !is.null(f2)) {
+          terms[[length(terms)]]$flow <- list(
+            D = row_kronecker(f1$D, f2$D), C = as.vector(outer(f1$C, f2$C)),
+            labels = stats::setNames(expand.grid(f1$labels, f2$labels, stringsAsFactors = FALSE), g),
+            len.scale = f1$len.scale * f2$len.scale
+          )
+        }
       }
       next
     }
@@ -442,8 +443,8 @@ pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
         Q = tp$Q, logdetQ = tp$logdetQ, aux = list(),
         labels = labels, pick = col[first], mean.diag = mean(tp$tip.var[col])
       )
-      if (flow) {
-        fv <- flow_var(g, TRUE)
+      fv <- if (flow) flow_var(g, TRUE)
+      if (!is.null(fv)) {
         terms[[length(terms)]]$flow <- list(D = fv$D, C = fv$C, labels = fv$labels,
                                             len.scale = fv$len.scale)
       }
@@ -469,8 +470,8 @@ pglmm_sparse_terms <- function(formula, data, cov_ranef, standardize_cov = TRUE,
         labels = tp$node.label, n.levels = nlevels(f),
         level.order = match(levels(f), tp$tip.label), mean.diag = tp$mean.diag
       )
-      if (flow) {
-        fv <- flow_var(g, TRUE)
+      fv <- if (flow) flow_var(g, TRUE)
+      if (!is.null(fv)) {
         terms[[length(terms)]]$flow <- list(D = Matrix::Diagonal(x = covariate) %*% fv$D, C = fv$C,
                                             labels = fv$labels, len.scale = fv$len.scale)
       }
@@ -1468,20 +1469,16 @@ communityPGLMM.gaussian.sparse <- function(formula, data, cov_ranef = NULL, REML
 }
 
 # The value of sparse = NULL (the default of pglmm()): TRUE when the sparse
-# code supports the model, i.e. with bayes = FALSE, random terms in the
-# formula or random.effects (pglmm_fit() uses the dense code if a covariance
-# matrix of the observations is singular), and with bayes = TRUE, random
-# terms in the formula and phylogenies (not covariance matrices) in
-# cov_ranef; FALSE otherwise
+# code supports the model, i.e. with random terms in the formula or
+# random.effects (pglmm_fit() uses the dense code if a covariance matrix of the
+# observations in random.effects is singular), except with bayes = TRUE and
+# repulsion = TRUE; FALSE otherwise
 pglmm_sparse_default <- function(formula, cov_ranef, random.effects, bayes,
                                  ML.init = FALSE, repulsion = FALSE) {
-  if (!is.null(random.effects)) return(!bayes)
+  if (!is.null(random.effects)) return(TRUE)
   if (!length(reformulas::findbars(formula))) return(FALSE)
-  if (!bayes) return(TRUE)
-  # not available yet with bayes = TRUE and sparse = TRUE
-  if (isTRUE(ML.init) || any(as.logical(repulsion))) return(FALSE)
-  covs <- Filter(Negate(is.null), if (is.list(cov_ranef)) cov_ranef)
-  all(vapply(covs, inherits, logical(1), "phylo"))
+  # repulsion is not available yet with bayes = TRUE and sparse = TRUE
+  !(bayes && any(as.logical(repulsion)))
 }
 
 # Stop for the methods that are not available yet for the sparse path

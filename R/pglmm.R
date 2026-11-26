@@ -1048,7 +1048,7 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
     rp <- pglmm_re_list_prepare(formula, data, random.effects)
     data <- rp$data
     random.effects <- rp$random.effects
-    if ((isTRUE(sparse) && !bayes) || laplace) {
+    if (isTRUE(sparse) || laplace) {
       re.terms <- pglmm_sparse_terms_re(random.effects, rownames(data))
       if (!is.null(re.terms$singular)) {
         if (laplace || sparse.given) {
@@ -1160,17 +1160,35 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
 
   if (isTRUE(sparse)) {
     if (bayes) {
-      if (!prep_re) stop("sparse = TRUE needs random terms specified in the formula.", call. = FALSE)
-      if (ML.init) stop("ML.init = TRUE is not available yet with bayes = TRUE and sparse = TRUE.", call. = FALSE)
       if (any(as.logical(repulsion))) {
         stop("repulsion = TRUE is not available yet with bayes = TRUE and sparse = TRUE.", call. = FALSE)
       }
       # rows with missing values are dropped, and 1|obs is added, as for
-      # sparse = TRUE with bayes = FALSE
-      gd <- pglmm_glmm_data(formula, data, family, add.obs.re = add.obs.re)
+      # sparse = TRUE with bayes = FALSE (not with random.effects lists, which
+      # give all the random terms)
+      gd <- pglmm_glmm_data(formula, data, family, add.obs.re = add.obs.re, re.list = !prep_re)
       data <- gd$data
-      tm <- pglmm_sparse_terms(formula, data, cov_ranef, standardize_cov = standardize_cov,
-                               phylo_only = phylo_only, flow = sparse_method == "flow")
+      tm <- if (prep_re) {
+        pglmm_sparse_terms(formula, data, cov_ranef, standardize_cov = standardize_cov,
+                           phylo_only = phylo_only, flow = sparse_method == "flow")
+      } else {
+        re.terms
+      }
+      sparse_terms <- pglmm_bayes_sparse_terms(tm, nrow(data), sparse_method, has.obs = gd$has.obs)
+      if (ML.init) {
+        # initial values from the fit by (restricted) maximum likelihood with
+        # the sparse code (the Laplace approximation for binomial and poisson
+        # models), in the order of sparse_terms (and the residual variance)
+        init <- pglmm_bayes_ml_init(
+          formula = formula, data = data, family = family, cov_ranef = cov_ranef,
+          random.effects = random.effects, REML = REML, add.obs.re = add.obs.re, maxit = maxit,
+          standardize_cov = standardize_cov, phylo_only = phylo_only, terms = names(sparse_terms)
+        )
+        if (!is.null(init)) {
+          s2.init <- init$s2
+          B.init <- init$B
+        }
+      }
       z <- communityPGLMM.bayes(
         formula = gd$formula.nobars, data = data, family = family,
         s2.init = s2.init, B.init = B.init,
@@ -1182,13 +1200,14 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
         bayes_options = bayes_options,
         posterior.sample = posterior.sample,
         return.fitted.marginals = return.fitted.marginals,
-        sparse_terms = pglmm_bayes_sparse_terms(tm, nrow(data), sparse_method, has.obs = gd$has.obs)
+        sparse_terms = sparse_terms
       )
       z$bayes_sparse$method <- sparse_method
       z$standardize_cov <- standardize_cov
       z$formula_original <- fm_original
       z$re_terms <- re.store
       z$cov_ranef <- if (length(tm$cov_ranef_updated)) tm$cov_ranef_updated else NA
+      if (!prep_re) z$random.effects <- random.effects
       return(z)
     }
     # nlminb() with analytic gradients by default (also for "lbfgs"), with a
@@ -2246,3 +2265,36 @@ communityPGLMM.bayes <- function(formula, data = list(), family = "gaussian",
   results
 }
 
+
+# Initial values of the variances of the random terms (named terms, in this
+# order; and the residual variance of gaussian models) and of the fixed
+# effects for bayes = TRUE with ML.init = TRUE (gaussian, binomial and poisson
+# models): the fit by (restricted) maximum likelihood with the sparse code.
+# NULL, with a warning, if this fit fails.
+pglmm_bayes_ml_init <- function(formula, data, family, cov_ranef, random.effects, REML,
+                                add.obs.re, maxit, standardize_cov, phylo_only, terms) {
+  if (family %nin% c("gaussian", "binomial", "poisson")) {
+    warning("ML.init option is only available for binomial, poisson and gaussian families. You will ",
+            "have to specify initial values manually if you think the default are problematic.",
+            call. = FALSE)
+    return(NULL)
+  }
+  ml <- try(suppressMessages(pglmm_fit(
+    formula = formula, data = data, family = family, cov_ranef = cov_ranef,
+    random.effects = random.effects, REML = REML, add.obs.re = add.obs.re, maxit = maxit,
+    bayes = FALSE, sparse = TRUE, method = "Laplace", standardize_cov = standardize_cov,
+    phylo_only = phylo_only
+  )), silent = TRUE)
+  if (inherits(ml, "try-error")) {
+    warning("Initial model fitting with maximum likelihood approach failed.", immediate. = TRUE,
+            call. = FALSE)
+    return(NULL)
+  }
+  v <- VarCorr(ml)
+  s2 <- v[terms, "Variance"]
+  if (family == "gaussian") s2 <- c(s2, v["residual", "Variance"])
+  # INLA starts from the log precisions: no zero variances
+  s2[is.na(s2)] <- 0.25
+  s2 <- pmax(s2, 1e-4)
+  list(s2 = s2, B = ml$B[, 1, drop = TRUE])
+}
