@@ -979,11 +979,12 @@ pglmm_sparse_glmm_LL_grad <- function(ev, pre, XH, REML, has.obs) {
 # binomial models with more than one trial, unless a nested term without
 # phylogeny already has one level per observation; rows with missing values
 # in the response, predictors, or random terms are dropped.
-pglmm_glmm_data <- function(formula, data, family, add.obs.re = TRUE) {
+pglmm_glmm_data <- function(formula, data, family, add.obs.re = TRUE, re.list = FALSE) {
   formula.nobars <- reformulas::nobars(formula)
   re <- pglmm_parse_re(formula, data)
-  # observation-level term (as prep_dat_pglmm())
-  has.obs <- pglmm_re_obs(re$terms, data, formula.nobars, family, add.obs.re)
+  # observation-level term (as prep_dat_pglmm()); not with random.effects
+  # lists (re.list = TRUE), which give all the random terms
+  has.obs <- !re.list && pglmm_re_obs(re$terms, data, formula.nobars, family, add.obs.re)
   # rows with missing values in the response, predictors, or random terms are dropped
   data <- data[pglmm_complete_rows(formula, data, re$vars), , drop = FALSE]
   mf <- model.frame(formula.nobars, data = data, na.action = NULL)
@@ -1033,8 +1034,8 @@ communityPGLMM.glmm.sparse <- function(formula, data, family = "binomial", cov_r
                                        reltol = 10^-10, maxit = 500, tol.pql = 10^-6,
                                        maxit.pql = 200, verbose = FALSE, optimizer = "nlminb",
                                        standardize_cov = TRUE, repulsion = FALSE,
-                                       add.obs.re = TRUE, phylo_only = FALSE) {
-  dd <- pglmm_glmm_data(formula, data, family, add.obs.re)
+                                       add.obs.re = TRUE, phylo_only = FALSE, re.terms = NULL) {
+  dd <- pglmm_glmm_data(formula, data, family, add.obs.re, re.list = !is.null(re.terms))
   formula.nobars <- dd$formula.nobars
   data <- dd$data
   X <- dd$X
@@ -1044,7 +1045,11 @@ communityPGLMM.glmm.sparse <- function(formula, data, family = "binomial", cov_r
   n <- nrow(X)
   p <- ncol(X)
 
-  tm <- pglmm_sparse_terms(formula, data, cov_ranef, standardize_cov, repulsion, phylo_only)
+  tm <- if (is.null(re.terms)) {
+    pglmm_sparse_terms(formula, data, cov_ranef, standardize_cov, repulsion, phylo_only)
+  } else {
+    re.terms
+  }
   terms <- tm$terms
   nt <- length(terms)
   nested <- vapply(terms, function(z) z$nested, TRUE)
@@ -1243,7 +1248,8 @@ communityPGLMM.glmm.sparse <- function(formula, data, family = "binomial", cov_r
     warning("The PQL iterations did not converge (maxit.pql = ", maxit.pql, ").")
   }
 
-  random.effects <- pglmm_sparse_random_effects(terms, data)[tm$formula.order]
+  # (random.effects lists are stored as given, by pglmm_fit())
+  random.effects <- if (is.null(re.terms)) pglmm_sparse_random_effects(terms, data)[tm$formula.order]
   if (has.obs) random.effects[["1|obs"]] <- list(Matrix::Diagonal(n))
 
   results <- list(
@@ -1299,7 +1305,7 @@ communityPGLMM.gaussian.sparse <- function(formula, data, cov_ranef = NULL, REML
                                            s2.init = NULL, reltol = 10^-8, maxit = 500,
                                            verbose = FALSE, optimizer = "nlminb",
                                            standardize_cov = TRUE, repulsion = FALSE,
-                                           phylo_only = FALSE) {
+                                           phylo_only = FALSE, re.terms = NULL) {
   formula.nobars <- reformulas::nobars(formula)
   # rows with missing values in the response, predictors, or random terms are dropped
   re <- pglmm_parse_re(formula, data, phylo_only = phylo_only)
@@ -1311,7 +1317,12 @@ communityPGLMM.gaussian.sparse <- function(formula, data, cov_ranef = NULL, REML
   p <- ncol(X)
   prior.weights <- pglmm_prior_weights(data) # weights of pglmm() (NULL if none)
 
-  tm <- pglmm_sparse_terms(formula, data, cov_ranef, standardize_cov, repulsion, phylo_only)
+  # the terms of random.effects lists (pglmm_sparse_terms_re()), if given
+  tm <- if (is.null(re.terms)) {
+    pglmm_sparse_terms(formula, data, cov_ranef, standardize_cov, repulsion, phylo_only)
+  } else {
+    re.terms
+  }
   terms <- tm$terms
   nt <- length(terms)
   nested <- vapply(terms, function(z) z$nested, TRUE)
@@ -1426,7 +1437,8 @@ communityPGLMM.gaussian.sparse <- function(formula, data, cov_ranef = NULL, REML
   # same structure as the random.effects of the default code (in the order of
   # the formula), without the (dense) covariance matrices; nested terms are
   # given as list(1, sp, covar, site)
-  random.effects <- pglmm_sparse_random_effects(terms, data)[tm$formula.order]
+  # (random.effects lists are stored as given, by pglmm_fit())
+  random.effects <- if (is.null(re.terms)) pglmm_sparse_random_effects(terms, data)[tm$formula.order]
 
   results <- list(
     formula = formula.nobars, data = data, family = "gaussian",
@@ -1456,12 +1468,14 @@ communityPGLMM.gaussian.sparse <- function(formula, data, cov_ranef = NULL, REML
 }
 
 # The value of sparse = NULL (the default of pglmm()): TRUE when the sparse
-# code supports the model, i.e. with random terms in the formula (not
-# random.effects), and with bayes = TRUE, phylogenies (not covariance
-# matrices) in cov_ranef; FALSE otherwise
+# code supports the model, i.e. with bayes = FALSE, random terms in the
+# formula or random.effects (pglmm_fit() uses the dense code if a covariance
+# matrix of the observations is singular), and with bayes = TRUE, random
+# terms in the formula and phylogenies (not covariance matrices) in
+# cov_ranef; FALSE otherwise
 pglmm_sparse_default <- function(formula, cov_ranef, random.effects, bayes,
                                  ML.init = FALSE, repulsion = FALSE) {
-  if (!is.null(random.effects)) return(FALSE)
+  if (!is.null(random.effects)) return(!bayes)
   if (!length(reformulas::findbars(formula))) return(FALSE)
   if (!bayes) return(TRUE)
   # not available yet with bayes = TRUE and sparse = TRUE

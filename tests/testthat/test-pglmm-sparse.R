@@ -143,11 +143,11 @@ test_that("sparse = NULL (the default) uses the sparse code whenever it supports
   q <- function(...) suppressWarnings(suppressMessages(pglmm(...)))
   expect_false(is.null(q(y ~ x + (1 | sp__) + (1 | site), s$d, cov_ranef = list(sp = s$phy))$sparse))
   expect_false(is.null(q(y ~ x + (1 | sp__) + (x | sp), s$d, cov_ranef = list(sp = s$phy))$sparse))
-  # covariance matrices: their (dense) inverse; random.effects: the dense code
+  # covariance matrices: their (dense) inverse; random.effects lists too
   V <- ape::vcv(s$phy)
   expect_false(is.null(q(y ~ x + (1 | sp__), s$d, cov_ranef = list(sp = V))$sparse))
   re <- list(list(1, sp = factor(s$d$sp), covar = diag(length(unique(s$d$sp)))))
-  expect_null(q(y ~ x, s$d, random.effects = re)$sparse)
+  expect_false(is.null(q(y ~ x, s$d, random.effects = re)$sparse))
   # TRUE and FALSE are used as given (TRUE stops for what the sparse code does
   # not support, see below); other values are errors
   expect_null(q(y ~ x + (1 | sp__) + (1 | site), s$d, cov_ranef = list(sp = s$phy), sparse = FALSE)$sparse)
@@ -174,8 +174,6 @@ test_that("sparse = TRUE stops for what it does not support", {
     pglmm(y ~ x + (1 | sp__) + (x | sp__@site), s$d, cov_ranef = list(sp = s$phy), sparse = TRUE),
     "slope"
   )
-  re <- list(list(1, sp = factor(s$d$sp), covar = diag(length(unique(s$d$sp)))))
-  expect_error(pglmm(y ~ x, s$d, random.effects = re, sparse = TRUE), "random terms specified")
   # extra tips are dropped with a warning; rows with NA are dropped
   d <- s$d[s$d$sp != "sp1", ]
   d$y[3] <- NA

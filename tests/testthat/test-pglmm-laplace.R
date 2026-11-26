@@ -237,9 +237,6 @@ test_that("methods work for models fitted with method = 'Laplace'", {
 
 test_that("method = 'Laplace' stops for what it does not support", {
   s <- sim_laplace_data(nsp = 10, nsite = 4, seed = 6)
-  re <- list(sp = list(1, sp = factor(s$d$sp), covar = diag(10)))
-  expect_error(quiet(pglmm(y ~ x, s$d, "binomial", random.effects = re, method = "Laplace")),
-               "random.effects is not supported")
   expect_error(pglmm(y ~ x + (1 | sp), s$d, "binomial", method = "laplace"))
 })
 

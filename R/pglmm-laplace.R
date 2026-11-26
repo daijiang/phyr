@@ -494,8 +494,8 @@ communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_
                                         REML = TRUE, s2.init = NULL, B.init = NULL,
                                         reltol = 10^-8, maxit = 500, verbose = FALSE,
                                         standardize_cov = TRUE, repulsion = FALSE,
-                                        add.obs.re = TRUE, phylo_only = FALSE) {
-  dd <- pglmm_glmm_data(formula, data, family, add.obs.re)
+                                        add.obs.re = TRUE, phylo_only = FALSE, re.terms = NULL) {
+  dd <- pglmm_glmm_data(formula, data, family, add.obs.re, re.list = !is.null(re.terms))
   formula.nobars <- dd$formula.nobars
   data <- dd$data
   X <- dd$X
@@ -506,7 +506,12 @@ communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_
   p <- ncol(X)
   ip <- seq_len(p)
 
-  tm <- pglmm_sparse_terms(formula, data, cov_ranef, standardize_cov, repulsion, phylo_only)
+  # the terms of random.effects lists (pglmm_sparse_terms_re()), if given
+  tm <- if (is.null(re.terms)) {
+    pglmm_sparse_terms(formula, data, cov_ranef, standardize_cov, repulsion, phylo_only)
+  } else {
+    re.terms
+  }
   terms <- tm$terms
   nt <- length(terms)
   nested <- vapply(terms, function(z) z$nested, TRUE)
@@ -688,7 +693,8 @@ communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_
   s2r <- if (any(!nested)) s2[which(!nested)] else NULL
   k <- p + q + has.disp
 
-  random.effects <- pglmm_sparse_random_effects(terms, data)[tm$formula.order]
+  # (random.effects lists are stored as given, by pglmm_fit())
+  random.effects <- if (is.null(re.terms)) pglmm_sparse_random_effects(terms, data)[tm$formula.order]
   if (has.obs) random.effects[["1|obs"]] <- list(Matrix::Diagonal(n))
 
   results <- list(

@@ -1021,9 +1021,6 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
     }
     method <- "Laplace"
   }
-  # binomial and poisson models with random.effects (not supported by the
-  # Laplace code): PQL by default
-  if (!method.given && !is.null(random.effects)) method <- "PQL"
   method <- match.arg(method)
   sparse_method <- match.arg(sparse_method)
   if (sparse_method == "flow" && !bayes) {
@@ -1036,15 +1033,39 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
     stop("sparse must be TRUE, FALSE or NULL (the default: the sparse code whenever it supports ",
          "the model).", call. = FALSE)
   }
+  sparse.given <- !is.null(sparse)
   if (is.null(sparse)) {
     sparse <- pglmm_sparse_default(formula, cov_ranef, random.effects, bayes,
                                    ML.init = ML.init, repulsion = repulsion)
   }
+  data <- as.data.frame(data) # in case of tibbles
+  # random.effects given as lists: the rows used, and their random terms for
+  # the sparse code (see R/pglmm-re-list.R); a covariance matrix of the
+  # observations that is not positive definite (after merging its identical
+  # rows) needs the dense code
+  re.terms <- NULL
+  if (!is.null(random.effects)) {
+    rp <- pglmm_re_list_prepare(formula, data, random.effects)
+    data <- rp$data
+    random.effects <- rp$random.effects
+    if ((isTRUE(sparse) && !bayes) || laplace) {
+      re.terms <- pglmm_sparse_terms_re(random.effects, rownames(data))
+      if (!is.null(re.terms$singular)) {
+        if (laplace || sparse.given) {
+          stop("The covariance matrix of random.effects[[", re.terms$singular, "]] is not positive ",
+               "definite (also after merging its identical rows), which ",
+               if (laplace) "method = \"Laplace\"" else "sparse = TRUE", " does not support; ",
+               "use ", if (laplace) "method = \"PQL\" with ", "sparse = FALSE.", call. = FALSE)
+        }
+        sparse <- FALSE
+        re.terms <- NULL
+      }
+    }
+  }
   if (!is.null(pglmm_prior_weights(data))) {
     if (bayes) stop("weights are not available with bayes = TRUE yet.", call. = FALSE)
     if (family == "gaussian" && !isTRUE(sparse)) {
-      stop("weights of gaussian models need the sparse code (sparse = TRUE): they are not ",
-           "available yet with random.effects or covariance matrices in cov_ranef.", call. = FALSE)
+      stop("weights of gaussian models need the sparse code (sparse = TRUE).", call. = FALSE)
     }
     if (family != "gaussian" && !laplace) {
       stop("weights of ", family, " models need method = \"Laplace\".", call. = FALSE)
@@ -1080,7 +1101,6 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
   }
 
 
-  data <- as.data.frame(data) # in case of tibbles
   prep_re <- if (is.null(random.effects)) TRUE else FALSE
   if (prep_re) {
     # random terms of the formula, parsed and checked once for all the code
@@ -1122,28 +1142,25 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
     # the Laplace approximation uses the precision matrices of the sparse code
     # (also with sparse = FALSE): a phylogeny gives its sparse precision
     # matrix, and a covariance matrix its (dense) inverse
-    if (!prep_re) {
-      stop("method = \"Laplace\" needs the random terms in the formula; ",
-           "random.effects is not supported.", call. = FALSE)
-    }
     z <- communityPGLMM.glmm.laplace(
       formula = formula, data = data, family = family, cov_ranef = cov_ranef, REML = REML,
       s2.init = s2.init, B.init = B.init,
       reltol = if (reltol.given) reltol else 1e-10, maxit = maxit, verbose = verbose,
       standardize_cov = standardize_cov, repulsion = repulsion, add.obs.re = add.obs.re,
-      phylo_only = phylo_only
+      phylo_only = phylo_only, re.terms = re.terms
     )
     z$standardize_cov <- standardize_cov
     z$formula_original <- fm_original
     z$re_terms <- re.store
     z$cov_ranef <- if (length(z$cov_ranef_updated)) z$cov_ranef_updated else NA
     z$cov_ranef_updated <- NULL
+    if (!prep_re) z$random.effects <- random.effects
     return(z)
   }
 
   if (isTRUE(sparse)) {
-    if (!prep_re) stop("sparse = TRUE needs random terms specified in the formula.", call. = FALSE)
     if (bayes) {
+      if (!prep_re) stop("sparse = TRUE needs random terms specified in the formula.", call. = FALSE)
       if (ML.init) stop("ML.init = TRUE is not available yet with bayes = TRUE and sparse = TRUE.", call. = FALSE)
       if (any(as.logical(repulsion))) {
         stop("repulsion = TRUE is not available yet with bayes = TRUE and sparse = TRUE.", call. = FALSE)
@@ -1184,7 +1201,8 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
         formula = formula, data = data, cov_ranef = cov_ranef, REML = REML,
         s2.init = s2.init, reltol = sparse.reltol, maxit = maxit,
         verbose = verbose, optimizer = sparse.optimizer,
-        standardize_cov = standardize_cov, repulsion = repulsion, phylo_only = phylo_only
+        standardize_cov = standardize_cov, repulsion = repulsion, phylo_only = phylo_only,
+        re.terms = re.terms
       )
     } else {
       z <- communityPGLMM.glmm.sparse(
@@ -1194,7 +1212,7 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
         tol.pql = tol.pql, maxit.pql = maxit.pql, verbose = verbose,
         optimizer = sparse.optimizer,
         standardize_cov = standardize_cov, repulsion = repulsion, add.obs.re = add.obs.re,
-        phylo_only = phylo_only
+        phylo_only = phylo_only, re.terms = re.terms
       )
     }
     if (family != "gaussian") z$method <- "PQL"
@@ -1203,6 +1221,7 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
     z$re_terms <- re.store
     z$cov_ranef <- if (length(z$cov_ranef_updated)) z$cov_ranef_updated else NA
     z$cov_ranef_updated <- NULL
+    if (!prep_re) z$random.effects <- random.effects
     return(z)
   }
 
@@ -1214,31 +1233,8 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
     if (phylo_only) random.effects <- pglmm_phylo_only_re(random.effects, re.parsed$terms)
     cov_ranef_updated <- dat_prepared$cov_ranef_updated
   } else {
+    # (random.effects checked and reordered by pglmm_re_list_prepare())
     formula <- reformulas::nobars(formula)
-    for (i in 1:length(random.effects)) {
-      if (length(random.effects[[i]]) >= 3) {
-        if (inherits(random.effects[[i]][[3]], c("matrix", "Matrix")) &
-          !is.null(rownames(random.effects[[i]][[3]]))) {
-          if (!all(rownames(random.effects[[i]][[3]]) == colnames(random.effects[[i]][[3]]))) {
-            stop("the row and column names of cov matrix in random.effects[", i, "] not in the same order")
-          }
-          if (!all(rownames(random.effects[[i]][[3]]) == levels(random.effects[[i]][[2]]))) {
-            warning("the row/column names of cov matrix in random.effects[", i,
-              "] not in the same order of its grouping variable, reordering now",
-              immediate. = TRUE, call. = FALSE
-            )
-            if (length(setdiff(levels(random.effects[[i]][[2]]), rownames(random.effects[[i]][[3]])))) {
-              stop(
-                "some levels in the grouping variable of random.effects[", i,
-                "] not in the cov matrix"
-              )
-            }
-            random.effects[[i]][[3]] <-
-              random.effects[[i]][[3]][levels(random.effects[[i]][[2]]), levels(random.effects[[i]][[2]])]
-          }
-        }
-      }
-    }
   }
 
   # initial values for bayesian analysis: binomial and gaussian
