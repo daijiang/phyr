@@ -155,7 +155,7 @@ pglmm_profile_fun <- function(object) {
     # all parameters y: (b for ML), the variances in the order of tnames, (phi)
     y0 <- c(if (!REML) as.vector(object$B), v[tnames], phi0)
     iv <- (if (REML) 0 else p) + seq_along(tnames)
-    sc <- c(if (!REML) as.vector(object$B.se), 1 / sf[tnames], if (lp$has.disp) 1)
+    sc <- c(if (!REML) as.vector(object$B.se), 1 / sf[tnames], rep(1, lp$ndisp))
     sc[!is.finite(sc) | sc <= 0] <- 1
     lower <- c(if (!REML) rep(-Inf, p), rep(pglmm_var_lb, length(tnames)),
                if (lp$has.disp) lp$disp.lower)
@@ -177,7 +177,7 @@ pglmm_profile_fun <- function(object) {
       it <- seq_len(nt)
       out[iv[it]] <- gr$theta / (2 * at$ss[it])
       if (sp$has.obs) out[iv[nt + 1]] <- gr$s2
-      if (lp$has.disp && !is.null(gr$phi)) out[length(out)] <- gr$phi
+      if (lp$has.disp && !is.null(gr$phi)) out[length(out) - lp$ndisp + seq_len(lp$ndisp)] <- gr$phi
       out[!is.finite(out)] <- NA
       out
     }

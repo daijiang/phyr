@@ -471,3 +471,77 @@ test_that("beta models: as glmmTMB(family = beta_family())", {
   expect_true(all(is.finite(m$B.se)))
   expect_equal(m$phi, sigma(g), tolerance = 1e-3)
 })
+
+test_that("zero-inflated poisson and negative binomial models with bayes = FALSE", {
+  Y <- c(0, 0, 1, 3, 0, 7, 2, 0)
+  wt <- c(1, 2, 1, 0.5, 1, 1, 3, 1)
+  e <- c(-1, 0.5, 0, 1.2, 2, 1.8, 0.3, -2)
+  h <- 1e-5
+  for (cnt in c("poisson", "nbinomial")) {
+    lp <- phyr:::pglmm_family_spec(paste0("zeroinflated.", cnt))$laplace(Y, NULL, wt)
+    ph <- if (cnt == "poisson") 0.4 else c(0.3, 0.4)
+    k <- lp$fam(e, ph)
+    zi <- 0.4 / 1.4
+    mu <- exp(e)
+    pc <- function(y) if (cnt == "poisson") dpois(y, mu) else dnbinom(y, mu = mu, size = 1 / 0.3)
+    expect_equal(k$logp + sum(wt * -lgamma(Y + 1)),
+                 sum(wt * log(ifelse(Y == 0, zi + (1 - zi) * pc(0), (1 - zi) * pc(Y)))), tolerance = 1e-12)
+    expect_equal(k$w, -(lp$fam(e + h, ph)$g - lp$fam(e - h, ph)$g) / (2 * h), tolerance = 1e-6)
+    expect_equal(k$dw, (lp$fam(e + h, ph)$w - lp$fam(e - h, ph)$w) / (2 * h), tolerance = 1e-6)
+    d <- lp$dphi(e, ph)
+    for (j in seq_along(ph)) {
+      pp <- pm <- ph
+      pp[j] <- pp[j] + 1e-7
+      pm[j] <- pm[j] - 1e-7
+      expect_equal(d$lphi[j], (lp$fam(e, pp)$logp - lp$fam(e, pm)$logp) / 2e-7, tolerance = 1e-5)
+      expect_equal(as.matrix(d$wphi)[, j], (lp$fam(e, pp)$w - lp$fam(e, pm)$w) / 2e-7, tolerance = 1e-5)
+    }
+  }
+  set.seed(10)
+  nsp <- 40
+  phy <- ape::rcoal(nsp, tip.label = paste0("sp", 1:nsp))
+  d <- expand.grid(sp = phy$tip.label, site = paste0("s", 1:6), stringsAsFactors = FALSE)
+  d$x <- rnorm(nrow(d))
+  u <- as.numeric(t(chol(ape::vcv(phy))) %*% rnorm(nsp, sd = 0.5))
+  mu <- exp(0.8 + 0.4 * d$x + u[match(d$sp, phy$tip.label)])
+  d$y <- rnbinom(nrow(d), mu = mu, size = 3) * (runif(nrow(d)) > 0.3)
+  mz <- qpglmm(y ~ x + (1 | sp__) + (1 | site), d, "zeroinflated.nbinomial", cov_ranef = list(sp = phy),
+               REML = FALSE)
+  expect_true(mz$zi > 0.1 && mz$zi < 0.5)
+  expect_output(print(mz), "Zero-inflation probability")
+  # the mean of the response: (1 - zi) mu
+  expect_equal(fitted(mz), (1 - mz$zi) * as.vector(mz$mu), tolerance = 1e-10)
+  expect_equal(as.vector(predict(mz, type = "response")), fitted(mz), tolerance = 1e-8)
+  nd <- d[1:3, ]
+  expect_equal(as.vector(predict(mz, newdata = nd, type = "response", re.form = NA)),
+               (1 - mz$zi) * exp(as.vector(cbind(1, nd$x) %*% mz$B)), tolerance = 1e-8)
+  s <- simulate(mz, nsim = 20)
+  expect_gt(mean(s == 0), 0.2)
+  expect_true(all(is.finite(residuals(mz))))
+  # weights multiply the log density: integer weights are repeated rows
+  d$k <- sample(1:2, nrow(d), replace = TRUE)
+  mk <- qpglmm(y ~ x + (1 | sp__) + (1 | site), d, "zeroinflated.poisson", cov_ranef = list(sp = phy),
+               REML = FALSE, weights = k)
+  md <- qpglmm(y ~ x + (1 | sp__) + (1 | site), d[rep(seq_len(nrow(d)), d$k), ], "zeroinflated.poisson",
+               cov_ranef = list(sp = phy), REML = FALSE)
+  expect_equal(mk$logLik, md$logLik, tolerance = 1e-6)
+  expect_equal(mk$zi, md$zi, tolerance = 1e-4)
+  skip_if_not_installed("glmmTMB")
+  C <- ape::vcv(phy)
+  C <- C / max(C)
+  C <- C / exp(determinant(C)$modulus[1] / nsp)
+  d$spf <- factor(d$sp, levels = phy$tip.label)
+  d$g <- factor(1)
+  for (cnt in c("poisson", "nbinomial")) {
+    m <- qpglmm(y ~ x + (1 | sp__) + (1 | site), d, paste0("zeroinflated.", cnt), cov_ranef = list(sp = phy),
+                REML = FALSE)
+    g <- glmmTMB::glmmTMB(y ~ x + (1 | spf) + propto(0 + spf | g, C) + (1 | site), data = d, ziformula = ~1,
+                          family = if (cnt == "poisson") poisson else glmmTMB::nbinom2)
+    expect_equal(m$logLik, as.numeric(logLik(g)), tolerance = 1e-6)
+    expect_equal(unname(m$B[, 1]), unname(glmmTMB::fixef(g)$cond), tolerance = 1e-4)
+    expect_equal(m$zi, plogis(glmmTMB::fixef(g)$zi[[1]]), tolerance = 1e-4)
+    se.g <- sqrt(diag(vcov(g)$cond))
+    if (all(is.finite(se.g))) expect_equal(unname(m$B.se[, 1]), unname(se.g), tolerance = 1e-3)
+    if (cnt == "nbinomial") expect_equal(m$theta, sigma(g), tolerance = 1e-3)
+  }
+})

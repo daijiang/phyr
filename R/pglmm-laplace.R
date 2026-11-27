@@ -86,6 +86,9 @@ pglmm_laplace_prep <- function(pre, X, Y, size, family, has.obs, offset = NULL, 
   list(pre = pre, X = X, Y = Y, size = size, family = family, has.obs = has.obs,
        n = nrow(X), p = ncol(X), nt = max(pre$term.of.col), Qmult = Qmult, fam = fl$fam,
        const = fl$const, dphi = fl$dphi, spec = spec, has.disp = !is.null(spec$disp),
+       # the dispersion parameters (e.g. 1 / theta; for zero-inflated families,
+       # also the odds of zero inflation): their number and lower bounds
+       ndisp = if (is.null(spec$disp)) 0L else length(spec$disp$lower),
        disp.lower = if (!is.null(spec$disp)) spec$disp$lower,
        offset = if (is.null(offset)) 0 else offset)
 }
@@ -199,8 +202,9 @@ pglmm_laplace_mode <- function(beta, ss, lp, st, fit.beta = FALSE, maxit = 50, t
 pglmm_laplace_ll <- function(par, lp, st, REML = FALSE, fit.beta = REML, keep = NULL) {
   phi <- 0
   if (lp$has.disp) {
-    phi <- max(par[length(par)], lp$disp.lower)
-    par <- par[-length(par)]
+    id <- length(par) - lp$ndisp + seq_len(lp$ndisp)
+    phi <- unname(pmax(par[id], lp$disp.lower))
+    par <- par[-id]
   }
   if (fit.beta) {
     beta <- NULL
@@ -348,8 +352,13 @@ pglmm_laplace_grad <- function(md, ss, lp, REML = FALSE, fit.beta = REML, phi = 
   }
   gphi <- NULL
   if (lp$has.disp) {
+    # (one column of gphi and wphi for each dispersion parameter)
     dp <- if (!is.null(lp$dphi)) lp$dphi(cur$eta, phi)
-    gphi <- if (is.null(dp)) NA_real_ else dp$lphi + sum(Dw * dp$wphi) + sum(zeta * dp$gphi)
+    gphi <- if (is.null(dp)) {
+      rep(NA_real_, lp$ndisp)
+    } else {
+      dp$lphi + colSums(Dw * as.matrix(dp$wphi)) + colSums(zeta * as.matrix(dp$gphi))
+    }
   }
   list(theta = gth, s2 = gs2, beta = if (!fit.beta) as.vector(crossprod(X, u)), phi = gphi)
 }
@@ -524,6 +533,8 @@ communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_
   spec <- lp$spec
   spec$check(Y, size)
   has.disp <- lp$has.disp # e.g. the dispersion of negative binomial models
+  nd <- lp$ndisp
+  id <- seq_len(nd)
   iq <- seq_len(q)
 
   if (!is.null(B.init) && length(B.init) != p) {
@@ -586,7 +597,7 @@ communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_
     gt <- -gr$theta / (2 * at$ss[it] * sf[it])
     out[off + it] <- gt
     if (has.obs) out[off + q] <- -gr$s2
-    if (has.disp && !is.null(gr$phi)) out[off + q + 1] <- -gr$phi
+    if (has.disp && !is.null(gr$phi)) out[off + q + id] <- -gr$phi
     out[!is.finite(out)] <- NA
     out
   }
@@ -606,14 +617,14 @@ communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_
   message.opt <- o1$message
   if (REML) {
     ss <- sqrt(pglmm_var_snap(o1$par[iq]) / sf)
-    phi <- if (has.disp) max(o1$par[q + 1], lp$disp.lower) else 0
+    phi <- if (has.disp) unname(pmax(o1$par[q + id], lp$disp.lower)) else 0
     md <- pglmm_laplace_mode(NULL, ss, lp, st, fit.beta = TRUE, phi = phi)
     B <- md$cur$beta
     B.cov <- solve(md$G)
     LL <- pglmm_laplace_ll(c(ss, if (has.disp) phi), lp, st, REML = TRUE)
   } else {
     md1 <- pglmm_laplace_mode(NULL, sqrt(o1$par[iq] / sf), lp, st, fit.beta = TRUE,
-                              phi = if (has.disp) max(o1$par[q + 1], lp$disp.lower) else 0) # b at the mode
+                              phi = if (has.disp) unname(pmax(o1$par[q + id], lp$disp.lower)) else 0) # b at the mode
     # b is optimized divided by its standard errors at the variances of o1
     # (sqrt(diag(G^-1))), i.e. with curvatures of about one: on badly scaled
     # data (e.g. counts of up to 1e9, with standard errors of 1e-6 for the
@@ -630,7 +641,7 @@ communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_
     message.opt <- o2$message
     B <- o2$par[ip]
     ss <- sqrt(pglmm_var_snap(o2$par[p + iq]) / sf)
-    phi <- if (has.disp) max(o2$par[p + q + 1], lp$disp.lower) else 0
+    phi <- if (has.disp) unname(pmax(o2$par[p + q + id], lp$disp.lower)) else 0
     o2$par[p + iq] <- ss
     # covariance matrix of b: inverse of the Hessian of -log L over b, the
     # standard deviations and the dispersion (as glmmTMB and glmer); the
@@ -638,7 +649,7 @@ communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_
     # even in them, so that its second derivatives with b are zero at zero),
     # as is a dispersion at (nearly) zero (e.g. the poisson model for negative
     # binomial models)
-    keep <- c(ip, p + which(ss > 1e-4), if (has.disp && phi > 1e-3) p + q + 1)
+    keep <- c(ip, p + which(ss > 1e-4), if (has.disp) p + q + which(phi > 1e-3))
     f <- function(par) {
       x <- o2$par
       x[keep] <- par
@@ -693,7 +704,7 @@ communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_
   i.nested <- c(which(nested), if (has.obs) q)
   s2n <- if (length(i.nested)) s2[i.nested] else NULL
   s2r <- if (any(!nested)) s2[which(!nested)] else NULL
-  k <- p + q + has.disp
+  k <- p + q + nd
 
   # (random.effects lists are stored as given, by pglmm_fit())
   random.effects <- if (is.null(re.terms)) pglmm_sparse_random_effects(terms, data)[tm$formula.order]
@@ -725,7 +736,7 @@ communityPGLMM.glmm.laplace <- function(formula, data, family = "binomial", cov_
   # the dispersion parameter, as reported by the family (e.g. theta = 1 / phi
   # of negative binomial models, Inf for phi = 0)
   if (has.disp) {
-    results <- append(results, setNames(list(spec$disp$value(phi)), spec$disp$name),
+    results <- append(results, setNames(as.list(spec$disp$value(phi)), spec$disp$name),
                       after = match("s2resid", names(results)))
   }
   class(results) <- c("communityPGLMM", "pglmm")

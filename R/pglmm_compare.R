@@ -444,7 +444,7 @@ pglmm_compare_print_summary <- function(x, digits) {
     print(c(logLik, AIC, BIC), digits = digits)
   }
   
-  if(grepl("zeroinflated", x$family)) {
+  if(isTRUE(x$bayes) && grepl("zeroinflated", x$family)) {
     cat("\nZero Inflation Parameter:\n")
     print(data.frame(Estimate = x$zi, lower.CI = x$zi.ci[1, 1], upper.CI = x$zi.ci[1, 2]), digits = digits)
   }

@@ -58,7 +58,7 @@ pglmm_print_summary <- function(x, digits) {
     print(c(logLik, AIC, BIC), digits = digits)
   }
 
-  if (grepl("zeroinflated", x$family)) {
+  if (isTRUE(x$bayes) && grepl("zeroinflated", x$family)) {
     cat("\nZero Inflation Parameter:\n")
     print(data.frame(
       Estimate = x$zi, lower.CI = x$zi.ci[1, 1],
@@ -148,16 +148,18 @@ pglmm_bayes_title <- function(x) {
 pglmm_print_disp <- function(x, digits) {
   spec <- pglmm_family_spec(x$family)
   if (is.null(spec) || is.null(spec$disp)) return(invisible(NULL))
-  nm <- spec$disp$name
-  value <- x[[nm]]
-  if (is.null(value)) return(invisible(NULL))
-  cat("\n", spec$disp$label, ":\n", sep = "")
-  ci <- x[[paste0(nm, ".ci")]]
-  if (isTRUE(x$bayes) && !is.null(ci)) {
-    print(data.frame(Estimate = value, lower.CI = ci[1, 1], upper.CI = ci[1, 2], row.names = nm),
-          digits = digits)
-  } else {
-    print(setNames(value, nm), digits = digits)
+  for (i in seq_along(spec$disp$name)) {
+    nm <- spec$disp$name[i]
+    value <- x[[nm]]
+    if (is.null(value)) next
+    cat("\n", spec$disp$label[i], ":\n", sep = "")
+    ci <- x[[paste0(nm, ".ci")]]
+    if (isTRUE(x$bayes) && !is.null(ci)) {
+      print(data.frame(Estimate = value, lower.CI = ci[1, 1], upper.CI = ci[1, 2], row.names = nm),
+            digits = digits)
+    } else {
+      print(setNames(value, nm), digits = digits)
+    }
   }
   invisible(NULL)
 }

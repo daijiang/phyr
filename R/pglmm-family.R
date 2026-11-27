@@ -56,6 +56,8 @@ pglmm_family_spec <- function(family) {
     binomial = pglmm_family_binomial(pglmm_family_link(family, "logit")),
     betabinomial = pglmm_family_betabinomial(),
     beta = pglmm_family_beta(),
+    zeroinflated.poisson = pglmm_family_zi("poisson"),
+    zeroinflated.nbinomial = pglmm_family_zi("nbinomial"),
     poisson = pglmm_family_poisson(),
     nbinomial = pglmm_family_nbinomial(),
     Gamma = pglmm_family_gamma(),
@@ -64,8 +66,10 @@ pglmm_family_spec <- function(family) {
 }
 
 # families fitted with method = "Laplace", and those fitted only with it
-pglmm_laplace_families <- c("binomial", "poisson", "nbinomial", "Gamma", "betabinomial", "beta")
-pglmm_laplace_only_families <- c("nbinomial", "Gamma", "betabinomial", "beta")
+pglmm_laplace_families <- c("binomial", "poisson", "nbinomial", "Gamma", "betabinomial", "beta",
+                            "zeroinflated.poisson", "zeroinflated.nbinomial")
+pglmm_laplace_only_families <- c("nbinomial", "Gamma", "betabinomial", "beta", "zeroinflated.poisson",
+                                 "zeroinflated.nbinomial")
 
 # families whose data are numbers of successes out of trials (cbind(), or
 # proportions with the numbers of trials as weights)
@@ -558,6 +562,191 @@ pglmm_beta_family <- function(phi = NULL) {
   fam
 }
 
+# Zero-inflated poisson and negative binomial families (log link), with a
+# constant probability of zero inflation zi (as glmmTMB with ziformula = ~1):
+# y = 0 with probability zi, and from the count distribution with mean
+# mu = exp(eta) otherwise, so that the mean of y is (1 - zi) mu. The
+# dispersion parameters are (1 / theta, for the negative binomial, and) the
+# odds of zero inflation z = zi / (1 - zi), with lower bounds of zero (no
+# zero inflation), as the negative binomial. For y > 0, the log density is
+# log(1 - zi) + the count log density, with the derivatives of the count
+# family. For y = 0, it is L0 = log(zi + (1 - zi) p0), with p0 = exp(l0) the
+# probability of zero of the count distribution: with r = (1 - zi) p0 / exp(L0),
+# a1 = dl0/deta, a2 = da1/deta and a3 = da2/deta (poisson: all -mu; negative
+# binomial: -mu / d, -mu / d^2 and -mu (1 - x) / d^3, with x = mu / theta and
+# d = 1 + x), the derivatives in eta are
+#   g = r a1, l'' = r (1 - r) a1^2 + r a2,
+#   l''' = r (1 - r) (1 - 2 r) a1^3 + 3 r (1 - r) a1 a2 + r a3.
+# In zi, dL0/dzi = (1 - p0) / exp(L0) and dr/dzi = -p0 / exp(2 L0) (times
+# dzi/dz = (1 - zi)^2 for z); in 1 / theta, dl0, da1 = mu^2 / d^2 and
+# da2 = 2 mu^2 / d^3 give dr = r (1 - r) dl0. Prior weights multiply the log
+# density.
+pglmm_family_zi <- function(count = c("poisson", "nbinomial")) {
+  count <- match.arg(count)
+  cs <- if (count == "poisson") pglmm_family_poisson() else pglmm_family_nbinomial()
+  nb <- count == "nbinomial"
+  zi.label <- "Zero-inflation probability (zi)"
+  lk <- stats::make.link("log")
+  zi_of <- function(phi) {
+    z <- phi[length(phi)]
+    z / (1 + z)
+  }
+  list(
+    family = paste0("zeroinflated.", count), link = "log",
+    label = if (nb) "zero-inflated negative binomial" else "zero-inflated poisson",
+    linkfun = lk$linkfun, linkinv = lk$linkinv,
+    disp = if (nb) {
+      list(name = c("theta", "zi"), label = c(cs$disp$label, zi.label),
+           value = function(phi) c(1 / phi[1], phi[2] / (1 + phi[2])),
+           phi = function(v) c(1 / v[1], v[2] / (1 - v[2])), lower = c(0, 0))
+    } else {
+      list(name = "zi", label = zi.label, value = function(phi) phi / (1 + phi),
+           phi = function(v) v / (1 - v), lower = 0)
+    },
+    # the mean of y, from the mean mu of the count distribution
+    response = function(mu, value) (1 - value[length(value)]) * mu,
+    laplace = function(Y, size, wt = NULL) {
+      cl <- cs$laplace(Y, size, wt)
+      w0 <- if (is.null(wt)) rep(1, length(Y)) else wt
+      i0 <- which(Y == 0)
+      ipos <- which(Y > 0)
+      wpos <- sum(w0[ipos])
+      # l0, a1, a2, a3 (and their derivatives in 1 / theta) of the zeros
+      zero <- function(eta, q) {
+        m <- exp(eta[i0])
+        if (!nb || q == 0) {
+          out <- list(m = m, l0 = -m, a1 = -m, a2 = -m, a3 = -m)
+        } else {
+          x <- q * m
+          d <- 1 + x
+          out <- list(m = m, l0 = -log1p(x) / q, a1 = -m / d, a2 = -m / d^2, a3 = -m * (1 - x) / d^3)
+        }
+        if (nb) {
+          x <- q * m
+          d <- 1 + x
+          # d l0 / dq = (log(1 + x) - x / (1 + x)) / q^2, with its series for small x
+          dl0 <- m^2 * (0.5 - 2 * x / 3 + 0.75 * x^2 - 0.8 * x^3)
+          j <- x >= 1e-3
+          dl0[j] <- (log1p(x[j]) - x[j] / d[j]) / q^2
+          out$dl0 <- dl0
+          out$da1 <- m^2 / d^2
+          out$da2 <- 2 * m^2 / d^3
+        }
+        out
+      }
+      # log(zi + (1 - zi) p0) and r, for the zeros
+      mix <- function(z, l0) {
+        lzi <- if (z > 0) log(z) - log1p(z) else -Inf
+        l1zi <- -log1p(z)
+        a <- pmax(lzi, l1zi + l0)
+        L0 <- a + log(exp(lzi - a) + exp(l1zi + l0 - a))
+        list(L0 = L0, r = exp(l1zi + l0 - L0), l1zi = l1zi)
+      }
+      list(
+        fam = function(eta, phi) {
+          q <- if (nb) phi[1] else 0
+          z <- phi[length(phi)]
+          f <- cl$fam(eta, q)
+          zr <- zero(eta, q)
+          mx <- mix(z, zr$l0)
+          r <- mx$r
+          wz <- w0[i0]
+          g <- f$g
+          w <- f$w
+          dw <- f$dw
+          g[i0] <- wz * r * zr$a1
+          w[i0] <- -wz * (r * (1 - r) * zr$a1^2 + r * zr$a2)
+          dw[i0] <- -wz * (r * (1 - r) * (1 - 2 * r) * zr$a1^3 + 3 * r * (1 - r) * zr$a1 * zr$a2 +
+                             r * zr$a3)
+          # the count log density of the zeros is l0: replaced by L0
+          logp <- f$logp - sum(wz * zr$l0) + sum(wz * mx$L0) + wpos * mx$l1zi
+          list(m = (1 - z / (1 + z)) * exp(eta), g = g, w = w, dw = dw, logp = logp)
+        },
+        const = cl$const,
+        dphi = function(eta, phi) {
+          q <- if (nb) phi[1] else 0
+          z <- phi[length(phi)]
+          zi <- z / (1 + z)
+          n <- length(eta)
+          zr <- zero(eta, q)
+          mx <- mix(z, zr$l0)
+          r <- mx$r
+          wz <- w0[i0]
+          a1 <- zr$a1
+          a2 <- zr$a2
+          p0 <- exp(zr$l0)
+          D <- exp(mx$L0)
+          # in zi, then times dzi/dz = (1 - zi)^2
+          dz <- (1 - zi)^2
+          drz <- -p0 / D^2
+          lz <- (-wpos / (1 - zi) + sum(wz * (1 - p0) / D)) * dz
+          gz <- wz * a1 * drz * dz
+          wzv <- -wz * drz * ((1 - 2 * r) * a1^2 + a2) * dz
+          gcol <- function(v0, vpos = 0) {
+            out <- numeric(n)
+            out[ipos] <- vpos
+            out[i0] <- v0
+            out
+          }
+          if (!nb) {
+            return(list(lphi = lz, gphi = gcol(gz), wphi = gcol(wzv)))
+          }
+          # in 1 / theta: the count family for y > 0, and the zeros
+          dc <- cl$dphi(eta, q)
+          if (is.null(dc)) return(NULL)
+          drq <- r * (1 - r) * zr$dl0
+          lq <- dc$lphi - sum(wz * zr$dl0) + sum(wz * r * zr$dl0)
+          gq <- wz * (drq * a1 + r * zr$da1)
+          wq <- -wz * ((1 - 2 * r) * drq * a1^2 + 2 * r * (1 - r) * a1 * zr$da1 + drq * a2 + r * zr$da2)
+          list(lphi = c(lq, lz), gphi = cbind(gcol(gq, dc$gphi[ipos]), gcol(gz)),
+               wphi = cbind(gcol(wq, dc$wphi[ipos]), gcol(wzv)))
+        }
+      )
+    },
+    check = function(Y, size) {
+      if (any(Y < 0 | Y != round(Y))) {
+        stop("family = \"zeroinflated.", count, "\" needs counts (integers, zero or larger) as ",
+             "response.", call. = FALSE)
+      }
+      if (all(Y == 0)) stop("The response is 0 for all observations, so the model cannot be fitted.",
+                            call. = FALSE)
+      invisible(NULL)
+    },
+    # starting values of the count model (with the zeros), and a probability of
+    # zero inflation of 0.1
+    start = function(formula, data, X, Y, size, offset) {
+      s <- cs$start(formula, data, X, Y, size, offset)
+      list(B = s$B, phi = c(s$phi, 0.1 / 0.9))
+    },
+    glm.family = function(value = NULL) pglmm_zi_family(count, value),
+    simulate = function(mu, value, size) {
+      zi <- value[length(value)]
+      y <- if (nb) stats::rnbinom(length(mu), mu = mu, size = value[1]) else stats::rpois(length(mu), mu)
+      y * (stats::runif(length(mu)) >= zi)
+    }
+  )
+}
+
+# family object of a zero-inflated model (for family() and deviance
+# residuals): that of the count distribution, with the deviance of the
+# zero-inflated distribution, for the mean mu of the count distribution
+# (saturated: mu = y for y > 0, and log density 0 for y = 0)
+pglmm_zi_family <- function(count, value = NULL) {
+  fam <- if (count == "poisson") stats::poisson() else pglmm_nb_family(if (!is.null(value)) value[1])
+  fam$family <- paste0("zeroinflated.", count)
+  if (is.null(value)) return(fam)
+  zi <- value[length(value)]
+  lc <- function(y, mu) {
+    if (count == "poisson") stats::dpois(y, mu, log = TRUE) else stats::dnbinom(y, mu = mu, size = value[1], log = TRUE)
+  }
+  ll <- function(y, mu) ifelse(y == 0, log(zi + (1 - zi) * exp(lc(0, mu))), log(1 - zi) + lc(y, mu))
+  fam$dev.resids <- function(y, mu, wt) {
+    sat <- ifelse(y == 0, 0, log(1 - zi) + lc(y, pmax(y, 1e-10)))
+    2 * wt * (sat - ll(y, mu))
+  }
+  fam
+}
+
 # Gamma with the log link: shape nu, Var(y) = m^2 / nu, estimated as the
 # dispersion phi = 1 / nu (as summary.glm(), and sigma()^2 of lme4::glmer();
 # sigma() of glmmTMB is sqrt(phi)). With r = y / m = y exp(-eta),
@@ -620,7 +809,16 @@ pglmm_family_gamma <- function() {
 
 # the reported value of the dispersion parameter of a fitted model (NULL if
 # its family has none)
+# the mean of the response from the mean mu of the distribution given eta
+# (for zero-inflated families, (1 - zi) mu; mu for the other families)
+pglmm_response_mean <- function(object, mu, spec = pglmm_family_spec(object$family)) {
+  if (is.null(spec) || is.null(spec$response)) return(mu)
+  spec$response(mu, pglmm_disp_value(object, spec))
+}
+
 pglmm_disp_value <- function(object, spec = pglmm_family_spec(object$family)) {
   if (is.null(spec) || is.null(spec$disp)) return(NULL)
-  object[[spec$disp$name]]
+  v <- unlist(object[spec$disp$name])
+  if (length(v) != length(spec$disp$name)) return(NULL)
+  v
 }

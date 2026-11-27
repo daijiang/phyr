@@ -59,7 +59,7 @@ pglmm_predicted_values <- function(x, cpp = TRUE,
                                    type = c("link", "response"), ...) {
   ptype <- match.arg(gaussian.pred)
   type <- match.arg(type)
-  linkinv <- pglmm_linkinv(x$family)
+  linkinv <- pglmm_linkinv(x$family, x)
 
   if (!is.null(re.form)) { # re.form = NA or ~0: no random effects, Xb (+ offset)
     predicted.values <- as.vector(x$X %*% x$B) + pglmm_offset(x)
@@ -125,9 +125,14 @@ pglmm_offset <- function(object) {
 }
 
 # inverse link function of a fitted model; family is a string, which can be the
-# name used by INLA for zero-inflated models (e.g. zeroinflatedbinomial1)
-pglmm_linkinv <- function(family) {
+# name used by INLA for zero-inflated models (e.g. zeroinflatedbinomial1). With
+# the fitted model (object), the mean of the response (for zero-inflated
+# families fitted with bayes = FALSE, (1 - zi) times the inverse link)
+pglmm_linkinv <- function(family, object = NULL) {
   spec <- pglmm_family_spec(family)
+  if (!is.null(spec) && !is.null(object) && !is.null(spec$response) && !isTRUE(object$bayes)) {
+    return(function(eta) pglmm_response_mean(object, spec$linkinv(eta), spec))
+  }
   if (!is.null(spec)) return(spec$linkinv)
   if (grepl("poisson", family) || grepl("nbinomial", family)) {
     return(make.link("log")$linkinv)
@@ -225,9 +230,11 @@ residuals.communityPGLMM <- function(
     # estimated dispersion parameter, e.g. theta of negative binomial models)
     dev <- spec$glm.family(pglmm_disp_value(object, spec))$dev.resids(y, mu, wt)
     dres <- sqrt(pmax(dev, 0))
+    # the mean of y (zero-inflated families: (1 - zi) mu)
+    mr <- pglmm_response_mean(object, mu, spec)
     res <- switch(type,
-      deviance = ifelse(y > mu, dres, -dres),
-      response = y - mu
+      deviance = ifelse(y > mr, dres, -dres),
+      response = y - mr
     )
   }
 
@@ -272,7 +279,7 @@ fitted.communityPGLMM <- function(object, ...) {
     ft <- pglmm_predicted_values(object, type = "response")$Y_hat
   } else {
     if (!is.null(pglmm_family_spec(object$family))) {
-      ft <- object$mu[, 1]
+      ft <- pglmm_response_mean(object, object$mu[, 1])
     } else {
       ft <- pglmm_predicted_values(object, ...)$Y_hat
     }
@@ -441,7 +448,7 @@ predict.communityPGLMM <- function(object, newdata = NULL, re.form = NULL,
       pglmm_predict_se_re(object, newdata, fx$X, allow.new.levels)
     }
   }
-  linkinv <- pglmm_linkinv(object$family)
+  linkinv <- pglmm_linkinv(object$family, object)
   fit <- matrix(if (type == "response") linkinv(eta) else eta, ncol = 1,
                 dimnames = list(rownames(newdata), "Y_hat"))
   if (interval == "confidence") {
@@ -460,7 +467,8 @@ predict.communityPGLMM <- function(object, newdata = NULL, re.form = NULL,
 pglmm_mu_eta <- function(object, eta) {
   spec <- pglmm_family_spec(object$family)
   link <- if (is.null(spec)) "identity" else spec$link
-  stats::make.link(link)$mu.eta(eta)
+  # (zero-inflated families: times 1 - zi)
+  pglmm_response_mean(object, stats::make.link(link)$mu.eta(eta), spec)
 }
 
 # Standard errors of the predictions with the random effects (re.form =

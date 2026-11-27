@@ -66,8 +66,8 @@ result, \code{pglmm(data_with_NAs)} and \code{pglmm(na.omit(data[, vars]))} (wit
 effects are dropped, together with their values in \code{random.effects}.}
 
 \item{family}{Either "gaussian" for a Linear Mixed Model, or
-"binomial", "poisson", "nbinomial", "Gamma", "betabinomial" or "beta" for Generalized
-Linear Mixed Models.
+"binomial", "poisson", "nbinomial", "Gamma", "betabinomial", "beta",
+"zeroinflated.poisson" or "zeroinflated.nbinomial" for Generalized Linear Mixed Models.
 "family" should be specified as a character string (i.e., quoted), or as a family
 object (e.g. \code{binomial(link = "cloglog")}). For binomial and
 Poisson data, we use the canonical logit and log link functions, respectively, by
@@ -126,6 +126,16 @@ model). Responses of exactly 0 or 1 are not allowed: transform them (e.g.
 \eqn{(y (n - 1) + 0.5) / n}{(y (n - 1) + 0.5) / n}, Smithson and Verkuilen 2006), or
 use "betabinomial" for counts. Prior weights multiply the log density. Only with
 \code{bayes = FALSE} and \code{method = "Laplace"}.
+
+"zeroinflated.poisson" and "zeroinflated.nbinomial" are the poisson and negative binomial
+distributions with zero inflation: \eqn{y = 0}{y = 0} with the probability \code{zi}, and from
+the count distribution with mean \eqn{\mu}{mu} (log link) otherwise, so that the mean of
+\eqn{y}{y} is \eqn{(1 - zi) \mu}{(1 - zi) mu}. With \code{bayes = FALSE}, \code{zi} is the same
+for all observations (as \code{glmmTMB(ziformula = ~1)}) and is estimated with the other
+parameters (element \code{zi} of the fitted model, and \code{theta} for the negative
+binomial), with the Laplace approximation; \code{fitted()} and \code{predict(type =
+  "response")} give the mean of \eqn{y}{y}, \eqn{(1 - zi) \mu}{(1 - zi) mu}. No
+observation-level random term is added.
 
 If \code{bayes = TRUE} there are
 three additional families available: "zeroinflated.binomial", "zeroinflated.poisson" and
