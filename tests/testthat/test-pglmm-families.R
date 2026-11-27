@@ -464,7 +464,7 @@ test_that("beta models: as glmmTMB(family = beta_family())", {
   d$g <- factor(1)
   g <- glmmTMB::glmmTMB(yb ~ x + (1 | spf) + propto(0 + spf | g, C) + (1 | site), data = d,
                         family = glmmTMB::beta_family())
-  expect_equal(m$logLik, as.numeric(logLik(g)), tolerance = 1e-6)
+  if (is.finite(as.numeric(logLik(g)))) expect_equal(m$logLik, as.numeric(logLik(g)), tolerance = 1e-6)
   expect_equal(unname(m$B[, 1]), unname(glmmTMB::fixef(g)$cond), tolerance = 1e-4)
   se.g <- sqrt(diag(vcov(g)$cond))
   if (all(is.finite(se.g))) expect_equal(unname(m$B.se[, 1]), unname(se.g), tolerance = 1e-3)

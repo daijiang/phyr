@@ -80,7 +80,8 @@ test_that("sig2 is profiled correctly at the maximum lambda", {
     ref <- optimise(function(ls) dense_loglik(d$x, dense_V_lambda(d$C, exp(ls), l, d$se)),
                     c(-10, 10), maximum = TRUE, tol = 1e-10)
     expect_equal(prof[1], ref$objective, tolerance = 1e-8)
-    expect_equal(log(prof[2]), ref$maximum, tolerance = 1e-5)
+    # the maximum of a flat profile is poorly determined: compare the likelihood there
+    expect_equal(dense_loglik(d$x, dense_V_lambda(d$C, prof[2], l, d$se)), ref$objective, tolerance = 1e-8)
   }
 })
 

@@ -651,7 +651,8 @@ pglmm_ranef_bayes_sparse <- function(object, nsamp = 1000) {
              "refit the model with posterior.sample = TRUE.", call. = FALSE)
       }
       sel <- stats::setNames(list(0), names(sr)[i])
-      draws <- INLA::inla.posterior.sample(nsamp, object$inla.model, selection = sel)
+      draws <- INLA::inla.posterior.sample(nsamp, object$inla.model, selection = sel,
+                                       num.threads = "1:1")
       R <- vapply(draws, function(x) as.numeric(x$latent), numeric(nrow(sr[[i]])))
       U <- as.matrix(r$Dlev %*% R)
       d$estimate <- if (ms == "mean") as.vector(r$Dlev %*% sr[[i]][["mean"]]) else apply(U, 1, stats::median)
@@ -745,7 +746,7 @@ bayes_simulate <- function(object, nsim = 250, re.form, ntry = 5, full = FALSE) 
       fam <- family(object)
 
       mu_sim <- INLA::inla.posterior.sample(nsim, object$inla.model,
-        selection = list(Predictor = 0)
+        selection = list(Predictor = 0), num.threads = "1:1"
       )
       mu_sim <- lapply(mu_sim, function(x) fam$linkinv(x$latent))
 
@@ -809,7 +810,7 @@ bayes_simulate <- function(object, nsim = 250, re.form, ntry = 5, full = FALSE) 
         selection <- as.list(rep(0, length(beta_names)))
         names(selection) <- beta_names
         beta_sim <- INLA::inla.posterior.sample(nsim, object$inla.model,
-          selection = selection
+          selection = selection, num.threads = "1:1"
         )
 
         beta_sim <- sapply(beta_sim, function(x) fam$linkinv(x$latent))
