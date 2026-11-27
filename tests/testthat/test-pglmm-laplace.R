@@ -291,6 +291,12 @@ test_that("nested phylogenetic terms give the same fits as glmmTMB for all famil
   d$cnt <- rpois(nrow(d), exp(0.3 + 0.5 * e))
   d$nb <- rnbinom(nrow(d), mu = exp(0.3 + 0.5 * e), size = 2)
   d$ga <- rgamma(nrow(d), shape = 3, rate = 3 / exp(0.5 * e))
+  pb <- plogis(0.5 * e - 0.3)
+  d$bs <- rbinom(nrow(d), 6, rbeta(nrow(d), pb * 4, (1 - pb) * 4)); d$bf <- 6 - d$bs
+  d$yb <- rbeta(nrow(d), pb * 8, (1 - pb) * 8)
+  d$yc <- rbinom(nrow(d), 1, 1 - exp(-exp(0.5 * e - 0.5)))
+  d$zp <- rpois(nrow(d), exp(0.3 + 0.5 * e)) * (runif(nrow(d)) > 0.25)
+  d$zn <- rnbinom(nrow(d), mu = exp(0.3 + 0.5 * e), size = 2) * (runif(nrow(d)) > 0.25)
   n <- nrow(d)
   d$spf <- factor(d$sp, levels = phy$tip.label); d$g <- factor(1)
   d$obsf <- factor(seq_len(n)); d$obsid <- factor(seq_len(n)); d$sitef <- factor(d$site)
@@ -299,7 +305,7 @@ test_that("nested phylogenetic terms give the same fits as glmmTMB for all famil
   fit_both <- function(lab, f, fam, cov, rep = FALSE) {
     m <- quiet(pglmm(f, d, family = fam, cov_ranef = cov, repulsion = rep, REML = FALSE))
     # glmmTMB with the covariance matrices of phyr's dense design
-    dp <- quiet(prep_dat_pglmm(f, d, cov, rep, TRUE, fam))
+    dp <- quiet(prep_dat_pglmm(f, d, cov, rep, TRUE, if (is.character(fam)) fam else fam$family))
     re <- dp$random.effects
     env <- globalenv() # where glmmTMB finds the matrices of propto()
     terms <- character()
@@ -330,13 +336,21 @@ test_that("nested phylogenetic terms give the same fits as glmmTMB for all famil
       }
     }
     ft <- as.formula(paste(deparse(f[[2]]), "~ x +", paste(terms, collapse = " + ")))
-    tfam <- switch(fam, binomial = binomial(), poisson = poisson(), nbinomial = glmmTMB::nbinom2(),
-                   Gamma = Gamma(link = "log"))
-    tm <- glmmTMB::glmmTMB(ft, data = d, family = tfam, REML = FALSE)
+    fname <- if (is.character(fam)) fam else fam$family
+    tfam <- if (!is.character(fam)) fam else switch(fam, binomial = binomial(), poisson = poisson(),
+                   nbinomial = glmmTMB::nbinom2(), Gamma = Gamma(link = "log"),
+                   betabinomial = glmmTMB::betabinomial(), beta = glmmTMB::beta_family(),
+                   zeroinflated.poisson = poisson(), zeroinflated.nbinomial = glmmTMB::nbinom2())
+    tm <- glmmTMB::glmmTMB(ft, data = d, family = tfam, REML = FALSE,
+                           ziformula = if (grepl("^zeroinflated", fname)) ~1 else ~0)
     th <- tm$fit$par[names(tm$fit$par) == "theta"]
     vt <- ifelse(grepl("propto", terms), exp(th), exp(2 * th))
     vp <- c(m$s2r, m$s2n)[names(re)]
-    disp <- if (fam == "nbinomial") c(m$theta, sigma(tm)) else if (fam == "Gamma") c(m$shape, 1 / sigma(tm)^2) else c(1, 1)
+    disp <- switch(fname, nbinomial = , zeroinflated.nbinomial = c(m$theta, sigma(tm)),
+                   Gamma = c(m$shape, 1 / sigma(tm)^2), betabinomial = , beta = c(m$phi, sigma(tm)), c(1, 1))
+    if (grepl("^zeroinflated", fname)) {
+      expect_equal(m$zi, plogis(glmmTMB::fixef(tm)$zi[[1]]), tolerance = 1e-3, label = lab)
+    }
     expect_equal(m$logLik, as.numeric(logLik(tm)), tolerance = 1e-7, label = lab)
     expect_equal(as.vector(m$B), unname(glmmTMB::fixef(tm)$cond), tolerance = 1e-3, label = lab)
     expect_equal(unname(vp), unname(vt), tolerance = 1e-3, label = lab)
@@ -352,4 +366,13 @@ test_that("nested phylogenetic terms give the same fits as glmmTMB for all famil
            list(sp = phy))
   fit_both("Gamma, sp@site__ + sp__@site", ga ~ x + (1 | sp__) + (1 | sp@site__) + (1 | sp__@site),
            "Gamma", cov2)
+  fit_both("binary cloglog, sp__@site", yc ~ x + (1 | sp__) + (1 | site) + (1 | sp__@site),
+           binomial(link = "cloglog"), list(sp = phy))
+  fit_both("betabinomial, sp__@site", cbind(bs, bf) ~ x + (1 | sp__) + (1 | site) + (1 | sp__@site),
+           "betabinomial", list(sp = phy))
+  fit_both("beta, sp__@site__", yb ~ x + (1 | sp__) + (1 | site) + (1 | sp__@site__), "beta", cov2)
+  fit_both("zeroinflated.poisson, sp__@site", zp ~ x + (1 | sp__) + (1 | site) + (1 | sp__@site),
+           "zeroinflated.poisson", list(sp = phy))
+  fit_both("zeroinflated.nbinomial, sp__@site", zn ~ x + (1 | sp__) + (1 | site) + (1 | sp__@site),
+           "zeroinflated.nbinomial", list(sp = phy))
 })
