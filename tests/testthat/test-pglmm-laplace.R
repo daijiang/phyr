@@ -304,7 +304,13 @@ test_that("nested phylogenetic terms give the same fits as glmmTMB for all famil
 
   fit_both <- function(lab, f, fam, cov, rep = FALSE) {
     m <- quiet(pglmm(f, d, family = fam, cov_ranef = cov, repulsion = rep, REML = FALSE))
-    # glmmTMB with the covariance matrices of phyr's dense design
+    # glmmTMB has no nested phylogenetic terms: the same model is given to it
+    # with the covariance matrices of phyr's dense design (prep_dat_pglmm()),
+    # each nested term as one random effect per observation with the n x n
+    # covariance matrix of the observations (propto(0 + obsf | g, N), e.g. for
+    # sp__@site: the phylogenetic covariance of the two species for two
+    # observations at the same site, zero otherwise). N is dense, so this only
+    # works for small data; it checks the likelihood of phyr's sparse code.
     dp <- quiet(prep_dat_pglmm(f, d, cov, rep, TRUE, if (is.character(fam)) fam else fam$family))
     re <- dp$random.effects
     env <- globalenv() # where glmmTMB finds the matrices of propto()
