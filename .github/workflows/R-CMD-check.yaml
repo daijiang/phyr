@@ -26,9 +26,12 @@ jobs:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
       _R_CHECK_LENGTH_1_LOGIC2_: FALSE
+      # no dependency comes from Bioconductor; skipping its indexes avoids
+      # intermittent 'Invalid line 1 in PACKAGES file' failures in pak
+      PKG_USE_BIOCONDUCTOR: false
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - uses: r-lib/actions/setup-pandoc@v2
 
@@ -40,6 +43,15 @@ jobs:
           extra-repositories: "https://inla.r-inla-download.org/R/stable"
 
       - uses: r-lib/actions/setup-r-dependencies@v2
+        id: deps
+        continue-on-error: true
+        with:
+          dependencies: '"all"'
+          extra-packages: rcmdcheck
+
+      # retry once: repository metadata downloads fail intermittently
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        if: steps.deps.outcome == 'failure'
         with:
           dependencies: '"all"'
           extra-packages: rcmdcheck
