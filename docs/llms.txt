@@ -1,5 +1,32 @@
 # phyr
 
+# What’s new in phyr 1.9.0
+
+- **One engine for all models.** Covariance matrices in `cov_ranef`,
+  lists in `random.effects` and Bayesian models (`bayes = TRUE`) are now
+  also fitted with the sparse code; a covariance matrix that comes from
+  a phylogeny is converted back to the phylogeny, so it is as fast.
+- **Prior weights** (`weights`), for all families, also with
+  `bayes = TRUE`.
+- **Better tests for binary data.**
+  [`pglmm_boot_LRT()`](https://daijiang.github.io/phyr/reference/pglmm_boot_LRT.md)
+  gives a parametric bootstrap test of nested models, which keeps its
+  nominal error rate where Wald and chi-square tests reject a true null
+  hypothesis too often (see the [simulation
+  study](https://daijiang.github.io/phyr/articles/benchmarks.html)).
+- **Other packages.** Estimated marginal means and contrasts (emmeans),
+  marginal effects (marginaleffects) and effect plots (effects) work
+  with [`pglmm()`](https://daijiang.github.io/phyr/reference/pglmm.md)
+  models.
+- **Fits at the boundary.** A message when a variance is estimated at
+  zero, and
+  [`pglmm_is_singular()`](https://daijiang.github.io/phyr/reference/pglmm_is_singular.md).
+
+Some names were removed or deprecated (e.g. the arguments `tree` and
+`tree_site`), and binomial and poisson models with `random.effects` are
+now fitted with the Laplace approximation: see the
+[NEWS](https://daijiang.github.io/phyr/news/index.html).
+
 # What’s new in phyr 1.5.0
 
 phyr 1.5.0 is a major update of
@@ -189,6 +216,7 @@ phy <- ape::keep.tip(phylotree, unique(dat$sp))
 test1 <- pglmm(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site),
                data = dat, family = "gaussian", REML = FALSE,
                cov_ranef = list(sp = phy))
+## boundary (singular) fit: the variances of 1|sp__, 1|site, 1|sp__@site are (close to) zero; see ?pglmm_is_singular
 test1
 ## Linear mixed model fit by maximum likelihood
 ## 
@@ -225,6 +253,7 @@ confint(test1)
 test2 <- pglmm(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site),
                data = dat, family = "binomial", REML = FALSE,
                cov_ranef = list(sp = phy))
+## boundary (singular) fit: the variances of 1|sp, 1|site, 1|sp__@site are (close to) zero; see ?pglmm_is_singular
 test2
 ## Generalized linear mixed model for binomial data fit by Laplace approximation (maximum likelihood)
 ## 
@@ -250,6 +279,7 @@ test2
 test2a <- pglmm(pa ~ 1 + shade + (1|sp__) + (1|site),
                 data = dat, family = "binomial", REML = FALSE,
                 cov_ranef = list(sp = phy))
+## boundary (singular) fit: the variances of 1|sp, 1|site are (close to) zero; see ?pglmm_is_singular
 anova(test2a, test2)
 ## test2a: pa ~ 1 + shade + (1 | sp__) + (1 | site)
 ## test2: pa ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site)
@@ -264,6 +294,7 @@ z_bipartite <- pglmm(freq ~ 1 + shade + (1|sp__) + (1|site__) +
                        (1|sp__@site) + (1|sp@site__) + (1|sp__@site__),
                      data = dat, family = "gaussian", REML = TRUE,
                      cov_ranef = list(sp = phy, site = tree_site))
+## boundary (singular) fit: the variances of 1|sp, 1|site, 1|site__, 1|sp__@site, 1|sp@site__, 1|sp__@site__ are (close to) zero; see ?pglmm_is_singular
 z_bipartite
 ## Linear mixed model fit by restricted maximum likelihood
 ## 
@@ -375,29 +406,26 @@ relationships.
 Functions to fit PGLMMs.
 
 - [`pglmm_matrix_structure()`](https://daijiang.github.io/phyr/reference/pglmm-matrix-structure.md)
-  [`communityPGLMM.matrix.structure()`](https://daijiang.github.io/phyr/reference/pglmm-matrix-structure.md)
   :
 
   `pglmm_matrix_structure` produces the entire covariance matrix
   structure (V) when you specify random effects.
 
 - [`pglmm_plot_ranef()`](https://daijiang.github.io/phyr/reference/pglmm-plot-re.md)
-  [`communityPGLMM.show.re()`](https://daijiang.github.io/phyr/reference/pglmm-plot-re.md)
   [`pglmm_plot_re()`](https://daijiang.github.io/phyr/reference/pglmm-plot-re.md)
-  [`communityPGLMM.plot.re()`](https://daijiang.github.io/phyr/reference/pglmm-plot-re.md)
   : Visualize random terms of communityPGLMMs
 
 - [`pglmm_predicted_values()`](https://daijiang.github.io/phyr/reference/pglmm-predicted-values.md)
-  [`communityPGLMM.predicted.values()`](https://daijiang.github.io/phyr/reference/pglmm-predicted-values.md)
   : Predicted values of PGLMM
 
 - [`pglmm_profile_LRT()`](https://daijiang.github.io/phyr/reference/pglmm-profile-LRT.md)
-  [`communityPGLMM.profile.LRT()`](https://daijiang.github.io/phyr/reference/pglmm-profile-LRT.md)
   : Testing statistical significance of random effect
 
-- [`pglmm()`](https://daijiang.github.io/phyr/reference/pglmm.md)
-  [`communityPGLMM()`](https://daijiang.github.io/phyr/reference/pglmm.md)
-  : Phylogenetic Generalized Linear Mixed Model for Community Data
+- [`pglmm()`](https://daijiang.github.io/phyr/reference/pglmm.md) :
+  Phylogenetic Generalized Linear Mixed Model for Community Data
+
+- [`pglmm_boot_LRT()`](https://daijiang.github.io/phyr/reference/pglmm_boot_LRT.md)
+  : Parametric bootstrap likelihood ratio test of nested models
 
 - [`pglmm_compare()`](https://daijiang.github.io/phyr/reference/pglmm_compare.md)
   [`predict(`*`<pglmm_compare>`*`)`](https://daijiang.github.io/phyr/reference/pglmm_compare.md)
@@ -405,6 +433,9 @@ Functions to fit PGLMMs.
 
 - [`pglmm_iV()`](https://daijiang.github.io/phyr/reference/pglmm_iV.md)
   : Inverse of the covariance matrix of a fitted PGLMM
+
+- [`pglmm_is_singular()`](https://daijiang.github.io/phyr/reference/pglmm_is_singular.md)
+  : Is a fitted PGLMM at the boundary (singular)?
 
 - [`prep_dat_pglmm()`](https://daijiang.github.io/phyr/reference/prep_dat_pglmm.md)
   :
@@ -419,6 +450,7 @@ Functions to fit PGLMMs.
   : Extract group-level estimates of random effects
 
 - [`summary(`*`<pglmm_compare>`*`)`](https://daijiang.github.io/phyr/reference/summary.pglmm_compare.md)
+  [`print(`*`<summary.pglmm_compare>`*`)`](https://daijiang.github.io/phyr/reference/summary.pglmm_compare.md)
   : Summary information of fitted pglmm_compare model
 
 - [`VarCorr(`*`<communityPGLMM>`*`)`](https://daijiang.github.io/phyr/reference/VarCorr.md)
@@ -459,6 +491,10 @@ Functions to fit PGLMMs.
   [`plot_bayes(`*`<communityPGLMM>`*`)`](https://daijiang.github.io/phyr/reference/pglmm-plot-data.md)
   : Plot the original dataset and predicted values (optional)
 
+- [`terms(`*`<communityPGLMM>`*`)`](https://daijiang.github.io/phyr/reference/pglmm-terms.md)
+  [`model.matrix(`*`<communityPGLMM>`*`)`](https://daijiang.github.io/phyr/reference/pglmm-terms.md)
+  : Terms and model matrix of the fixed effects of a PGLMM
+
 - [`predict(`*`<communityPGLMM>`*`)`](https://daijiang.github.io/phyr/reference/predict.communityPGLMM.md)
   : Predict Function for communityPGLMM Model Objects
 
@@ -472,6 +508,7 @@ Functions to fit PGLMMs.
   : Simulate from a communityPGLMM object
 
 - [`summary(`*`<communityPGLMM>`*`)`](https://daijiang.github.io/phyr/reference/summary.communityPGLMM.md)
+  [`print(`*`<summary.communityPGLMM>`*`)`](https://daijiang.github.io/phyr/reference/summary.communityPGLMM.md)
   : Summary information of fitted model
 
 - [`tidy(`*`<communityPGLMM>`*`)`](https://daijiang.github.io/phyr/reference/tidy.communityPGLMM.md)

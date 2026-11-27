@@ -44,6 +44,7 @@ phy <- ape::keep.tip(phylotree, unique(dat$sp))
 fit <- pglmm(freq ~ shade + (1 | sp__) + (1 | site),
   data = dat, cov_ranef = list(sp = phy)
 )
+#> boundary (singular) fit: the variances of 1|sp, 1|site are (close to) zero; see ?pglmm_is_singular
 head(fitted(fit))
 #> [1] 2.884917 3.434059 3.747206 2.857687 3.695014 4.384845
 
@@ -51,6 +52,7 @@ head(fitted(fit))
 fit_pa <- pglmm(pa ~ shade + (1 | sp__) + (1 | site),
   data = dat, family = "binomial", cov_ranef = list(sp = phy)
 )
+#> boundary (singular) fit: the variances of 1|sp, 1|site are (close to) zero; see ?pglmm_is_singular
 head(fitted(fit_pa))
 #> [1] 0.3629787 0.4614395 0.5195054 0.3583148 0.5098219 0.6345319
 ```

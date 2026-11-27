@@ -73,10 +73,12 @@ rbenchmark::benchmark(
 
 The benchmarks below were run on a MacBook Pro (Apple M1 Pro, 32 GB of
 memory) with R 4.6.0 and Apple’s Accelerate BLAS library, with phyr
-1.4.0, lme4 2.0.1, glmmTMB 1.1.15.2 and Matrix 1.7.5. Each model was
-fitted once, in a new R session; times are elapsed seconds, and memory
-is the peak memory of the R session (which uses about 0.3 GB with the
-packages loaded).
+1.4.0, lme4 2.0.1, glmmTMB 1.1.15.2 and Matrix 1.7.5; the times and
+memory of phyr were measured again with phyr 1.9.0 (they changed by less
+than about 15%, which is within the variation between runs). Each model
+was fitted once, in a new R session; times are elapsed seconds, and
+memory is the peak memory of the R session (which uses about 0.3 GB with
+the packages loaded).
 
 ### Simulated data
 
@@ -133,14 +135,14 @@ glmmTMB::glmmTMB(pa ~ x + (1 | sp) + (1 | site), data = d, family = "binomial")
 | Species | Observations | Family   | phyr | lme4 | glmmTMB |
 |--------:|-------------:|----------|-----:|-----:|--------:|
 |    1000 |       16,000 | gaussian | 0.14 | 0.62 |    1.71 |
-|    1000 |       16,000 | binomial | 0.54 | 1.68 |    1.79 |
-|    1000 |       16,000 | poisson  | 0.42 | 1.60 |    1.63 |
+|    1000 |       16,000 | binomial | 0.55 | 1.68 |    1.79 |
+|    1000 |       16,000 | poisson  | 0.49 | 1.60 |    1.63 |
 |    2000 |       32,000 | gaussian | 0.17 | 0.72 |    2.39 |
-|    2000 |       32,000 | binomial | 0.92 | 3.33 |    2.58 |
-|    2000 |       32,000 | poisson  | 0.84 | 2.77 |    2.22 |
+|    2000 |       32,000 | binomial | 0.88 | 3.33 |    2.58 |
+|    2000 |       32,000 | poisson  | 0.91 | 2.77 |    2.22 |
 |    5000 |       80,000 | gaussian | 0.60 | 1.16 |    4.94 |
-|    5000 |       80,000 | binomial | 2.03 | 8.44 |    5.04 |
-|    5000 |       80,000 | poisson  | 2.36 | 9.43 |    5.04 |
+|    5000 |       80,000 | binomial | 2.36 | 8.44 |    5.04 |
+|    5000 |       80,000 | poisson  | 2.34 | 9.43 |    5.04 |
 
 Time (seconds). With 5000 species, the R sessions used 0.6 to 0.7 GB of
 memory with phyr and lme4, and 1.0 to 1.2 GB with glmmTMB. The three
@@ -171,24 +173,24 @@ glmmTMB::glmmTMB(pa ~ x + (1 | spf) + propto(0 + spf | g, C) + (1 | site),
 
 | Species | Observations | Family | phyr | glmmTMB | phyr memory (GB) | glmmTMB memory (GB) |
 |---:|---:|----|---:|---:|---:|---:|
-| 300 | 4,800 | gaussian | 0.11 | 1.87 | 0.3 | 0.6 |
-| 300 | 4,800 | binomial | 0.30 | 2.06 | 0.3 | 0.5 |
-| 300 | 4,800 | poisson | 0.37 | 1.77 | 0.3 | 0.6 |
-| 1000 | 16,000 | gaussian | 0.33 | 12.2 | 0.3 | 2.1 |
-| 1000 | 16,000 | binomial | 1.44 | 11.3 | 0.4 | 2.1 |
-| 1000 | 16,000 | poisson | 1.26 | 12.0 | 0.4 | 2.1 |
-| 2000 | 32,000 | gaussian | 0.54 | 73.8 | 0.4 | 7.4 |
-| 2000 | 32,000 | binomial | 2.93 | 66.2 | 0.5 | 7.1 |
-| 2000 | 32,000 | poisson | 2.93 | 63.0 | 0.5 | 7.2 |
-| 5000 | 80,000 | gaussian | 1.52 | 703 | 0.7 | 13.0 |
-| 5000 | 80,000 | binomial | 7.13 | 671 | 0.8 | 12.5 |
-| 5000 | 80,000 | poisson | 7.07 | 708 | 0.8 | 11.7 |
+| 300 | 4,800 | gaussian | 0.12 | 1.87 | 0.4 | 0.6 |
+| 300 | 4,800 | binomial | 0.35 | 2.06 | 0.4 | 0.5 |
+| 300 | 4,800 | poisson | 0.39 | 1.77 | 0.4 | 0.6 |
+| 1000 | 16,000 | gaussian | 0.36 | 12.2 | 0.4 | 2.1 |
+| 1000 | 16,000 | binomial | 1.43 | 11.3 | 0.4 | 2.1 |
+| 1000 | 16,000 | poisson | 1.27 | 12.0 | 0.4 | 2.1 |
+| 2000 | 32,000 | gaussian | 0.56 | 73.8 | 0.5 | 7.4 |
+| 2000 | 32,000 | binomial | 3.12 | 66.2 | 0.5 | 7.1 |
+| 2000 | 32,000 | poisson | 3.02 | 63.0 | 0.5 | 7.2 |
+| 5000 | 80,000 | gaussian | 1.51 | 703 | 0.7 | 13.0 |
+| 5000 | 80,000 | binomial | 7.25 | 671 | 0.9 | 12.5 |
+| 5000 | 80,000 | poisson | 7.80 | 708 | 0.9 | 11.7 |
 
 Time (seconds) and memory. glmmTMB works with the dense covariance
 matrix of the species, so its time and memory grow much faster than the
 number of species, while phyr uses the sparse precision matrix of the
-phylogeny (`sparse = TRUE`, the default): with 5000 species, phyr is 100
-to 460 times faster, with a sixth or less of the memory. The estimates
+phylogeny (`sparse = TRUE`, the default): with 5000 species, phyr is 90
+to 470 times faster, with less than a tenth of the memory. The estimates
 are the same: log-likelihoods within 4e-7, slopes within 3e-6, and
 standard errors within 5e-5 (relative).
 
@@ -209,15 +211,15 @@ pglmm(pa ~ x + (1 | sp__) + (1 | site) + (1 | sp__@site), data = s$d,
 
 | Species | Observations | gaussian | binomial | poisson | Memory (GB) |
 |--------:|-------------:|---------:|---------:|--------:|------------:|
-|    1000 |       16,000 |      5.9 |      7.7 |    10.4 |         0.6 |
-|    2000 |       32,000 |      5.9 |     15.7 |    25.6 |         0.9 |
-|    5000 |       80,000 |     14.8 |     49.1 |    62.7 |  1.5 to 1.9 |
-|   10000 |      160,000 |     31.8 |     75.7 |   145.9 |  2.7 to 3.8 |
+|    1000 |       16,000 |      5.7 |      8.7 |    11.5 |         0.6 |
+|    2000 |       32,000 |      5.8 |     16.3 |    27.4 |  0.8 to 1.0 |
+|    5000 |       80,000 |     14.6 |     50.8 |    64.7 |  1.5 to 1.8 |
+|   10000 |      160,000 |     31.2 |     76.8 |   149.4 |  2.4 to 3.4 |
 
 Time (seconds) and memory: time and memory grow about linearly with the
 number of species. The nested term `(1 | sp__@site)` (the phylogeny of
 the species within each site) is the most costly: without it, the models
-with 5000 species of the previous section took 1.5 to 7 seconds (fitted
+with 5000 species of the previous section took 1.5 to 8 seconds (fitted
 by maximum likelihood).
 
 ### Dense and sparse code, and earlier versions of phyr
@@ -229,11 +231,11 @@ binomial models):
 
 | Species | Observations | gaussian, 1.1.3 | gaussian, dense | gaussian, sparse | binomial PQL, 1.1.3 | binomial PQL, sparse | binomial Laplace, sparse |
 |---:|---:|---:|---:|---:|---:|---:|---:|
-| 50 | 800 | 16.6 | 0.36 | 0.13 | 30.2 | 0.17 | 0.20 |
-| 100 | 1,600 | 139 | 2.2 | 0.44 | 313 | 0.39 | 0.45 |
-| 200 | 3,200 | \> 900 | 16.3 | 0.68 | \> 900 | 1.2 | 1.4 |
-| 400 | 6,400 |  | 100 | 1.9 |  | 3.0 | 3.9 |
-| 1000 | 16,000 |  | 742 | 5.9 |  | 5.1 | 7.7 |
+| 50 | 800 | 16.6 | 0.36 | 0.14 | 30.2 | 0.18 | 0.23 |
+| 100 | 1,600 | 139 | 2.2 | 0.44 | 313 | 0.42 | 0.45 |
+| 200 | 3,200 | \> 900 | 16.3 | 0.70 | \> 900 | 1.2 | 1.5 |
+| 400 | 6,400 |  | 100 | 1.8 |  | 2.7 | 4.0 |
+| 1000 | 16,000 |  | 742 | 5.7 |  | 4.8 | 8.7 |
 
 Time (seconds; phyr 1.1.3 was stopped after 900 seconds). The dense code
 needed 3.3 GB of memory with 400 species and 9.3 GB with 1000 species,
@@ -245,13 +247,133 @@ within 2e-4). With 1000 species, the optimizer of the dense code
 is 668 units of log-likelihood below the sparse one: use the sparse code
 (the default) for large models.
 
+## Why phylogenetic random terms matter: a simulation study
+
+When related species respond alike, the species are not independent
+replicates. These simulations compare
+[`pglmm()`](https://daijiang.github.io/phyr/reference/pglmm.md) with the
+phylogenetic term (PGLMM), the same model without the phylogeny (GLMM,
+`(1 | sp)` instead of `(1 | sp__)`) and a GLM without random terms, on
+data simulated with phylogenetic signal.
+
+Design: 100 species (a coalescent tree of height one) at 15 sites (1500
+observations), gaussian, binary and poisson responses, and two
+questions:
+
+- **Trait**: the effect of a species trait `x`, simulated by Brownian
+  motion (so it has phylogenetic signal), with species effects that have
+  a phylogenetic part (variance 1) and an independent part (variance
+  0.25), and site effects (variance 0.25).
+- **Trait x environment**: the interaction of the trait with an
+  environmental variable `e` of the sites, with, in addition,
+  phylogenetic species slopes on `e` (variance 0.5).
+
+Each case was simulated 500 times with a true slope of zero (type I
+error, coverage of the 95% confidence intervals) and 500 times with a
+slope of 0.3 (power), and fitted with the defaults of
+[`pglmm()`](https://daijiang.github.io/phyr/reference/pglmm.md) (REML,
+Laplace approximation, Wald tests):
+
+``` r
+
+sim_one <- function(seed, family, scenario, beta, nsp = 100, nsite = 15, phylo = TRUE) {
+  set.seed(seed)
+  phy <- ape::rcoal(nsp, tip.label = paste0("sp", 1:nsp))
+  phy$edge.length <- phy$edge.length / max(ape::node.depth.edgelength(phy))
+  L <- t(chol(ape::vcv(phy)))
+  trait <- as.numeric(L %*% rnorm(nsp))
+  trait <- (trait - mean(trait)) / sd(trait)
+  env <- rnorm(nsite)
+  d <- expand.grid(sp = phy$tip.label, site = paste0("s", 1:nsite), stringsAsFactors = FALSE)
+  i <- match(d$sp, phy$tip.label)
+  k <- match(d$site, paste0("s", 1:nsite))
+  d$x <- trait[i]
+  d$e <- env[k]
+  Lu <- if (phylo) L else diag(nsp) # without signal: independent species effects
+  u <- as.numeric(Lu %*% rnorm(nsp)) + rnorm(nsp, sd = 0.5)
+  v <- rnorm(nsite, sd = 0.5)
+  if (scenario == "trait") {
+    eta <- beta * d$x + u[i] + v[k]
+    f <- list(PGLMM = y ~ x + (1 | sp__) + (1 | site), GLMM = y ~ x + (1 | sp) + (1 | site))
+  } else {
+    w <- sqrt(0.5) * as.numeric(Lu %*% rnorm(nsp))
+    eta <- 0.3 * d$e + beta * d$x * d$e + u[i] + v[k] + w[i] * d$e
+    f <- list(PGLMM = y ~ x * e + (1 | sp__) + (1 | site) + (e | sp__),
+              GLMM = y ~ x * e + (1 | sp) + (1 | site) + (e | sp))
+  }
+  d$y <- switch(family, gaussian = eta + rnorm(nrow(d)),
+                binomial = rbinom(nrow(d), 1, plogis(eta)), poisson = rpois(nrow(d), exp(eta)))
+  lapply(f, function(fo) pglmm(fo, data = d, family = family, cov_ranef = list(sp = phy)))
+}
+```
+
+With phylogenetic signal (true slope zero, except the last column):
+
+| Scenario | Family | Type I error: PGLMM | GLMM | GLM | 95% CI coverage: PGLMM | GLMM | GLM | RMSE: PGLMM | GLMM | Power (slope 0.3): PGLMM |
+|----|----|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Trait | gaussian | 6.4% | 61.4% | 81.8% | 93.6% | 38.6% | 18.2% | 0.18 | 0.37 | 52.4% |
+| Trait | binomial | 8.6% | 58.2% | 70.8% | 91.4% | 41.8% | 29.2% | 0.22 | 0.37 | 38.8% |
+| Trait | poisson | 7.2% | 61.4% | 87.8% | 92.8% | 38.6% | 12.2% | 0.18 | 0.37 | 49.6% |
+| Trait x environment | gaussian | 7.4% | 66.0% | 72.2% | 92.6% | 34.0% | 27.8% | 0.11 | 0.27 | 82.0% |
+| Trait x environment | binomial | 9.8% | 49.8% | 54.8% | 90.2% | 50.2% | 45.2% | 0.17 | 0.27 | 55.4% |
+| Trait x environment | poisson | 6.8% | 67.4% | 81.2% | 93.2% | 32.6% | 18.8% | 0.11 | 0.27 | 85.2% |
+
+Without the phylogenetic term, the standard errors were only 19% to 30%
+of the standard deviations of the estimates across data sets (6% to 27%
+for the GLM), as the model treats the 100 related species as
+independent; with it, 87% to 95%. Thus, without the phylogeny, a true
+null hypothesis was rejected in half or more of the data sets. With it,
+the estimates were also about twice as accurate (root mean squared
+error). (The GLMM rejects more often when the slope is 0.3 too, but this
+is no gain in power, as it also does when the slope is zero.)
+
+Without phylogenetic signal (the same design, with independent species
+effects of the same variances, and a true slope of zero), the
+phylogenetic term costs little: the type I errors of PGLMM and GLMM were
+both close to or below 5%, and the RMSE of PGLMM was 8% to 21% larger
+(the phylogenetic variance, estimated above zero by chance, competes
+with the trait, which still has phylogenetic signal):
+
+| Scenario            | Family   | Type I error: PGLMM | GLMM |   GLM | RMSE: PGLMM |  GLMM |
+|---------------------|----------|--------------------:|-----:|------:|------------:|------:|
+| Trait               | gaussian |                3.0% | 3.6% | 48.0% |       0.126 | 0.108 |
+| Trait               | binomial |                3.0% | 3.4% | 29.0% |       0.135 | 0.116 |
+| Trait               | poisson  |                2.8% | 3.4% | 79.2% |       0.118 | 0.107 |
+| Trait x environment | gaussian |                6.4% | 7.2% | 23.4% |       0.087 | 0.081 |
+| Trait x environment | binomial |                3.6% | 4.0% | 11.4% |       0.108 | 0.089 |
+| Trait x environment | poisson  |                5.0% | 5.4% | 79.2% |       0.085 | 0.077 |
+
+### Tests for binary data
+
+With binary data and phylogenetic signal, the Wald test of PGLMM
+rejected a true null hypothesis somewhat too often (8.6% and 9.8%
+above). Tests from maximum likelihood fits did worse, as maximum
+likelihood underestimates the phylogenetic variances when there are
+effectively few independent species: in the same 500 data sets of each
+scenario, the Wald test of the ML fits rejected it in 14.2% (trait) and
+16.2% (trait x environment) of the data sets, and the likelihood ratio
+test of [`anova()`](https://rdrr.io/r/stats/anova.html) (from ML fits)
+in 10.6% and 11.2%. The parametric bootstrap test of
+[`pglmm_boot_LRT()`](https://daijiang.github.io/phyr/reference/pglmm_boot_LRT.md)
+does not rely on the chi-square approximation; with 199 simulations per
+test, in 100 data sets of the trait scenario, it rejected the true null
+hypothesis in 4% of them (the Wald and chi-square tests in 8% and 9% of
+the same data sets):
+
+``` r
+
+m <- sim_one(1, "binomial", "trait", beta = 0)
+m0 <- update(m$PGLMM, . ~ . - x)
+pglmm_boot_LRT(m$PGLMM, m0, nsim = 199, ncores = 8)
+```
+
 ## Benchmark for `phylo_signal()`
 
 [`phylo_signal()`](https://daijiang.github.io/phyr/reference/phylo_signal.md)
 estimates Pagel’s lambda or Blomberg’s K of a trait, optionally with
 known standard errors of the species means. It is compared here with
 [`phytools::phylosig()`](https://rdrr.io/pkg/phytools/man/phylosig.html),
-`geiger::fitContinuous()`,
+[`geiger::fitContinuous()`](https://rdrr.io/pkg/geiger/man/fitContinuous.html),
 [`phylosignal::phyloSignal()`](https://rdrr.io/pkg/phylosignal/man/phylosignalStats.html),
 [`picante::phylosignal()`](https://rdrr.io/pkg/picante/man/phylosignal.html),
 [`phylolm::phylolm()`](https://rdrr.io/pkg/phylolm/man/phylolm.html),

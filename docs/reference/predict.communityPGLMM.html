@@ -9,7 +9,7 @@ for new data."><meta property="og:image" content="https://daijiang.github.io/phy
 
     <a class="navbar-brand me-2" href="../index.html">phyr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,7 +37,7 @@ for new data."><meta property="og:image" content="https://daijiang.github.io/phy
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Predict Function for communityPGLMM Model Objects</h1>
-      <small class="dont-index">Source: <a href="https://github.com/daijiang/phyr/blob/HEAD/R/pglmm-utils.R" class="external-link"><code>R/pglmm-utils.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/daijiang/phyr/blob/HEAD/R/pglmm-predict.R" class="external-link"><code>R/pglmm-predict.R</code></a></small>
       <div class="d-none name"><code>predict.communityPGLMM.Rd</code></div>
     </div>
 
@@ -55,6 +55,9 @@ for new data.</p>
 <span>  re.form <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"link"</span>, <span class="st">"response"</span><span class="op">)</span>,</span>
 <span>  allow.new.levels <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  se.fit <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  interval <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"none"</span>, <span class="st">"confidence"</span><span class="op">)</span>,</span>
+<span>  level <span class="op">=</span> <span class="fl">0.95</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -92,6 +95,31 @@ their random effects are set to zero; if <code>FALSE</code> (default), they give
 error. Only used with <code>newdata</code>.</p></dd>
 
 
+<dt id="arg-se-fit">se.fit<a class="anchor" aria-label="anchor" href="#arg-se-fit"></a></dt>
+<dd><p>Whether to return the standard errors of the predictions
+(models fitted with <code>bayes = FALSE</code>). Without random effects
+(<code>re.form = NA</code>), they come from the covariance matrix of the fixed effects
+(<a href="vcov.communityPGLMM.html">vcov()</a>). With the random effects (<code>re.form = NULL</code>, models fitted with the sparse code or <code>method = "Laplace"</code>), they are
+the standard errors of prediction of the fixed and random effects together
+(from the mixed model equations, conditional on the estimated variances,
+as for the conditional modes of <code><a href="ranef.html">ranef()</a></code>); a level of a random term
+without phylogeny that is not in the data (<code>allow.new.levels = TRUE</code>)
+adds the variance of the term, and other new levels give <code>NA</code>. With
+<code>type = "response"</code>, the standard errors are on the scale of the response
+(delta method). With <code>newdata = NULL</code>, the predictions are those of the
+rows of the data used for the fit, without the observation-level term
+<code>1|obs</code> of binomial and poisson models.</p></dd>
+
+
+<dt id="arg-interval">interval<a class="anchor" aria-label="anchor" href="#arg-interval"></a></dt>
+<dd><p><code>"confidence"</code> for confidence intervals of the predictions
+(on the scale of the linear predictor, transformed with <code>type = "response"</code>), from the standard errors of <code>se.fit</code>.</p></dd>
+
+
+<dt id="arg-level">level<a class="anchor" aria-label="anchor" href="#arg-level"></a></dt>
+<dd><p>Confidence level of the intervals.</p></dd>
+
+
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
 <dd><p>Additional arguments passed to <code><a href="pglmm-predicted-values.html">pglmm_predicted_values()</a></code> when
 <code>newdata</code> is <code>NULL</code>, e.g. <code>gaussian.pred</code>.</p></dd>
@@ -100,8 +128,10 @@ error. Only used with <code>newdata</code>.</p></dd>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A matrix with one column (<code>Y_hat</code>) and one row for each row of the
-data (or of <code>newdata</code>). Rows of <code>newdata</code> with missing values in the
-variables needed have <code>NA</code>.</p>
+data (or of <code>newdata</code>), with the columns <code>lower</code> and <code>upper</code> with
+<code>interval = "confidence"</code>. With <code>se.fit = TRUE</code>, a list with this matrix
+(<code>fit</code>) and the standard errors (<code>se.fit</code>). Rows of <code>newdata</code> with missing
+values in the variables needed have <code>NA</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -147,6 +177,7 @@ argument <code>random.effects</code> of <code><a href="pglmm.html">pglmm()</a></
 <span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="pglmm.html">pglmm</a></span><span class="op">(</span><span class="va">freq</span> <span class="op">~</span> <span class="va">shade</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">site</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>  data <span class="op">=</span> <span class="va">dat</span>, cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> boundary (singular) fit: the variances of 1|sp, 1|site are (close to) zero; see ?pglmm_is_singular</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># predictions for the data used to fit the model</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">)</span></span></span>
@@ -188,11 +219,30 @@ argument <code>random.effects</code> of <code><a href="pglmm.html">pglmm()</a></
 <span class="r-in"><span><span class="va">fit_pa</span> <span class="op">&lt;-</span> <span class="fu"><a href="pglmm.html">pglmm</a></span><span class="op">(</span><span class="va">pa</span> <span class="op">~</span> <span class="va">shade</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">site</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>  data <span class="op">=</span> <span class="va">dat</span>, family <span class="op">=</span> <span class="st">"binomial"</span>, cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> boundary (singular) fit: the variances of 1|sp, 1|site are (close to) zero; see ?pglmm_is_singular</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit_pa</span>, newdata <span class="op">=</span> <span class="va">newdat</span>, type <span class="op">=</span> <span class="st">"response"</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>       Y_hat</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 1 0.3594783</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 2 0.4820189</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 3 0.4002902</span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># standard errors and confidence intervals, without and with random effects</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit_pa</span>, newdata <span class="op">=</span> <span class="va">newdat</span>, re.form <span class="op">=</span> <span class="cn">NA</span>, se.fit <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $fit</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>        Y_hat</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1 -1.7947758</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2 -1.2891021</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3 -0.7834284</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $se.fit</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>         1         2         3 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 0.5167589 0.4581021 0.5401729 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit_pa</span>, newdata <span class="op">=</span> <span class="va">newdat</span>, type <span class="op">=</span> <span class="st">"response"</span>, interval <span class="op">=</span> <span class="st">"confidence"</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       Y_hat     lower     upper</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1 0.3594783 0.1735678 0.5999582</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2 0.4820189 0.2777128 0.6925195</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3 0.4002902 0.1801850 0.6696455</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

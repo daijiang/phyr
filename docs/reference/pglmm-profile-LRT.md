@@ -7,8 +7,6 @@ random effect using profile likelihoods when bayes = F.
 
 ``` r
 pglmm_profile_LRT(x, re.number = 0, cpp = TRUE)
-
-communityPGLMM.profile.LRT(x, re.number = 0, cpp = TRUE)
 ```
 
 ## Arguments

@@ -17,6 +17,9 @@
 <url><loc>https://daijiang.github.io/phyr/reference/coef.communityPGLMM.html</loc></url>
 <url><loc>https://daijiang.github.io/phyr/reference/comm_a.html</loc></url>
 <url><loc>https://daijiang.github.io/phyr/reference/comm_b.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/communityPGLMM.matrix.structure.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/communityPGLMM.predicted.values.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/communityPGLMM.profile.LRT.html</loc></url>
 <url><loc>https://daijiang.github.io/phyr/reference/confint.communityPGLMM.html</loc></url>
 <url><loc>https://daijiang.github.io/phyr/reference/cor_phylo.html</loc></url>
 <url><loc>https://daijiang.github.io/phyr/reference/envi.html</loc></url>
@@ -39,11 +42,15 @@
 <url><loc>https://daijiang.github.io/phyr/reference/pglmm-plot-re.html</loc></url>
 <url><loc>https://daijiang.github.io/phyr/reference/pglmm-predicted-values.html</loc></url>
 <url><loc>https://daijiang.github.io/phyr/reference/pglmm-profile-LRT.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/pglmm-terms.html</loc></url>
 <url><loc>https://daijiang.github.io/phyr/reference/pglmm.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/pglmm_boot_LRT.html</loc></url>
 <url><loc>https://daijiang.github.io/phyr/reference/pglmm_compare.html</loc></url>
 <url><loc>https://daijiang.github.io/phyr/reference/pglmm_iV.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/pglmm_is_singular.html</loc></url>
 <url><loc>https://daijiang.github.io/phyr/reference/phylo_signal.html</loc></url>
 <url><loc>https://daijiang.github.io/phyr/reference/phylotree.html</loc></url>
+<url><loc>https://daijiang.github.io/phyr/reference/phyr-deprecated.html</loc></url>
 <url><loc>https://daijiang.github.io/phyr/reference/plot_bayes.html</loc></url>
 <url><loc>https://daijiang.github.io/phyr/reference/predict.communityPGLMM.html</loc></url>
 <url><loc>https://daijiang.github.io/phyr/reference/prep_dat_pglmm.html</loc></url>

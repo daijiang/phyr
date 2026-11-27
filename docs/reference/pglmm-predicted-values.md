@@ -16,12 +16,6 @@ pglmm_predicted_values(
   type = c("link", "response"),
   ...
 )
-
-communityPGLMM.predicted.values(
-  x,
-  cpp = TRUE,
-  gaussian.pred = c("nearest_node", "tip_rm")
-)
 ```
 
 ## Arguments
@@ -81,6 +75,7 @@ phy <- ape::keep.tip(phylotree, unique(dat$sp))
 fit <- pglmm(freq ~ shade + (1 | sp__) + (1 | site),
   data = dat, cov_ranef = list(sp = phy)
 )
+#> boundary (singular) fit: the variances of 1|sp, 1|site are (close to) zero; see ?pglmm_is_singular
 
 # fitted values conditional on the estimates of random effects: Xb + Zu
 head(pglmm_predicted_values(fit))
@@ -115,6 +110,7 @@ dat$pa <- as.numeric(dat$freq > 0)
 fit_pa <- pglmm(pa ~ shade + (1 | sp__) + (1 | site),
   data = dat, family = "binomial", cov_ranef = list(sp = phy)
 )
+#> boundary (singular) fit: the variances of 1|sp, 1|site are (close to) zero; see ?pglmm_is_singular
 head(pglmm_predicted_values(fit_pa))
 #>         Y_hat
 #> 1 -0.56245900

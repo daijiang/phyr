@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">phyr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -35,7 +35,7 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Extract variances of random terms</h1>
-      <small class="dont-index">Source: <a href="https://github.com/daijiang/phyr/blob/HEAD/R/pglmm-utils.R" class="external-link"><code>R/pglmm-utils.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/daijiang/phyr/blob/HEAD/R/pglmm-ranef.R" class="external-link"><code>R/pglmm-ranef.R</code></a></small>
       <div class="d-none name"><code>VarCorr.Rd</code></div>
     </div>
 
@@ -106,6 +106,7 @@ in the Details of <code><a href="pglmm.html">pglmm()</a></code>, and the example
 <span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="pglmm.html">pglmm</a></span><span class="op">(</span><span class="va">freq</span> <span class="op">~</span> <span class="va">shade</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">site</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>  data <span class="op">=</span> <span class="va">dat</span>, cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> boundary (singular) fit: the variances of 1|sp, 1|site are (close to) zero; see ?pglmm_is_singular</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="fu">VarCorr</span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>           Variance   Std.Dev</span>

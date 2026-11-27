@@ -44,7 +44,8 @@ pglmm_compare(
   return.fitted.marginals = TRUE,
   sparse = NULL,
   standardize_cov = TRUE,
-  method = c("Laplace", "PQL")
+  method = c("Laplace", "PQL"),
+  weights = NULL
 )
 
 # S3 method for class 'pglmm_compare'
@@ -233,9 +234,12 @@ predict(object, newdata = NULL, ...)
 
   Only relevant if `bayes = TRUE`. Should maximum likelihood estimates
   be calculated and used as initial values for the Bayesian model fit?
-  Sometimes this can be helpful, but it may not help; thus, we set the
-  default to `FALSE`. Also, it does not work with the zero-inflated
-  families.
+  Sometimes this can be helpful, but it may not help (INLA can then find
+  another mode of the posterior); thus, we set the default to `FALSE`.
+  The estimates are those of the fit with `bayes = FALSE` and the sparse
+  code (with the Laplace approximation for binomial and poisson models;
+  PQL with `sparse = FALSE`). Only for gaussian, binomial and poisson
+  models.
 
 - s2.init:
 
@@ -255,9 +259,9 @@ predict(object, newdata = NULL, ...)
   [`glm`](https://rdrr.io/r/stats/glm.html) assuming no phylogenetic
   signal. A better approach might be to run
   [`lmer`](https://rdrr.io/pkg/lme4/man/lmer.html) and use the output
-  fixed effects for `B.init`. When `bayes = TRUE`, initial values are
-  estimated using the maximum likelihood fit unless `ML.init = FALSE`,
-  in which case the default `INLA` initial values will be used.
+  fixed effects for `B.init`. When `bayes = TRUE` and `ML.init = TRUE`,
+  initial values are estimated using the maximum likelihood fit;
+  otherwise, the default `INLA` initial values are used.
 
 - calc.WAIC:
 
@@ -332,6 +336,29 @@ predict(object, newdata = NULL, ...)
   or `"PQL"` (the default of earlier versions): see Details and
   [`pglmm()`](https://daijiang.github.io/phyr/reference/pglmm.md).
   Negative binomial and Gamma data are always fitted with `"Laplace"`.
+
+- weights:
+
+  Optional prior weights, as in
+  [`lm()`](https://rdrr.io/r/stats/lm.html) and
+  [`glm()`](https://rdrr.io/r/stats/glm.html): a column of `data` (e.g.
+  `weights = w`, or `"w"`) or a vector with one positive value per row
+  of `data`. For gaussian models, the residual variance of an
+  observation is the residual variance divided by its weight (as
+  [`lme4::lmer()`](https://rdrr.io/pkg/lme4/man/lmer.html)); for
+  binomial models, the response is a proportion and the weights are the
+  numbers of trials (as [`glm()`](https://rdrr.io/r/stats/glm.html));
+  for the other families, the weights multiply the log-likelihood of
+  each observation (as [`glm()`](https://rdrr.io/r/stats/glm.html) and
+  `glmmTMB()`). Available with `bayes = FALSE`, for gaussian models
+  fitted with the sparse code (the default) and for the other families
+  with `method = "Laplace"` (the default), and with `bayes = TRUE`
+  (except for the zero-inflated families), where INLA scales the
+  precision of gaussian observations by the weights (its `scale`), uses
+  them as the numbers of trials of binomial observations (`Ntrials`),
+  and multiplies the log-likelihood of poisson and negative binomial
+  observations by them (its `weights`, which INLA describes as
+  experimental).
 
 - object:
 
@@ -578,56 +605,54 @@ fit
 #> Formula: Y ~ X1
 #> 
 #> logLik    AIC    BIC 
-#> -53.88 113.75 121.57 
+#> -64.42 134.85 142.66 
 #> 
 #> Phylogenetic random effects variance (s2):
 #>    Variance Std.Dev
-#> s2  0.07435  0.2727
+#> s2   0.2138  0.4624
 #> 
 #> Test of phylogenetic signal (H0: s2 = 0, conditional likelihood ratio test):
-#>      LR      df      Pr 
-#> 0.99916 1.00000 0.07874 
+#>        LR        df        Pr 
+#> 6.1010517 1.0000000 0.0002387 
 #> 
 #> Fixed effects:
-#>                Value Std.Error  Zscore Pvalue  
-#> (Intercept)  1.19347   0.70153  1.7012 0.0889 .
-#> X1          -0.23613   0.38671 -0.6106 0.5415  
-#> ---
-#> Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+#>                Value Std.Error  Zscore Pvalue
+#> (Intercept) -0.55658   1.08965 -0.5108 0.6095
+#> X1           0.81631   0.50409  1.6194 0.1054
 #> 
 
 # test of phylogenetic signal (also printed above)
 fit$LRT
 #> $LR
-#> [1] 0.9991597
+#> [1] 6.101052
 #> 
 #> $df
 #> [1] 1
 #> 
 #> $Pr
-#> [1] 0.07873686
+#> [1] 0.0002386783
 #> 
 # methods of pglmm() models
 fixef(fit)
-#>                  Value Std.Error     Zscore     Pvalue
-#> (Intercept)  1.1934685 0.7015265  1.7012451 0.08889698
-#> X1          -0.2361262 0.3867145 -0.6105956 0.54146737
+#>                  Value Std.Error     Zscore    Pvalue
+#> (Intercept) -0.5565818  1.089650 -0.5107894 0.6094985
+#> X1           0.8163082  0.504089  1.6193733 0.1053670
 VarCorr(fit)
-#>          Variance  Std.Dev
-#> 1|sp__ 0.07434785 0.272668
+#>         Variance   Std.Dev
+#> 1|sp__ 0.2138291 0.4624165
 head(ranef(fit, condVar = TRUE)[["1|sp__"]])
-#>    sp     estimate        se
-#> 1 t63 -0.062401634 0.6609444
-#> 2 t62 -0.051647785 0.6529569
-#> 3 t48  0.007757497 0.6250426
-#> 4  t8  0.020070115 0.6192487
-#> 5  t3  0.019988029 0.6192830
-#> 6  t6  0.018241553 0.6201783
+#>    sp   estimate        se
+#> 1 t17 -1.0173818 0.7977098
+#> 2 t27 -1.0174330 0.7977095
+#> 3 t48 -0.4828661 0.7019497
+#> 4 t50 -0.4426093 0.7020458
+#> 5  t4 -0.4891126 0.7026035
+#> 6 t35 -0.4485403 0.7026903
 predict(fit, newdata = sim.dat[1:3, ], type = "response")
 #>         Y_hat
-#> t63 0.7990353
-#> t62 0.8049363
-#> t48 0.8262815
+#> t17 0.4951525
+#> t27 0.4963952
+#> t48 0.5675239
 
 # the same model fitted with the sparse precision matrix of the phylogeny,
 # much faster for large phylogenies
@@ -635,8 +660,8 @@ fit_sparse <- pglmm_compare(Y ~ X1, family = "binomial", phy = phy, data = sim.d
                             sparse = TRUE)
 cbind(dense = fit$B[, 1], sparse = fit_sparse$B[, 1])
 #>                  dense     sparse
-#> (Intercept)  1.1934685  1.1934685
-#> X1          -0.2361262 -0.2361262
+#> (Intercept) -0.5565818 -0.5565818
+#> X1           0.8163082  0.8163082
 
 # the Laplace approximation of the likelihood (less biased than PQL for
 # binary data), with maximum likelihood estimates
@@ -648,20 +673,20 @@ fit_laplace
 #> Formula: Y ~ X1
 #> 
 #> logLik    AIC    BIC 
-#> -53.63 113.26 121.07 
+#> -65.47 136.94 144.76 
 #> 
 #> Phylogenetic random effects variance (s2):
 #>    Variance Std.Dev
-#> s2        0       0
+#> s2   0.1349  0.3673
 #> 
 #> Test of phylogenetic signal (H0: s2 = 0, conditional likelihood ratio test):
-#>        LR        df        Pr 
-#> 4.099e-11 1.000e+00 1.000e+00 
+#>       LR       df       Pr 
+#> 3.666680 1.000000 0.003384 
 #> 
 #> Fixed effects:
-#>               Value Std.Error Zscore    Pvalue    
-#> (Intercept) 1.21725   0.23945 5.0835 3.705e-07 ***
-#> X1          0.14894   0.19197 0.7759    0.4378    
+#>                Value Std.Error  Zscore  Pvalue  
+#> (Intercept) -0.56419   0.89488 -0.6305 0.52839  
+#> X1           0.80547   0.48857  1.6486 0.09922 .
 #> ---
 #> Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 #> 
@@ -671,16 +696,16 @@ ape::binaryPGLMM(Y ~ X1, phy = phy, data = sim.dat)
 #> 
 #> 
 #> Call:Y ~ X1
-#> <environment: 0x75e30fbab8>
+#> <environment: 0x75d5e6d540>
 #> 
 #> Random effect (phylogenetic signal s2):
-#>      s2       Pr
-#> 1 1.143 0.009459
+#>     s2       Pr
+#> 1 2.93 3.59e-07
 #> 
 #> Fixed effects:
 #>                Value Std.Error  Zscore  Pvalue  
-#> (Intercept)  1.18937   0.65263  1.8224 0.06839 .
-#> X1          -0.20599   0.37001 -0.5567 0.57772  
+#> (Intercept) -0.52218   0.93461 -0.5587 0.57635  
+#> X1           0.76095   0.45726  1.6642 0.09608 .
 #> ---
 #> Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 #> 
@@ -689,29 +714,25 @@ ape::binaryPGLMM(Y ~ X1, phy = phy, data = sim.dat)
 if (requireNamespace("phylolm", quietly = TRUE)) {
   summary(phylolm::phyloglm(Y ~ X1, phy = phy, data = sim.dat))
 }
-#> Warning: the estimate of 'alpha' (54.5271382266451) reached the upper bound (54.5981500331442).
-#>  This may simply reflect a flat likelihood at large alpha values,
-#>  meaning that the phylogenetic correlation is estimated to be negligible.
-#> Warning: phyloglm failed to converge.
 #> 
 #> Call:
 #> phylolm::phyloglm(formula = Y ~ X1, data = sim.dat, phy = phy)
 #>        AIC     logLik Pen.logLik 
-#>     117.34     -55.67     -52.73 
+#>     133.43     -63.71     -62.36 
 #> 
 #> Method: logistic_MPLE
 #> Mean tip height: 1
 #> Parameter estimate(s):
-#> alpha: 54.52714 
+#> alpha: 1.240348 
 #> 
 #> Coefficients:
-#>             Estimate  StdErr z.value   p.value    
-#> (Intercept)  1.04492 0.25802  4.0497 5.129e-05 ***
-#> X1           0.12907 0.20651  0.6250     0.532    
+#>             Estimate   StdErr z.value  p.value   
+#> (Intercept) -0.48489  0.73861 -0.6565 0.511512   
+#> X1           0.94181  0.35724  2.6363 0.008381 **
 #> ---
 #> Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 #> 
-#> Note: Wald-type p-values for coefficients, conditional on alpha=54.52714
+#> Note: Wald-type p-values for coefficients, conditional on alpha=1.240348
 #> 
 
 # Compare with `glm` that does not account for phylogeny
@@ -721,19 +742,17 @@ summary(glm(Y ~ X1, data = sim.dat, family = "binomial"))
 #> glm(formula = Y ~ X1, family = "binomial", data = sim.dat)
 #> 
 #> Coefficients:
-#>             Estimate Std. Error z value Pr(>|z|)    
-#> (Intercept)   1.2173     0.2395   5.084 3.71e-07 ***
-#> X1            0.1489     0.1920   0.776    0.438    
-#> ---
-#> Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+#>             Estimate Std. Error z value Pr(>|z|)
+#> (Intercept) -0.08018    0.20036  -0.400    0.689
+#> X1           0.08766    0.19817   0.442    0.658
 #> 
 #> (Dispersion parameter for binomial family taken to be 1)
 #> 
-#>     Null deviance: 107.86  on 99  degrees of freedom
-#> Residual deviance: 107.26  on 98  degrees of freedom
-#> AIC: 111.26
+#>     Null deviance: 138.47  on 99  degrees of freedom
+#> Residual deviance: 138.27  on 98  degrees of freedom
+#> AIC: 142.27
 #> 
-#> Number of Fisher Scoring iterations: 4
+#> Number of Fisher Scoring iterations: 3
 #> 
 
 # Compare with logistf() that does not account
@@ -747,9 +766,9 @@ if (requireNamespace("logistf", quietly = TRUE)) {
 #> 
 #> Coefficients:
 #> (Intercept)          X1 
-#>   1.1881861   0.1477537 
+#> -0.07893014  0.08513650 
 #> 
-#> Likelihood ratio test=0.6131352 on 1 df, p=0.4336098, n=100
+#> Likelihood ratio test=0.191053 on 1 df, p=0.6620416, n=100
 #> 
 
 ## Fit model with bayes = TRUE

@@ -9,7 +9,7 @@ covariance matrix structure (V) when you specify random effects."><meta property
 
     <a class="navbar-brand me-2" href="../index.html">phyr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,7 +37,7 @@ covariance matrix structure (V) when you specify random effects."><meta property
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1><code>pglmm_matrix_structure</code> produces the entire covariance matrix structure (V) when you specify random effects.</h1>
-      <small class="dont-index">Source: <a href="https://github.com/daijiang/phyr/blob/HEAD/R/pglmm-utils.R" class="external-link"><code>R/pglmm-utils.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/daijiang/phyr/blob/HEAD/R/pglmm-dense.R" class="external-link"><code>R/pglmm-dense.R</code></a></small>
       <div class="d-none name"><code>pglmm-matrix-structure.Rd</code></div>
     </div>
 
@@ -49,16 +49,6 @@ covariance matrix structure (V) when you specify random effects.</p>
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">pglmm_matrix_structure</span><span class="op">(</span></span>
-<span>  <span class="va">formula</span>,</span>
-<span>  data <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>  family <span class="op">=</span> <span class="st">"binomial"</span>,</span>
-<span>  <span class="va">cov_ranef</span>,</span>
-<span>  repulsion <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  ss <span class="op">=</span> <span class="fl">1</span>,</span>
-<span>  cpp <span class="op">=</span> <span class="cn">TRUE</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu">communityPGLMM.matrix.structure</span><span class="op">(</span></span>
 <span>  <span class="va">formula</span>,</span>
 <span>  data <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  family <span class="op">=</span> <span class="st">"binomial"</span>,</span>
@@ -118,14 +108,24 @@ or the covariates of random slopes are dropped before fitting; this is equivalen
 removing those rows from <code>data</code> manually before calling <code>pglmm</code>. As a
 result, <code>pglmm(data_with_NAs)</code> and <code>pglmm(na.omit(data[, vars]))</code> (with
 <code>vars</code> the variables of the model) produce identical estimates. With
-<code>random.effects</code>, only the rows with missing values in the response are dropped.</p></dd>
+<code>random.effects</code>, the rows with missing values in the response or the fixed
+effects are dropped, together with their values in <code>random.effects</code>.</p></dd>
 
 
 <dt id="arg-family">family<a class="anchor" aria-label="anchor" href="#arg-family"></a></dt>
 <dd><p>Either "gaussian" for a Linear Mixed Model, or
-"binomial", "poisson", "nbinomial" or "Gamma" for Generalized Linear Mixed Models.
-"family" should be specified as a character string (i.e., quoted). For binomial and
-Poisson data, we use the canonical logit and log link functions, respectively.
+"binomial", "poisson", "nbinomial", "Gamma", "betabinomial", "beta",
+"zeroinflated.poisson" or "zeroinflated.nbinomial" for Generalized Linear Mixed Models.
+"family" should be specified as a character string (i.e., quoted), or as a family
+object (e.g. <code>binomial(link = "cloglog")</code>). For binomial and
+Poisson data, we use the canonical logit and log link functions, respectively, by
+default; binomial models can also have the probit or the complementary log-log link,
+with <code>family = binomial(link = "probit")</code> or <code>binomial(link = "cloglog")</code>
+(with <code>bayes = FALSE</code> and <code>method = "Laplace"</code>). The cloglog link is the
+usual one for presence/absence data from plots of different sizes or sampling efforts:
+with <code>offset(log(area))</code> in the formula, the probability of presence is
+\(1 - \exp(-\lambda \, area)\), as for a poisson number of
+individuals with the rate \(\lambda\) per unit of area.
 Binomial data can be either presence/absence, or a two-column array of 'successes' and 'failures'.
 For both binomial  and Poisson data, we add an observation-level
 random term by default via <code>add.obs.re = TRUE</code>.</p>
@@ -147,6 +147,38 @@ fitted model; <code><a href="https://rdrr.io/r/stats/sigma.html" class="external
 coefficient of variation). No observation-level random term is added. Gamma models are only
 available with <code>bayes = FALSE</code>, and are always fitted with <code>method = "Laplace"</code>,
 with starting values from <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> and <code><a href="https://rdrr.io/pkg/MASS/man/gamma.shape.glm.html" class="external-link">MASS::gamma.shape()</a></code>.</p>
+<p>"betabinomial" is the beta-binomial distribution for overdispersed binomial data
+(successes out of trials, given as <code>cbind(successes, failures)</code> or as proportions with
+the numbers of trials as <code>weights</code>), with the logit link: the probability of success
+of each observation varies as a beta distribution with mean \(p\) and precision
+\(\phi\), so that the variance of the number of successes out of \(n\) trials is
+\(n p (1 - p) (n + \phi) / (1 + \phi)\) (as
+<code>glmmTMB(family = betabinomial())</code>, whose <code><a href="https://rdrr.io/r/stats/sigma.html" class="external-link">sigma()</a></code> is \(\phi\)).
+\(\phi\) is estimated with the other parameters (element <code>phi</code> of the fitted
+model); \(\phi = \infty\) is the binomial distribution. As \(\phi\)
+accounts for overdispersion, no observation-level random term is added; it is an alternative
+to the binomial distribution with <code>1|obs</code>. Its overdispersion cannot be estimated with
+0/1 data (one trial per observation). Only with <code>bayes = FALSE</code> and <code>method =
+  "Laplace"</code>.</p>
+<p>"beta" is the beta distribution for proportions strictly between 0 and 1 (e.g. percent
+cover, relative abundance), with the logit link, mean \(\mu\) and precision
+\(\phi\): \(y \sim Beta(\mu \phi, (1 - \mu) \phi)\)
+and \(Var(y) = \mu (1 - \mu) / (1 + \phi)\) (as
+<code>glmmTMB(family = beta_family())</code>, whose <code><a href="https://rdrr.io/r/stats/sigma.html" class="external-link">sigma()</a></code> is \(\phi\)).
+\(\phi\) is estimated with the other parameters (element <code>phi</code> of the fitted
+model). Responses of exactly 0 or 1 are not allowed: transform them (e.g.
+\((y (n - 1) + 0.5) / n\), Smithson and Verkuilen 2006), or
+use "betabinomial" for counts. Prior weights multiply the log density. Only with
+<code>bayes = FALSE</code> and <code>method = "Laplace"</code>.</p>
+<p>"zeroinflated.poisson" and "zeroinflated.nbinomial" are the poisson and negative binomial
+distributions with zero inflation: \(y = 0\) with the probability <code>zi</code>, and from
+the count distribution with mean \(\mu\) (log link) otherwise, so that the mean of
+\(y\) is \((1 - zi) \mu\). With <code>bayes = FALSE</code>, <code>zi</code> is the same
+for all observations (as <code>glmmTMB(ziformula = ~1)</code>) and is estimated with the other
+parameters (element <code>zi</code> of the fitted model, and <code>theta</code> for the negative
+binomial), with the Laplace approximation; <code><a href="https://rdrr.io/r/stats/fitted.values.html" class="external-link">fitted()</a></code> and <code>predict(type =
+  "response")</code> give the mean of \(y\), \((1 - zi) \mu\). No
+observation-level random term is added.</p>
 <p>If <code>bayes = TRUE</code> there are
 three additional families available: "zeroinflated.binomial", "zeroinflated.poisson" and
 "zeroinflated.nbinomial",

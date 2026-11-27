@@ -1,5 +1,243 @@
 # Changelog
 
+## phyr (development version)
+
+### New features
+
+- The families `"zeroinflated.poisson"` and `"zeroinflated.nbinomial"`
+  are also available with `bayes = FALSE` (they needed `bayes = TRUE`):
+  with a probability of zero inflation `zi` that is the same for all
+  observations, as `glmmTMB(ziformula = ~1)`, estimated with the other
+  parameters with the Laplace approximation. The estimates are those of
+  glmmTMB (log-likelihoods within 1e-6 with 300 and 1000 species), and
+  the fits are 2 to 4 times faster.
+  [`fitted()`](https://rdrr.io/r/stats/fitted.values.html) and
+  `predict(type = "response")` give the mean of the response, (1 - zi)
+  times the mean of the count distribution. The Laplace code now
+  estimates several dispersion parameters (here 1 / theta and the odds
+  of zero inflation).
+
+- New family `"beta"` for proportions strictly between 0 and 1
+  (e.g. percent cover), with its precision `phi` estimated, as
+  `glmmTMB(family = beta_family())`: the estimates are those of glmmTMB
+  (log-likelihoods within 4e-9 with 300 and 1000 species), and the fits
+  are up to about 2.5 times faster.
+
+- New family `"betabinomial"` for overdispersed binomial data (successes
+  out of trials), with its precision `phi` estimated, as
+  `glmmTMB(family = betabinomial())`: the estimates are those of glmmTMB
+  (log-likelihoods within 1e-8 with 300 and 1000 species), and the fits
+  are about 5 to 10 times faster.
+
+- Binomial models with the probit and complementary log-log links:
+  `family = binomial(link = "probit")` or `binomial(link = "cloglog")`
+  (with `method = "Laplace"`). With `offset(log(area))`, the cloglog
+  link models presence/absence from plots of different sizes or sampling
+  efforts. The estimates are those of `glmmTMB()` (log-likelihoods
+  within 1e-9 with 300 and 1000 species).
+
+- [`predict()`](https://rdrr.io/r/stats/predict.html) gives standard
+  errors (`se.fit = TRUE`) and confidence intervals
+  (`interval = "confidence"`) of the predictions of models fitted with
+  `bayes = FALSE`: without random effects (`re.form = NA`), from the
+  covariance matrix of the fixed effects (the same as `glmmTMB()`); with
+  the random effects (models fitted with the sparse code or the Laplace
+  approximation), the standard errors of prediction of the fixed and
+  random effects together, from the mixed model equations (conditional
+  on the estimated variances, as `ranef(condVar = TRUE)`). With
+  `type = "response"`, they are on the scale of the response (delta
+  method).
+
+- More packages work with
+  [`pglmm()`](https://daijiang.github.io/phyr/reference/pglmm.md)
+  models: [`car::Anova()`](https://rdrr.io/pkg/car/man/Anova.html),
+  [`car::linearHypothesis()`](https://rdrr.io/pkg/car/man/linearHypothesis.html)
+  and [`car::vif()`](https://rdrr.io/pkg/car/man/vif.html),
+  `multcomp::glht()`,
+  [`lmtest::lrtest()`](https://rdrr.io/pkg/lmtest/man/lrtest.html),
+  MuMIn’s `dredge()`, `model.sel()` and `model.avg()` (a `makeArgs()`
+  method keeps the random terms of the global model in the submodels),
+  and ggeffects through emmeans (see `?pglmm-terms`).
+
+- [`summary()`](https://rdrr.io/r/base/summary.html) of models fitted by
+  [`pglmm()`](https://daijiang.github.io/phyr/reference/pglmm.md) and
+  [`pglmm_compare()`](https://daijiang.github.io/phyr/reference/pglmm_compare.md)
+  now returns an object (with the table of the fixed effects in
+  `$coefficients`, as [`summary()`](https://rdrr.io/r/base/summary.html)
+  of [`lm()`](https://rdrr.io/r/stats/lm.html) and lme4 models) that is
+  printed by its [`print()`](https://rdrr.io/r/base/print.html) method,
+  instead of printing the summary and returning `NULL`; the printed
+  output is the same.
+
+- Clearer errors for common mistakes: species (or levels) that are not
+  in the phylogeny or covariance matrix of `cov_ranef` are listed, with
+  a hint when they differ from the tip labels only in spaces vs
+  underscores or capitalization; a phylogenetic term without its
+  phylogeny in `cov_ranef` says which name is needed; binomial responses
+  that are not 0/1 (or successes and failures, or proportions with
+  weights), and binomial and poisson responses that are all 0 (or all
+  successes) give an error before fitting; a random term whose grouping
+  variable has a single level gives an error (as in lme4); variables of
+  the formula that are not in the data are named; a misspelled family
+  gets a suggestion; and a nested term without phylogeny with one
+  observation per combination of its grouping variables
+  (e.g. `(1 | sp@site)` with one observation per species and site),
+  which is an observation-level term, is dropped from the model for
+  gaussian data (its variance is confounded with the residual variance)
+  and binary data (it cannot be estimated), with a warning and a message
+  (with `bayes = FALSE`), and gives a warning for families with a
+  dispersion parameter (it overlaps it); for poisson and binomial data
+  with trials, it is the observation-level term, and `1|obs` is not
+  added (as before). A factor or logical response of binomial models is
+  taken as in [`glm()`](https://rdrr.io/r/stats/glm.html) (the first
+  level of a factor is a failure).
+
+## phyr 1.9.0
+
+phyr 1.9.0 fits all models of
+[`pglmm()`](https://daijiang.github.io/phyr/reference/pglmm.md) with one
+engine, the sparse code: also models with covariance matrices in
+`cov_ranef` (those of phylogenies are converted back to the
+phylogenies), with lists in `random.effects`, and with `bayes = TRUE`.
+It adds prior weights, a parametric bootstrap test of nested models
+([`pglmm_boot_LRT()`](https://daijiang.github.io/phyr/reference/pglmm_boot_LRT.md)),
+a message for fits at the boundary, and methods for the emmeans,
+marginaleffects and effects packages, and it removes or deprecates old
+names. The maximum likelihood estimates of models with random terms in
+the formula and phylogenies are the same as with phyr 1.5.0.
+
+### Breaking changes
+
+- `communityPGLMM.profile.LRT()`, `communityPGLMM.matrix.structure()`
+  and `communityPGLMM.predicted.values()`, deprecated since phyr 1.0.3,
+  were removed: use
+  [`pglmm_profile_LRT()`](https://daijiang.github.io/phyr/reference/pglmm-profile-LRT.md),
+  [`pglmm_matrix_structure()`](https://daijiang.github.io/phyr/reference/pglmm-matrix-structure.md)
+  and
+  [`pglmm_predicted_values()`](https://daijiang.github.io/phyr/reference/pglmm-predicted-values.md).
+- The arguments `tree` and `tree_site` of
+  [`pglmm()`](https://daijiang.github.io/phyr/reference/pglmm.md) and
+  [`pglmm_plot_ranef()`](https://daijiang.github.io/phyr/reference/pglmm-plot-re.md),
+  deprecated since 2019, are defunct (an error): give the phylogenies in
+  `cov_ranef`, e.g. `cov_ranef = list(sp = tree, site = tree_site)`. The
+  arguments `sp` and `site` of
+  [`pglmm()`](https://daijiang.github.io/phyr/reference/pglmm.md), which
+  were not used, were removed.
+- [`communityPGLMM()`](https://daijiang.github.io/phyr/reference/phyr-deprecated.md),
+  [`communityPGLMM.show.re()`](https://daijiang.github.io/phyr/reference/phyr-deprecated.md)
+  and
+  [`communityPGLMM.plot.re()`](https://daijiang.github.io/phyr/reference/phyr-deprecated.md)
+  are deprecated (they still work, with a warning): use
+  [`pglmm()`](https://daijiang.github.io/phyr/reference/pglmm.md) and
+  [`pglmm_plot_ranef()`](https://daijiang.github.io/phyr/reference/pglmm-plot-re.md)
+  (or
+  [`pglmm_plot_re()`](https://daijiang.github.io/phyr/reference/pglmm-plot-re.md)).
+  The class of fitted models is still `communityPGLMM`.
+- One engine for all models: `sparse = NULL` (the default) now uses the
+  sparse code for all models with random terms, also with covariance
+  matrices (not phylogenies) in `cov_ranef`, with `random.effects`
+  lists, and, with `bayes = TRUE`, with covariance matrices,
+  `random.effects` and `ML.init = TRUE`. Only `bayes = TRUE` with
+  `repulsion = TRUE`, and a singular covariance matrix of the
+  observations in `random.effects`, still use the dense code;
+  `sparse = FALSE` is kept as a reference. The fits are the same as
+  those of the dense code (for gaussian models, log-likelihoods within
+  about 1e-8), but INLA fits with `bayes = TRUE` can differ slightly.
+- [`ranef()`](https://daijiang.github.io/phyr/reference/ranef.md),
+  [`predict()`](https://rdrr.io/r/stats/predict.html) with `newdata` and
+  [`simulate()`](https://rdrr.io/r/stats/simulate.html) with
+  `re.form = NA` now work with models fitted with `bayes = TRUE` and the
+  sparse code (they needed `sparse = FALSE`), with the same results as
+  with the dense INLA model; with `sparse_method = "flow"`, the
+  summaries of
+  [`ranef()`](https://daijiang.github.io/phyr/reference/ranef.md) other
+  than the posterior mean come from samples of the joint posterior.
+- Binomial and poisson models with `random.effects` are now fitted with
+  the Laplace approximation by default, as models with random terms in
+  the formula (they were fitted with PQL); use `method = "PQL"` for the
+  previous estimates. No observation-level term is added to them:
+  `random.effects` gives all the random terms.
+- With `bayes = TRUE`, `ML.init = TRUE` now takes the initial values
+  from the fit by maximum likelihood with the sparse code, with the
+  Laplace approximation for binomial and poisson models (instead of
+  PQL); INLA can then end at another mode of the posterior.
+- Covariance matrices in `cov_ranef` that are not positive definite now
+  give a clear error (they failed before, with an unclear one).
+- A covariance matrix in `cov_ranef` or `random.effects` that is the
+  covariance matrix of a phylogeny (e.g. `ape::vcv(tree)`, to numerical
+  precision) is converted back to that phylogeny, and fitted with its
+  sparse precision matrix, as fast as with the phylogeny (e.g. 1.5 s
+  instead of 35 s for 1000 species and 10 sites), with a message
+  suggesting to give the phylogeny instead. Other covariance matrices
+  are used through their (dense) inverse, with a message that this is
+  slow for many levels (`options(phyr.matrix.hint = FALSE)` turns both
+  off).
+
+### New features
+
+- New
+  [`pglmm_boot_LRT()`](https://daijiang.github.io/phyr/reference/pglmm_boot_LRT.md):
+  a parametric bootstrap likelihood ratio test of two nested models (as
+  [`pbkrtest::PBmodcomp()`](https://rdrr.io/pkg/pbkrtest/man/pb__modcomp.html)
+  for lme4 models), which does not rely on the chi-square distribution
+  of the likelihood ratio. In simulations of binary data with
+  phylogenetic signal (100 species, 15 sites), the Wald test of a fixed
+  effect rejected a true null hypothesis in 8.6% to 9.8% of the data
+  sets and the chi-square likelihood ratio test in 10.6% to 11.2%,
+  instead of 5%; the bootstrap test rejected it in 4% (of 100 data
+  sets).
+- [`pglmm()`](https://daijiang.github.io/phyr/reference/pglmm.md) and
+  [`pglmm_compare()`](https://daijiang.github.io/phyr/reference/pglmm_compare.md)
+  show a message when the fit is at the boundary (singular): when the
+  variance of a random term is estimated at, or very close to, zero, as
+  [`lme4::lmer()`](https://rdrr.io/pkg/lme4/man/lmer.html) does. The new
+  [`pglmm_is_singular()`](https://daijiang.github.io/phyr/reference/pglmm_is_singular.md)
+  tells whether a fit is at the boundary, and which terms are. Use
+  `options(phyr.boundary.message = FALSE)` to turn the message off.
+- [`pglmm()`](https://daijiang.github.io/phyr/reference/pglmm.md) and
+  [`pglmm_compare()`](https://daijiang.github.io/phyr/reference/pglmm_compare.md)
+  take prior `weights`, given as in
+  [`lm()`](https://rdrr.io/r/stats/lm.html) and
+  [`glm()`](https://rdrr.io/r/stats/glm.html) (a column of `data` or a
+  vector). For gaussian models, the residual variance of an observation
+  is divided by its weight, as in
+  [`lme4::lmer()`](https://rdrr.io/pkg/lme4/man/lmer.html); for binomial
+  models, the response is a proportion and the weights are the numbers
+  of trials, as in [`glm()`](https://rdrr.io/r/stats/glm.html) (the same
+  model as `cbind(successes, failures)`); for poisson, negative binomial
+  and Gamma models, the weights multiply the log-likelihood of each
+  observation, as in [`glm()`](https://rdrr.io/r/stats/glm.html),
+  `glmer()` and `glmmTMB()`. The estimates and log-likelihoods are those
+  of `lmer()`, `glmer()` and `glmmTMB()` (within 1e-8 in the
+  log-likelihood). Weights are available with `bayes = FALSE`, for
+  gaussian models fitted with the sparse code and for the other families
+  with `method = "Laplace"` (the defaults, also with covariance matrices
+  in `cov_ranef` and with `random.effects`), and with `bayes = TRUE`
+  (INLA’s `scale` for gaussian models, `Ntrials` for binomial models and
+  `weights` for poisson and negative binomial models; not for the
+  zero-inflated families). Note that `glmmTMB()` multiplies the
+  log-likelihood of gaussian models by the weights instead, so its fits
+  of weighted gaussian models differ from those of `lmer()` and
+  [`pglmm()`](https://daijiang.github.io/phyr/reference/pglmm.md).
+- Models fitted by
+  [`pglmm()`](https://daijiang.github.io/phyr/reference/pglmm.md) and
+  [`pglmm_compare()`](https://daijiang.github.io/phyr/reference/pglmm_compare.md)
+  (with `bayes = FALSE`) work with the emmeans, marginaleffects and
+  effects packages: estimated marginal means and contrasts
+  (`emmeans::emmeans()`), marginal effects, comparisons and predictions
+  (`marginaleffects::avg_slopes()`, `avg_comparisons()`,
+  `predictions()`), and effect plots (`effects::Effect()`,
+  `effects::allEffects()`). They use the fixed effects and their
+  covariance matrix, with the random effects at zero (with
+  marginaleffects, use `re.form = NA` for that; by default its
+  predictions include the estimated random effects); the results are
+  those of `lmer()` and `glmer()` fits of the same model. Until
+  marginaleffects knows the class of phyr models, set
+  `options(marginaleffects_model_classes = "communityPGLMM")` before
+  using it. New methods [`terms()`](https://rdrr.io/r/stats/terms.html)
+  and [`model.matrix()`](https://rdrr.io/r/stats/model.matrix.html) give
+  the terms and the design matrix of the fixed effects.
+
 ## phyr 1.5.0
 
 phyr 1.5.0 fits phylogenetic generalized linear mixed models with large

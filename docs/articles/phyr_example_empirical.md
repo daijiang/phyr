@@ -90,6 +90,7 @@ mod <- phyr::pglmm(pres ~ disturbance + (1 | sp__) + (1 | site) +
                    data = oldfield$data, 
                    cov_ranef = list(sp = oldfield$phy),
                    family = "binomial")
+#> boundary (singular) fit: the variances of 1|site, disturbance|sp__ are (close to) zero; see ?pglmm_is_singular
 ```
 
 Here, we specified an overall phylogenetic effect using `sp__`, which
@@ -175,6 +176,7 @@ without the nested term with
 ``` r
 
 mod0 <- update(mod, . ~ . - (1 | sp__@site))
+#> boundary (singular) fit: the variance of disturbance|sp__ is (close to) zero; see ?pglmm_is_singular
 anova(mod0, mod)
 #> mod0: pres ~ disturbance + (1 | sp__) + (1 | site) + (disturbance | sp__)
 #> mod: pres ~ disturbance + (1 | sp__) + (1 | site) + (disturbance | sp__) + (1 | sp__@site)
@@ -240,6 +242,7 @@ mod_disturbed <- phyr::pglmm(pres ~ (1 | sp__) + (1 | sp__@site) +
                                dplyr::filter(disturbance == 1), 
                              cov_ranef = list(sp = oldfield$phy),
                              family = "binomial")
+#> boundary (singular) fit: the variance of 1|sp__ is (close to) zero; see ?pglmm_is_singular
 
 mod_undisturbed <- phyr::pglmm(pres ~ (1 | sp__) + (1 | sp__@site) + 
                                  (1 | site), 
@@ -247,6 +250,7 @@ mod_undisturbed <- phyr::pglmm(pres ~ (1 | sp__) + (1 | sp__@site) +
                                  dplyr::filter(disturbance == 0), 
                                cov_ranef = list(sp = oldfield$phy),
                                family = "binomial")
+#> boundary (singular) fit: the variance of 1|site is (close to) zero; see ?pglmm_is_singular
 ```
 
 ``` r
@@ -315,21 +319,21 @@ summary(mod_bayes)
 #> Formula: pres ~ disturbance + (1 | sp__) + (1 | site) + (disturbance | sp__) + (1 | sp__@site)
 #> 
 #> marginal logLik             DIC            WAIC 
-#>          -616.1          1097.3          1084.2 
+#>          -616.1          1097.0          1084.2 
 #> 
 #> Random effects:
 #>                  Variance Std.Dev  lower.CI upper.CI
-#> 1|sp             2.152317 1.46708 1.1430278   4.7803
-#> 1|sp__           0.079658 0.28224 0.0140156   1.4845
-#> 1|site           0.002171 0.04659 0.0003192   0.1783
-#> disturbance|sp   1.907420 1.38109 0.9038894   4.8669
-#> disturbance|sp__ 0.019253 0.13875 0.0028316   1.5628
-#> 1|sp__@site      0.107066 0.32721 0.0461963   0.2920
+#> 1|sp             2.164132 1.47110 1.1504587   4.8279
+#> 1|sp__           0.072436 0.26914 0.0124231   1.4695
+#> 1|site           0.003351 0.05789 0.0004993   0.1611
+#> disturbance|sp   1.925769 1.38772 0.9116768   4.9793
+#> disturbance|sp__ 0.012257 0.11071 0.0018037   1.6331
+#> 1|sp__@site      0.106887 0.32694 0.0461296   0.2909
 #> 
 #> Fixed effects:
 #>                  Value   lower.CI upper.CI
-#> (Intercept) -3.3585693 -4.5767852  -2.3562
-#> disturbance  0.9929201 -0.0022495   2.0668
+#> (Intercept) -3.3638181 -4.6044529  -2.3503
+#> disturbance  0.9981539 -0.0058385   2.0838
 ```
 
 “pc.prior.auto” is a good choice to generate priors for binomial models.
@@ -363,9 +367,10 @@ density). For the random effects these aren’t too meaningful, but they
 can help distinguish genuine effects in the fixed effects. If these
 credible intervals overlap zero in the fixed effects, the density will
 be plotted with a lighter color to suggest it is not a strong effect.
-Here, the credible interval of `disturbance` (0 to 2.07) is wider than
-its Wald interval from the maximum likelihood fit, and the evidence for
-an effect of disturbance is weaker than that for the species effects.
+Here, the credible interval of `disturbance` (-0.01 to 2.08) is wider
+than its Wald interval from the maximum likelihood fit, and the evidence
+for an effect of disturbance is weaker than that for the species
+effects.
 
 ## Model Assumption Checks
 
@@ -447,8 +452,8 @@ flavors of R², and supports `phyr`’s `pglmm` model object. Let’s try it!
 (r2_bayes <- rr2::R2(mod_bayes))
 #> Models of class pglmm do not have a R2_resid method.
 #> Models of class pglmm with bayes = TRUE do not have a R2_lik method.
-#>   R2_pred 
-#> 0.4572928
+#>  R2_pred 
+#> 0.456952
 ```
 
 There we go! R²_(pred) = 0.47 for `mod` and 0.46 for `mod_bayes`! We can
@@ -507,13 +512,13 @@ obs_mod_bayes = mod_bayes$data$pres
 roc_mod_bayes <- pROC::roc(obs_mod_bayes, pred_mod_bayes, percent = T,
                            direction = "<", levels = c(0,1))
 (AUC_bayes = pROC::auc(roc_mod_bayes))
-#> Area under the curve: 93.17%
+#> Area under the curve: 93.16%
 (roc_mod_bayes2 <- pROC::coords(roc_mod_bayes, "best", ret = c("sens", "spec"),
                            transpose = F) / 100)
 #>   sensitivity specificity
-#> 1   0.8877193   0.8261159
+#> 1   0.8491228   0.8647568
 (TSS_bayes = roc_mod_bayes2[1, "sensitivity"] + roc_mod_bayes2[1, "specificity"] - 1)
-#> [1] 0.7138352
+#> [1] 0.7138796
 plot(ROCR::performance(ROCR::prediction(pred_mod_bayes, obs_mod_bayes), measure = "tpr", 
                         x.measure = "fpr"), main = "ROC Curve") # ROC curve
 ```
@@ -552,5 +557,5 @@ plot(ROCR::performance(ROCR::prediction(pred_mod_bayes_no_phy, obs_mod_bayes_no_
 
 Including species’ phylogenetic relationships in the model indeed
 improved the model performance. After dropping the phylogenetic random
-terms from the model, `AUC` decreased from 0.9317 to 0.9023 and `TSS`
-decreased from 0.7138 to 0.659.
+terms from the model, `AUC` decreased from 0.9316 to 0.9023 and `TSS`
+decreased from 0.7139 to 0.659.

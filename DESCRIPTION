@@ -43,6 +43,7 @@ Suggests:
     picante,
     rbenchmark,
     INLA,
+    sn,
     MCMCglmm,
     logistf,
     phylolm,

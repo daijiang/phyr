@@ -21,7 +21,7 @@ install.packages('INLA', repos='https://www.math.ntnu.no/inla/R/stable') in R.">
 
     <a class="navbar-brand me-2" href="../index.html">phyr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -94,8 +94,6 @@ you must first install <code>INLA</code> from <a href="https://www.r-inla.org/" 
 <span>  ML.init <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  tree <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  tree_site <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  sp <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  site <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  bayes_options <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  bayes_nested_matrix_as_list <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  posterior.sample <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -103,47 +101,8 @@ you must first install <code>INLA</code> from <a href="https://www.r-inla.org/" 
 <span>  sparse <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  standardize_cov <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Laplace"</span>, <span class="st">"PQL"</span><span class="op">)</span>,</span>
-<span>  sparse_method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"precision"</span>, <span class="st">"flow"</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu">communityPGLMM</span><span class="op">(</span></span>
-<span>  <span class="va">formula</span>,</span>
-<span>  data <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  family <span class="op">=</span> <span class="st">"gaussian"</span>,</span>
-<span>  cov_ranef <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  random.effects <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  REML <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  optimizer <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  repulsion <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  add.obs.re <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  verbose <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  cpp <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  bayes <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  s2.init <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  B.init <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  reltol <span class="op">=</span> <span class="fl">10</span><span class="op">^</span><span class="op">-</span><span class="fl">6</span>,</span>
-<span>  maxit <span class="op">=</span> <span class="fl">500</span>,</span>
-<span>  tol.pql <span class="op">=</span> <span class="fl">10</span><span class="op">^</span><span class="op">-</span><span class="fl">6</span>,</span>
-<span>  maxit.pql <span class="op">=</span> <span class="fl">200</span>,</span>
-<span>  marginal.summ <span class="op">=</span> <span class="st">"mean"</span>,</span>
-<span>  calc.DIC <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  calc.WAIC <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  prior <span class="op">=</span> <span class="st">"inla.default"</span>,</span>
-<span>  prior_alpha <span class="op">=</span> <span class="fl">0.1</span>,</span>
-<span>  prior_mu <span class="op">=</span> <span class="fl">1</span>,</span>
-<span>  ML.init <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  tree <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  tree_site <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  sp <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  site <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  bayes_options <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  bayes_nested_matrix_as_list <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  posterior.sample <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  return.fitted.marginals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  sparse <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  standardize_cov <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Laplace"</span>, <span class="st">"PQL"</span><span class="op">)</span>,</span>
-<span>  sparse_method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"precision"</span>, <span class="st">"flow"</span><span class="op">)</span></span>
+<span>  sparse_method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"precision"</span>, <span class="st">"flow"</span><span class="op">)</span>,</span>
+<span>  weights <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -196,14 +155,24 @@ or the covariates of random slopes are dropped before fitting; this is equivalen
 removing those rows from <code>data</code> manually before calling <code>pglmm</code>. As a
 result, <code>pglmm(data_with_NAs)</code> and <code>pglmm(na.omit(data[, vars]))</code> (with
 <code>vars</code> the variables of the model) produce identical estimates. With
-<code>random.effects</code>, only the rows with missing values in the response are dropped.</p></dd>
+<code>random.effects</code>, the rows with missing values in the response or the fixed
+effects are dropped, together with their values in <code>random.effects</code>.</p></dd>
 
 
 <dt id="arg-family">family<a class="anchor" aria-label="anchor" href="#arg-family"></a></dt>
 <dd><p>Either "gaussian" for a Linear Mixed Model, or
-"binomial", "poisson", "nbinomial" or "Gamma" for Generalized Linear Mixed Models.
-"family" should be specified as a character string (i.e., quoted). For binomial and
-Poisson data, we use the canonical logit and log link functions, respectively.
+"binomial", "poisson", "nbinomial", "Gamma", "betabinomial", "beta",
+"zeroinflated.poisson" or "zeroinflated.nbinomial" for Generalized Linear Mixed Models.
+"family" should be specified as a character string (i.e., quoted), or as a family
+object (e.g. <code>binomial(link = "cloglog")</code>). For binomial and
+Poisson data, we use the canonical logit and log link functions, respectively, by
+default; binomial models can also have the probit or the complementary log-log link,
+with <code>family = binomial(link = "probit")</code> or <code>binomial(link = "cloglog")</code>
+(with <code>bayes = FALSE</code> and <code>method = "Laplace"</code>). The cloglog link is the
+usual one for presence/absence data from plots of different sizes or sampling efforts:
+with <code>offset(log(area))</code> in the formula, the probability of presence is
+\(1 - \exp(-\lambda \, area)\), as for a poisson number of
+individuals with the rate \(\lambda\) per unit of area.
 Binomial data can be either presence/absence, or a two-column array of 'successes' and 'failures'.
 For both binomial  and Poisson data, we add an observation-level
 random term by default via <code>add.obs.re = TRUE</code>.</p>
@@ -225,6 +194,38 @@ fitted model; <code><a href="https://rdrr.io/r/stats/sigma.html" class="external
 coefficient of variation). No observation-level random term is added. Gamma models are only
 available with <code>bayes = FALSE</code>, and are always fitted with <code>method = "Laplace"</code>,
 with starting values from <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> and <code><a href="https://rdrr.io/pkg/MASS/man/gamma.shape.glm.html" class="external-link">MASS::gamma.shape()</a></code>.</p>
+<p>"betabinomial" is the beta-binomial distribution for overdispersed binomial data
+(successes out of trials, given as <code>cbind(successes, failures)</code> or as proportions with
+the numbers of trials as <code>weights</code>), with the logit link: the probability of success
+of each observation varies as a beta distribution with mean \(p\) and precision
+\(\phi\), so that the variance of the number of successes out of \(n\) trials is
+\(n p (1 - p) (n + \phi) / (1 + \phi)\) (as
+<code>glmmTMB(family = betabinomial())</code>, whose <code><a href="https://rdrr.io/r/stats/sigma.html" class="external-link">sigma()</a></code> is \(\phi\)).
+\(\phi\) is estimated with the other parameters (element <code>phi</code> of the fitted
+model); \(\phi = \infty\) is the binomial distribution. As \(\phi\)
+accounts for overdispersion, no observation-level random term is added; it is an alternative
+to the binomial distribution with <code>1|obs</code>. Its overdispersion cannot be estimated with
+0/1 data (one trial per observation). Only with <code>bayes = FALSE</code> and <code>method =
+  "Laplace"</code>.</p>
+<p>"beta" is the beta distribution for proportions strictly between 0 and 1 (e.g. percent
+cover, relative abundance), with the logit link, mean \(\mu\) and precision
+\(\phi\): \(y \sim Beta(\mu \phi, (1 - \mu) \phi)\)
+and \(Var(y) = \mu (1 - \mu) / (1 + \phi)\) (as
+<code>glmmTMB(family = beta_family())</code>, whose <code><a href="https://rdrr.io/r/stats/sigma.html" class="external-link">sigma()</a></code> is \(\phi\)).
+\(\phi\) is estimated with the other parameters (element <code>phi</code> of the fitted
+model). Responses of exactly 0 or 1 are not allowed: transform them (e.g.
+\((y (n - 1) + 0.5) / n\), Smithson and Verkuilen 2006), or
+use "betabinomial" for counts. Prior weights multiply the log density. Only with
+<code>bayes = FALSE</code> and <code>method = "Laplace"</code>.</p>
+<p>"zeroinflated.poisson" and "zeroinflated.nbinomial" are the poisson and negative binomial
+distributions with zero inflation: \(y = 0\) with the probability <code>zi</code>, and from
+the count distribution with mean \(\mu\) (log link) otherwise, so that the mean of
+\(y\) is \((1 - zi) \mu\). With <code>bayes = FALSE</code>, <code>zi</code> is the same
+for all observations (as <code>glmmTMB(ziformula = ~1)</code>) and is estimated with the other
+parameters (element <code>zi</code> of the fitted model, and <code>theta</code> for the negative
+binomial), with the Laplace approximation; <code><a href="https://rdrr.io/r/stats/fitted.values.html" class="external-link">fitted()</a></code> and <code>predict(type =
+  "response")</code> give the mean of \(y\), \((1 - zi) \mu\). No
+observation-level random term is added.</p>
 <p>If <code>bayes = TRUE</code> there are
 three additional families available: "zeroinflated.binomial", "zeroinflated.poisson" and
 "zeroinflated.nbinomial",
@@ -258,7 +259,19 @@ possible to construct models with both phylogenetic correlation and spatio-tempo
 In preparing <code>random.effect</code>, make sure that the orders of rows and columns of
 covariance matrices in the list are the same as their corresponding group variables
 in the data. Also, this should be <em>a list of lists</em>, e.g.
-<code>random.effects = list(re1 = list(matrix_a), re2 = list(1, sp = sp, covar = Vsp))</code>.</p></dd>
+<code>random.effects = list(re1 = list(matrix_a), re2 = list(1, sp = sp, covar = Vsp))</code>.
+Each element is one random term: <code>list(x, g, covar)</code> (one value per level of the
+factor <code>g</code>, with covariance matrix <code>covar</code>, times the covariate <code>x</code>, 1 for
+intercepts), <code>list(x, g1, covar1, g2)</code> (one value per combination of <code>g1</code> and
+<code>g2</code>, with covariance matrix <code>kronecker(I, covar1)</code>), or <code>list(V)</code> (one value per
+row of the data, with covariance matrix <code>V</code>). They are fitted with the sparse code
+(see <code>sparse</code>), with the inverses of these matrices, which must be positive
+definite; in <code>list(V)</code>, rows of <code>V</code> that are identical (e.g. replicated
+observations of the same species at the same site) are merged into one level, and
+if <code>V</code> is still singular, the dense code is used (<code>sparse = NULL</code>, not with
+<code>method = "Laplace"</code>). Binomial and poisson models with <code>random.effects</code> are fitted
+with the Laplace approximation by default (PQL before phyr 1.9.0); no
+observation-level term is added, as <code>random.effects</code> gives all the random terms.</p></dd>
 
 
 <dt id="arg-reml">REML<a class="anchor" aria-label="anchor" href="#arg-reml"></a></dt>
@@ -305,7 +318,15 @@ repulsion to be something like <code>c(TRUE, FALSE, TRUE, TRUE)</code> (length o
 <dt id="arg-add-obs-re">add.obs.re<a class="anchor" aria-label="anchor" href="#arg-add-obs-re"></a></dt>
 <dd><p>Whether to add an observation-level random term for binomial or Poisson
 distributions. Normally it would be a good idea to add this to account for overdispersion,
-so <code>add.obs.re = TRUE</code> by default.</p></dd>
+so <code>add.obs.re = TRUE</code> by default. It is not added when a nested term without
+phylogeny already has one level per observation, e.g. <code>(1 | sp@site)</code> with one
+observation for each species and site (it is then the observation-level term); a nested
+term with a phylogeny, e.g. <code>(1 | sp__@site)</code>, does not add <code>(1 | sp@site)</code>, so
+<code>1|obs</code> is added. Such an observation-level nested term cannot be estimated with
+gaussian data (it is confounded with the residual variance) and binary data: with
+<code>bayes = FALSE</code>, it is dropped from the model, with a warning and a message; for the
+families with a dispersion parameter (e.g. negative binomial, Gamma, beta), it overlaps
+that parameter, with a warning.</p></dd>
 
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
@@ -350,9 +371,9 @@ correspond in order to the predictor (independent) variables in the
 formula. If <code>B.init</code> is not provided, these are estimated
 using <code><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm</a></code> or <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm</a></code> assuming no phylogenetic signal.
 A better approach might be to run <code><a href="https://rdrr.io/pkg/lme4/man/lmer.html" class="external-link">lmer</a></code> and use the
-output fixed effects for <code>B.init</code>. When <code>bayes = TRUE</code>, initial values are estimated
-using the maximum likelihood fit unless <code>ML.init = FALSE</code>, in
-which case the default <code>INLA</code> initial values will be used.</p></dd>
+output fixed effects for <code>B.init</code>. When <code>bayes = TRUE</code> and <code>ML.init = TRUE</code>,
+initial values are estimated using the maximum likelihood fit; otherwise, the default
+<code>INLA</code> initial values are used.</p></dd>
 
 
 <dt id="arg-reltol">reltol<a class="anchor" aria-label="anchor" href="#arg-reltol"></a></dt>
@@ -432,32 +453,16 @@ where sd is the standard deviation of the random effect.</p></dd>
 <dt id="arg-ml-init">ML.init<a class="anchor" aria-label="anchor" href="#arg-ml-init"></a></dt>
 <dd><p>Only relevant if <code>bayes = TRUE</code>. Should maximum
 likelihood estimates be calculated and used as initial values for
-the Bayesian model fit? Sometimes this can be helpful, but it may not help; thus,
-we set the default to <code>FALSE</code>. Also, it
-does not work with the zero-inflated families.</p></dd>
+the Bayesian model fit? Sometimes this can be helpful, but it may not help (INLA can
+then find another mode of the posterior); thus, we set the default to <code>FALSE</code>. The
+estimates are those of the fit with <code>bayes = FALSE</code> and the sparse code (with the
+Laplace approximation for binomial and poisson models; PQL with <code>sparse = FALSE</code>).
+Only for gaussian, binomial and poisson models.</p></dd>
 
 
-<dt id="arg-tree">tree<a class="anchor" aria-label="anchor" href="#arg-tree"></a></dt>
-<dd><p>A phylogeny for column sp, with "phylo" class, or a covariance matrix for sp.
-Make sure to have all species in the matrix; if the matrix is not standardized,
-(i.e., det(tree) != 1), <code>pglmm</code> will try to standardize it for you.
-No longer used: keep here for compatibility.</p></dd>
-
-
-<dt id="arg-tree-site">tree_site<a class="anchor" aria-label="anchor" href="#arg-tree-site"></a></dt>
-<dd><p>A second phylogeny for "site". This is required only if the
-site column contains species instead of sites. This can be used for bipartitie
-questions; tree_site can also be a covariance matrix. Make sure to have all sites
-in the matrix; if the matrix is not standardized (i.e., det(tree_site) != 1),
-pglmm` will try to standardize it for you. No longer used: keep here for compatibility.</p></dd>
-
-
-<dt id="arg-sp">sp<a class="anchor" aria-label="anchor" href="#arg-sp"></a></dt>
-<dd><p>No longer used: keep here for compatibility.</p></dd>
-
-
-<dt id="arg-site">site<a class="anchor" aria-label="anchor" href="#arg-site"></a></dt>
-<dd><p>No longer used: keep here for compatibility.</p></dd>
+<dt id="arg-tree-tree-site">tree, tree_site<a class="anchor" aria-label="anchor" href="#arg-tree-tree-site"></a></dt>
+<dd><p>Defunct (removed in phyr 1.9.0): give the phylogenies in
+<code>cov_ranef</code>, e.g. <code>cov_ranef = list(sp = tree, site = tree_site)</code>.</p></dd>
 
 
 <dt id="arg-bayes-options">bayes_options<a class="anchor" aria-label="anchor" href="#arg-bayes-options"></a></dt>
@@ -496,12 +501,12 @@ not work on the fitted model.</p></dd>
 <dt id="arg-sparse">sparse<a class="anchor" aria-label="anchor" href="#arg-sparse"></a></dt>
 <dd><p>Whether to fit the model with the sparse precision matrix of the phylogeny
 (<code>TRUE</code>) or with the dense covariance matrices (<code>FALSE</code>). The default,
-<code>NULL</code>, is <code>TRUE</code> whenever the sparse code supports the model, i.e. with
-random terms in the formula (not <code>random.effects</code>), phylogenies
-(class <code>phylo</code>, not covariance matrices) in <code>cov_ranef</code>, and, with
-<code>bayes = TRUE</code>, <code>ML.init = FALSE</code> and <code>repulsion = FALSE</code>; <code>FALSE</code>
-otherwise (it was
-<code>FALSE</code> before phyr 1.5.0). Both give the same model; the estimates can differ
+<code>NULL</code>, is <code>TRUE</code> for all models with random terms (in the formula or in
+<code>random.effects</code>), except with <code>bayes = TRUE</code> and <code>repulsion = TRUE</code>, and
+when a covariance matrix of the observations in <code>random.effects</code> is singular
+(see <code>random.effects</code>); <code>sparse = FALSE</code> is kept as a reference (it was the
+default before phyr 1.5.0, and the default for covariance matrices, <code>random.effects</code>
+and <code>ML.init</code> before phyr 1.9.0). Both give the same model; the estimates can differ
 slightly, as the optimizers differ (for binomial and poisson models fitted by PQL, the
 log-likelihood also depends on the path of the iterations). With <code>TRUE</code>, the model is
 fitted with the sparse
@@ -519,12 +524,15 @@ is used instead. Binomial and poisson models are fitted with the same penalized
 quasi-likelihood (PQL) iterations as with <code>sparse = FALSE</code> (same updates and
 convergence rules, <code>tol.pql</code> and <code>maxit.pql</code>); at each iteration, the working
 weights change only the values of the sparse matrix, and the observation-level term
-<code>1|obs</code> is folded into the weights. Only available with phylogenies (class
-<code>phylo</code>) in <code>cov_ranef</code>. With <code>bayes = TRUE</code>, the model is given to INLA
+<code>1|obs</code> is folded into the weights. A covariance matrix in <code>cov_ranef</code> (or in
+<code>random.effects</code>) that is the covariance matrix of a phylogeny (e.g. from
+<code>ape::vcv(tree)</code>, to numerical precision) is converted back to that phylogeny, whose
+precision matrix is sparse; other covariance matrices (e.g. spatial ones) are used through
+their inverse, which is dense, so their time grows with the cube of the number of levels
+(e.g. about 35 s versus 1 s with the phylogeny for 1000 species and 10 sites). Give the
+phylogeny itself when there is one. With <code>bayes = TRUE</code>, the model is given to INLA
 with one of the sparse representations of <code>sparse_method</code>; use <code>sparse = FALSE</code>
-for the dense INLA model of earlier versions (needed for <code><a href="ranef.html">ranef()</a></code>,
-<code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> with <code>newdata</code> and <code><a href="https://rdrr.io/r/stats/simulate.html" class="external-link">simulate()</a></code> with <code>re.form = NA</code>,
-see <code>sparse_method</code>).</p>
+for the dense INLA model of earlier versions (see <code>sparse_method</code>).</p>
 <p>With <code>bayes = FALSE</code>, the variances (for gaussian models, relative to the residual variance; for binomial and
 poisson models, at each PQL iteration) are estimated with <code><a href="https://rdrr.io/r/stats/nlminb.html" class="external-link">nlminb()</a></code> and the analytic
 gradient of the likelihood, with a relative tolerance <code>reltol = 1e-10</code> by default.
@@ -556,7 +564,9 @@ model over a grid of values and comparing the log-likelihoods, which is fast wit
 transformed tree (e.g. \(\sigma^2\) of the OU model) has no effect. The OU transformation
 is exact for ultrametric trees; for non-ultrametric trees, check that it matches the
 assumption about the root. Covariance matrices that cannot be written as a tree with
-non-negative branch lengths (e.g. an arbitrary similarity matrix) need <code>sparse = FALSE</code>.</p></dd>
+non-negative branch lengths (e.g. an arbitrary similarity matrix) are used through their
+(dense) inverse; give the transformed phylogeny itself, not its covariance matrix, if it
+has been rounded.</p></dd>
 
 
 <dt id="arg-standardize-cov">standardize_cov<a class="anchor" aria-label="anchor" href="#arg-standardize-cov"></a></dt>
@@ -581,7 +591,7 @@ approximation of the likelihood (negative binomial and Gamma models, <code>famil
 <code>"Laplace"</code> (default since phyr 1.5.0) for the Laplace approximation of the
 marginal likelihood, as in <code><a href="https://rdrr.io/pkg/lme4/man/glmer.html" class="external-link">lme4::glmer()</a></code> (with <code>nAGQ = 1</code>) and
 <code>glmmTMB</code>, or <code>"PQL"</code> for penalized quasi-likelihood (the default of earlier
-versions, and with <code>random.effects</code>, which the Laplace code does not support). PQL is known to underestimate the variances of
+versions, and with <code>random.effects</code> before phyr 1.9.0). PQL is known to underestimate the variances of
 random terms, and to shrink the fixed effects towards zero, for binary data and counts
 with small means; the Laplace approximation is much less biased, and its
 log-likelihood approximates the marginal likelihood of the model, so that it can be
@@ -592,9 +602,9 @@ models (their likelihood is exact) and with <code>bayes = TRUE</code>.</p>
 <code>sparse = TRUE</code>, whatever the value of <code>sparse</code>: a phylogeny gives the sparse
 precision matrix of all its nodes, and a covariance matrix in <code>cov_ranef</code> its (dense)
 inverse. The time to fit a model thus grows about linearly with the number of species,
-and nested terms and <code>repulsion</code> are supported. The random terms must be given in
-the formula (<code>random.effects</code> is not supported: models with it are fitted with PQL
-by default). The mode of the random effects
+and nested terms, <code>repulsion</code> and <code>random.effects</code> are supported (except a
+singular covariance matrix of the observations, see <code>random.effects</code>). The mode of
+the random effects
 (including the observation-level term <code>1|obs</code>) is found by Newton iterations. The
 variances of the random terms are estimated first with the fixed effects at the mode
 (as <code>glmer(nAGQ = 0)</code>); this is the final fit with <code>REML = TRUE</code>, where the
@@ -618,7 +628,8 @@ Hessian of the Laplace approximation (conditional on the estimates of the parame
 the mode.</p>
 <p>Choosing between them:</p><ul><li><p><code>"PQL"</code> (the default of earlier versions): often faster (about 1–3 times
 with <code>sparse = TRUE</code>), supports every model of <code>pglmm()</code> (including
-<code>random.effects</code>), and gives the same estimates as earlier versions of phyr. But its
+singular matrices in <code>random.effects</code>, with <code>sparse = FALSE</code>), and gives the
+same estimates as earlier versions of phyr. But its
 estimates are biased for binary data: compared with <code>"Laplace"</code> (and
 <code>glmer()</code>/<code>glmmTMB</code>), the fixed effects were about 5–10% closer to zero
 and the variances of random terms about 10–30% smaller in our comparisons. For counts,
@@ -662,12 +673,34 @@ rates (<code>"flow"</code>) or of the nodes of non-nested phylogenetic terms
 (<code>"precision"</code>) are in <code>bayes_sparse$latent</code> of the fitted model. Both methods
 report the marginal log-likelihood of the model (<code>logLik</code>; with <code>"flow"</code>, INLA's
 value with the matrix <code>A</code> can differ from that of <code>"precision"</code> by about one
-unit); <code>"flow"</code> is only available with <code>bayes = TRUE</code> for now. <code>repulsion</code>, <code>ML.init</code>,
-<code><a href="ranef.html">ranef()</a></code>, <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> with <code>newdata</code> and <code><a href="https://rdrr.io/r/stats/simulate.html" class="external-link">simulate()</a></code> with
-<code>re.form = NA</code> (any <code><a href="https://rdrr.io/r/stats/simulate.html" class="external-link">simulate()</a></code> for <code>"flow"</code>) are not available yet for
-these models. With <code>"flow"</code>, the rates are linked to the observations by the matrix
+unit); <code>"flow"</code> is only available with <code>bayes = TRUE</code> for now. Covariance
+matrices and the terms of <code>random.effects</code> are given to INLA with their precision
+matrices with both methods. <code><a href="ranef.html">ranef()</a></code> gives the posterior summaries of the levels
+in the data (for phylogenies, the tips; the internal nodes are in
+<code>bayes_sparse$latent</code>); with <code>"flow"</code>, the value of a level is a sum of
+rates, whose posterior mean is exact and whose other summaries come from 1000 samples
+of the joint posterior (which needs <code>posterior.sample = TRUE</code>). <code>repulsion</code>
+and <code><a href="https://rdrr.io/r/stats/simulate.html" class="external-link">simulate()</a></code> of <code>"flow"</code> models are not available yet. With <code>"flow"</code>,
+the rates are linked to the observations by the matrix
 <code>A</code> of <code>control.predictor</code> of INLA (as in fibre), so <code>inla.model</code> has more
 fitted values than observations (the first ones are those of the observations).</p></dd>
+
+
+<dt id="arg-weights">weights<a class="anchor" aria-label="anchor" href="#arg-weights"></a></dt>
+<dd><p>Optional prior weights, as in <code><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm()</a></code> and <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code>: a column of <code>data</code>
+(e.g. <code>weights = w</code>, or <code>"w"</code>) or a vector with one positive value per row of <code>data</code>.
+For gaussian models, the residual variance of an observation is the residual
+variance divided by its weight (as <code><a href="https://rdrr.io/pkg/lme4/man/lmer.html" class="external-link">lme4::lmer()</a></code>); for binomial models, the
+response is a proportion and the weights are the numbers of trials (as
+<code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code>); for the other families, the weights multiply the log-likelihood of
+each observation (as <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> and <code>glmmTMB()</code>). Available with
+<code>bayes = FALSE</code>, for gaussian models fitted with the sparse code (the default) and
+for the other families with <code>method = "Laplace"</code> (the default), and with
+<code>bayes = TRUE</code> (except for the zero-inflated families), where INLA scales the
+precision of gaussian observations by the weights (its <code>scale</code>), uses them as the
+numbers of trials of binomial observations (<code>Ntrials</code>), and multiplies the
+log-likelihood of poisson and negative binomial observations by them (its
+<code>weights</code>, which INLA describes as experimental).</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -978,6 +1011,15 @@ off. <code>extSoftVersion()["BLAS"]</code> shows the BLAS library that R uses.</
 fitted with <code>sparse = FALSE</code>, <code>pglmm()</code> shows a message once per session
 suggesting <code>sparse = TRUE</code>; use <code>options(phyr.sparse.hint = FALSE)</code> to turn it
 off.</p>
+<p>When a covariance matrix in <code>cov_ranef</code> (or in <code>random.effects</code>) is that of a
+phylogeny, <code>pglmm()</code> recovers the phylogeny and uses its sparse precision
+matrix, and shows a message once per session suggesting to give the phylogeny
+instead; for other covariance matrices (with at least 100 levels in
+<code>random.effects</code>), it shows a message once per session that their dense
+inverse is slow. Use <code>options(phyr.matrix.hint = FALSE)</code> to turn them off.</p>
+<p>When the variance of a random term is estimated at (or very close to) zero,
+<code>pglmm()</code> shows a message, as <code><a href="https://rdrr.io/pkg/lme4/man/lmer.html" class="external-link">lme4::lmer()</a></code> does: see <code><a href="pglmm_is_singular.html">pglmm_is_singular()</a></code>;
+use <code>options(phyr.boundary.message = FALSE)</code> to turn it off.</p>
     </div>
     <div class="section level2">
     <h2 id="phylogenetic-and-non-phylogenetic-terms">Phylogenetic and non-phylogenetic terms<a class="anchor" aria-label="anchor" href="#phylogenetic-and-non-phylogenetic-terms"></a></h2>
@@ -1152,6 +1194,7 @@ New Phytologist, 214(2), 607-618.</p>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Analyze the model</span></span></span>
 <span class="r-in"><span><span class="fu">pglmm</span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">d</span>, cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> boundary (singular) fit: the variances of 1|sp__, 1|site are (close to) zero; see ?pglmm_is_singular</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Linear mixed model fit by restricted maximum likelihood</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Formula: Y ~ 1 + (1 | sp__) + (1 | site) + (1 | sp__@site)</span>
@@ -1268,10 +1311,12 @@ New Phytologist, 214(2), 607-618.</p>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="va">mod.r</span> <span class="op">&lt;-</span> <span class="fu">pglmm</span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">site__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp</span><span class="op">@</span><span class="va">site__</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>                        data <span class="op">=</span> <span class="va">d</span>, cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy.sp</span>, site <span class="op">=</span> <span class="va">phy.site</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> boundary (singular) fit: the variances of 1|sp, 1|site are (close to) zero; see ?pglmm_is_singular</span>
 <span class="r-in"><span><span class="va">mod.f</span> <span class="op">&lt;-</span> <span class="fu">pglmm</span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">site__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp</span><span class="op">@</span><span class="va">site__</span><span class="op">)</span> <span class="op">+</span></span></span>
 <span class="r-in"><span>               <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site__</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">d</span>,</span></span>
 <span class="r-in"><span>               cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy.sp</span>, site <span class="op">=</span> <span class="va">phy.site</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>               s2.init <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">mod.r</span><span class="op">$</span><span class="va">ss</span>, <span class="fl">0.01</span><span class="op">)</span><span class="op">^</span><span class="fl">2</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> boundary (singular) fit: the variances of 1|sp, 1|site are (close to) zero; see ?pglmm_is_singular</span>
 <span class="r-in"><span><span class="va">mod.f</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Linear mixed model fit by restricted maximum likelihood</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
@@ -1288,16 +1333,16 @@ New Phytologist, 214(2), 607-618.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 1|site__      1.921e+00 1.386e+00</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 1|sp__@site   2.168e+00 1.473e+00</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 1|sp@site__   1.734e+00 1.317e+00</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1|sp__@site__ 2.654e-13 5.152e-07</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> residual      4.810e-07 6.936e-04</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1|sp__@site__ 4.794e-12 2.190e-06</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> residual      2.045e-06 1.430e-03</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Fixed effects:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                Value Std.Error Zscore Pvalue</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept) 0.045614  2.722048 0.0168 0.9866</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept) 0.045612  2.721981 0.0168 0.9866</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-in"><span><span class="va">pvalue</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Chisquare.html" class="external-link">pchisq</a></span><span class="op">(</span><span class="fl">2</span><span class="op">*</span><span class="op">(</span><span class="va">mod.f</span><span class="op">$</span><span class="va">logLik</span> <span class="op">-</span> <span class="va">mod.r</span><span class="op">$</span><span class="va">logLik</span><span class="op">)</span>, df <span class="op">=</span> <span class="fl">1</span>, lower.tail <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">pvalue</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.9909494</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.9979059</span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 </code></pre></div>
     </div>

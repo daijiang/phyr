@@ -41,8 +41,6 @@ pglmm(
   ML.init = FALSE,
   tree = NULL,
   tree_site = NULL,
-  sp = NULL,
-  site = NULL,
   bayes_options = NULL,
   bayes_nested_matrix_as_list = FALSE,
   posterior.sample = TRUE,
@@ -50,47 +48,8 @@ pglmm(
   sparse = NULL,
   standardize_cov = TRUE,
   method = c("Laplace", "PQL"),
-  sparse_method = c("precision", "flow")
-)
-
-communityPGLMM(
-  formula,
-  data = NULL,
-  family = "gaussian",
-  cov_ranef = NULL,
-  random.effects = NULL,
-  REML = TRUE,
-  optimizer = NULL,
-  repulsion = FALSE,
-  add.obs.re = TRUE,
-  verbose = FALSE,
-  cpp = TRUE,
-  bayes = FALSE,
-  s2.init = NULL,
-  B.init = NULL,
-  reltol = 10^-6,
-  maxit = 500,
-  tol.pql = 10^-6,
-  maxit.pql = 200,
-  marginal.summ = "mean",
-  calc.DIC = TRUE,
-  calc.WAIC = TRUE,
-  prior = "inla.default",
-  prior_alpha = 0.1,
-  prior_mu = 1,
-  ML.init = FALSE,
-  tree = NULL,
-  tree_site = NULL,
-  sp = NULL,
-  site = NULL,
-  bayes_options = NULL,
-  bayes_nested_matrix_as_list = FALSE,
-  posterior.sample = TRUE,
-  return.fitted.marginals = TRUE,
-  sparse = NULL,
-  standardize_cov = TRUE,
-  method = c("Laplace", "PQL"),
-  sparse_method = c("precision", "flow")
+  sparse_method = c("precision", "flow"),
+  weights = NULL
 )
 ```
 
@@ -157,18 +116,29 @@ communityPGLMM(
   removing those rows from `data` manually before calling `pglmm`. As a
   result, `pglmm(data_with_NAs)` and `pglmm(na.omit(data[, vars]))`
   (with `vars` the variables of the model) produce identical estimates.
-  With `random.effects`, only the rows with missing values in the
-  response are dropped.
+  With `random.effects`, the rows with missing values in the response or
+  the fixed effects are dropped, together with their values in
+  `random.effects`.
 
 - family:
 
   Either "gaussian" for a Linear Mixed Model, or "binomial", "poisson",
-  "nbinomial" or "Gamma" for Generalized Linear Mixed Models. "family"
-  should be specified as a character string (i.e., quoted). For binomial
+  "nbinomial", "Gamma", "betabinomial", "beta", "zeroinflated.poisson"
+  or "zeroinflated.nbinomial" for Generalized Linear Mixed Models.
+  "family" should be specified as a character string (i.e., quoted), or
+  as a family object (e.g. `binomial(link = "cloglog")`). For binomial
   and Poisson data, we use the canonical logit and log link functions,
-  respectively. Binomial data can be either presence/absence, or a
-  two-column array of 'successes' and 'failures'. For both binomial and
-  Poisson data, we add an observation-level random term by default via
+  respectively, by default; binomial models can also have the probit or
+  the complementary log-log link, with
+  `family = binomial(link = "probit")` or `binomial(link = "cloglog")`
+  (with `bayes = FALSE` and `method = "Laplace"`). The cloglog link is
+  the usual one for presence/absence data from plots of different sizes
+  or sampling efforts: with `offset(log(area))` in the formula, the
+  probability of presence is \\1 - \exp(-\lambda \\ area)\\, as for a
+  poisson number of individuals with the rate \\\lambda\\ per unit of
+  area. Binomial data can be either presence/absence, or a two-column
+  array of 'successes' and 'failures'. For both binomial and Poisson
+  data, we add an observation-level random term by default via
   `add.obs.re = TRUE`.
 
   "nbinomial" is the negative binomial distribution for overdispersed
@@ -199,6 +169,46 @@ communityPGLMM(
   `method = "Laplace"`, with starting values from
   [`glm()`](https://rdrr.io/r/stats/glm.html) and
   [`MASS::gamma.shape()`](https://rdrr.io/pkg/MASS/man/gamma.shape.glm.html).
+
+  "betabinomial" is the beta-binomial distribution for overdispersed
+  binomial data (successes out of trials, given as
+  `cbind(successes, failures)` or as proportions with the numbers of
+  trials as `weights`), with the logit link: the probability of success
+  of each observation varies as a beta distribution with mean \\p\\ and
+  precision \\\phi\\, so that the variance of the number of successes
+  out of \\n\\ trials is \\n p (1 - p) (n + \phi) / (1 + \phi)\\ (as
+  `glmmTMB(family = betabinomial())`, whose
+  [`sigma()`](https://rdrr.io/r/stats/sigma.html) is \\\phi\\). \\\phi\\
+  is estimated with the other parameters (element `phi` of the fitted
+  model); \\\phi = \infty\\ is the binomial distribution. As \\\phi\\
+  accounts for overdispersion, no observation-level random term is
+  added; it is an alternative to the binomial distribution with `1|obs`.
+  Its overdispersion cannot be estimated with 0/1 data (one trial per
+  observation). Only with `bayes = FALSE` and `method = "Laplace"`.
+
+  "beta" is the beta distribution for proportions strictly between 0 and
+  1 (e.g. percent cover, relative abundance), with the logit link, mean
+  \\\mu\\ and precision \\\phi\\: \\y \sim Beta(\mu \phi, (1 - \mu)
+  \phi)\\ and \\Var(y) = \mu (1 - \mu) / (1 + \phi)\\ (as
+  `glmmTMB(family = beta_family())`, whose
+  [`sigma()`](https://rdrr.io/r/stats/sigma.html) is \\\phi\\). \\\phi\\
+  is estimated with the other parameters (element `phi` of the fitted
+  model). Responses of exactly 0 or 1 are not allowed: transform them
+  (e.g. \\(y (n - 1) + 0.5) / n\\, Smithson and Verkuilen 2006), or use
+  "betabinomial" for counts. Prior weights multiply the log density.
+  Only with `bayes = FALSE` and `method = "Laplace"`.
+
+  "zeroinflated.poisson" and "zeroinflated.nbinomial" are the poisson
+  and negative binomial distributions with zero inflation: \\y = 0\\
+  with the probability `zi`, and from the count distribution with mean
+  \\\mu\\ (log link) otherwise, so that the mean of \\y\\ is \\(1 - zi)
+  \mu\\. With `bayes = FALSE`, `zi` is the same for all observations (as
+  `glmmTMB(ziformula = ~1)`) and is estimated with the other parameters
+  (element `zi` of the fitted model, and `theta` for the negative
+  binomial), with the Laplace approximation;
+  [`fitted()`](https://rdrr.io/r/stats/fitted.values.html) and
+  `predict(type = "response")` give the mean of \\y\\, \\(1 - zi) \mu\\.
+  No observation-level random term is added.
 
   If `bayes = TRUE` there are three additional families available:
   "zeroinflated.binomial", "zeroinflated.poisson" and
@@ -241,6 +251,20 @@ communityPGLMM(
   corresponding group variables in the data. Also, this should be *a
   list of lists*, e.g.
   `random.effects = list(re1 = list(matrix_a), re2 = list(1, sp = sp, covar = Vsp))`.
+  Each element is one random term: `list(x, g, covar)` (one value per
+  level of the factor `g`, with covariance matrix `covar`, times the
+  covariate `x`, 1 for intercepts), `list(x, g1, covar1, g2)` (one value
+  per combination of `g1` and `g2`, with covariance matrix
+  `kronecker(I, covar1)`), or `list(V)` (one value per row of the data,
+  with covariance matrix `V`). They are fitted with the sparse code (see
+  `sparse`), with the inverses of these matrices, which must be positive
+  definite; in `list(V)`, rows of `V` that are identical (e.g.
+  replicated observations of the same species at the same site) are
+  merged into one level, and if `V` is still singular, the dense code is
+  used (`sparse = NULL`, not with `method = "Laplace"`). Binomial and
+  poisson models with `random.effects` are fitted with the Laplace
+  approximation by default (PQL before phyr 1.9.0); no observation-level
+  term is added, as `random.effects` gives all the random terms.
 
 - REML:
 
@@ -296,7 +320,17 @@ communityPGLMM(
 
   Whether to add an observation-level random term for binomial or
   Poisson distributions. Normally it would be a good idea to add this to
-  account for overdispersion, so `add.obs.re = TRUE` by default.
+  account for overdispersion, so `add.obs.re = TRUE` by default. It is
+  not added when a nested term without phylogeny already has one level
+  per observation, e.g. `(1 | sp@site)` with one observation for each
+  species and site (it is then the observation-level term); a nested
+  term with a phylogeny, e.g. `(1 | sp__@site)`, does not add
+  `(1 | sp@site)`, so `1|obs` is added. Such an observation-level nested
+  term cannot be estimated with gaussian data (it is confounded with the
+  residual variance) and binary data: with `bayes = FALSE`, it is
+  dropped from the model, with a warning and a message; for the families
+  with a dispersion parameter (e.g. negative binomial, Gamma, beta), it
+  overlaps that parameter, with a warning.
 
 - verbose:
 
@@ -344,9 +378,9 @@ communityPGLMM(
   [`glm`](https://rdrr.io/r/stats/glm.html) assuming no phylogenetic
   signal. A better approach might be to run
   [`lmer`](https://rdrr.io/pkg/lme4/man/lmer.html) and use the output
-  fixed effects for `B.init`. When `bayes = TRUE`, initial values are
-  estimated using the maximum likelihood fit unless `ML.init = FALSE`,
-  in which case the default `INLA` initial values will be used.
+  fixed effects for `B.init`. When `bayes = TRUE` and `ML.init = TRUE`,
+  initial values are estimated using the maximum likelihood fit;
+  otherwise, the default `INLA` initial values are used.
 
 - reltol:
 
@@ -432,33 +466,17 @@ communityPGLMM(
 
   Only relevant if `bayes = TRUE`. Should maximum likelihood estimates
   be calculated and used as initial values for the Bayesian model fit?
-  Sometimes this can be helpful, but it may not help; thus, we set the
-  default to `FALSE`. Also, it does not work with the zero-inflated
-  families.
+  Sometimes this can be helpful, but it may not help (INLA can then find
+  another mode of the posterior); thus, we set the default to `FALSE`.
+  The estimates are those of the fit with `bayes = FALSE` and the sparse
+  code (with the Laplace approximation for binomial and poisson models;
+  PQL with `sparse = FALSE`). Only for gaussian, binomial and poisson
+  models.
 
-- tree:
+- tree, tree_site:
 
-  A phylogeny for column sp, with "phylo" class, or a covariance matrix
-  for sp. Make sure to have all species in the matrix; if the matrix is
-  not standardized, (i.e., det(tree) != 1), `pglmm` will try to
-  standardize it for you. No longer used: keep here for compatibility.
-
-- tree_site:
-
-  A second phylogeny for "site". This is required only if the site
-  column contains species instead of sites. This can be used for
-  bipartitie questions; tree_site can also be a covariance matrix. Make
-  sure to have all sites in the matrix; if the matrix is not
-  standardized (i.e., det(tree_site) != 1), pglmm\` will try to
-  standardize it for you. No longer used: keep here for compatibility.
-
-- sp:
-
-  No longer used: keep here for compatibility.
-
-- site:
-
-  No longer used: keep here for compatibility.
+  Defunct (removed in phyr 1.9.0): give the phylogenies in `cov_ranef`,
+  e.g. `cov_ranef = list(sp = tree, site = tree_site)`.
 
 - bayes_options:
 
@@ -505,41 +523,45 @@ communityPGLMM(
 
   Whether to fit the model with the sparse precision matrix of the
   phylogeny (`TRUE`) or with the dense covariance matrices (`FALSE`).
-  The default, `NULL`, is `TRUE` whenever the sparse code supports the
-  model, i.e. with random terms in the formula (not `random.effects`),
-  phylogenies (class `phylo`, not covariance matrices) in `cov_ranef`,
-  and, with `bayes = TRUE`, `ML.init = FALSE` and `repulsion = FALSE`;
-  `FALSE` otherwise (it was `FALSE` before phyr 1.5.0). Both give the
-  same model; the estimates can differ slightly, as the optimizers
-  differ (for binomial and poisson models fitted by PQL, the
-  log-likelihood also depends on the path of the iterations). With
-  `TRUE`, the model is fitted with the sparse precision matrix of the
-  phylogeny (which includes its internal nodes) and a sparse Cholesky
-  decomposition, instead of the dense phylogenetic covariance matrix.
-  This gives the same likelihood, but the time and memory needed grow
-  about linearly with the number of species, so that models with
-  thousands of species can be fitted. Nested terms (e.g.
-  `(1 | sp__@site)`, `(1 | sp@site__)`, `(1 | sp__@site__)`,
-  `(1 | sp@site)`) use the precision matrix of the Kronecker product of
-  the two covariance matrices; their time grows about linearly with the
-  number of species and somewhat faster than linearly with the number of
-  sites. With `repulsion = TRUE`, the precision matrix of the phylogeny
-  becomes its (dense) covariance matrix, which is written with the
-  internal nodes as auxiliary variables, and a sparse \\LDL'\\
-  decomposition of a larger (indefinite) matrix is used instead.
-  Binomial and poisson models are fitted with the same penalized
-  quasi-likelihood (PQL) iterations as with `sparse = FALSE` (same
-  updates and convergence rules, `tol.pql` and `maxit.pql`); at each
-  iteration, the working weights change only the values of the sparse
-  matrix, and the observation-level term `1|obs` is folded into the
-  weights. Only available with phylogenies (class `phylo`) in
-  `cov_ranef`. With `bayes = TRUE`, the model is given to INLA with one
-  of the sparse representations of `sparse_method`; use `sparse = FALSE`
-  for the dense INLA model of earlier versions (needed for
-  [`ranef()`](https://daijiang.github.io/phyr/reference/ranef.md),
-  [`predict()`](https://rdrr.io/r/stats/predict.html) with `newdata` and
-  [`simulate()`](https://rdrr.io/r/stats/simulate.html) with
-  `re.form = NA`, see `sparse_method`).
+  The default, `NULL`, is `TRUE` for all models with random terms (in
+  the formula or in `random.effects`), except with `bayes = TRUE` and
+  `repulsion = TRUE`, and when a covariance matrix of the observations
+  in `random.effects` is singular (see `random.effects`);
+  `sparse = FALSE` is kept as a reference (it was the default before
+  phyr 1.5.0, and the default for covariance matrices, `random.effects`
+  and `ML.init` before phyr 1.9.0). Both give the same model; the
+  estimates can differ slightly, as the optimizers differ (for binomial
+  and poisson models fitted by PQL, the log-likelihood also depends on
+  the path of the iterations). With `TRUE`, the model is fitted with the
+  sparse precision matrix of the phylogeny (which includes its internal
+  nodes) and a sparse Cholesky decomposition, instead of the dense
+  phylogenetic covariance matrix. This gives the same likelihood, but
+  the time and memory needed grow about linearly with the number of
+  species, so that models with thousands of species can be fitted.
+  Nested terms (e.g. `(1 | sp__@site)`, `(1 | sp@site__)`,
+  `(1 | sp__@site__)`, `(1 | sp@site)`) use the precision matrix of the
+  Kronecker product of the two covariance matrices; their time grows
+  about linearly with the number of species and somewhat faster than
+  linearly with the number of sites. With `repulsion = TRUE`, the
+  precision matrix of the phylogeny becomes its (dense) covariance
+  matrix, which is written with the internal nodes as auxiliary
+  variables, and a sparse \\LDL'\\ decomposition of a larger
+  (indefinite) matrix is used instead. Binomial and poisson models are
+  fitted with the same penalized quasi-likelihood (PQL) iterations as
+  with `sparse = FALSE` (same updates and convergence rules, `tol.pql`
+  and `maxit.pql`); at each iteration, the working weights change only
+  the values of the sparse matrix, and the observation-level term
+  `1|obs` is folded into the weights. A covariance matrix in `cov_ranef`
+  (or in `random.effects`) that is the covariance matrix of a phylogeny
+  (e.g. from `ape::vcv(tree)`, to numerical precision) is converted back
+  to that phylogeny, whose precision matrix is sparse; other covariance
+  matrices (e.g. spatial ones) are used through their inverse, which is
+  dense, so their time grows with the cube of the number of levels (e.g.
+  about 35 s versus 1 s with the phylogeny for 1000 species and 10
+  sites). Give the phylogeny itself when there is one. With
+  `bayes = TRUE`, the model is given to INLA with one of the sparse
+  representations of `sparse_method`; use `sparse = FALSE` for the dense
+  INLA model of earlier versions (see `sparse_method`).
 
   With `bayes = FALSE`, the variances (for gaussian models, relative to
   the residual variance; for binomial and poisson models, at each PQL
@@ -582,8 +604,9 @@ communityPGLMM(
   effect. The OU transformation is exact for ultrametric trees; for
   non-ultrametric trees, check that it matches the assumption about the
   root. Covariance matrices that cannot be written as a tree with
-  non-negative branch lengths (e.g. an arbitrary similarity matrix) need
-  `sparse = FALSE`.
+  non-negative branch lengths (e.g. an arbitrary similarity matrix) are
+  used through their (dense) inverse; give the transformed phylogeny
+  itself, not its covariance matrix, if it has been rounded.
 
 - standardize_cov:
 
@@ -611,13 +634,12 @@ communityPGLMM(
   approximation of the marginal likelihood, as in
   [`lme4::glmer()`](https://rdrr.io/pkg/lme4/man/glmer.html) (with
   `nAGQ = 1`) and `glmmTMB`, or `"PQL"` for penalized quasi-likelihood
-  (the default of earlier versions, and with `random.effects`, which the
-  Laplace code does not support). PQL is known to underestimate the
-  variances of random terms, and to shrink the fixed effects towards
-  zero, for binary data and counts with small means; the Laplace
-  approximation is much less biased, and its log-likelihood approximates
-  the marginal likelihood of the model, so that it can be used for
-  likelihood ratio tests
+  (the default of earlier versions, and with `random.effects` before
+  phyr 1.9.0). PQL is known to underestimate the variances of random
+  terms, and to shrink the fixed effects towards zero, for binary data
+  and counts with small means; the Laplace approximation is much less
+  biased, and its log-likelihood approximates the marginal likelihood of
+  the model, so that it can be used for likelihood ratio tests
   ([`pglmm_profile_LRT()`](https://daijiang.github.io/phyr/reference/pglmm-profile-LRT.md))
   and AIC (the log-likelihood of PQL is that of a gaussian model of the
   working response). Ignored for gaussian models (their likelihood is
@@ -628,20 +650,19 @@ communityPGLMM(
   phylogeny gives the sparse precision matrix of all its nodes, and a
   covariance matrix in `cov_ranef` its (dense) inverse. The time to fit
   a model thus grows about linearly with the number of species, and
-  nested terms and `repulsion` are supported. The random terms must be
-  given in the formula (`random.effects` is not supported: models with
-  it are fitted with PQL by default). The mode of the random effects
-  (including the observation-level term `1|obs`) is found by Newton
-  iterations. The variances of the random terms are estimated first with
-  the fixed effects at the mode (as `glmer(nAGQ = 0)`); this is the
-  final fit with `REML = TRUE`, where the fixed effects are integrated
-  out (as `glmmTMB(REML = TRUE)`) and their covariance matrix is
-  conditional on the variances. With `REML = FALSE`, the fixed effects
-  and the variances are then estimated jointly (as `glmer(nAGQ = 1)` and
-  `glmmTMB`), and the covariance matrix of the fixed effects is from the
-  inverse of the (numerical) Hessian of the log-likelihood over the
-  fixed effects and the standard deviations of the random terms, as in
-  these packages. The optimizer is
+  nested terms, `repulsion` and `random.effects` are supported (except a
+  singular covariance matrix of the observations, see `random.effects`).
+  The mode of the random effects (including the observation-level term
+  `1|obs`) is found by Newton iterations. The variances of the random
+  terms are estimated first with the fixed effects at the mode (as
+  `glmer(nAGQ = 0)`); this is the final fit with `REML = TRUE`, where
+  the fixed effects are integrated out (as `glmmTMB(REML = TRUE)`) and
+  their covariance matrix is conditional on the variances. With
+  `REML = FALSE`, the fixed effects and the variances are then estimated
+  jointly (as `glmer(nAGQ = 1)` and `glmmTMB`), and the covariance
+  matrix of the fixed effects is from the inverse of the (numerical)
+  Hessian of the log-likelihood over the fixed effects and the standard
+  deviations of the random terms, as in these packages. The optimizer is
   [`nlminb()`](https://rdrr.io/r/stats/nlminb.html), on the scale of the
   variances multiplied by their `scale_factors` (the variances of an
   average level, with a lower bound of zero; the default starting values
@@ -662,14 +683,15 @@ communityPGLMM(
 
   - `"PQL"` (the default of earlier versions): often faster (about 1–3
     times with `sparse = TRUE`), supports every model of `pglmm()`
-    (including `random.effects`), and gives the same estimates as
-    earlier versions of phyr. But its estimates are biased for binary
-    data: compared with `"Laplace"` (and `glmer()`/`glmmTMB`), the fixed
-    effects were about 5–10% closer to zero and the variances of random
-    terms about 10–30% smaller in our comparisons. For counts, the
-    differences were small (variances a few percent smaller). Its
-    log-likelihood is not that of the model, so AIC and likelihood ratio
-    tests (including tests for phylogenetic signal with
+    (including singular matrices in `random.effects`, with
+    `sparse = FALSE`), and gives the same estimates as earlier versions
+    of phyr. But its estimates are biased for binary data: compared with
+    `"Laplace"` (and `glmer()`/`glmmTMB`), the fixed effects were about
+    5–10% closer to zero and the variances of random terms about 10–30%
+    smaller in our comparisons. For counts, the differences were small
+    (variances a few percent smaller). Its log-likelihood is not that of
+    the model, so AIC and likelihood ratio tests (including tests for
+    phylogenetic signal with
     [`pglmm_profile_LRT()`](https://daijiang.github.io/phyr/reference/pglmm-profile-LRT.md))
     are only rough approximations.
 
@@ -716,16 +738,43 @@ communityPGLMM(
   methods report the marginal log-likelihood of the model (`logLik`;
   with `"flow"`, INLA's value with the matrix `A` can differ from that
   of `"precision"` by about one unit); `"flow"` is only available with
-  `bayes = TRUE` for now. `repulsion`, `ML.init`,
-  [`ranef()`](https://daijiang.github.io/phyr/reference/ranef.md),
-  [`predict()`](https://rdrr.io/r/stats/predict.html) with `newdata` and
-  [`simulate()`](https://rdrr.io/r/stats/simulate.html) with
-  `re.form = NA` (any
-  [`simulate()`](https://rdrr.io/r/stats/simulate.html) for `"flow"`)
-  are not available yet for these models. With `"flow"`, the rates are
-  linked to the observations by the matrix `A` of `control.predictor` of
-  INLA (as in fibre), so `inla.model` has more fitted values than
-  observations (the first ones are those of the observations).
+  `bayes = TRUE` for now. Covariance matrices and the terms of
+  `random.effects` are given to INLA with their precision matrices with
+  both methods.
+  [`ranef()`](https://daijiang.github.io/phyr/reference/ranef.md) gives
+  the posterior summaries of the levels in the data (for phylogenies,
+  the tips; the internal nodes are in `bayes_sparse$latent`); with
+  `"flow"`, the value of a level is a sum of rates, whose posterior mean
+  is exact and whose other summaries come from 1000 samples of the joint
+  posterior (which needs `posterior.sample = TRUE`). `repulsion` and
+  [`simulate()`](https://rdrr.io/r/stats/simulate.html) of `"flow"`
+  models are not available yet. With `"flow"`, the rates are linked to
+  the observations by the matrix `A` of `control.predictor` of INLA (as
+  in fibre), so `inla.model` has more fitted values than observations
+  (the first ones are those of the observations).
+
+- weights:
+
+  Optional prior weights, as in
+  [`lm()`](https://rdrr.io/r/stats/lm.html) and
+  [`glm()`](https://rdrr.io/r/stats/glm.html): a column of `data` (e.g.
+  `weights = w`, or `"w"`) or a vector with one positive value per row
+  of `data`. For gaussian models, the residual variance of an
+  observation is the residual variance divided by its weight (as
+  [`lme4::lmer()`](https://rdrr.io/pkg/lme4/man/lmer.html)); for
+  binomial models, the response is a proportion and the weights are the
+  numbers of trials (as [`glm()`](https://rdrr.io/r/stats/glm.html));
+  for the other families, the weights multiply the log-likelihood of
+  each observation (as [`glm()`](https://rdrr.io/r/stats/glm.html) and
+  `glmmTMB()`). Available with `bayes = FALSE`, for gaussian models
+  fitted with the sparse code (the default) and for the other families
+  with `method = "Laplace"` (the default), and with `bayes = TRUE`
+  (except for the zero-inflated families), where INLA scales the
+  precision of gaussian observations by the weights (its `scale`), uses
+  them as the numbers of trials of binomial observations (`Ntrials`),
+  and multiplies the log-likelihood of poisson and negative binomial
+  observations by them (its `weights`, which INLA describes as
+  experimental).
 
 ## Value
 
@@ -1144,6 +1193,20 @@ tips) fitted with `sparse = FALSE`, `pglmm()` shows a message once per
 session suggesting `sparse = TRUE`; use
 `options(phyr.sparse.hint = FALSE)` to turn it off.
 
+When a covariance matrix in `cov_ranef` (or in `random.effects`) is that
+of a phylogeny, `pglmm()` recovers the phylogeny and uses its sparse
+precision matrix, and shows a message once per session suggesting to
+give the phylogeny instead; for other covariance matrices (with at least
+100 levels in `random.effects`), it shows a message once per session
+that their dense inverse is slow. Use
+`options(phyr.matrix.hint = FALSE)` to turn them off.
+
+When the variance of a random term is estimated at (or very close to)
+zero, `pglmm()` shows a message, as
+[`lme4::lmer()`](https://rdrr.io/pkg/lme4/man/lmer.html) does: see
+[`pglmm_is_singular()`](https://daijiang.github.io/phyr/reference/pglmm_is_singular.md);
+use `options(phyr.boundary.message = FALSE)` to turn it off.
+
 ## Phylogenetic and non-phylogenetic terms
 
 A phylogenetic term such as `(1 | sp__)` fits two terms, `1|sp__`, with
@@ -1323,6 +1386,7 @@ d$Y <- Y.sp + Y.site + Y.attract + Y.e
 
 # Analyze the model
 pglmm(Y ~ 1 + (1 | sp__) + (1 | site) + (1 | sp__@site), data = d, cov_ranef = list(sp = phy))
+#> boundary (singular) fit: the variances of 1|sp__, 1|site are (close to) zero; see ?pglmm_is_singular
 #> Linear mixed model fit by restricted maximum likelihood
 #> 
 #> Formula: Y ~ 1 + (1 | sp__) + (1 | site) + (1 | sp__@site)
@@ -1439,10 +1503,12 @@ plot(rot.phy.site, main = "Site")
 
 mod.r <- pglmm(Y ~ 1 + (1|sp__) + (1|site__) + (1|sp__@site) + (1|sp@site__),
                         data = d, cov_ranef = list(sp = phy.sp, site = phy.site))
+#> boundary (singular) fit: the variances of 1|sp, 1|site are (close to) zero; see ?pglmm_is_singular
 mod.f <- pglmm(Y ~ 1 + (1|sp__) + (1|site__) + (1|sp__@site) + (1|sp@site__) +
                (1|sp__@site__), data = d,
                cov_ranef = list(sp = phy.sp, site = phy.site),
                s2.init = c(mod.r$ss, 0.01)^2)
+#> boundary (singular) fit: the variances of 1|sp, 1|site are (close to) zero; see ?pglmm_is_singular
 mod.f
 #> Linear mixed model fit by restricted maximum likelihood
 #> 
@@ -1459,15 +1525,15 @@ mod.f
 #> 1|site__      1.921e+00 1.386e+00
 #> 1|sp__@site   2.168e+00 1.473e+00
 #> 1|sp@site__   1.734e+00 1.317e+00
-#> 1|sp__@site__ 2.654e-13 5.152e-07
-#> residual      4.810e-07 6.936e-04
+#> 1|sp__@site__ 4.794e-12 2.190e-06
+#> residual      2.045e-06 1.430e-03
 #> 
 #> Fixed effects:
 #>                Value Std.Error Zscore Pvalue
-#> (Intercept) 0.045614  2.722048 0.0168 0.9866
+#> (Intercept) 0.045612  2.721981 0.0168 0.9866
 #> 
 pvalue <- pchisq(2*(mod.f$logLik - mod.r$logLik), df = 1, lower.tail = FALSE)
 pvalue
-#> [1] 0.9909494
+#> [1] 0.9979059
 # }
 ```

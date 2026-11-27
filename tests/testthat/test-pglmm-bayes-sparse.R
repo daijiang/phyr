@@ -52,6 +52,7 @@ test_that("sparse_method = \"flow\" and repulsion are checked", {
     "only available with bayes = TRUE"
   )
   testthat::skip_if_not_installed("INLA")
+  testthat::skip_if_not_installed("sn")
   expect_error(
     pglmm(y ~ x + (1 | sp__) + (1 | sp__@site), s$d, cov_ranef = list(sp = s$phy), bayes = TRUE,
           sparse = TRUE, repulsion = TRUE),
@@ -62,6 +63,7 @@ test_that("sparse_method = \"flow\" and repulsion are checked", {
 test_that("dense, sparse precision and flow bayesian fits agree", {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("INLA")
+  testthat::skip_if_not_installed("sn")
   s <- sim_bayes_sparse_data()
   cases <- list(
     list(f = y ~ x + (1 | sp__) + (1 | site), family = "gaussian", cov = list(sp = s$phy)),
@@ -97,6 +99,7 @@ test_that("dense, sparse precision and flow bayesian fits agree", {
 test_that("flow rates give the phylogenetic effects of the tips", {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("INLA")
+  testthat::skip_if_not_installed("sn")
   s <- sim_bayes_sparse_data()
   f <- y ~ x + (1 | sp__) + (1 | site)
   m <- pglmm(f, s$d, cov_ranef = list(sp = s$phy), bayes = TRUE, sparse = TRUE, sparse_method = "flow")
@@ -183,6 +186,7 @@ test_that("pglmm_bayes_sparse_terms() builds the INLA terms", {
 test_that("bayes = TRUE: covariance matrices, random.effects lists and ML.init with the sparse code", {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("INLA")
+  testthat::skip_if_not_installed("sn")
   s <- sim_bayes_sparse_data(15, 4)
   q <- function(...) suppressWarnings(suppressMessages(pglmm(...)))
   d <- s$d
@@ -224,6 +228,7 @@ test_that("bayes = TRUE: covariance matrices, random.effects lists and ML.init w
 test_that("bayesian sparse fits agree for site phylogenies and poisson models", {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("INLA")
+  testthat::skip_if_not_installed("sn")
   s <- sim_bayes_sparse_data()
   # a signal strong enough that the posterior of the species variance is away from zero:
   # with exp(0.3 * y), INLA put it on the boundary and the sparse fits could find another
@@ -250,6 +255,7 @@ test_that("bayesian sparse fits agree for site phylogenies and poisson models", 
 test_that("rows with a missing response are dropped, and the latent estimates are labelled", {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("INLA")
+  testthat::skip_if_not_installed("sn")
   s <- sim_bayes_sparse_data(15, 4)
   d_na <- s$d
   d_na$y[c(2, 7)] <- NA
@@ -275,6 +281,7 @@ test_that("rows with a missing response are dropped, and the latent estimates ar
 test_that("ranef(), predict(newdata) and simulate(re.form = NA) of sparse fits match the dense INLA model", {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("INLA")
+  testthat::skip_if_not_installed("sn")
   s <- sim_bayes_sparse_data(15, 4)
   q <- function(...) suppressWarnings(suppressMessages(pglmm(...)))
   f <- y ~ x + (1 | sp__) + (1 | site) + (x | sp) + (1 | sp__@site)

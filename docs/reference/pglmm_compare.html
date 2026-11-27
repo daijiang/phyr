@@ -25,7 +25,7 @@ will be helpful."><meta property="og:image" content="https://daijiang.github.io/
 
     <a class="navbar-brand me-2" href="../index.html">phyr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -101,7 +101,8 @@ will be helpful.</p>
 <span>  return.fitted.marginals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  sparse <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  standardize_cov <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Laplace"</span>, <span class="st">"PQL"</span><span class="op">)</span></span>
+<span>  method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Laplace"</span>, <span class="st">"PQL"</span><span class="op">)</span>,</span>
+<span>  weights <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S3 method for class 'pglmm_compare'</span></span>
@@ -274,9 +275,11 @@ where sd is the standard deviation of the random effect.</p></dd>
 <dt id="arg-ml-init">ML.init<a class="anchor" aria-label="anchor" href="#arg-ml-init"></a></dt>
 <dd><p>Only relevant if <code>bayes = TRUE</code>. Should maximum
 likelihood estimates be calculated and used as initial values for
-the Bayesian model fit? Sometimes this can be helpful, but it may not help; thus,
-we set the default to <code>FALSE</code>. Also, it
-does not work with the zero-inflated families.</p></dd>
+the Bayesian model fit? Sometimes this can be helpful, but it may not help (INLA can
+then find another mode of the posterior); thus, we set the default to <code>FALSE</code>. The
+estimates are those of the fit with <code>bayes = FALSE</code> and the sparse code (with the
+Laplace approximation for binomial and poisson models; PQL with <code>sparse = FALSE</code>).
+Only for gaussian, binomial and poisson models.</p></dd>
 
 
 <dt id="arg-s-init">s2.init<a class="anchor" aria-label="anchor" href="#arg-s-init"></a></dt>
@@ -294,9 +297,9 @@ correspond in order to the predictor (independent) variables in the
 formula. If <code>B.init</code> is not provided, these are estimated
 using <code><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm</a></code> or <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm</a></code> assuming no phylogenetic signal.
 A better approach might be to run <code><a href="https://rdrr.io/pkg/lme4/man/lmer.html" class="external-link">lmer</a></code> and use the
-output fixed effects for <code>B.init</code>. When <code>bayes = TRUE</code>, initial values are estimated
-using the maximum likelihood fit unless <code>ML.init = FALSE</code>, in
-which case the default <code>INLA</code> initial values will be used.</p></dd>
+output fixed effects for <code>B.init</code>. When <code>bayes = TRUE</code> and <code>ML.init = TRUE</code>,
+initial values are estimated using the maximum likelihood fit; otherwise, the default
+<code>INLA</code> initial values are used.</p></dd>
 
 
 <dt id="arg-calc-waic">calc.WAIC<a class="anchor" aria-label="anchor" href="#arg-calc-waic"></a></dt>
@@ -360,6 +363,23 @@ choice; only the scale of the variances (and of <code>s2.init</code>) does. Not 
 phyr 1.5.0) or <code>"PQL"</code> (the default of earlier versions): see Details and
 <code><a href="pglmm.html">pglmm()</a></code>. Negative binomial and Gamma data are always fitted with
 <code>"Laplace"</code>.</p></dd>
+
+
+<dt id="arg-weights">weights<a class="anchor" aria-label="anchor" href="#arg-weights"></a></dt>
+<dd><p>Optional prior weights, as in <code><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm()</a></code> and <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code>: a column of <code>data</code>
+(e.g. <code>weights = w</code>, or <code>"w"</code>) or a vector with one positive value per row of <code>data</code>.
+For gaussian models, the residual variance of an observation is the residual
+variance divided by its weight (as <code><a href="https://rdrr.io/pkg/lme4/man/lmer.html" class="external-link">lme4::lmer()</a></code>); for binomial models, the
+response is a proportion and the weights are the numbers of trials (as
+<code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code>); for the other families, the weights multiply the log-likelihood of
+each observation (as <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">glm()</a></code> and <code>glmmTMB()</code>). Available with
+<code>bayes = FALSE</code>, for gaussian models fitted with the sparse code (the default) and
+for the other families with <code>method = "Laplace"</code> (the default), and with
+<code>bayes = TRUE</code> (except for the zero-inflated families), where INLA scales the
+precision of gaussian observations by the weights (its <code>scale</code>), uses them as the
+numbers of trials of binomial observations (<code>Ntrials</code>), and multiplies the
+log-likelihood of poisson and negative binomial observations by them (its
+<code>weights</code>, which INLA describes as experimental).</p></dd>
 
 
 <dt id="arg-object">object<a class="anchor" aria-label="anchor" href="#arg-object"></a></dt>
@@ -554,56 +574,54 @@ package <span class="pkg">phylolm</span> and its function <code>phyloglm</code>;
 <span class="r-out co"><span class="r-pr">#&gt;</span> Formula: Y ~ X1</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> logLik    AIC    BIC </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> -53.88 113.75 121.57 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> -64.42 134.85 142.66 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Phylogenetic random effects variance (s2):</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>    Variance Std.Dev</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> s2  0.07435  0.2727</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> s2   0.2138  0.4624</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Test of phylogenetic signal (H0: s2 = 0, conditional likelihood ratio test):</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>      LR      df      Pr </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 0.99916 1.00000 0.07874 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>        LR        df        Pr </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6.1010517 1.0000000 0.0002387 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Fixed effects:</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                Value Std.Error  Zscore Pvalue  </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept)  1.19347   0.70153  1.7012 0.0889 .</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X1          -0.23613   0.38671 -0.6106 0.5415  </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> ---</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                Value Std.Error  Zscore Pvalue</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept) -0.55658   1.08965 -0.5108 0.6095</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X1           0.81631   0.50409  1.6194 0.1054</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># test of phylogenetic signal (also printed above)</span></span></span>
 <span class="r-in"><span><span class="va">fit</span><span class="op">$</span><span class="va">LRT</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $LR</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.9991597</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 6.101052</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $df</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 1</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $Pr</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.07873686</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.0002386783</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-in"><span><span class="co"># methods of pglmm() models</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="fixef.html">fixef</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                  Value Std.Error     Zscore     Pvalue</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept)  1.1934685 0.7015265  1.7012451 0.08889698</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X1          -0.2361262 0.3867145 -0.6105956 0.54146737</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                  Value Std.Error     Zscore    Pvalue</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept) -0.5565818  1.089650 -0.5107894 0.6094985</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X1           0.8163082  0.504089  1.6193733 0.1053670</span>
 <span class="r-in"><span><span class="fu"><a href="VarCorr.html">VarCorr</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>          Variance  Std.Dev</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1|sp__ 0.07434785 0.272668</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>         Variance   Std.Dev</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1|sp__ 0.2138291 0.4624165</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="ranef.html">ranef</a></span><span class="op">(</span><span class="va">fit</span>, condVar <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">[[</span><span class="st">"1|sp__"</span><span class="op">]</span><span class="op">]</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    sp     estimate        se</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1 t63 -0.062401634 0.6609444</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2 t62 -0.051647785 0.6529569</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3 t48  0.007757497 0.6250426</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4  t8  0.020070115 0.6192487</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 5  t3  0.019988029 0.6192830</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6  t6  0.018241553 0.6201783</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    sp   estimate        se</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1 t17 -1.0173818 0.7977098</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2 t27 -1.0174330 0.7977095</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3 t48 -0.4828661 0.7019497</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4 t50 -0.4426093 0.7020458</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 5  t4 -0.4891126 0.7026035</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6 t35 -0.4485403 0.7026903</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span>, newdata <span class="op">=</span> <span class="va">sim.dat</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span>, <span class="op">]</span>, type <span class="op">=</span> <span class="st">"response"</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>         Y_hat</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> t63 0.7990353</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> t62 0.8049363</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> t48 0.8262815</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> t17 0.4951525</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> t27 0.4963952</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> t48 0.5675239</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># the same model fitted with the sparse precision matrix of the phylogeny,</span></span></span>
 <span class="r-in"><span><span class="co"># much faster for large phylogenies</span></span></span>
@@ -611,8 +629,8 @@ package <span class="pkg">phylolm</span> and its function <code>phyloglm</code>;
 <span class="r-in"><span>                            sparse <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">cbind</a></span><span class="op">(</span>dense <span class="op">=</span> <span class="va">fit</span><span class="op">$</span><span class="va">B</span><span class="op">[</span>, <span class="fl">1</span><span class="op">]</span>, sparse <span class="op">=</span> <span class="va">fit_sparse</span><span class="op">$</span><span class="va">B</span><span class="op">[</span>, <span class="fl">1</span><span class="op">]</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                  dense     sparse</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept)  1.1934685  1.1934685</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X1          -0.2361262 -0.2361262</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept) -0.5565818 -0.5565818</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X1           0.8163082  0.8163082</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># the Laplace approximation of the likelihood (less biased than PQL for</span></span></span>
 <span class="r-in"><span><span class="co"># binary data), with maximum likelihood estimates</span></span></span>
@@ -624,20 +642,20 @@ package <span class="pkg">phylolm</span> and its function <code>phyloglm</code>;
 <span class="r-out co"><span class="r-pr">#&gt;</span> Formula: Y ~ X1</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> logLik    AIC    BIC </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> -53.63 113.26 121.07 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> -65.47 136.94 144.76 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Phylogenetic random effects variance (s2):</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>    Variance Std.Dev</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> s2        0       0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> s2   0.1349  0.3673</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Test of phylogenetic signal (H0: s2 = 0, conditional likelihood ratio test):</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>        LR        df        Pr </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4.099e-11 1.000e+00 1.000e+00 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       LR       df       Pr </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3.666680 1.000000 0.003384 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Fixed effects:</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>               Value Std.Error Zscore    Pvalue    </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept) 1.21725   0.23945 5.0835 3.705e-07 ***</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X1          0.14894   0.19197 0.7759    0.4378    </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                Value Std.Error  Zscore  Pvalue  </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept) -0.56419   0.89488 -0.6305 0.52839  </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X1           0.80547   0.48857  1.6486 0.09922 .</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> ---</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
@@ -647,16 +665,16 @@ package <span class="pkg">phylolm</span> and its function <code>phyloglm</code>;
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Call:Y ~ X1</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x75e30fbab8&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x75d5e6d540&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Random effect (phylogenetic signal s2):</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>      s2       Pr</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1 1.143 0.009459</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     s2       Pr</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1 2.93 3.59e-07</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Fixed effects:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                Value Std.Error  Zscore  Pvalue  </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept)  1.18937   0.65263  1.8224 0.06839 .</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X1          -0.20599   0.37001 -0.5567 0.57772  </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept) -0.52218   0.93461 -0.5587 0.57635  </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X1           0.76095   0.45726  1.6642 0.09608 .</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> ---</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
@@ -665,29 +683,25 @@ package <span class="pkg">phylolm</span> and its function <code>phyloglm</code>;
 <span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"phylolm"</span>, quietly <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span></span>
 <span class="r-in"><span>  <span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="fu">phylolm</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/phylolm/man/phyloglm.html" class="external-link">phyloglm</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="va">X1</span>, phy <span class="op">=</span> <span class="va">phy</span>, data <span class="op">=</span> <span class="va">sim.dat</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span></span></span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>the estimate of 'alpha' (54.5271382266451) reached the upper bound (54.5981500331442).</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span>  This may simply reflect a flat likelihood at large alpha values,</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span>  meaning that the phylogenetic correlation is estimated to be negligible.</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>phyloglm failed to converge.</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Call:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> phylolm::phyloglm(formula = Y ~ X1, data = sim.dat, phy = phy)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>        AIC     logLik Pen.logLik </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     117.34     -55.67     -52.73 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     133.43     -63.71     -62.36 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Method: logistic_MPLE</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Mean tip height: 1</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Parameter estimate(s):</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> alpha: 54.52714 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> alpha: 1.240348 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Coefficients:</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>             Estimate  StdErr z.value   p.value    </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept)  1.04492 0.25802  4.0497 5.129e-05 ***</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X1           0.12907 0.20651  0.6250     0.532    </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>             Estimate   StdErr z.value  p.value   </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept) -0.48489  0.73861 -0.6565 0.511512   </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X1           0.94181  0.35724  2.6363 0.008381 **</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> ---</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Note: Wald-type p-values for coefficients, conditional on alpha=54.52714</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Note: Wald-type p-values for coefficients, conditional on alpha=1.240348</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Compare with `glm` that does not account for phylogeny</span></span></span>
@@ -697,19 +711,17 @@ package <span class="pkg">phylolm</span> and its function <code>phyloglm</code>;
 <span class="r-out co"><span class="r-pr">#&gt;</span> glm(formula = Y ~ X1, family = "binomial", data = sim.dat)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Coefficients:</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>             Estimate Std. Error z value Pr(&gt;|z|)    </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept)   1.2173     0.2395   5.084 3.71e-07 ***</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> X1            0.1489     0.1920   0.776    0.438    </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> ---</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>             Estimate Std. Error z value Pr(&gt;|z|)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept) -0.08018    0.20036  -0.400    0.689</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X1           0.08766    0.19817   0.442    0.658</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> (Dispersion parameter for binomial family taken to be 1)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     Null deviance: 107.86  on 99  degrees of freedom</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Residual deviance: 107.26  on 98  degrees of freedom</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> AIC: 111.26</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     Null deviance: 138.47  on 99  degrees of freedom</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Residual deviance: 138.27  on 98  degrees of freedom</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> AIC: 142.27</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Number of Fisher Scoring iterations: 4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Number of Fisher Scoring iterations: 3</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Compare with logistf() that does not account</span></span></span>
@@ -723,9 +735,9 @@ package <span class="pkg">phylolm</span> and its function <code>phyloglm</code>;
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Coefficients:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept)          X1 </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   1.1881861   0.1477537 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> -0.07893014  0.08513650 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Likelihood ratio test=0.6131352 on 1 df, p=0.4336098, n=100</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Likelihood ratio test=0.191053 on 1 df, p=0.6620416, n=100</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co">## Fit model with bayes = TRUE</span></span></span>

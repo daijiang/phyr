@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">phyr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -35,7 +35,7 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1><code>get_design_matrix</code> gets design matrix for gaussian, binomial, and poisson models</h1>
-      <small class="dont-index">Source: <a href="https://github.com/daijiang/phyr/blob/HEAD/R/pglmm-utils.R" class="external-link"><code>R/pglmm-utils.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/daijiang/phyr/blob/HEAD/R/pglmm-dense.R" class="external-link"><code>R/pglmm-dense.R</code></a></small>
       <div class="d-none name"><code>get_design_matrix_pglmm.Rd</code></div>
     </div>
 
@@ -97,7 +97,8 @@ or the covariates of random slopes are dropped before fitting; this is equivalen
 removing those rows from <code>data</code> manually before calling <code>pglmm</code>. As a
 result, <code>pglmm(data_with_NAs)</code> and <code>pglmm(na.omit(data[, vars]))</code> (with
 <code>vars</code> the variables of the model) produce identical estimates. With
-<code>random.effects</code>, only the rows with missing values in the response are dropped.</p></dd>
+<code>random.effects</code>, the rows with missing values in the response or the fixed
+effects are dropped, together with their values in <code>random.effects</code>.</p></dd>
 
 
 <dt id="arg-random-effects">random.effects<a class="anchor" aria-label="anchor" href="#arg-random-effects"></a></dt>
@@ -109,7 +110,19 @@ possible to construct models with both phylogenetic correlation and spatio-tempo
 In preparing <code>random.effect</code>, make sure that the orders of rows and columns of
 covariance matrices in the list are the same as their corresponding group variables
 in the data. Also, this should be <em>a list of lists</em>, e.g.
-<code>random.effects = list(re1 = list(matrix_a), re2 = list(1, sp = sp, covar = Vsp))</code>.</p></dd>
+<code>random.effects = list(re1 = list(matrix_a), re2 = list(1, sp = sp, covar = Vsp))</code>.
+Each element is one random term: <code>list(x, g, covar)</code> (one value per level of the
+factor <code>g</code>, with covariance matrix <code>covar</code>, times the covariate <code>x</code>, 1 for
+intercepts), <code>list(x, g1, covar1, g2)</code> (one value per combination of <code>g1</code> and
+<code>g2</code>, with covariance matrix <code>kronecker(I, covar1)</code>), or <code>list(V)</code> (one value per
+row of the data, with covariance matrix <code>V</code>). They are fitted with the sparse code
+(see <code>sparse</code>), with the inverses of these matrices, which must be positive
+definite; in <code>list(V)</code>, rows of <code>V</code> that are identical (e.g. replicated
+observations of the same species at the same site) are merged into one level, and
+if <code>V</code> is still singular, the dense code is used (<code>sparse = NULL</code>, not with
+<code>method = "Laplace"</code>). Binomial and poisson models with <code>random.effects</code> are fitted
+with the Laplace approximation by default (PQL before phyr 1.9.0); no
+observation-level term is added, as <code>random.effects</code> gives all the random terms.</p></dd>
 
 
 <dt id="arg-na-action">na.action<a class="anchor" aria-label="anchor" href="#arg-na-action"></a></dt>

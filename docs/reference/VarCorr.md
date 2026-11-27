@@ -71,6 +71,7 @@ phy <- ape::keep.tip(phylotree, unique(dat$sp))
 fit <- pglmm(freq ~ shade + (1 | sp__) + (1 | site),
   data = dat, cov_ranef = list(sp = phy)
 )
+#> boundary (singular) fit: the variances of 1|sp, 1|site are (close to) zero; see ?pglmm_is_singular
 
 VarCorr(fit)
 #>           Variance   Std.Dev

@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">phyr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -67,7 +67,7 @@
                         <h4 data-toc-skip class="author">Daijiang
 Li</h4>
             
-            <h4 data-toc-skip class="date">2026-11-25</h4>
+            <h4 data-toc-skip class="date">2026-11-26</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/daijiang/phyr/blob/HEAD/vignettes/plot-re.Rmd" class="external-link"><code>vignettes/plot-re.Rmd</code></a></small>
       <div class="d-none name"><code>plot-re.Rmd</code></div>
@@ -81,10 +81,8 @@ random terms for <code>communityPGLMM</code> models.</p>
 <h2 id="main-function">Main function<a class="anchor" aria-label="anchor" href="#main-function"></a>
 </h2>
 <p>The main function to use is <code><a href="../reference/pglmm-plot-re.html">phyr::pglmm_plot_re()</a></code>
-(alias: <code><a href="../reference/pglmm-plot-re.html">phyr::pglmm_plot_ranef()</a></code>,
-<code><a href="../reference/pglmm-plot-re.html">phyr::communityPGLMM.show.re()</a></code>,
-<code><a href="../reference/pglmm-plot-re.html">phyr::communityPGLMM.plot.re()</a></code>). Here are the arguments of
-this function:</p>
+(alias: <code><a href="../reference/pglmm-plot-re.html">phyr::pglmm_plot_ranef()</a></code>). Here are the arguments
+of this function:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/args.html" class="external-link">args</a></span><span class="op">(</span><span class="fu">phyr</span><span class="fu">::</span><span class="va"><a href="../reference/pglmm-plot-re.html">pglmm_plot_re</a></span><span class="op">)</span></span>
 <span><span class="co">## function (formula = NULL, data = NULL, family = "gaussian", sp.var = "sp", </span></span>
@@ -189,6 +187,7 @@ better the random terms.</p>
 <span><span class="co"># fit a model</span></span>
 <span><span class="va">mod_1</span> <span class="op">=</span> <span class="fu"><a href="../reference/pglmm.html">pglmm</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">env</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="va">env</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span>,</span>
 <span>              data <span class="op">=</span> <span class="va">d</span>, cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">## boundary (singular) fit: the variances of 1|sp, 1|site, env|sp are (close to) zero; see ?pglmm_is_singular</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mod_1</span><span class="op">)</span></span>
 <span><span class="co">## Linear mixed model fit by restricted maximum likelihood</span></span>
 <span><span class="co">## </span></span>
@@ -386,7 +385,7 @@ you can just use the model as the input.</p>
 <span>              add.tree.sp <span class="op">=</span> <span class="cn">TRUE</span>, colorkey <span class="op">=</span> <span class="cn">FALSE</span>, useAbs <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
 <p><img src="plot-re_files/figure-html/unnamed-chunk-17-1.png" class="r-plt" alt="" width="100%" style="display: block; margin: auto;"></p>
 <div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/pglmm-plot-re.html">communityPGLMM.show.re</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">mod_1</span>, show.image <span class="op">=</span> <span class="cn">TRUE</span>, show.sim.image <span class="op">=</span> <span class="cn">FALSE</span>, useAbs <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/pglmm-plot-re.html">pglmm_plot_ranef</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">mod_1</span>, show.image <span class="op">=</span> <span class="cn">TRUE</span>, show.sim.image <span class="op">=</span> <span class="cn">FALSE</span>, useAbs <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
 <p><img src="plot-re_files/figure-html/unnamed-chunk-17-2.png" class="r-plt" alt="" width="100%" style="display: block; margin: auto;"></p>
 </div>
 </div>

@@ -29,15 +29,33 @@ phyr 1.9.0 changes a few defaults and removes old names; code written for earlie
 - The arguments `tree` and `tree_site` are defunct (give the phylogenies in `cov_ranef`); `communityPGLMM()` and its helpers are deprecated (use `pglmm()`); `communityPGLMM.profile.LRT()`, `communityPGLMM.matrix.structure()` and `communityPGLMM.predicted.values()` were removed (use `pglmm_profile_LRT()`, `pglmm_matrix_structure()` and `pglmm_predicted_values()`).
 - New: prior `weights`, `pglmm_boot_LRT()` (a parametric bootstrap test of nested models), and methods for the emmeans, marginaleffects and effects packages (see below).
 
+# Families
+
+The families of `pglmm()` (and `pglmm_compare()`), with what each supports. With `bayes = FALSE` (the default), models are fitted by maximum likelihood (`REML = FALSE`) or restricted maximum likelihood (`REML = TRUE`, the default); the estimates are those of the package in the last column (checked in the tests of phyr, also for nested phylogenetic terms such as `(1 | sp__@site)`, which those packages fit only with the full covariance matrix of the observations).
+
+| `family =` | Response | Link | Estimated dispersion (element of the fit) | `bayes = FALSE` | `bayes = TRUE` | Same estimates as |
+|---|---|---|---|---|---|---|
+| `"gaussian"` | continuous | identity | residual variance (`s2resid`) | exact likelihood | yes | `lme4::lmer()`, `glmmTMB()` |
+| `"binomial"` | 0/1, `cbind(successes, failures)`, or proportions with the numbers of trials as `weights` | logit; probit and cloglog with `binomial(link = "probit")` and `binomial(link = "cloglog")` | none (an observation-level term is added for data with trials) | Laplace (default); PQL with `method = "PQL"` (logit only) | yes (logit) | `lme4::glmer()`, `glmmTMB()` |
+| `"poisson"` | counts | log | none (an observation-level term is added) | Laplace (default); PQL with `method = "PQL"` | yes | `lme4::glmer()`, `glmmTMB()` |
+| `"nbinomial"` | overdispersed counts | log | `theta` (variance `mu + mu^2 / theta`) | Laplace | yes | `glmmTMB(family = nbinom2)` |
+| `"Gamma"` | positive continuous (e.g. biomass) | log | `shape` | Laplace | no | `glmmTMB(family = Gamma(link = "log"))` |
+| `"betabinomial"` | overdispersed successes out of trials (`cbind()`, or proportions with `weights`) | logit | `phi` (precision) | Laplace | no | `glmmTMB(family = betabinomial())` |
+| `"beta"` | proportions strictly between 0 and 1 (e.g. cover) | logit | `phi` (precision) | Laplace | no | `glmmTMB(family = beta_family())` |
+| `"zeroinflated.poisson"` | counts with excess zeros | log | `zi` (probability of zero inflation, the same for all observations) | Laplace | yes | `glmmTMB(family = poisson, ziformula = ~1)` |
+| `"zeroinflated.nbinomial"` | overdispersed counts with excess zeros | log | `theta`, `zi` | Laplace | yes | `glmmTMB(family = nbinom2, ziformula = ~1)` |
+| `"zeroinflated.binomial"` | successes and failures with excess zeros | logit | `zi` | no | yes | |
+
+Notes:
+
+- Prior `weights` divide the residual variance of gaussian models (as `lmer()`), are the numbers of trials of binomial and beta-binomial models (with proportions as response), and multiply the log-likelihood of each observation for the other families (as `glm()` and `glmmTMB()`); with `bayes = TRUE`, they are available for the gaussian, binomial, poisson and negative binomial families.
+- An observation-level random term `1|obs` is added to poisson models and binomial models with trials (`add.obs.re = TRUE`) to account for overdispersion; the families with a dispersion parameter do not need it. A nested term without phylogeny with one observation per combination of its grouping variables (e.g. `(1 | sp@site)`) is such a term: it replaces `1|obs`, and is dropped (with a warning) when it cannot be estimated (gaussian and binary data).
+- For the zero-inflated families, `fitted()` and `predict(type = "response")` give the mean of the response, `(1 - zi) * mu`; the random terms act on the count part.
+- All families take random slopes, nested terms (with `repulsion`), covariance matrices in `cov_ranef`, `random.effects` lists and `offset()` terms, and work with the methods listed at the end of this vignette.
+
 # How models are fitted
 
-With `bayes = FALSE` (the default), `pglmm()` fits models by maximum likelihood (`REML = FALSE`) or restricted maximum likelihood (`REML = TRUE`, the default):
-
-| Family | Default method | Same estimates as |
-|---|---|---|
-| `"gaussian"` | exact likelihood | `lme4::lmer()`, `glmmTMB()` |
-| `"binomial"`, `"poisson"` | Laplace approximation (`method = "Laplace"`) | `lme4::glmer()`, `glmmTMB()` |
-| `"nbinomial"`, `"Gamma"` | Laplace approximation | `glmmTMB(family = nbinom2)`, `glmmTMB(family = Gamma(link = "log"))` |
+With `bayes = FALSE`, the binomial, poisson and other non-gaussian families are fitted with the Laplace approximation of the likelihood (see the table above for the packages with the same estimates).
 
 Binomial and poisson models can still be fitted by penalized quasi-likelihood with `method = "PQL"` (as in earlier versions), which underestimates the variances of random terms for binary data and small counts. With `bayes = TRUE`, models are fitted by INLA.
 

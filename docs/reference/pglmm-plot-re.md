@@ -31,51 +31,7 @@ pglmm_plot_ranef(
   ...
 )
 
-communityPGLMM.show.re(
-  formula = NULL,
-  data = NULL,
-  family = "gaussian",
-  sp.var = "sp",
-  site.var = "site",
-  tree = NULL,
-  tree_site = NULL,
-  repulsion = FALSE,
-  x = NULL,
-  show.image = TRUE,
-  show.sim.image = FALSE,
-  random.effects = NULL,
-  add.tree.sp = TRUE,
-  add.tree.site = FALSE,
-  cov_ranef = NULL,
-  tree.panel.space = 0.5,
-  title.space = 5,
-  tree.size = 3,
-  ...
-)
-
 pglmm_plot_re(
-  formula = NULL,
-  data = NULL,
-  family = "gaussian",
-  sp.var = "sp",
-  site.var = "site",
-  tree = NULL,
-  tree_site = NULL,
-  repulsion = FALSE,
-  x = NULL,
-  show.image = TRUE,
-  show.sim.image = FALSE,
-  random.effects = NULL,
-  add.tree.sp = TRUE,
-  add.tree.site = FALSE,
-  cov_ranef = NULL,
-  tree.panel.space = 0.5,
-  title.space = 5,
-  tree.size = 3,
-  ...
-)
-
-communityPGLMM.plot.re(
   formula = NULL,
   data = NULL,
   family = "gaussian",
@@ -161,18 +117,29 @@ communityPGLMM.plot.re(
   removing those rows from `data` manually before calling `pglmm`. As a
   result, `pglmm(data_with_NAs)` and `pglmm(na.omit(data[, vars]))`
   (with `vars` the variables of the model) produce identical estimates.
-  With `random.effects`, only the rows with missing values in the
-  response are dropped.
+  With `random.effects`, the rows with missing values in the response or
+  the fixed effects are dropped, together with their values in
+  `random.effects`.
 
 - family:
 
   Either "gaussian" for a Linear Mixed Model, or "binomial", "poisson",
-  "nbinomial" or "Gamma" for Generalized Linear Mixed Models. "family"
-  should be specified as a character string (i.e., quoted). For binomial
+  "nbinomial", "Gamma", "betabinomial", "beta", "zeroinflated.poisson"
+  or "zeroinflated.nbinomial" for Generalized Linear Mixed Models.
+  "family" should be specified as a character string (i.e., quoted), or
+  as a family object (e.g. `binomial(link = "cloglog")`). For binomial
   and Poisson data, we use the canonical logit and log link functions,
-  respectively. Binomial data can be either presence/absence, or a
-  two-column array of 'successes' and 'failures'. For both binomial and
-  Poisson data, we add an observation-level random term by default via
+  respectively, by default; binomial models can also have the probit or
+  the complementary log-log link, with
+  `family = binomial(link = "probit")` or `binomial(link = "cloglog")`
+  (with `bayes = FALSE` and `method = "Laplace"`). The cloglog link is
+  the usual one for presence/absence data from plots of different sizes
+  or sampling efforts: with `offset(log(area))` in the formula, the
+  probability of presence is \\1 - \exp(-\lambda \\ area)\\, as for a
+  poisson number of individuals with the rate \\\lambda\\ per unit of
+  area. Binomial data can be either presence/absence, or a two-column
+  array of 'successes' and 'failures'. For both binomial and Poisson
+  data, we add an observation-level random term by default via
   `add.obs.re = TRUE`.
 
   "nbinomial" is the negative binomial distribution for overdispersed
@@ -204,6 +171,46 @@ communityPGLMM.plot.re(
   [`glm()`](https://rdrr.io/r/stats/glm.html) and
   [`MASS::gamma.shape()`](https://rdrr.io/pkg/MASS/man/gamma.shape.glm.html).
 
+  "betabinomial" is the beta-binomial distribution for overdispersed
+  binomial data (successes out of trials, given as
+  `cbind(successes, failures)` or as proportions with the numbers of
+  trials as `weights`), with the logit link: the probability of success
+  of each observation varies as a beta distribution with mean \\p\\ and
+  precision \\\phi\\, so that the variance of the number of successes
+  out of \\n\\ trials is \\n p (1 - p) (n + \phi) / (1 + \phi)\\ (as
+  `glmmTMB(family = betabinomial())`, whose
+  [`sigma()`](https://rdrr.io/r/stats/sigma.html) is \\\phi\\). \\\phi\\
+  is estimated with the other parameters (element `phi` of the fitted
+  model); \\\phi = \infty\\ is the binomial distribution. As \\\phi\\
+  accounts for overdispersion, no observation-level random term is
+  added; it is an alternative to the binomial distribution with `1|obs`.
+  Its overdispersion cannot be estimated with 0/1 data (one trial per
+  observation). Only with `bayes = FALSE` and `method = "Laplace"`.
+
+  "beta" is the beta distribution for proportions strictly between 0 and
+  1 (e.g. percent cover, relative abundance), with the logit link, mean
+  \\\mu\\ and precision \\\phi\\: \\y \sim Beta(\mu \phi, (1 - \mu)
+  \phi)\\ and \\Var(y) = \mu (1 - \mu) / (1 + \phi)\\ (as
+  `glmmTMB(family = beta_family())`, whose
+  [`sigma()`](https://rdrr.io/r/stats/sigma.html) is \\\phi\\). \\\phi\\
+  is estimated with the other parameters (element `phi` of the fitted
+  model). Responses of exactly 0 or 1 are not allowed: transform them
+  (e.g. \\(y (n - 1) + 0.5) / n\\, Smithson and Verkuilen 2006), or use
+  "betabinomial" for counts. Prior weights multiply the log density.
+  Only with `bayes = FALSE` and `method = "Laplace"`.
+
+  "zeroinflated.poisson" and "zeroinflated.nbinomial" are the poisson
+  and negative binomial distributions with zero inflation: \\y = 0\\
+  with the probability `zi`, and from the count distribution with mean
+  \\\mu\\ (log link) otherwise, so that the mean of \\y\\ is \\(1 - zi)
+  \mu\\. With `bayes = FALSE`, `zi` is the same for all observations (as
+  `glmmTMB(ziformula = ~1)`) and is estimated with the other parameters
+  (element `zi` of the fitted model, and `theta` for the negative
+  binomial), with the Laplace approximation;
+  [`fitted()`](https://rdrr.io/r/stats/fitted.values.html) and
+  `predict(type = "response")` give the mean of \\y\\, \\(1 - zi) \mu\\.
+  No observation-level random term is added.
+
   If `bayes = TRUE` there are three additional families available:
   "zeroinflated.binomial", "zeroinflated.poisson" and
   "zeroinflated.nbinomial", which add a zero inflation parameter; this
@@ -220,21 +227,10 @@ communityPGLMM.plot.re(
 
   The variable name of "site"; x-axis of the image.
 
-- tree:
+- tree, tree_site:
 
-  A phylogeny for column sp, with "phylo" class, or a covariance matrix
-  for sp. Make sure to have all species in the matrix; if the matrix is
-  not standardized, (i.e., det(tree) != 1), `pglmm` will try to
-  standardize it for you. No longer used: keep here for compatibility.
-
-- tree_site:
-
-  A second phylogeny for "site". This is required only if the site
-  column contains species instead of sites. This can be used for
-  bipartitie questions; tree_site can also be a covariance matrix. Make
-  sure to have all sites in the matrix; if the matrix is not
-  standardized (i.e., det(tree_site) != 1), pglmm\` will try to
-  standardize it for you. No longer used: keep here for compatibility.
+  Defunct (removed in phyr 1.9.0): give the phylogenies in `cov_ranef`,
+  e.g. `cov_ranef = list(sp = tree, site = tree_site)`.
 
 - repulsion:
 
@@ -286,6 +282,20 @@ communityPGLMM.plot.re(
   corresponding group variables in the data. Also, this should be *a
   list of lists*, e.g.
   `random.effects = list(re1 = list(matrix_a), re2 = list(1, sp = sp, covar = Vsp))`.
+  Each element is one random term: `list(x, g, covar)` (one value per
+  level of the factor `g`, with covariance matrix `covar`, times the
+  covariate `x`, 1 for intercepts), `list(x, g1, covar1, g2)` (one value
+  per combination of `g1` and `g2`, with covariance matrix
+  `kronecker(I, covar1)`), or `list(V)` (one value per row of the data,
+  with covariance matrix `V`). They are fitted with the sparse code (see
+  `sparse`), with the inverses of these matrices, which must be positive
+  definite; in `list(V)`, rows of `V` that are identical (e.g.
+  replicated observations of the same species at the same site) are
+  merged into one level, and if `V` is still singular, the dense code is
+  used (`sparse = NULL`, not with `method = "Laplace"`). Binomial and
+  poisson models with `random.effects` are fitted with the Laplace
+  approximation by default (PQL before phyr 1.9.0); no observation-level
+  term is added, as `random.effects` gives all the random terms.
 
 - add.tree.sp:
 

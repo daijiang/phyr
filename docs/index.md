@@ -1,5 +1,32 @@
 # phyr
 
+# What’s new in phyr 1.9.0
+
+- **One engine for all models.** Covariance matrices in `cov_ranef`,
+  lists in `random.effects` and Bayesian models (`bayes = TRUE`) are now
+  also fitted with the sparse code; a covariance matrix that comes from
+  a phylogeny is converted back to the phylogeny, so it is as fast.
+- **Prior weights** (`weights`), for all families, also with
+  `bayes = TRUE`.
+- **Better tests for binary data.**
+  [`pglmm_boot_LRT()`](https://daijiang.github.io/phyr/reference/pglmm_boot_LRT.md)
+  gives a parametric bootstrap test of nested models, which keeps its
+  nominal error rate where Wald and chi-square tests reject a true null
+  hypothesis too often (see the [simulation
+  study](https://daijiang.github.io/phyr/articles/benchmarks.html)).
+- **Other packages.** Estimated marginal means and contrasts (emmeans),
+  marginal effects (marginaleffects) and effect plots (effects) work
+  with [`pglmm()`](https://daijiang.github.io/phyr/reference/pglmm.md)
+  models.
+- **Fits at the boundary.** A message when a variance is estimated at
+  zero, and
+  [`pglmm_is_singular()`](https://daijiang.github.io/phyr/reference/pglmm_is_singular.md).
+
+Some names were removed or deprecated (e.g. the arguments `tree` and
+`tree_site`), and binomial and poisson models with `random.effects` are
+now fitted with the Laplace approximation: see the
+[NEWS](https://daijiang.github.io/phyr/news/index.html).
+
 # What’s new in phyr 1.5.0
 
 phyr 1.5.0 is a major update of
@@ -189,6 +216,7 @@ phy <- ape::keep.tip(phylotree, unique(dat$sp))
 test1 <- pglmm(freq ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site),
                data = dat, family = "gaussian", REML = FALSE,
                cov_ranef = list(sp = phy))
+## boundary (singular) fit: the variances of 1|sp__, 1|site, 1|sp__@site are (close to) zero; see ?pglmm_is_singular
 test1
 ## Linear mixed model fit by maximum likelihood
 ## 
@@ -225,6 +253,7 @@ confint(test1)
 test2 <- pglmm(pa ~ 1 + shade + (1|sp__) + (1|site) + (1|sp__@site),
                data = dat, family = "binomial", REML = FALSE,
                cov_ranef = list(sp = phy))
+## boundary (singular) fit: the variances of 1|sp, 1|site, 1|sp__@site are (close to) zero; see ?pglmm_is_singular
 test2
 ## Generalized linear mixed model for binomial data fit by Laplace approximation (maximum likelihood)
 ## 
@@ -250,6 +279,7 @@ test2
 test2a <- pglmm(pa ~ 1 + shade + (1|sp__) + (1|site),
                 data = dat, family = "binomial", REML = FALSE,
                 cov_ranef = list(sp = phy))
+## boundary (singular) fit: the variances of 1|sp, 1|site are (close to) zero; see ?pglmm_is_singular
 anova(test2a, test2)
 ## test2a: pa ~ 1 + shade + (1 | sp__) + (1 | site)
 ## test2: pa ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site)
@@ -264,6 +294,7 @@ z_bipartite <- pglmm(freq ~ 1 + shade + (1|sp__) + (1|site__) +
                        (1|sp__@site) + (1|sp@site__) + (1|sp__@site__),
                      data = dat, family = "gaussian", REML = TRUE,
                      cov_ranef = list(sp = phy, site = tree_site))
+## boundary (singular) fit: the variances of 1|sp, 1|site, 1|site__, 1|sp__@site, 1|sp@site__, 1|sp__@site__ are (close to) zero; see ?pglmm_is_singular
 z_bipartite
 ## Linear mixed model fit by restricted maximum likelihood
 ## 

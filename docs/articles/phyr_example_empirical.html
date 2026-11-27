@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">phyr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -152,7 +152,8 @@ This is the full model specification:</p>
 <span>                     <span class="op">(</span><span class="va">disturbance</span> <span class="op">|</span> <span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span>, </span>
 <span>                   data <span class="op">=</span> <span class="va">oldfield</span><span class="op">$</span><span class="va">data</span>, </span>
 <span>                   cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">oldfield</span><span class="op">$</span><span class="va">phy</span><span class="op">)</span>,</span>
-<span>                   family <span class="op">=</span> <span class="st">"binomial"</span><span class="op">)</span></span></code></pre></div>
+<span>                   family <span class="op">=</span> <span class="st">"binomial"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; boundary (singular) fit: the variances of 1|site, disturbance|sp__ are (close to) zero; see ?pglmm_is_singular</span></span></code></pre></div>
 <p>Here, we specified an overall phylogenetic effect using
 <code>sp__</code>, which also automatically includes a nonphylogenetic
 i.i.d. effect of species. <code>phyr</code> finds the linked
@@ -227,6 +228,7 @@ is a likelihood ratio test, comparing the model with one without the
 nested term with <code><a href="https://rdrr.io/r/stats/anova.html" class="external-link">anova()</a></code>:</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">mod0</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/update.html" class="external-link">update</a></span><span class="op">(</span><span class="va">mod</span>, <span class="va">.</span> <span class="op">~</span> <span class="va">.</span> <span class="op">-</span> <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; boundary (singular) fit: the variance of disturbance|sp__ is (close to) zero; see ?pglmm_is_singular</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/anova.html" class="external-link">anova</a></span><span class="op">(</span><span class="va">mod0</span>, <span class="va">mod</span><span class="op">)</span></span>
 <span><span class="co">#&gt; mod0: pres ~ disturbance + (1 | sp__) + (1 | site) + (disturbance | sp__)</span></span>
 <span><span class="co">#&gt; mod: pres ~ disturbance + (1 | sp__) + (1 | site) + (disturbance | sp__) + (1 | sp__@site)</span></span>
@@ -283,13 +285,15 @@ way, and each split modeled separately, does this result hold up?</p>
 <span>                               <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="va">disturbance</span> <span class="op">==</span> <span class="fl">1</span><span class="op">)</span>, </span>
 <span>                             cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">oldfield</span><span class="op">$</span><span class="va">phy</span><span class="op">)</span>,</span>
 <span>                             family <span class="op">=</span> <span class="st">"binomial"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; boundary (singular) fit: the variance of 1|sp__ is (close to) zero; see ?pglmm_is_singular</span></span>
 <span></span>
 <span><span class="va">mod_undisturbed</span> <span class="op">&lt;-</span> <span class="fu">phyr</span><span class="fu">::</span><span class="fu"><a href="../reference/pglmm.html">pglmm</a></span><span class="op">(</span><span class="va">pres</span> <span class="op">~</span> <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> </span>
 <span>                                 <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">site</span><span class="op">)</span>, </span>
 <span>                               data <span class="op">=</span> <span class="va">oldfield</span><span class="op">$</span><span class="va">data</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
 <span>                                 <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="va">disturbance</span> <span class="op">==</span> <span class="fl">0</span><span class="op">)</span>, </span>
 <span>                               cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">oldfield</span><span class="op">$</span><span class="va">phy</span><span class="op">)</span>,</span>
-<span>                               family <span class="op">=</span> <span class="st">"binomial"</span><span class="op">)</span></span></code></pre></div>
+<span>                               family <span class="op">=</span> <span class="st">"binomial"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; boundary (singular) fit: the variance of 1|site is (close to) zero; see ?pglmm_is_singular</span></span></code></pre></div>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Disturbed phylogenetic clustering test:\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Disturbed phylogenetic clustering test:</span></span>
@@ -345,21 +349,21 @@ posterior distribution of our random effect variance terms.</p>
 <span><span class="co">#&gt; Formula: pres ~ disturbance + (1 | sp__) + (1 | site) + (disturbance | sp__) + (1 | sp__@site)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; marginal logLik             DIC            WAIC </span></span>
-<span><span class="co">#&gt;          -616.1          1097.3          1084.2 </span></span>
+<span><span class="co">#&gt;          -616.1          1097.0          1084.2 </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Random effects:</span></span>
 <span><span class="co">#&gt;                  Variance Std.Dev  lower.CI upper.CI</span></span>
-<span><span class="co">#&gt; 1|sp             2.152317 1.46708 1.1430278   4.7803</span></span>
-<span><span class="co">#&gt; 1|sp__           0.079658 0.28224 0.0140156   1.4845</span></span>
-<span><span class="co">#&gt; 1|site           0.002171 0.04659 0.0003192   0.1783</span></span>
-<span><span class="co">#&gt; disturbance|sp   1.907420 1.38109 0.9038894   4.8669</span></span>
-<span><span class="co">#&gt; disturbance|sp__ 0.019253 0.13875 0.0028316   1.5628</span></span>
-<span><span class="co">#&gt; 1|sp__@site      0.107066 0.32721 0.0461963   0.2920</span></span>
+<span><span class="co">#&gt; 1|sp             2.164132 1.47110 1.1504587   4.8279</span></span>
+<span><span class="co">#&gt; 1|sp__           0.072436 0.26914 0.0124231   1.4695</span></span>
+<span><span class="co">#&gt; 1|site           0.003351 0.05789 0.0004993   0.1611</span></span>
+<span><span class="co">#&gt; disturbance|sp   1.925769 1.38772 0.9116768   4.9793</span></span>
+<span><span class="co">#&gt; disturbance|sp__ 0.012257 0.11071 0.0018037   1.6331</span></span>
+<span><span class="co">#&gt; 1|sp__@site      0.106887 0.32694 0.0461296   0.2909</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Fixed effects:</span></span>
 <span><span class="co">#&gt;                  Value   lower.CI upper.CI</span></span>
-<span><span class="co">#&gt; (Intercept) -3.3585693 -4.5767852  -2.3562</span></span>
-<span><span class="co">#&gt; disturbance  0.9929201 -0.0022495   2.0668</span></span></code></pre></div>
+<span><span class="co">#&gt; (Intercept) -3.3638181 -4.6044529  -2.3503</span></span>
+<span><span class="co">#&gt; disturbance  0.9981539 -0.0058385   2.0838</span></span></code></pre></div>
 <p>“pc.prior.auto” is a good choice to generate priors for binomial
 models. If you are interested in the details of this kind of prior
 (known as a penalizing complexity prior), check out this paper: <a href="https://arxiv.org/abs/1403.4630" class="external-link uri">https://arxiv.org/abs/1403.4630</a>.</p>
@@ -385,8 +389,8 @@ density). For the random effects these aren’t too meaningful, but they
 can help distinguish genuine effects in the fixed effects. If these
 credible intervals overlap zero in the fixed effects, the density will
 be plotted with a lighter color to suggest it is not a strong effect.
-Here, the credible interval of <code>disturbance</code> (0 to 2.07) is
-wider than its Wald interval from the maximum likelihood fit, and the
+Here, the credible interval of <code>disturbance</code> (-0.01 to 2.08)
+is wider than its Wald interval from the maximum likelihood fit, and the
 evidence for an effect of disturbance is weaker than that for the
 species effects.</p>
 </div>
@@ -455,8 +459,8 @@ able to calculate several flavors of R<sup>2</sup>, and supports
 <span><span class="op">(</span><span class="va">r2_bayes</span> <span class="op">&lt;-</span> <span class="fu">rr2</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/rr2/man/R2.html" class="external-link">R2</a></span><span class="op">(</span><span class="va">mod_bayes</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Models of class pglmm do not have a R2_resid method.</span></span>
 <span><span class="co">#&gt; Models of class pglmm with bayes = TRUE do not have a R2_lik method.</span></span>
-<span><span class="co">#&gt;   R2_pred </span></span>
-<span><span class="co">#&gt; 0.4572928</span></span></code></pre></div>
+<span><span class="co">#&gt;  R2_pred </span></span>
+<span><span class="co">#&gt; 0.456952</span></span></code></pre></div>
 <p>There we go! R<sup>2</sup><sub>pred</sub> = 0.47 for <code>mod</code>
 and 0.46 for <code>mod_bayes</code>! We can think of this as saying
 roughly 47% (or 46%) of our response’s variance has been explained by
@@ -506,13 +510,13 @@ those of <code>mod</code>.</p>
 <span><span class="va">roc_mod_bayes</span> <span class="op">&lt;-</span> <span class="fu">pROC</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/pROC/man/roc.html" class="external-link">roc</a></span><span class="op">(</span><span class="va">obs_mod_bayes</span>, <span class="va">pred_mod_bayes</span>, percent <span class="op">=</span> <span class="cn">T</span>,</span>
 <span>                           direction <span class="op">=</span> <span class="st">"&lt;"</span>, levels <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>,<span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">(</span><span class="va">AUC_bayes</span> <span class="op">=</span> <span class="fu">pROC</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/pROC/man/auc.html" class="external-link">auc</a></span><span class="op">(</span><span class="va">roc_mod_bayes</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Area under the curve: 93.17%</span></span>
+<span><span class="co">#&gt; Area under the curve: 93.16%</span></span>
 <span><span class="op">(</span><span class="va">roc_mod_bayes2</span> <span class="op">&lt;-</span> <span class="fu">pROC</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/pROC/man/coords.html" class="external-link">coords</a></span><span class="op">(</span><span class="va">roc_mod_bayes</span>, <span class="st">"best"</span>, ret <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"sens"</span>, <span class="st">"spec"</span><span class="op">)</span>,</span>
 <span>                           transpose <span class="op">=</span> <span class="cn">F</span><span class="op">)</span> <span class="op">/</span> <span class="fl">100</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   sensitivity specificity</span></span>
-<span><span class="co">#&gt; 1   0.8877193   0.8261159</span></span>
+<span><span class="co">#&gt; 1   0.8491228   0.8647568</span></span>
 <span><span class="op">(</span><span class="va">TSS_bayes</span> <span class="op">=</span> <span class="va">roc_mod_bayes2</span><span class="op">[</span><span class="fl">1</span>, <span class="st">"sensitivity"</span><span class="op">]</span> <span class="op">+</span> <span class="va">roc_mod_bayes2</span><span class="op">[</span><span class="fl">1</span>, <span class="st">"specificity"</span><span class="op">]</span> <span class="op">-</span> <span class="fl">1</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 0.7138352</span></span>
+<span><span class="co">#&gt; [1] 0.7138796</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu">ROCR</span><span class="fu">::</span><span class="fu"><a href="https://ipa-tys.github.io/ROCR/reference/performance.html" class="external-link">performance</a></span><span class="op">(</span><span class="fu">ROCR</span><span class="fu">::</span><span class="fu"><a href="https://ipa-tys.github.io/ROCR/reference/prediction.html" class="external-link">prediction</a></span><span class="op">(</span><span class="va">pred_mod_bayes</span>, <span class="va">obs_mod_bayes</span><span class="op">)</span>, measure <span class="op">=</span> <span class="st">"tpr"</span>, </span>
 <span>                        x.measure <span class="op">=</span> <span class="st">"fpr"</span><span class="op">)</span>, main <span class="op">=</span> <span class="st">"ROC Curve"</span><span class="op">)</span> <span class="co"># ROC curve</span></span></code></pre></div>
 <p><img src="phyr_example_empirical_files/figure-html/perfBayes-1.png" class="r-plt" alt="" width="672"></p>
@@ -544,8 +548,8 @@ models.</p>
 <p><img src="phyr_example_empirical_files/figure-html/perfBayesNoPhy-1.png" class="r-plt" alt="" width="672"></p>
 <p>Including species’ phylogenetic relationships in the model indeed
 improved the model performance. After dropping the phylogenetic random
-terms from the model, <code>AUC</code> decreased from 0.9317 to 0.9023
-and <code>TSS</code> decreased from 0.7138 to 0.659.</p>
+terms from the model, <code>AUC</code> decreased from 0.9316 to 0.9023
+and <code>TSS</code> decreased from 0.7139 to 0.659.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

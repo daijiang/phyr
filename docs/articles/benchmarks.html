@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">phyr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -67,7 +67,7 @@
                         <h4 data-toc-skip class="author">Daijiang
 Li</h4>
             
-            <h4 data-toc-skip class="date">2026-11-25</h4>
+            <h4 data-toc-skip class="date">2026-11-26</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/daijiang/phyr/blob/HEAD/vignettes/benchmarks.Rmd" class="external-link"><code>vignettes/benchmarks.Rmd</code></a></small>
       <div class="d-none name"><code>benchmarks.Rmd</code></div>
@@ -151,10 +151,12 @@ Li</h4>
 </h2>
 <p>The benchmarks below were run on a MacBook Pro (Apple M1 Pro, 32 GB
 of memory) with R 4.6.0 and Apple’s Accelerate BLAS library, with phyr
-1.4.0, lme4 2.0.1, glmmTMB 1.1.15.2 and Matrix 1.7.5. Each model was
-fitted once, in a new R session; times are elapsed seconds, and memory
-is the peak memory of the R session (which uses about 0.3 GB with the
-packages loaded).</p>
+1.4.0, lme4 2.0.1, glmmTMB 1.1.15.2 and Matrix 1.7.5; the times and
+memory of phyr were measured again with phyr 1.9.0 (they changed by less
+than about 15%, which is within the variation between runs). Each model
+was fitted once, in a new R session; times are elapsed seconds, and
+memory is the peak memory of the R session (which uses about 0.3 GB with
+the packages loaded).</p>
 <div class="section level3">
 <h3 id="simulated-data">Simulated data<a class="anchor" aria-label="anchor" href="#simulated-data"></a>
 </h3>
@@ -223,7 +225,7 @@ by maximum likelihood with <code><a href="../reference/pglmm.html">pglmm()</a></
 <td align="right">1000</td>
 <td align="right">16,000</td>
 <td>binomial</td>
-<td align="right">0.54</td>
+<td align="right">0.55</td>
 <td align="right">1.68</td>
 <td align="right">1.79</td>
 </tr>
@@ -231,7 +233,7 @@ by maximum likelihood with <code><a href="../reference/pglmm.html">pglmm()</a></
 <td align="right">1000</td>
 <td align="right">16,000</td>
 <td>poisson</td>
-<td align="right">0.42</td>
+<td align="right">0.49</td>
 <td align="right">1.60</td>
 <td align="right">1.63</td>
 </tr>
@@ -247,7 +249,7 @@ by maximum likelihood with <code><a href="../reference/pglmm.html">pglmm()</a></
 <td align="right">2000</td>
 <td align="right">32,000</td>
 <td>binomial</td>
-<td align="right">0.92</td>
+<td align="right">0.88</td>
 <td align="right">3.33</td>
 <td align="right">2.58</td>
 </tr>
@@ -255,7 +257,7 @@ by maximum likelihood with <code><a href="../reference/pglmm.html">pglmm()</a></
 <td align="right">2000</td>
 <td align="right">32,000</td>
 <td>poisson</td>
-<td align="right">0.84</td>
+<td align="right">0.91</td>
 <td align="right">2.77</td>
 <td align="right">2.22</td>
 </tr>
@@ -271,7 +273,7 @@ by maximum likelihood with <code><a href="../reference/pglmm.html">pglmm()</a></
 <td align="right">5000</td>
 <td align="right">80,000</td>
 <td>binomial</td>
-<td align="right">2.03</td>
+<td align="right">2.36</td>
 <td align="right">8.44</td>
 <td align="right">5.04</td>
 </tr>
@@ -279,7 +281,7 @@ by maximum likelihood with <code><a href="../reference/pglmm.html">pglmm()</a></
 <td align="right">5000</td>
 <td align="right">80,000</td>
 <td>poisson</td>
-<td align="right">2.36</td>
+<td align="right">2.34</td>
 <td align="right">9.43</td>
 <td align="right">5.04</td>
 </tr>
@@ -332,43 +334,43 @@ phylogenetic covariance matrix); lme4 cannot fit phylogenetic terms:</p>
 <td align="right">300</td>
 <td align="right">4,800</td>
 <td>gaussian</td>
-<td align="right">0.11</td>
+<td align="right">0.12</td>
 <td align="right">1.87</td>
-<td align="right">0.3</td>
+<td align="right">0.4</td>
 <td align="right">0.6</td>
 </tr>
 <tr class="even">
 <td align="right">300</td>
 <td align="right">4,800</td>
 <td>binomial</td>
-<td align="right">0.30</td>
+<td align="right">0.35</td>
 <td align="right">2.06</td>
-<td align="right">0.3</td>
+<td align="right">0.4</td>
 <td align="right">0.5</td>
 </tr>
 <tr class="odd">
 <td align="right">300</td>
 <td align="right">4,800</td>
 <td>poisson</td>
-<td align="right">0.37</td>
+<td align="right">0.39</td>
 <td align="right">1.77</td>
-<td align="right">0.3</td>
+<td align="right">0.4</td>
 <td align="right">0.6</td>
 </tr>
 <tr class="even">
 <td align="right">1000</td>
 <td align="right">16,000</td>
 <td>gaussian</td>
-<td align="right">0.33</td>
+<td align="right">0.36</td>
 <td align="right">12.2</td>
-<td align="right">0.3</td>
+<td align="right">0.4</td>
 <td align="right">2.1</td>
 </tr>
 <tr class="odd">
 <td align="right">1000</td>
 <td align="right">16,000</td>
 <td>binomial</td>
-<td align="right">1.44</td>
+<td align="right">1.43</td>
 <td align="right">11.3</td>
 <td align="right">0.4</td>
 <td align="right">2.1</td>
@@ -377,7 +379,7 @@ phylogenetic covariance matrix); lme4 cannot fit phylogenetic terms:</p>
 <td align="right">1000</td>
 <td align="right">16,000</td>
 <td>poisson</td>
-<td align="right">1.26</td>
+<td align="right">1.27</td>
 <td align="right">12.0</td>
 <td align="right">0.4</td>
 <td align="right">2.1</td>
@@ -386,16 +388,16 @@ phylogenetic covariance matrix); lme4 cannot fit phylogenetic terms:</p>
 <td align="right">2000</td>
 <td align="right">32,000</td>
 <td>gaussian</td>
-<td align="right">0.54</td>
+<td align="right">0.56</td>
 <td align="right">73.8</td>
-<td align="right">0.4</td>
+<td align="right">0.5</td>
 <td align="right">7.4</td>
 </tr>
 <tr class="even">
 <td align="right">2000</td>
 <td align="right">32,000</td>
 <td>binomial</td>
-<td align="right">2.93</td>
+<td align="right">3.12</td>
 <td align="right">66.2</td>
 <td align="right">0.5</td>
 <td align="right">7.1</td>
@@ -404,7 +406,7 @@ phylogenetic covariance matrix); lme4 cannot fit phylogenetic terms:</p>
 <td align="right">2000</td>
 <td align="right">32,000</td>
 <td>poisson</td>
-<td align="right">2.93</td>
+<td align="right">3.02</td>
 <td align="right">63.0</td>
 <td align="right">0.5</td>
 <td align="right">7.2</td>
@@ -413,7 +415,7 @@ phylogenetic covariance matrix); lme4 cannot fit phylogenetic terms:</p>
 <td align="right">5000</td>
 <td align="right">80,000</td>
 <td>gaussian</td>
-<td align="right">1.52</td>
+<td align="right">1.51</td>
 <td align="right">703</td>
 <td align="right">0.7</td>
 <td align="right">13.0</td>
@@ -422,18 +424,18 @@ phylogenetic covariance matrix); lme4 cannot fit phylogenetic terms:</p>
 <td align="right">5000</td>
 <td align="right">80,000</td>
 <td>binomial</td>
-<td align="right">7.13</td>
+<td align="right">7.25</td>
 <td align="right">671</td>
-<td align="right">0.8</td>
+<td align="right">0.9</td>
 <td align="right">12.5</td>
 </tr>
 <tr class="even">
 <td align="right">5000</td>
 <td align="right">80,000</td>
 <td>poisson</td>
-<td align="right">7.07</td>
+<td align="right">7.80</td>
 <td align="right">708</td>
-<td align="right">0.8</td>
+<td align="right">0.9</td>
 <td align="right">11.7</td>
 </tr>
 </tbody>
@@ -442,9 +444,9 @@ phylogenetic covariance matrix); lme4 cannot fit phylogenetic terms:</p>
 matrix of the species, so its time and memory grow much faster than the
 number of species, while phyr uses the sparse precision matrix of the
 phylogeny (<code>sparse = TRUE</code>, the default): with 5000 species,
-phyr is 100 to 460 times faster, with a sixth or less of the memory. The
-estimates are the same: log-likelihoods within 4e-7, slopes within 3e-6,
-and standard errors within 5e-5 (relative).</p>
+phyr is 90 to 470 times faster, with less than a tenth of the memory.
+The estimates are the same: log-likelihoods within 4e-7, slopes within
+3e-6, and standard errors within 5e-5 (relative).</p>
 </div>
 <div class="section level3">
 <h3 id="large-phylogenies">Large phylogenies<a class="anchor" aria-label="anchor" href="#large-phylogenies"></a>
@@ -470,41 +472,41 @@ binomial and poisson models, and the sparse code):</p>
 <tr class="odd">
 <td align="right">1000</td>
 <td align="right">16,000</td>
-<td align="right">5.9</td>
-<td align="right">7.7</td>
-<td align="right">10.4</td>
+<td align="right">5.7</td>
+<td align="right">8.7</td>
+<td align="right">11.5</td>
 <td align="right">0.6</td>
 </tr>
 <tr class="even">
 <td align="right">2000</td>
 <td align="right">32,000</td>
-<td align="right">5.9</td>
-<td align="right">15.7</td>
-<td align="right">25.6</td>
-<td align="right">0.9</td>
+<td align="right">5.8</td>
+<td align="right">16.3</td>
+<td align="right">27.4</td>
+<td align="right">0.8 to 1.0</td>
 </tr>
 <tr class="odd">
 <td align="right">5000</td>
 <td align="right">80,000</td>
-<td align="right">14.8</td>
-<td align="right">49.1</td>
-<td align="right">62.7</td>
-<td align="right">1.5 to 1.9</td>
+<td align="right">14.6</td>
+<td align="right">50.8</td>
+<td align="right">64.7</td>
+<td align="right">1.5 to 1.8</td>
 </tr>
 <tr class="even">
 <td align="right">10000</td>
 <td align="right">160,000</td>
-<td align="right">31.8</td>
-<td align="right">75.7</td>
-<td align="right">145.9</td>
-<td align="right">2.7 to 3.8</td>
+<td align="right">31.2</td>
+<td align="right">76.8</td>
+<td align="right">149.4</td>
+<td align="right">2.4 to 3.4</td>
 </tr>
 </tbody>
 </table>
 <p>Time (seconds) and memory: time and memory grow about linearly with
 the number of species. The nested term <code>(1 | sp__@site)</code> (the
 phylogeny of the species within each site) is the most costly: without
-it, the models with 5000 species of the previous section took 1.5 to 7
+it, the models with 5000 species of the previous section took 1.5 to 8
 seconds (fitted by maximum likelihood).</p>
 </div>
 <div class="section level3">
@@ -541,10 +543,10 @@ quasi-likelihood for binomial models):</p>
 <td align="right">800</td>
 <td align="right">16.6</td>
 <td align="right">0.36</td>
-<td align="right">0.13</td>
+<td align="right">0.14</td>
 <td align="right">30.2</td>
-<td align="right">0.17</td>
-<td align="right">0.20</td>
+<td align="right">0.18</td>
+<td align="right">0.23</td>
 </tr>
 <tr class="even">
 <td align="right">100</td>
@@ -553,7 +555,7 @@ quasi-likelihood for binomial models):</p>
 <td align="right">2.2</td>
 <td align="right">0.44</td>
 <td align="right">313</td>
-<td align="right">0.39</td>
+<td align="right">0.42</td>
 <td align="right">0.45</td>
 </tr>
 <tr class="odd">
@@ -561,30 +563,30 @@ quasi-likelihood for binomial models):</p>
 <td align="right">3,200</td>
 <td align="right">&gt; 900</td>
 <td align="right">16.3</td>
-<td align="right">0.68</td>
+<td align="right">0.70</td>
 <td align="right">&gt; 900</td>
 <td align="right">1.2</td>
-<td align="right">1.4</td>
+<td align="right">1.5</td>
 </tr>
 <tr class="even">
 <td align="right">400</td>
 <td align="right">6,400</td>
 <td align="right"></td>
 <td align="right">100</td>
-<td align="right">1.9</td>
+<td align="right">1.8</td>
 <td align="right"></td>
-<td align="right">3.0</td>
-<td align="right">3.9</td>
+<td align="right">2.7</td>
+<td align="right">4.0</td>
 </tr>
 <tr class="odd">
 <td align="right">1000</td>
 <td align="right">16,000</td>
 <td align="right"></td>
 <td align="right">742</td>
-<td align="right">5.9</td>
+<td align="right">5.7</td>
 <td align="right"></td>
-<td align="right">5.1</td>
-<td align="right">7.7</td>
+<td align="right">4.8</td>
+<td align="right">8.7</td>
 </tr>
 </tbody>
 </table>
@@ -600,12 +602,292 @@ sparse code (the default) for large models.</p>
 </div>
 </div>
 <div class="section level2">
+<h2 id="why-phylogenetic-random-terms-matter-a-simulation-study">Why phylogenetic random terms matter: a simulation study<a class="anchor" aria-label="anchor" href="#why-phylogenetic-random-terms-matter-a-simulation-study"></a>
+</h2>
+<p>When related species respond alike, the species are not independent
+replicates. These simulations compare <code><a href="../reference/pglmm.html">pglmm()</a></code> with the
+phylogenetic term (PGLMM), the same model without the phylogeny (GLMM,
+<code>(1 | sp)</code> instead of <code>(1 | sp__)</code>) and a GLM
+without random terms, on data simulated with phylogenetic signal.</p>
+<p>Design: 100 species (a coalescent tree of height one) at 15 sites
+(1500 observations), gaussian, binary and poisson responses, and two
+questions:</p>
+<ul>
+<li>
+<strong>Trait</strong>: the effect of a species trait
+<code>x</code>, simulated by Brownian motion (so it has phylogenetic
+signal), with species effects that have a phylogenetic part (variance 1)
+and an independent part (variance 0.25), and site effects (variance
+0.25).</li>
+<li>
+<strong>Trait x environment</strong>: the interaction of the trait
+with an environmental variable <code>e</code> of the sites, with, in
+addition, phylogenetic species slopes on <code>e</code> (variance
+0.5).</li>
+</ul>
+<p>Each case was simulated 500 times with a true slope of zero (type I
+error, coverage of the 95% confidence intervals) and 500 times with a
+slope of 0.3 (power), and fitted with the defaults of
+<code><a href="../reference/pglmm.html">pglmm()</a></code> (REML, Laplace approximation, Wald tests):</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">sim_one</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">seed</span>, <span class="va">family</span>, <span class="va">scenario</span>, <span class="va">beta</span>, <span class="va">nsp</span> <span class="op">=</span> <span class="fl">100</span>, <span class="va">nsite</span> <span class="op">=</span> <span class="fl">15</span>, <span class="va">phylo</span> <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="va">seed</span><span class="op">)</span></span>
+<span>  <span class="va">phy</span> <span class="op">&lt;-</span> <span class="fu">ape</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/ape/man/rtree.html" class="external-link">rcoal</a></span><span class="op">(</span><span class="va">nsp</span>, tip.label <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"sp"</span>, <span class="fl">1</span><span class="op">:</span><span class="va">nsp</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="va">phy</span><span class="op">$</span><span class="va">edge.length</span> <span class="op">&lt;-</span> <span class="va">phy</span><span class="op">$</span><span class="va">edge.length</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu">ape</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/ape/man/node.depth.html" class="external-link">node.depth.edgelength</a></span><span class="op">(</span><span class="va">phy</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="va">L</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/chol.html" class="external-link">chol</a></span><span class="op">(</span><span class="fu">ape</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/ape/man/vcv.phylo.html" class="external-link">vcv</a></span><span class="op">(</span><span class="va">phy</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="va">trait</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="va">L</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">nsp</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="va">trait</span> <span class="op">&lt;-</span> <span class="op">(</span><span class="va">trait</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">trait</span><span class="op">)</span><span class="op">)</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/stats/sd.html" class="external-link">sd</a></span><span class="op">(</span><span class="va">trait</span><span class="op">)</span></span>
+<span>  <span class="va">env</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">nsite</span><span class="op">)</span></span>
+<span>  <span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/expand.grid.html" class="external-link">expand.grid</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">$</span><span class="va">tip.label</span>, site <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"s"</span>, <span class="fl">1</span><span class="op">:</span><span class="va">nsite</span><span class="op">)</span>, stringsAsFactors <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span>  <span class="va">i</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/match.html" class="external-link">match</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">sp</span>, <span class="va">phy</span><span class="op">$</span><span class="va">tip.label</span><span class="op">)</span></span>
+<span>  <span class="va">k</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/match.html" class="external-link">match</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">site</span>, <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"s"</span>, <span class="fl">1</span><span class="op">:</span><span class="va">nsite</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="va">d</span><span class="op">$</span><span class="va">x</span> <span class="op">&lt;-</span> <span class="va">trait</span><span class="op">[</span><span class="va">i</span><span class="op">]</span></span>
+<span>  <span class="va">d</span><span class="op">$</span><span class="va">e</span> <span class="op">&lt;-</span> <span class="va">env</span><span class="op">[</span><span class="va">k</span><span class="op">]</span></span>
+<span>  <span class="va">Lu</span> <span class="op">&lt;-</span> <span class="kw">if</span> <span class="op">(</span><span class="va">phylo</span><span class="op">)</span> <span class="va">L</span> <span class="kw">else</span> <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="va">nsp</span><span class="op">)</span> <span class="co"># without signal: independent species effects</span></span>
+<span>  <span class="va">u</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="va">Lu</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">nsp</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">nsp</span>, sd <span class="op">=</span> <span class="fl">0.5</span><span class="op">)</span></span>
+<span>  <span class="va">v</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">nsite</span>, sd <span class="op">=</span> <span class="fl">0.5</span><span class="op">)</span></span>
+<span>  <span class="kw">if</span> <span class="op">(</span><span class="va">scenario</span> <span class="op">==</span> <span class="st">"trait"</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="va">eta</span> <span class="op">&lt;-</span> <span class="va">beta</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">x</span> <span class="op">+</span> <span class="va">u</span><span class="op">[</span><span class="va">i</span><span class="op">]</span> <span class="op">+</span> <span class="va">v</span><span class="op">[</span><span class="va">k</span><span class="op">]</span></span>
+<span>    <span class="va">f</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>PGLMM <span class="op">=</span> <span class="va">y</span> <span class="op">~</span> <span class="va">x</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">site</span><span class="op">)</span>, GLMM <span class="op">=</span> <span class="va">y</span> <span class="op">~</span> <span class="va">x</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">sp</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">site</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="op">}</span> <span class="kw">else</span> <span class="op">{</span></span>
+<span>    <span class="va">w</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="fl">0.5</span><span class="op">)</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="va">Lu</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">nsp</span><span class="op">)</span><span class="op">)</span></span>
+<span>    <span class="va">eta</span> <span class="op">&lt;-</span> <span class="fl">0.3</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">e</span> <span class="op">+</span> <span class="va">beta</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">x</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">e</span> <span class="op">+</span> <span class="va">u</span><span class="op">[</span><span class="va">i</span><span class="op">]</span> <span class="op">+</span> <span class="va">v</span><span class="op">[</span><span class="va">k</span><span class="op">]</span> <span class="op">+</span> <span class="va">w</span><span class="op">[</span><span class="va">i</span><span class="op">]</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">e</span></span>
+<span>    <span class="va">f</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>PGLMM <span class="op">=</span> <span class="va">y</span> <span class="op">~</span> <span class="va">x</span> <span class="op">*</span> <span class="va">e</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="va">e</span> <span class="op">|</span> <span class="va">sp__</span><span class="op">)</span>,</span>
+<span>              GLMM <span class="op">=</span> <span class="va">y</span> <span class="op">~</span> <span class="va">x</span> <span class="op">*</span> <span class="va">e</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">sp</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="va">e</span> <span class="op">|</span> <span class="va">sp</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="op">}</span></span>
+<span>  <span class="va">d</span><span class="op">$</span><span class="va">y</span> <span class="op">&lt;-</span> <span class="kw"><a href="https://rdrr.io/r/base/switch.html" class="external-link">switch</a></span><span class="op">(</span><span class="va">family</span>, gaussian <span class="op">=</span> <span class="va">eta</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>                binomial <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span>, <span class="fl">1</span>, <span class="fu"><a href="https://rdrr.io/r/stats/Logistic.html" class="external-link">plogis</a></span><span class="op">(</span><span class="va">eta</span><span class="op">)</span><span class="op">)</span>, poisson <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Poisson.html" class="external-link">rpois</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="va">eta</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">f</span>, <span class="kw">function</span><span class="op">(</span><span class="va">fo</span><span class="op">)</span> <span class="fu"><a href="../reference/pglmm.html">pglmm</a></span><span class="op">(</span><span class="va">fo</span>, data <span class="op">=</span> <span class="va">d</span>, family <span class="op">=</span> <span class="va">family</span>, cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">}</span></span></code></pre></div>
+<p>With phylogenetic signal (true slope zero, except the last
+column):</p>
+<table style="width:100%;" class="table">
+<colgroup>
+<col width="7%">
+<col width="7%">
+<col width="9%">
+<col width="9%">
+<col width="9%">
+<col width="9%">
+<col width="9%">
+<col width="9%">
+<col width="9%">
+<col width="9%">
+<col width="9%">
+</colgroup>
+<thead><tr class="header">
+<th>Scenario</th>
+<th>Family</th>
+<th align="right">Type I error: PGLMM</th>
+<th align="right">GLMM</th>
+<th align="right">GLM</th>
+<th align="right">95% CI coverage: PGLMM</th>
+<th align="right">GLMM</th>
+<th align="right">GLM</th>
+<th align="right">RMSE: PGLMM</th>
+<th align="right">GLMM</th>
+<th align="right">Power (slope 0.3): PGLMM</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>Trait</td>
+<td>gaussian</td>
+<td align="right">6.4%</td>
+<td align="right">61.4%</td>
+<td align="right">81.8%</td>
+<td align="right">93.6%</td>
+<td align="right">38.6%</td>
+<td align="right">18.2%</td>
+<td align="right">0.18</td>
+<td align="right">0.37</td>
+<td align="right">52.4%</td>
+</tr>
+<tr class="even">
+<td>Trait</td>
+<td>binomial</td>
+<td align="right">8.6%</td>
+<td align="right">58.2%</td>
+<td align="right">70.8%</td>
+<td align="right">91.4%</td>
+<td align="right">41.8%</td>
+<td align="right">29.2%</td>
+<td align="right">0.22</td>
+<td align="right">0.37</td>
+<td align="right">38.8%</td>
+</tr>
+<tr class="odd">
+<td>Trait</td>
+<td>poisson</td>
+<td align="right">7.2%</td>
+<td align="right">61.4%</td>
+<td align="right">87.8%</td>
+<td align="right">92.8%</td>
+<td align="right">38.6%</td>
+<td align="right">12.2%</td>
+<td align="right">0.18</td>
+<td align="right">0.37</td>
+<td align="right">49.6%</td>
+</tr>
+<tr class="even">
+<td>Trait x environment</td>
+<td>gaussian</td>
+<td align="right">7.4%</td>
+<td align="right">66.0%</td>
+<td align="right">72.2%</td>
+<td align="right">92.6%</td>
+<td align="right">34.0%</td>
+<td align="right">27.8%</td>
+<td align="right">0.11</td>
+<td align="right">0.27</td>
+<td align="right">82.0%</td>
+</tr>
+<tr class="odd">
+<td>Trait x environment</td>
+<td>binomial</td>
+<td align="right">9.8%</td>
+<td align="right">49.8%</td>
+<td align="right">54.8%</td>
+<td align="right">90.2%</td>
+<td align="right">50.2%</td>
+<td align="right">45.2%</td>
+<td align="right">0.17</td>
+<td align="right">0.27</td>
+<td align="right">55.4%</td>
+</tr>
+<tr class="even">
+<td>Trait x environment</td>
+<td>poisson</td>
+<td align="right">6.8%</td>
+<td align="right">67.4%</td>
+<td align="right">81.2%</td>
+<td align="right">93.2%</td>
+<td align="right">32.6%</td>
+<td align="right">18.8%</td>
+<td align="right">0.11</td>
+<td align="right">0.27</td>
+<td align="right">85.2%</td>
+</tr>
+</tbody>
+</table>
+<p>Without the phylogenetic term, the standard errors were only 19% to
+30% of the standard deviations of the estimates across data sets (6% to
+27% for the GLM), as the model treats the 100 related species as
+independent; with it, 87% to 95%. Thus, without the phylogeny, a true
+null hypothesis was rejected in half or more of the data sets. With it,
+the estimates were also about twice as accurate (root mean squared
+error). (The GLMM rejects more often when the slope is 0.3 too, but this
+is no gain in power, as it also does when the slope is zero.)</p>
+<p>Without phylogenetic signal (the same design, with independent
+species effects of the same variances, and a true slope of zero), the
+phylogenetic term costs little: the type I errors of PGLMM and GLMM were
+both close to or below 5%, and the RMSE of PGLMM was 8% to 21% larger
+(the phylogenetic variance, estimated above zero by chance, competes
+with the trait, which still has phylogenetic signal):</p>
+<table class="table">
+<colgroup>
+<col width="11%">
+<col width="11%">
+<col width="15%">
+<col width="15%">
+<col width="15%">
+<col width="15%">
+<col width="15%">
+</colgroup>
+<thead><tr class="header">
+<th>Scenario</th>
+<th>Family</th>
+<th align="right">Type I error: PGLMM</th>
+<th align="right">GLMM</th>
+<th align="right">GLM</th>
+<th align="right">RMSE: PGLMM</th>
+<th align="right">GLMM</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>Trait</td>
+<td>gaussian</td>
+<td align="right">3.0%</td>
+<td align="right">3.6%</td>
+<td align="right">48.0%</td>
+<td align="right">0.126</td>
+<td align="right">0.108</td>
+</tr>
+<tr class="even">
+<td>Trait</td>
+<td>binomial</td>
+<td align="right">3.0%</td>
+<td align="right">3.4%</td>
+<td align="right">29.0%</td>
+<td align="right">0.135</td>
+<td align="right">0.116</td>
+</tr>
+<tr class="odd">
+<td>Trait</td>
+<td>poisson</td>
+<td align="right">2.8%</td>
+<td align="right">3.4%</td>
+<td align="right">79.2%</td>
+<td align="right">0.118</td>
+<td align="right">0.107</td>
+</tr>
+<tr class="even">
+<td>Trait x environment</td>
+<td>gaussian</td>
+<td align="right">6.4%</td>
+<td align="right">7.2%</td>
+<td align="right">23.4%</td>
+<td align="right">0.087</td>
+<td align="right">0.081</td>
+</tr>
+<tr class="odd">
+<td>Trait x environment</td>
+<td>binomial</td>
+<td align="right">3.6%</td>
+<td align="right">4.0%</td>
+<td align="right">11.4%</td>
+<td align="right">0.108</td>
+<td align="right">0.089</td>
+</tr>
+<tr class="even">
+<td>Trait x environment</td>
+<td>poisson</td>
+<td align="right">5.0%</td>
+<td align="right">5.4%</td>
+<td align="right">79.2%</td>
+<td align="right">0.085</td>
+<td align="right">0.077</td>
+</tr>
+</tbody>
+</table>
+<div class="section level3">
+<h3 id="tests-for-binary-data">Tests for binary data<a class="anchor" aria-label="anchor" href="#tests-for-binary-data"></a>
+</h3>
+<p>With binary data and phylogenetic signal, the Wald test of PGLMM
+rejected a true null hypothesis somewhat too often (8.6% and 9.8%
+above). Tests from maximum likelihood fits did worse, as maximum
+likelihood underestimates the phylogenetic variances when there are
+effectively few independent species: in the same 500 data sets of each
+scenario, the Wald test of the ML fits rejected it in 14.2% (trait) and
+16.2% (trait x environment) of the data sets, and the likelihood ratio
+test of <code><a href="https://rdrr.io/r/stats/anova.html" class="external-link">anova()</a></code> (from ML fits) in 10.6% and 11.2%. The
+parametric bootstrap test of <code><a href="../reference/pglmm_boot_LRT.html">pglmm_boot_LRT()</a></code> does not rely
+on the chi-square approximation; with 199 simulations per test, in 100
+data sets of the trait scenario, it rejected the true null hypothesis in
+4% of them (the Wald and chi-square tests in 8% and 9% of the same data
+sets):</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">m</span> <span class="op">&lt;-</span> <span class="fu">sim_one</span><span class="op">(</span><span class="fl">1</span>, <span class="st">"binomial"</span>, <span class="st">"trait"</span>, beta <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
+<span><span class="va">m0</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/update.html" class="external-link">update</a></span><span class="op">(</span><span class="va">m</span><span class="op">$</span><span class="va">PGLMM</span>, <span class="va">.</span> <span class="op">~</span> <span class="va">.</span> <span class="op">-</span> <span class="va">x</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/pglmm_boot_LRT.html">pglmm_boot_LRT</a></span><span class="op">(</span><span class="va">m</span><span class="op">$</span><span class="va">PGLMM</span>, <span class="va">m0</span>, nsim <span class="op">=</span> <span class="fl">199</span>, ncores <span class="op">=</span> <span class="fl">8</span><span class="op">)</span></span></code></pre></div>
+</div>
+</div>
+<div class="section level2">
 <h2 id="benchmark-for-phylo_signal">Benchmark for <code>phylo_signal()</code><a class="anchor" aria-label="anchor" href="#benchmark-for-phylo_signal"></a>
 </h2>
 <p><code><a href="../reference/phylo_signal.html">phylo_signal()</a></code> estimates Pagel’s lambda or Blomberg’s K
 of a trait, optionally with known standard errors of the species means.
 It is compared here with <code><a href="https://rdrr.io/pkg/phytools/man/phylosig.html" class="external-link">phytools::phylosig()</a></code>,
-<code>geiger::fitContinuous()</code>,
+<code><a href="https://rdrr.io/pkg/geiger/man/fitContinuous.html" class="external-link">geiger::fitContinuous()</a></code>,
 <code><a href="https://rdrr.io/pkg/phylosignal/man/phylosignalStats.html" class="external-link">phylosignal::phyloSignal()</a></code>,
 <code><a href="https://rdrr.io/pkg/picante/man/phylosignal.html" class="external-link">picante::phylosignal()</a></code>, <code><a href="https://rdrr.io/pkg/phylolm/man/phylolm.html" class="external-link">phylolm::phylolm()</a></code>,
 <code><a href="https://rdrr.io/pkg/caper/man/pgls.html" class="external-link">caper::pgls()</a></code> and <code><a href="https://rdrr.io/pkg/nlme/man/gls.html" class="external-link">nlme::gls()</a></code> with
@@ -625,7 +907,7 @@ BLAS), with phytools 2.5.2, geiger 2.0.12, phylosignal 1.3.1, picante
 tree with its branches transformed by Pagel’s lambda, and, for the fits
 with measurement error, standard errors between 0.05 and 0.6 with the
 corresponding noise added to the trait:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">sim_trait</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">n</span>, <span class="va">lambda</span>, <span class="va">se</span> <span class="op">=</span> <span class="cn">TRUE</span>, <span class="va">seed</span> <span class="op">=</span> <span class="fl">1</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="va">seed</span><span class="op">)</span></span>
 <span>  <span class="va">phy</span> <span class="op">&lt;-</span> <span class="fu">ape</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/ape/man/rtree.html" class="external-link">rcoal</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span></span>
@@ -646,10 +928,10 @@ corresponding noise added to the trait:</p>
 </h3>
 <p>The same model fitted with each package (without <code>se</code> for
 the packages that do not take it):</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/phylo_signal.html">phylo_signal</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">d</span><span class="op">$</span><span class="va">phy</span>, se <span class="op">=</span> <span class="va">se</span>, data <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">cbind</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">data</span>, se <span class="op">=</span> <span class="va">d</span><span class="op">$</span><span class="va">se</span><span class="op">)</span>, species <span class="op">=</span> <span class="va">sp</span><span class="op">)</span></span>
 <span><span class="fu">phytools</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/phytools/man/phylosig.html" class="external-link">phylosig</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">phy</span>, <span class="va">d</span><span class="op">$</span><span class="va">x</span>, method <span class="op">=</span> <span class="st">"lambda"</span>, se <span class="op">=</span> <span class="va">d</span><span class="op">$</span><span class="va">se</span><span class="op">)</span></span>
-<span><span class="fu">geiger</span><span class="fu">::</span><span class="fu">fitContinuous</span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">phy</span>, <span class="va">d</span><span class="op">$</span><span class="va">x</span>, SE <span class="op">=</span> <span class="va">d</span><span class="op">$</span><span class="va">se</span>, model <span class="op">=</span> <span class="st">"lambda"</span><span class="op">)</span></span>
+<span><span class="fu">geiger</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/geiger/man/fitContinuous.html" class="external-link">fitContinuous</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">phy</span>, <span class="va">d</span><span class="op">$</span><span class="va">x</span>, SE <span class="op">=</span> <span class="va">d</span><span class="op">$</span><span class="va">se</span>, model <span class="op">=</span> <span class="st">"lambda"</span><span class="op">)</span></span>
 <span><span class="fu">phylosignal</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/phylosignal/man/phylosignalStats.html" class="external-link">phyloSignal</a></span><span class="op">(</span><span class="fu">phylobase</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/phylobase/man/phylo4d-methods.html" class="external-link">phylo4d</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">phy</span>, tip.data <span class="op">=</span> <span class="va">d</span><span class="op">$</span><span class="va">data</span><span class="op">[</span><span class="st">"x"</span><span class="op">]</span><span class="op">)</span>, methods <span class="op">=</span> <span class="st">"Lambda"</span><span class="op">)</span></span>
 <span><span class="fu">phylolm</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/phylolm/man/phylolm.html" class="external-link">phylolm</a></span><span class="op">(</span><span class="va">x</span> <span class="op">~</span> <span class="fl">1</span>, data <span class="op">=</span> <span class="va">d</span><span class="op">$</span><span class="va">data</span>, phy <span class="op">=</span> <span class="va">d</span><span class="op">$</span><span class="va">phy</span>, model <span class="op">=</span> <span class="st">"lambda"</span><span class="op">)</span></span>
 <span><span class="fu">caper</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/caper/man/pgls.html" class="external-link">pgls</a></span><span class="op">(</span><span class="va">x</span> <span class="op">~</span> <span class="fl">1</span>, <span class="fu">caper</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/caper/man/comparative.data.html" class="external-link">comparative.data</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">phy</span>, <span class="va">d</span><span class="op">$</span><span class="va">data</span>, <span class="st">"sp"</span><span class="op">)</span>, lambda <span class="op">=</span> <span class="st">"ML"</span><span class="op">)</span></span>
@@ -749,7 +1031,7 @@ the dense covariance matrix, and their time grows with its cube.</p>
 same profile log-likelihood (the likelihood of the model maximized over
 the variance and the mean, at that lambda), the one all packages
 maximize:</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">prof_loglik</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">lambda</span>, <span class="va">x</span>, <span class="va">phy</span>, <span class="va">se</span> <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">C</span> <span class="op">&lt;-</span> <span class="fu">ape</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/ape/man/vcv.phylo.html" class="external-link">vcv</a></span><span class="op">(</span><span class="va">phy</span><span class="op">)</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span><span class="op">]</span></span>
 <span>  <span class="va">Cl</span> <span class="op">&lt;-</span> <span class="va">lambda</span> <span class="op">*</span> <span class="va">C</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span> <span class="op">-</span> <span class="va">lambda</span><span class="op">)</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="va">C</span><span class="op">)</span><span class="op">)</span></span>
@@ -911,7 +1193,7 @@ it does not depend on starting values.</p>
 <div class="section level3">
 <h3 id="blombergs-k">Blomberg’s K<a class="anchor" aria-label="anchor" href="#blombergs-k"></a>
 </h3>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu">sim_trait</span><span class="op">(</span><span class="fl">2000</span>, lambda <span class="op">=</span> <span class="fl">0.8</span>, se <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/phylo_signal.html">phylo_signal</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">x</span>, <span class="va">d</span><span class="op">$</span><span class="va">phy</span>, method <span class="op">=</span> <span class="st">"K"</span>, nsim <span class="op">=</span> <span class="fl">999</span><span class="op">)</span></span>
 <span><span class="fu">phytools</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/phytools/man/phylosig.html" class="external-link">phylosig</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">phy</span>, <span class="va">d</span><span class="op">$</span><span class="va">x</span>, method <span class="op">=</span> <span class="st">"K"</span>, test <span class="op">=</span> <span class="cn">TRUE</span>, nsim <span class="op">=</span> <span class="fl">999</span><span class="op">)</span></span>
@@ -962,7 +1244,7 @@ for 300 species (the same K), and 0.43 and 2.2 seconds with phyr for
 <div class="section level2">
 <h2 id="benchmark-for-cor_phylo">Benchmark for <code>cor_phylo()</code><a class="anchor" aria-label="anchor" href="#benchmark-for-cor_phylo"></a>
 </h2>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/emmanuelparadis/ape" class="external-link">ape</a></span><span class="op">)</span></span>
 <span><span class="co"># Set up parameter values for simulating data</span></span>
 <span><span class="va">n</span> <span class="op">&lt;-</span> <span class="fl">50</span></span>

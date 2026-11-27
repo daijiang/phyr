@@ -72,8 +72,9 @@ get_design_matrix(formula, data, random.effects, na.action = NULL)
   removing those rows from `data` manually before calling `pglmm`. As a
   result, `pglmm(data_with_NAs)` and `pglmm(na.omit(data[, vars]))`
   (with `vars` the variables of the model) produce identical estimates.
-  With `random.effects`, only the rows with missing values in the
-  response are dropped.
+  With `random.effects`, the rows with missing values in the response or
+  the fixed effects are dropped, together with their values in
+  `random.effects`.
 
 - random.effects:
 
@@ -90,6 +91,20 @@ get_design_matrix(formula, data, random.effects, na.action = NULL)
   corresponding group variables in the data. Also, this should be *a
   list of lists*, e.g.
   `random.effects = list(re1 = list(matrix_a), re2 = list(1, sp = sp, covar = Vsp))`.
+  Each element is one random term: `list(x, g, covar)` (one value per
+  level of the factor `g`, with covariance matrix `covar`, times the
+  covariate `x`, 1 for intercepts), `list(x, g1, covar1, g2)` (one value
+  per combination of `g1` and `g2`, with covariance matrix
+  `kronecker(I, covar1)`), or `list(V)` (one value per row of the data,
+  with covariance matrix `V`). They are fitted with the sparse code (see
+  `sparse`), with the inverses of these matrices, which must be positive
+  definite; in `list(V)`, rows of `V` that are identical (e.g.
+  replicated observations of the same species at the same site) are
+  merged into one level, and if `V` is still singular, the dense code is
+  used (`sparse = NULL`, not with `method = "Laplace"`). Binomial and
+  poisson models with `random.effects` are fitted with the Laplace
+  approximation by default (PQL before phyr 1.9.0); no observation-level
+  term is added, as `random.effects` gives all the random terms.
 
 - na.action:
 

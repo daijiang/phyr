@@ -8,9 +8,7 @@ random terms for `communityPGLMM` models.
 The main function to use is
 [`phyr::pglmm_plot_re()`](https://daijiang.github.io/phyr/reference/pglmm-plot-re.md)
 (alias:
-[`phyr::pglmm_plot_ranef()`](https://daijiang.github.io/phyr/reference/pglmm-plot-re.md),
-[`phyr::communityPGLMM.show.re()`](https://daijiang.github.io/phyr/reference/pglmm-plot-re.md),
-[`phyr::communityPGLMM.plot.re()`](https://daijiang.github.io/phyr/reference/pglmm-plot-re.md)).
+[`phyr::pglmm_plot_ranef()`](https://daijiang.github.io/phyr/reference/pglmm-plot-re.md)).
 Here are the arguments of this function:
 
 ``` r
@@ -114,6 +112,7 @@ head(d)
 # fit a model
 mod_1 = pglmm(Y ~ 1 + env + (1|sp__) + (1|site) + (env|sp__) + (1|sp__@site),
               data = d, cov_ranef = list(sp = phy))
+## boundary (singular) fit: the variances of 1|sp, 1|site, env|sp are (close to) zero; see ?pglmm_is_singular
 summary(mod_1)
 ## Linear mixed model fit by restricted maximum likelihood
 ## 
@@ -380,7 +379,7 @@ pglmm_plot_re(x = mod_1, show.image = FALSE, show.sim.image = TRUE,
 
 ``` r
 
-communityPGLMM.show.re(x = mod_1, show.image = TRUE, show.sim.image = FALSE, useAbs = TRUE)
+pglmm_plot_ranef(x = mod_1, show.image = TRUE, show.sim.image = FALSE, useAbs = TRUE)
 ```
 
 ![](plot-re_files/figure-html/unnamed-chunk-17-2.png)

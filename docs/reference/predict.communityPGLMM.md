@@ -13,6 +13,9 @@ predict(
   re.form = NULL,
   type = c("link", "response"),
   allow.new.levels = FALSE,
+  se.fit = FALSE,
+  interval = c("none", "confidence"),
+  level = 0.95,
   ...
 )
 ```
@@ -49,6 +52,36 @@ predict(
   are set to zero; if `FALSE` (default), they give an error. Only used
   with `newdata`.
 
+- se.fit:
+
+  Whether to return the standard errors of the predictions (models
+  fitted with `bayes = FALSE`). Without random effects (`re.form = NA`),
+  they come from the covariance matrix of the fixed effects
+  ([vcov()](https://daijiang.github.io/phyr/reference/vcov.communityPGLMM.md)).
+  With the random effects (`re.form = NULL`, models fitted with the
+  sparse code or `method = "Laplace"`), they are the standard errors of
+  prediction of the fixed and random effects together (from the mixed
+  model equations, conditional on the estimated variances, as for the
+  conditional modes of
+  [`ranef()`](https://daijiang.github.io/phyr/reference/ranef.md)); a
+  level of a random term without phylogeny that is not in the data
+  (`allow.new.levels = TRUE`) adds the variance of the term, and other
+  new levels give `NA`. With `type = "response"`, the standard errors
+  are on the scale of the response (delta method). With
+  `newdata = NULL`, the predictions are those of the rows of the data
+  used for the fit, without the observation-level term `1|obs` of
+  binomial and poisson models.
+
+- interval:
+
+  `"confidence"` for confidence intervals of the predictions (on the
+  scale of the linear predictor, transformed with `type = "response"`),
+  from the standard errors of `se.fit`.
+
+- level:
+
+  Confidence level of the intervals.
+
 - ...:
 
   Additional arguments passed to
@@ -58,8 +91,10 @@ predict(
 ## Value
 
 A matrix with one column (`Y_hat`) and one row for each row of the data
-(or of `newdata`). Rows of `newdata` with missing values in the
-variables needed have `NA`.
+(or of `newdata`), with the columns `lower` and `upper` with
+`interval = "confidence"`. With `se.fit = TRUE`, a list with this matrix
+(`fit`) and the standard errors (`se.fit`). Rows of `newdata` with
+missing values in the variables needed have `NA`.
 
 ## Details
 
@@ -116,6 +151,7 @@ phy <- ape::keep.tip(phylotree, unique(dat$sp))
 fit <- pglmm(freq ~ shade + (1 | sp__) + (1 | site),
   data = dat, cov_ranef = list(sp = phy)
 )
+#> boundary (singular) fit: the variances of 1|sp, 1|site are (close to) zero; see ?pglmm_is_singular
 
 # predictions for the data used to fit the model
 head(predict(fit))
@@ -157,9 +193,28 @@ dat$pa <- as.numeric(dat$freq > 0)
 fit_pa <- pglmm(pa ~ shade + (1 | sp__) + (1 | site),
   data = dat, family = "binomial", cov_ranef = list(sp = phy)
 )
+#> boundary (singular) fit: the variances of 1|sp, 1|site are (close to) zero; see ?pglmm_is_singular
 predict(fit_pa, newdata = newdat, type = "response")
 #>       Y_hat
 #> 1 0.3594783
 #> 2 0.4820189
 #> 3 0.4002902
+
+# standard errors and confidence intervals, without and with random effects
+predict(fit_pa, newdata = newdat, re.form = NA, se.fit = TRUE)
+#> $fit
+#>        Y_hat
+#> 1 -1.7947758
+#> 2 -1.2891021
+#> 3 -0.7834284
+#> 
+#> $se.fit
+#>         1         2         3 
+#> 0.5167589 0.4581021 0.5401729 
+#> 
+predict(fit_pa, newdata = newdat, type = "response", interval = "confidence")
+#>       Y_hat     lower     upper
+#> 1 0.3594783 0.1735678 0.5999582
+#> 2 0.4820189 0.2777128 0.6925195
+#> 3 0.4002902 0.1801850 0.6696455
 ```

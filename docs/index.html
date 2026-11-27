@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="index.html">phyr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -68,6 +68,23 @@
 </div>
 <!-- badges: start -->
 
+</div>
+<div class="section level1">
+<h1 id="whats-new-in-phyr-190">What’s new in phyr 1.9.0<a class="anchor" aria-label="anchor" href="#whats-new-in-phyr-190"></a>
+</h1>
+<ul>
+<li>
+<strong>One engine for all models.</strong> Covariance matrices in <code>cov_ranef</code>, lists in <code>random.effects</code> and Bayesian models (<code>bayes = TRUE</code>) are now also fitted with the sparse code; a covariance matrix that comes from a phylogeny is converted back to the phylogeny, so it is as fast.</li>
+<li>
+<strong>Prior weights</strong> (<code>weights</code>), for all families, also with <code>bayes = TRUE</code>.</li>
+<li>
+<strong>Better tests for binary data.</strong> <code><a href="reference/pglmm_boot_LRT.html">pglmm_boot_LRT()</a></code> gives a parametric bootstrap test of nested models, which keeps its nominal error rate where Wald and chi-square tests reject a true null hypothesis too often (see the <a href="https://daijiang.github.io/phyr/articles/benchmarks.html">simulation study</a>).</li>
+<li>
+<strong>Other packages.</strong> Estimated marginal means and contrasts (emmeans), marginal effects (marginaleffects) and effect plots (effects) work with <code><a href="reference/pglmm.html">pglmm()</a></code> models.</li>
+<li>
+<strong>Fits at the boundary.</strong> A message when a variance is estimated at zero, and <code><a href="reference/pglmm_is_singular.html">pglmm_is_singular()</a></code>.</li>
+</ul>
+<p>Some names were removed or deprecated (e.g. the arguments <code>tree</code> and <code>tree_site</code>), and binomial and poisson models with <code>random.effects</code> are now fitted with the Laplace approximation: see the <a href="https://daijiang.github.io/phyr/news/index.html">NEWS</a>.</p>
 </div>
 <div class="section level1">
 <h1 id="whats-new-in-phyr-150">What’s new in phyr 1.5.0<a class="anchor" aria-label="anchor" href="#whats-new-in-phyr-150"></a>
@@ -158,6 +175,7 @@
 <span><span class="va">test1</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/pglmm.html">pglmm</a></span><span class="op">(</span><span class="va">freq</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">shade</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span>,</span>
 <span>               data <span class="op">=</span> <span class="va">dat</span>, family <span class="op">=</span> <span class="st">"gaussian"</span>, REML <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>               cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">## boundary (singular) fit: the variances of 1|sp__, 1|site, 1|sp__@site are (close to) zero; see ?pglmm_is_singular</span></span>
 <span><span class="va">test1</span></span>
 <span><span class="co">## Linear mixed model fit by maximum likelihood</span></span>
 <span><span class="co">## </span></span>
@@ -194,6 +212,7 @@
 <span><span class="va">test2</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/pglmm.html">pglmm</a></span><span class="op">(</span><span class="va">pa</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">shade</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span>,</span>
 <span>               data <span class="op">=</span> <span class="va">dat</span>, family <span class="op">=</span> <span class="st">"binomial"</span>, REML <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>               cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">## boundary (singular) fit: the variances of 1|sp, 1|site, 1|sp__@site are (close to) zero; see ?pglmm_is_singular</span></span>
 <span><span class="va">test2</span></span>
 <span><span class="co">## Generalized linear mixed model for binomial data fit by Laplace approximation (maximum likelihood)</span></span>
 <span><span class="co">## </span></span>
@@ -219,6 +238,7 @@
 <span><span class="va">test2a</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/pglmm.html">pglmm</a></span><span class="op">(</span><span class="va">pa</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">shade</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">site</span><span class="op">)</span>,</span>
 <span>                data <span class="op">=</span> <span class="va">dat</span>, family <span class="op">=</span> <span class="st">"binomial"</span>, REML <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>                cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">## boundary (singular) fit: the variances of 1|sp, 1|site are (close to) zero; see ?pglmm_is_singular</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/anova.html" class="external-link">anova</a></span><span class="op">(</span><span class="va">test2a</span>, <span class="va">test2</span><span class="op">)</span></span>
 <span><span class="co">## test2a: pa ~ 1 + shade + (1 | sp__) + (1 | site)</span></span>
 <span><span class="co">## test2: pa ~ 1 + shade + (1 | sp__) + (1 | site) + (1 | sp__@site)</span></span>
@@ -233,6 +253,7 @@
 <span>                       <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp</span><span class="op">@</span><span class="va">site__</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">sp__</span><span class="op">@</span><span class="va">site__</span><span class="op">)</span>,</span>
 <span>                     data <span class="op">=</span> <span class="va">dat</span>, family <span class="op">=</span> <span class="st">"gaussian"</span>, REML <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>                     cov_ranef <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>sp <span class="op">=</span> <span class="va">phy</span>, site <span class="op">=</span> <span class="va">tree_site</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">## boundary (singular) fit: the variances of 1|sp, 1|site, 1|site__, 1|sp__@site, 1|sp@site__, 1|sp__@site__ are (close to) zero; see ?pglmm_is_singular</span></span>
 <span><span class="va">z_bipartite</span></span>
 <span><span class="co">## Linear mixed model fit by restricted maximum likelihood</span></span>
 <span><span class="co">## </span></span>
