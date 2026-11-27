@@ -357,7 +357,15 @@ test_that("nested phylogenetic terms give the same fits as glmmTMB for all famil
     if (grepl("^zeroinflated", fname)) {
       expect_equal(m$zi, plogis(glmmTMB::fixef(tm)$zi[[1]]), tolerance = 1e-3, label = lab)
     }
-    expect_equal(m$logLik, as.numeric(logLik(tm)), tolerance = 1e-7, label = lab)
+    # glmmTMB's logLik() is NA when its Hessian is not positive definite (e.g. a
+    # variance near zero, which can depend on the platform): then phyr's
+    # log-likelihood should be at least that at glmmTMB's optimum (-objective)
+    ll.tm <- -tm$fit$objective
+    if (isTRUE(tm$sdr$pdHess)) {
+      expect_equal(m$logLik, ll.tm, tolerance = 1e-7, label = lab)
+    } else {
+      expect_gte(m$logLik, ll.tm - 1e-6, label = lab)
+    }
     expect_equal(as.vector(m$B), unname(glmmTMB::fixef(tm)$cond), tolerance = 1e-3, label = lab)
     expect_equal(unname(vp), unname(vt), tolerance = 1e-3, label = lab)
     expect_equal(disp[1], disp[2], tolerance = 1e-3, label = lab)
