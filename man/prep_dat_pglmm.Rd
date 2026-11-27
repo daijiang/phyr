@@ -181,7 +181,15 @@ response data.}
 
 \item{add.obs.re}{Whether to add an observation-level random term for binomial or Poisson
 distributions. Normally it would be a good idea to add this to account for overdispersion,
-so \code{add.obs.re = TRUE} by default.}
+so \code{add.obs.re = TRUE} by default. It is not added when a nested term without
+phylogeny already has one level per observation, e.g. \code{(1 | sp@site)} with one
+observation for each species and site (it is then the observation-level term); a nested
+term with a phylogeny, e.g. \code{(1 | sp__@site)}, does not add \code{(1 | sp@site)}, so
+\code{1|obs} is added. Such an observation-level nested term cannot be estimated with
+gaussian data (it is confounded with the residual variance) and binary data: with
+\code{bayes = FALSE}, it is dropped from the model, with a warning and a message; for the
+families with a dispersion parameter (e.g. negative binomial, Gamma, beta), it overlaps
+that parameter, with a warning.}
 
 \item{bayes}{Whether to fit a Bayesian version of the PGLMM using \code{r-inla}.}
 

@@ -53,6 +53,9 @@ test_that("random terms with unknown or unsupported grouping variables stop clea
 
 test_that("interactions of grouping factors (lme4) are nested terms", {
   s <- formula_data()
+  # two observations per species and site (with one, 1|sp@site of gaussian
+  # data is confounded with the residual variance, and is dropped)
+  s$d <- rbind(s$d, transform(s$d, y = y + rnorm(nrow(s$d))))
   for (sp in c(TRUE, FALSE)) {
     b <- qpglmm(y ~ x + (1 | sp__) + (1 | sp@site), s$d, cov_ranef = list(sp = s$phy), sparse = sp)
     a <- qpglmm(y ~ x + (1 | sp__) + (1 | sp:site), s$d, cov_ranef = list(sp = s$phy), sparse = sp)

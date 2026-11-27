@@ -108,7 +108,9 @@ test_that("predicted values and residuals of binomial and poisson models", {
 })
 
 test_that("nested terms work without cov_ranef", {
-  m <- quiet(pglmm(succ > 5 ~ x + (1 | sp) + (1 | sp@site), data = d, family = "binomial"))
+  # (binomial data with trials: with 0/1 data, 1|sp@site with one observation per
+  # species and site cannot be estimated, and is dropped)
+  m <- quiet(pglmm(cbind(succ, size - succ) ~ x + (1 | sp) + (1 | sp@site), data = d, family = "binomial"))
   expect_s3_class(m, "communityPGLMM")
   expect_named(ranef(m), c("1|sp", "1|sp@site"))
   expect_identical(ranef(m)[["1|sp@site"]][c("sp", "site")], d[c("sp", "site")], ignore_attr = TRUE)

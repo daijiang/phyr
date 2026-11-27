@@ -72,3 +72,37 @@ test_that("grouping factors with one level, missing variables and misspelled fam
   expect_error(pglmm(y ~ x + (1 | sp__), d, "Gamma", cov_ranef = cr, bayes = TRUE),
                "only available with bayes = FALSE")
 })
+
+test_that("observation-level nested terms: 1|obs not added twice, warnings when they cannot be estimated", {
+  b <- err_data()
+  d <- b$d
+  cr <- list(sp = b$phy)
+  d$cnt <- rpois(nrow(d), 3)
+  d$s <- rbinom(nrow(d), 5, 0.4)
+  d$f <- 5 - d$s
+  # poisson and binomial with trials: 1|sp@site (one observation per cell) is
+  # the observation-level term, so 1|obs is not added
+  m <- suppressMessages(pglmm(cnt ~ x + (1 | sp__) + (1 | sp@site), d, "poisson", cov_ranef = cr))
+  expect_false("1|obs" %in% names(m$ss))
+  m <- suppressMessages(pglmm(cbind(s, f) ~ x + (1 | sp__) + (1 | sp@site), d, "binomial", cov_ranef = cr))
+  expect_false("1|obs" %in% names(m$ss))
+  # sp__@site does not add sp@site: 1|obs is added
+  m <- suppressMessages(pglmm(cnt ~ x + (1 | sp__) + (1 | sp__@site), d, "poisson", cov_ranef = cr))
+  expect_true("1|obs" %in% names(m$ss))
+  # binary and gaussian data: a warning, and the term is dropped (with a message)
+  expect_warning(expect_message(m <- pglmm(pa ~ x + (1 | sp__) + (1 | sp@site), d, "binomial", cov_ranef = cr),
+                                "1\\|sp@site was dropped"), "cannot be estimated with binary")
+  expect_false("1|sp@site" %in% names(m$ss))
+  expect_equal(m$logLik, qpglmm(pa ~ x + (1 | sp__), d, "binomial", cov_ranef = cr)$logLik)
+  expect_warning(expect_message(m <- pglmm(y ~ x + (1 | sp__) + (1 | site) + (1 | sp@site), d, cov_ranef = cr),
+                                "was dropped"), "confounded with the residual variance")
+  expect_equal(deparse(formula(m)), "y ~ x + (1 | sp__) + (1 | site)")
+  # families with a dispersion parameter: a warning only (the term is kept)
+  expect_warning(m <- suppressMessages(pglmm(cnt ~ x + (1 | sp__) + (1 | sp@site), d, "nbinomial", cov_ranef = cr)),
+                 "dispersion parameter \\(theta\\)")
+  expect_true("1|sp@site" %in% names(m$ss))
+  # no warning with several observations per cell
+  d2 <- rbind(d, d)
+  d2$y <- rnorm(nrow(d2))
+  expect_no_warning(suppressMessages(pglmm(y ~ x + (1 | sp__) + (1 | sp@site), d2, cov_ranef = cr)))
+})

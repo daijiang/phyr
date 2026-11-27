@@ -422,3 +422,59 @@ pglmm_check_levels <- function(terms, data) {
   invisible(NULL)
 }
 
+# Warn for a nested intercept without phylogeny (e.g. 1|sp@site) with one level
+# per observation (one observation per combination of its grouping
+# variables): an observation-level term, whose variance cannot be estimated
+# with gaussian data (it is confounded with the residual variance) and binary
+# data, and overlaps the dispersion parameter of the families that have one
+# (it is the observation-level term 1|obs of poisson and binomial data with
+# trials, see pglmm_re_obs()). Returns the names of the terms that cannot be
+# estimated (gaussian and binary data), which pglmm_fit() drops.
+pglmm_check_obs_terms <- function(terms, data, formula, family) {
+  family <- as.character(family)
+  resp <- tryCatch(model.response(model.frame(reformulas::nobars(formula), data, na.action = NULL)),
+                   error = function(e) NULL)
+  binary <- family == "binomial" && !is.array(resp) && is.null(pglmm_prior_weights(data))
+  spec <- pglmm_family_spec(family)
+  disp <- if (!is.null(spec$disp)) {
+    lab <- spec$disp$name[spec$disp$name != "zi"]
+    if (length(lab)) lab
+  }
+  why <- if (family == "gaussian") {
+    "its variance is confounded with the residual variance, so it cannot be estimated"
+  } else if (binary) {
+    "its variance cannot be estimated with binary (0/1) data"
+  } else if (!is.null(disp)) {
+    paste0("it overlaps the dispersion parameter (", disp[1], ") of the ", family,
+           " family, so that the two are hard to separate")
+  }
+  if (is.null(why)) return(invisible(character(0)))
+  drop <- family == "gaussian" || binary
+  out <- character(0)
+  for (t in terms) {
+    if (t$nested && !any(t$phy) && t$lhs == "1" && pglmm_one_obs_per_cell(data, t$group)) {
+      warning("The random term ", t$name, " has one level per observation (one observation for each ",
+              "combination of ", paste(t$group, collapse = " and "), "): it is an observation-level ",
+              "term, and ", why, ". ",
+              if (drop) "It is dropped from the model (with bayes = FALSE)." else "Consider removing it",
+              if (!drop) " (with several observations for some combinations, it is not an observation-level term).",
+              call. = FALSE)
+      if (drop) out <- c(out, t$name)
+    }
+  }
+  invisible(out)
+}
+
+# The formula without the random terms named drop (as the names of the terms
+# of pglmm_parse_re(), e.g. "1|sp@site")
+pglmm_drop_terms <- function(formula, drop) {
+  bars <- reformulas::findbars(formula)
+  nm <- vapply(bars, function(b) paste0(deparse1(b[[2]]), "|", deparse1(b[[3]])), "")
+  nm <- gsub(" ", "", nm)
+  keep <- bars[!nm %in% gsub(" ", "", drop)]
+  fixed <- reformulas::nobars(formula)
+  rhs <- c(deparse1(fixed[[length(fixed)]]), vapply(keep, function(b) paste0("(", deparse1(b), ")"), ""))
+  f <- stats::as.formula(paste(deparse1(fixed[[2]]), "~", paste(rhs, collapse = " + ")))
+  environment(f) <- environment(formula)
+  f
+}

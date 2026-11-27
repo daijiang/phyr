@@ -303,7 +303,15 @@
 #'   repulsion to be something like \code{c(TRUE, FALSE, TRUE, TRUE)} (length of 4).
 #' @param add.obs.re Whether to add an observation-level random term for binomial or Poisson
 #'   distributions. Normally it would be a good idea to add this to account for overdispersion,
-#'   so \code{add.obs.re = TRUE} by default.
+#'   so \code{add.obs.re = TRUE} by default. It is not added when a nested term without
+#'   phylogeny already has one level per observation, e.g. \code{(1 | sp@site)} with one
+#'   observation for each species and site (it is then the observation-level term); a nested
+#'   term with a phylogeny, e.g. \code{(1 | sp__@site)}, does not add \code{(1 | sp@site)}, so
+#'   \code{1|obs} is added. Such an observation-level nested term cannot be estimated with
+#'   gaussian data (it is confounded with the residual variance) and binary data: with
+#'   \code{bayes = FALSE}, it is dropped from the model, with a warning and a message; for the
+#'   families with a dispersion parameter (e.g. negative binomial, Gamma, beta), it overlaps
+#'   that parameter, with a warning.
 #' @param verbose If \code{TRUE}, the model deviance and running
 #'   estimates of \code{s2} and \code{B} are plotted each iteration
 #'   during optimization.
@@ -1205,6 +1213,16 @@ pglmm_fit <- function(formula, data = NULL, family = "gaussian", cov_ranef = NUL
     pglmm_check_vars(formula, data)
     data <- data[pglmm_complete_rows(formula, data, re.parsed$vars), , drop = FALSE]
     pglmm_check_levels(re.parsed$terms, data)
+    drop <- pglmm_check_obs_terms(re.parsed$terms, data, formula, family)
+    if (length(drop) && !bayes) {
+      # observation-level terms whose variance cannot be estimated (gaussian and
+      # binary data): dropped
+      message("The random term", if (length(drop) > 1) "s", " ", paste(drop, collapse = ", "),
+              if (length(drop) > 1) " were" else " was", " dropped from the model (see the warning).")
+      formula <- pglmm_drop_terms(formula, drop)
+      re.parsed <- pglmm_parse_re(formula, data, phylo_only = phylo_only)
+      formula <- re.parsed$formula
+    }
   }
   # the terms of the model, stored in the fitted model (named by term), so
   # that methods (ranef(), predict()) do not need to parse the term names

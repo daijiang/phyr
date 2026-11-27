@@ -273,7 +273,10 @@ test_that("estimates of all random terms sum to the fitted random effects", {
 
 test_that("ranef() works with missing values and repeated combinations", {
   f <- y ~ x + (1 | sp__) + (1 | site) + (1 | sp@site)
-  d2 <- d
+  # some combinations of species and site twice (with one observation for each,
+  # 1|sp@site of gaussian data is confounded with the residual variance, and
+  # is dropped)
+  d2 <- rbind(d, transform(d[1:40, ], y = y + rnorm(40)))
   d2$x[c(3, 40)] <- NA
   d2$y[7] <- NA
   used <- d2[-c(3, 40, 7), ]
@@ -281,9 +284,10 @@ test_that("ranef() works with missing values and repeated combinations", {
   m.ok <- pglmm(f, data = used, cov_ranef = list(sp = phy))
   r.na <- ranef(m.na, condVar = TRUE)
   r.ok <- ranef(m.ok, condVar = TRUE)
-  expect_equal(nrow(r.na[["1|sp@site"]]), nrow(used))
-  expect_identical(r.na[["1|sp@site"]]$sp, used$sp)
-  expect_identical(r.na[["1|sp@site"]]$site, used$site)
+  cells <- unique(used[c("sp", "site")])
+  expect_equal(nrow(r.na[["1|sp@site"]]), nrow(cells))
+  expect_identical(r.na[["1|sp@site"]]$sp, cells$sp)
+  expect_identical(r.na[["1|sp@site"]]$site, cells$site)
   # the order of levels can differ (it is set before rows are dropped), match by labels
   for (nm in names(r.na)) {
     labs <- label_cols(r.na[[nm]])
