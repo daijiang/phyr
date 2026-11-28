@@ -76,7 +76,7 @@ test_that("pglmm_compare gives the same estimates as the earlier implementation"
 
 test_that("pglmm_compare with bayes = TRUE gives the same estimates as before", {
   skip_on_cran()
-  skip_if_not_installed("INLA")
+  skip_if_no_inla()
   z <- qfit(yg ~ x, data = cmp$d, phy = cmp$phy, bayes = TRUE)
   expect_equal(as.vector(z$B), c(2.445322988, 0.3942937328), tolerance = 1e-3)
   expect_equal(unname(z$s2n), 0.1444006164, tolerance = 1e-3)

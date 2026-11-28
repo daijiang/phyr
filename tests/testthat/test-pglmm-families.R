@@ -161,7 +161,7 @@ test_that("methods of negative binomial models", {
 
 test_that("negative binomial models with bayes = TRUE", {
   skip_on_cran()
-  skip_if_not_installed("INLA")
+  skip_if_no_inla()
   m <- pglmm(y ~ x + (1 | sp__) + (1 | site), data = dn, family = "nbinomial",
              cov_ranef = list(sp = nb$phy), REML = FALSE)
   b <- quiet(pglmm(y ~ x + (1 | sp__) + (1 | site), data = dn, family = "nbinomial",

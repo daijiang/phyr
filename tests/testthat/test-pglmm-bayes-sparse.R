@@ -62,7 +62,7 @@ test_that("sparse_method = \"flow\" and repulsion are checked", {
 
 test_that("dense, sparse precision and flow bayesian fits agree", {
   testthat::skip_on_cran()
-  testthat::skip_if_not_installed("INLA")
+  skip_if_no_inla()
   testthat::skip_if_not_installed("sn")
   s <- sim_bayes_sparse_data()
   cases <- list(
@@ -98,7 +98,7 @@ test_that("dense, sparse precision and flow bayesian fits agree", {
 
 test_that("flow rates give the phylogenetic effects of the tips", {
   testthat::skip_on_cran()
-  testthat::skip_if_not_installed("INLA")
+  skip_if_no_inla()
   testthat::skip_if_not_installed("sn")
   s <- sim_bayes_sparse_data()
   f <- y ~ x + (1 | sp__) + (1 | site)
@@ -185,7 +185,7 @@ test_that("pglmm_bayes_sparse_terms() builds the INLA terms", {
 
 test_that("bayes = TRUE: covariance matrices, random.effects lists and ML.init with the sparse code", {
   testthat::skip_on_cran()
-  testthat::skip_if_not_installed("INLA")
+  skip_if_no_inla()
   testthat::skip_if_not_installed("sn")
   s <- sim_bayes_sparse_data(15, 4)
   q <- function(...) suppressWarnings(suppressMessages(pglmm(...)))
@@ -227,7 +227,7 @@ test_that("bayes = TRUE: covariance matrices, random.effects lists and ML.init w
 
 test_that("bayesian sparse fits agree for site phylogenies and poisson models", {
   testthat::skip_on_cran()
-  testthat::skip_if_not_installed("INLA")
+  skip_if_no_inla()
   testthat::skip_if_not_installed("sn")
   s <- sim_bayes_sparse_data()
   # a signal strong enough that the posterior of the species variance is away from zero:
@@ -254,7 +254,7 @@ test_that("bayesian sparse fits agree for site phylogenies and poisson models", 
 
 test_that("rows with a missing response are dropped, and the latent estimates are labelled", {
   testthat::skip_on_cran()
-  testthat::skip_if_not_installed("INLA")
+  skip_if_no_inla()
   testthat::skip_if_not_installed("sn")
   s <- sim_bayes_sparse_data(15, 4)
   d_na <- s$d
@@ -280,7 +280,7 @@ test_that("rows with a missing response are dropped, and the latent estimates ar
 
 test_that("ranef(), predict(newdata) and simulate(re.form = NA) of sparse fits match the dense INLA model", {
   testthat::skip_on_cran()
-  testthat::skip_if_not_installed("INLA")
+  skip_if_no_inla()
   testthat::skip_if_not_installed("sn")
   s <- sim_bayes_sparse_data(15, 4)
   q <- function(...) suppressWarnings(suppressMessages(pglmm(...)))

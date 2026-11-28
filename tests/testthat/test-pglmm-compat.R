@@ -68,7 +68,7 @@ test_that("emmeans works with phylogenetic models, and not with bayes = TRUE", {
   expect_equal(e$emmean, unname(B[1] + B["x"] * mx + c(0, B["trtb"], B["trtc"])), tolerance = 1e-8)
   X <- cbind(1, mx, c(0, 1, 0), c(0, 0, 1))
   expect_equal(e$SE, sqrt(diag(X %*% vcov(m) %*% t(X))), tolerance = 1e-8)
-  skip_if_not_installed("INLA")
+  skip_if_no_inla()
   mb <- qpglmm(y ~ x + (1 | sp) + (1 | site), data = b$d, bayes = TRUE)
   expect_error(emmeans::recover_data(mb), "bayes = FALSE")
 })

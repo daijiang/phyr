@@ -118,7 +118,7 @@ test_that("nested terms work without cov_ranef", {
 
 test_that("predicted values, residuals and simulations of bayesian models", {
   skip_on_cran()
-  skip_if_not_installed("INLA")
+  skip_if_no_inla()
   bb <- quiet(pglmm(cbind(succ, fail) ~ x + (1 | sp) + (1 | site),
     data = d, family = "binomial", bayes = TRUE
   ))
@@ -235,7 +235,7 @@ test_that("predict() with newdata works with phylogenetic and nested terms", {
 
 test_that("predict() with newdata works with bayesian models", {
   skip_on_cran()
-  skip_if_not_installed("INLA")
+  skip_if_no_inla()
   b <- quiet(pglmm(y ~ x + (1 | sp__) + (x | sp) + (1 | site) + (1 | sp__@site),
     data = d, cov_ranef = list(sp = phy), bayes = TRUE, sparse = FALSE
   ))

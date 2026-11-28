@@ -78,7 +78,7 @@ test_that("the sparse and dense code agree with the phylogeny of the package dat
 
 test_that("bayes = TRUE works with zero-inflated families and pc.prior.auto", {
   skip_on_cran()
-  skip_if_not_installed("INLA")
+  skip_if_no_inla()
   d <- dense_data()
   f <- ~ 1 + shade + (1 | sp__) + (1 | site)
   fit <- function(lhs, ...) {

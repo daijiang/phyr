@@ -131,7 +131,7 @@ test_that("pglmm_compare() takes weights", {
 
 test_that("weights with bayes = TRUE: as cbind() (binomial), duplicated rows (poisson) and lmer (gaussian)", {
   skip_on_cran()
-  skip_if_not_installed("INLA")
+  skip_if_no_inla()
   b <- weights_data(nsp = 25, nsite = 5)
   d <- b$d
   cr <- list(sp = b$phy)

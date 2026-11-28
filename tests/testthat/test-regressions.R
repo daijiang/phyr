@@ -252,7 +252,7 @@ test_that("pglmm_plot_ranef() works with models fitted with the sparse code", {
 
 test_that("plot_bayes() works when the posterior of a precision has a long right tail", {
   testthat::skip_on_cran()
-  testthat::skip_if_not_installed("INLA")
+  skip_if_no_inla()
   testthat::skip_if_not_installed("ggridges")
   # the posteriors of the precisions of 1|site and disturbance|sp__ reach about
   # 3e5; inla.tmarginal(sqrt(1 / x)) of them gave NaN and plot_bayes() failed

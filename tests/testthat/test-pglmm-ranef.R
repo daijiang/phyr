@@ -349,7 +349,7 @@ test_that("VarCorr() returns the variances of random terms", {
 
 test_that("ranef() works with bayesian models", {
   skip_on_cran()
-  skip_if_not_installed("INLA")
+  skip_if_no_inla()
   fit <- function(...) {
     suppressWarnings(suppressMessages(pglmm(..., bayes = TRUE, sparse = FALSE, cov_ranef = list(sp = phy))))
   }
